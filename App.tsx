@@ -119,66 +119,67 @@ const App: React.FC = () => {
             currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
           };
         }
-      } catch (e) {
-        console.error("Storage Access Error during Reset Check:", e);
-        // If storage fails, we can't reliably reset, so we assume we are good to go to avoid crash
       }
+    } catch (e) {
+      console.error("Storage Access Error during Reset Check:", e);
+      // If storage fails, we can't reliably reset, so we assume we are good to go to avoid crash
+    }
 
-      const saved = localStorage.getItem('prestamaster_v2');
-      let parsed = null;
-      try {
-        if (saved) {
-          parsed = JSON.parse(saved);
-        }
-      } catch (e) {
-        console.error("CRITICAL: LocalStorage corruption detected. Resetting...", e);
-        localStorage.removeItem('prestamaster_v2');
-        parsed = null;
+    const saved = localStorage.getItem('prestamaster_v2');
+    let parsed = null;
+    try {
+      if (saved) {
+        parsed = JSON.parse(saved);
       }
-      // STABLE ADMIN ID: Used to replace 'admin-1' and ensure consistency
-      const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-      const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
-      const defaultBrackets: CommissionBracket[] = [
-        { maxMora: 20, payoutPercent: 100 },
-        { maxMora: 30, payoutPercent: 80 },
-        { maxMora: 40, payoutPercent: 60 },
-        { maxMora: 100, payoutPercent: 40 }
-      ];
+    } catch (e) {
+      console.error("CRITICAL: LocalStorage corruption detected. Resetting...", e);
+      localStorage.removeItem('prestamaster_v2');
+      parsed = null;
+    }
+    // STABLE ADMIN ID: Used to replace 'admin-1' and ensure consistency
+    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+    const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
+    const defaultBrackets: CommissionBracket[] = [
+      { maxMora: 20, payoutPercent: 100 },
+      { maxMora: 30, payoutPercent: 80 },
+      { maxMora: 40, payoutPercent: 60 },
+      { maxMora: 100, payoutPercent: 40 }
+    ];
 
-      // Aggressive migration for the separate syncQueue
-      const savedQueue = localStorage.getItem('syncQueue');
-      if (savedQueue && savedQueue.includes('admin-1')) {
-        console.log("App: Migrating syncQueue to SYSTEM_ADMIN_ID");
-        const migratedQueue = savedQueue.replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-        localStorage.setItem('syncQueue', migratedQueue);
-      }
+    // Aggressive migration for the separate syncQueue
+    const savedQueue = localStorage.getItem('syncQueue');
+    if (savedQueue && savedQueue.includes('admin-1')) {
+      console.log("App: Migrating syncQueue to SYSTEM_ADMIN_ID");
+      const migratedQueue = savedQueue.replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
+      localStorage.setItem('syncQueue', migratedQueue);
+    }
 
-      let rawData = parsed;
-      if (rawData) {
-        // Aggressive migration of all legacy IDs to stable UUID locally
-        const migrateId = (id: string | undefined) => id === 'admin-1' ? SYSTEM_ADMIN_ID : id;
-        const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-        rawData = JSON.parse(json);
-      }
+    let rawData = parsed;
+    if (rawData) {
+      // Aggressive migration of all legacy IDs to stable UUID locally
+      const migrateId = (id: string | undefined) => id === 'admin-1' ? SYSTEM_ADMIN_ID : id;
+      const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
+      rawData = JSON.parse(json);
+    }
 
-      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
-      const users = (rawData?.users || [initialAdmin]).map((u: User) => u.id === 'admin-1' ? initialAdmin : u);
-      const currentUser = (rawData?.currentUser?.id === 'admin-1') ? initialAdmin : rawData?.currentUser;
+    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
+    const users = (rawData?.users || [initialAdmin]).map((u: User) => u.id === 'admin-1' ? initialAdmin : u);
+    const currentUser = (rawData?.currentUser?.id === 'admin-1') ? initialAdmin : rawData?.currentUser;
 
-      return {
-        clients: rawData?.clients || [],
-        loans: rawData?.loans || [],
-        payments: rawData?.payments || [],
-        expenses: rawData?.expenses || [],
-        collectionLogs: rawData?.collectionLogs || [],
-        users: users,
-        currentUser: currentUser || null,
-        commissionPercentage: rawData?.commissionPercentage ?? 10,
-        commissionBrackets: rawData?.commissionBrackets || defaultBrackets,
-        settings: rawData?.settings || defaultSettings,
-        branchSettings: rawData?.branchSettings || {}
-      };
-    });
+    return {
+      clients: rawData?.clients || [],
+      loans: rawData?.loans || [],
+      payments: rawData?.payments || [],
+      expenses: rawData?.expenses || [],
+      collectionLogs: rawData?.collectionLogs || [],
+      users: users,
+      currentUser: currentUser || null,
+      commissionPercentage: rawData?.commissionPercentage ?? 10,
+      commissionBrackets: rawData?.commissionBrackets || defaultBrackets,
+      settings: rawData?.settings || defaultSettings,
+      branchSettings: rawData?.branchSettings || {}
+    };
+  });
 
   const resolvedSettings = useMemo(() => {
     return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, { language: 'es', country: 'CO', numberFormat: 'dot' });
