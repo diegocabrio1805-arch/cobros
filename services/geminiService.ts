@@ -4,7 +4,10 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AppState, Loan, Client, PaymentStatus, AppSettings } from "../types";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCNe0T1_TGwZUBz_nhil_4tDPQxcl-JzIg' });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const validApiKey = (apiKey && apiKey !== 'PLACEHOLDER_API_KEY') ? apiKey : 'AIzaSyCNe0T1_TGwZUBz_nhil_4tDPQxcl-JzIg';
+
+const ai = new GoogleGenAI({ apiKey: validApiKey });
 
 export const getFinancialInsights = async (state: AppState) => {
   // Check is removed since we have a hardcoded fallback
