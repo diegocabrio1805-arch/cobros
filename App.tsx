@@ -75,7 +75,7 @@ const App: React.FC = () => {
   }, []);
 
   const [state, setState] = useState<AppState>(() => {
-    console.log("App: Initializing state...");
+    console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
     const RESET_ID = 'RESET_2026_02_02_V7_FIX_MISSING';

@@ -131,7 +131,7 @@
     }
   </style>
   <!-- Importmap removed to avoid conflict with Vite local modules -->
-  <!-- <link rel="stylesheet" href="/index.css"> -->
+  <link rel="stylesheet" href="/index.css">
 </head>
 
 <body>
@@ -149,14 +149,40 @@
         // Si falla el CSS principal o el index.tsx, forzamos un reload sin caché
         if (src && (src.includes('index.css') || src.includes('.js') || src.includes('.tsx'))) {
           const reloadCount = parseInt(sessionStorage.getItem('asset_reload_count') || '0');
-          if (reloadCount < 3) {
+          if (reloadCount < 5) {
             console.log('Intentando recarga de emergencia...');
             sessionStorage.setItem('asset_reload_count', (reloadCount + 1).toString());
-            window.location.reload(true);
+
+            // Clean SW if possible before reload
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (let r of regs) r.unregister();
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
           }
         }
       }
     }, true);
+
+    // WSOD Self-Repair: If app doesn't mount after 8s
+    setTimeout(function () {
+      var root = document.getElementById('root');
+      if (root && !root.hasChildNodes()) {
+        console.warn("WSOD detected. Forcing clean reload...");
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            for (let r of regs) r.unregister();
+            localStorage.setItem('FORCE_FRESH_CLEAN', 'true');
+            window.location.reload(true);
+          });
+        } else {
+          window.location.reload(true);
+        }
+      }
+    }, 8000);
 
     window.onerror = function (msg, url, line, col, error) {
       var trap = document.getElementById('error-trap');
