@@ -62,7 +62,16 @@ const App: React.FC = () => {
     }
 
     const saved = localStorage.getItem('prestamaster_v2');
-    const parsed = saved ? JSON.parse(saved) : null;
+    let parsed = null;
+    try {
+      if (saved) {
+        parsed = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("CRITICAL: LocalStorage corruption detected. Resetting...", e);
+      localStorage.removeItem('prestamaster_v2');
+      parsed = null;
+    }
     // STABLE ADMIN ID: Used to replace 'admin-1' and ensure consistency
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
