@@ -49,16 +49,37 @@ const App: React.FC = () => {
 
     // RESET LOGIC: Change this ID to force a global reset on all devices
     const RESET_ID = 'RESET_2026_02_01_FIX_FABIAN';
-    const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
 
-    // Hard Wipe if ID mismatches
-    if (!isReset) {
-      console.log("App: PERFORMING HARD RESET (Data Wipe)");
-      localStorage.removeItem('prestamaster_v2');
-      localStorage.removeItem('last_sync_timestamp_v6');
-      localStorage.setItem('LAST_RESET_ID', RESET_ID);
-      // Force reload to clear memory state
-      window.location.reload();
+    try {
+      const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
+
+      // Hard Wipe if ID mismatches
+      if (!isReset) {
+        console.log("App: PERFORMING HARD RESET (Data Wipe)");
+
+        // Safety Check: Prevent Infinite Loop
+        const reloadCount = parseInt(sessionStorage.getItem('reset_reload_count') || '0');
+        if (reloadCount > 2) {
+          console.error("CRITICAL: Infinite Reload Detected. Stopping reset.");
+          // We allow the app to continue (potentially broken) rather than infinite loop
+          // Or better: set the flag to stop trying
+          localStorage.setItem('LAST_RESET_ID', RESET_ID);
+        } else {
+          localStorage.removeItem('prestamaster_v2');
+          localStorage.removeItem('last_sync_timestamp_v6');
+          localStorage.setItem('LAST_RESET_ID', RESET_ID);
+
+          // Increment reload counter
+          sessionStorage.setItem('reset_reload_count', (reloadCount + 1).toString());
+
+          // Force reload to clear memory state
+          window.location.reload();
+          return { ...state }; // Return current state to satisfy TS while reloading
+        }
+      }
+    } catch (e) {
+      console.error("Storage Access Error during Reset Check:", e);
+      // If storage fails, we can't reliably reset, so we assume we are good to go to avoid crash
     }
 
     const saved = localStorage.getItem('prestamaster_v2');
