@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anexo-cobro-v2';
+const CACHE_NAME = 'anexo-cobro-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -6,9 +6,25 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); // Forzar activación inmediata
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+    );
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('[ServiceWorker] Borrando caché antigua:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim()) // Tomar control de los clientes inmediatamente
     );
 });
 
@@ -26,11 +42,4 @@ self.addEventListener('fetch', (event) => {
         caches.match(event.request)
             .then((response) => response || fetch(event.request))
     );
-});
-
-// Background Sync Logic can be added here for payments
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'sync-payments') {
-        event.waitUntil(console.log('Background Sync triggered...'));
-    }
 });
