@@ -43,7 +43,7 @@ export const getFinancialInsights = async (state: AppState) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -110,7 +110,7 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         temperature: 0.7,
@@ -156,7 +156,7 @@ export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, da
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         temperature: 0.8

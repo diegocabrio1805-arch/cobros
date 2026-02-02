@@ -12,7 +12,7 @@ const PRINTER_STORAGE_KEY = 'saved_printer_address';
 // Configuración para dispositivos gama baja
 const CHUNK_SIZE = 100; // Caracteres por paquete (reducido para evitar buffer overflow)
 const CHUNK_DELAY = 100; // ms de espera entre paquetes
-const CONNECTION_RETRIES = 3;
+const CONNECTION_RETRIES = 5;
 const RETRY_DELAY = 1500; // ms entre intentos
 
 // Helper seguro para obtener la referencia al plugin
@@ -153,39 +153,55 @@ export const connectToPrinter = async (addressOrId?: string): Promise<boolean> =
     }
 };
 
-// 4. Función de Impresión Robusta con Chunking
-export const printText = async (rawText: string): Promise<boolean> => {
+// 4. Función de Impresión Robusta con Chunking y Reintento de Conexión
+export const printText = async (rawText: string, retryCount = 0): Promise<boolean> => {
+    const bs = getBluetoothSerial();
+
     // Asegurar conexión antes de imprimir
     const connected = await isPrinterConnected();
     if (!connected) {
+        console.log("Printer not connected. Attempting to connect...");
         const reconnected = await connectToPrinter();
         if (!reconnected) return false;
     }
 
     const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const bs = getBluetoothSerial();
 
     // -- Lógica Nativa (Chunking) --
     if (isNativeConnection && bs) {
-        // Dividir texto en chunks pequeños para no saturar buffer de impresora barata/vieja
         const chunks = [];
         for (let i = 0; i < text.length; i += CHUNK_SIZE) {
             chunks.push(text.substring(i, i + CHUNK_SIZE));
         }
-
-        console.log(`Enviando ${chunks.length} paquetes de datos a la impresora...`);
 
         try {
             for (const chunk of chunks) {
                 await new Promise<void>((resolve, reject) => {
                     bs.write(chunk, () => resolve(), (err: any) => reject(err));
                 });
-                // Pausa obligatoria entre chunks para gama baja
                 await sleep(CHUNK_DELAY);
             }
             return true;
         } catch (e) {
-            console.error("Error writing chunk to printer:", e);
+            console.warn("Write failed. Attempting hard reset and retry...", e);
+            if (retryCount < 2) { // Permitir hasta 2 reintentos completos de impresión
+                // Hard reset connection: Forzar desconexión antes de reintentar
+                try {
+                    if (isNativeConnection && bs) {
+                        await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
+                    }
+                } catch (disError) {
+                    console.error("Error during disconnect:", disError);
+                }
+
+                await sleep(1500); // Dar más tiempo para liberar el stack Bluetooth
+                console.log(`Reintentando impresión completa (${retryCount + 1}/2)...`);
+
+                const reconnected = await connectToPrinter();
+                if (reconnected) {
+                    return printText(rawText, retryCount + 1);
+                }
+            }
             return false;
         }
     }

@@ -219,6 +219,26 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const client = state.clients.find(c => c.id === loan.clientId);
       const amountToPay = customAmount || loan.installmentValue;
       const logId = generateUUID();
+      let currentLocation = { lat: 0, lng: 0 };
+
+      // Intentar obtener ubicación real con timeout extendido
+      try {
+        console.log("Obteniendo ubicación GPS obligatoria...");
+        const pos = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+        currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (geoErr) {
+        console.warn("Falla en captura GPS:", geoErr);
+      }
+
+      // Validación de Geoposicionamiento (Crítico para el Mapa)
+      if (currentLocation.lat === 0 && currentLocation.lng === 0) {
+        alert("ERROR CRÍTICO: No se pudo capturar su ubicación exacta. Asegúrese de tener el GPS activo y estar a cielo abierto.");
+        setIsProcessingPayment(false);
+        return;
+      }
 
       const log: CollectionLog = {
         id: logId,
@@ -227,7 +247,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         type: type,
         amount: type === CollectionLogType.PAYMENT ? amountToPay : undefined,
         date: new Date().toISOString(),
-        location: { lat: 0, lng: 0 },
+        location: currentLocation,
         isVirtual,
         isRenewal
       };
