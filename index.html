@@ -130,8 +130,10 @@
       -webkit-overflow-scrolling: touch;
     }
   </style>
-  <!-- Importmap removed to avoid conflict with Vite local modules -->
-  <link rel="stylesheet" href="/index.css">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="stylesheet" href="/index.css?v=3.3.0">
 </head>
 
 <body>
@@ -139,6 +141,23 @@
     style="display:none; color:red; padding:20px; font-family:monospace; background:white; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999;">
   </div>
   <script>
+    (function () {
+      const BUILD_ID = 'BUILD_2026_02_02_V3_3_0';
+      if (localStorage.getItem('LAST_DEPLOY_ID') !== BUILD_ID) {
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID);
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            for (let r of regs) r.unregister();
+            window.location.reload(true);
+          });
+        } else {
+          window.location.reload(true);
+        }
+      }
+    })();
+
     // Asset Loading Error Handler (Integrity Check)
     window.addEventListener('error', function (event) {
       const element = event.target || event.srcElement;
@@ -203,7 +222,7 @@
     setTimeout(() => sessionStorage.removeItem('asset_reload_count'), 10000);
   </script>
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module" src="/index.tsx?v=3.3.0"></script>
 </body>
 
 </html>
