@@ -37,6 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     fetchInsights();
   }, [state.loans.length]);
 
+  const totalPrincipal = (state.loans || []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (state.loans || []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
   const totalExpenses = (state.expenses || []).reduce((acc, e) => acc + e.amount, 0);
   const netUtility = totalProfit - totalExpenses;
@@ -105,8 +106,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   }, [collectorStats, currentPage]);
 
   const chartData = [
+    { name: 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
     { name: 'Ingresos', value: totalProfit, color: '#10b981' },
-    { name: 'Capital', value: totalExpenses, color: '#f43f5e' },
+    { name: 'Gastos', value: totalExpenses, color: '#f43f5e' },
     { name: 'Utilidad', value: netUtility, color: '#3b82f6' },
   ];
 
@@ -115,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-blue-500 font-bold ml-2">v5.0.0 PROD</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v5.1.0 PROD</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Estado actual de la sucursal
@@ -133,8 +135,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Utilidad Neta', value: formatCurrency(netUtility, state.settings), icon: 'fa-vault', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-          { label: 'Ingresos Proy.', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-up-right-dots', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-          { label: 'Capital Regist.', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-receipt', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+          { label: 'Capital Prestado', value: formatCurrency(totalPrincipal, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+          { label: 'Intereses Proy.', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-up-right-dots', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
           { label: 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map((stat, i) => (
           <div key={i} className={`bg-white p-4 rounded-2xl border ${stat.border} shadow-sm hover:shadow-md transition-all group overflow-hidden relative`}>

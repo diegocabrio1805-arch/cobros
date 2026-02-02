@@ -22,53 +22,42 @@ export const getFinancialInsights = async (state: AppState) => {
   const netUtility = totalProfitProyected - totalExpenses;
 
   const prompt = `
-    Analiza la siguiente situación financiera de una empresa de préstamos:
-    Datos actuales (Formato numérico preferido: ${settings.numberFormat === 'comma' ? '1,000,000.00' : '1.000.000,00'}):
-    - Clientes totales: ${clients.length}
-    - Préstamos activos: ${loans.filter(l => l.status === 'Activo').length}
-    - Capital total prestado: ${formatCurrency(totalLent, settings)}
-    - Intereses proyectados (Ingresos): ${formatCurrency(totalProfitProyected, settings)}
-    - Gastos operativos registrados: ${formatCurrency(totalExpenses, settings)}
-    - Utilidad neta proyectada: ${formatCurrency(netUtility, settings)}
-    - Recaudado hoy: ${formatCurrency(payments.filter(p => new Date(p.date).toDateString() === new Date().toDateString()).reduce((acc, p) => acc + p.amount, 0), settings)}
+    Analiza la situación financiera de una empresa de préstamos. Responde en español y estrictamente en formato JSON.
+    DATOS:
+    - Clientes: ${clients.length}
+    - Préstamos Activos: ${loans.filter(l => l.status === 'Activo').length}
+    - Capital prestado: ${totalLent}
+    - Intereses proyectados: ${totalProfitProyected}
+    - Gastos: ${totalExpenses}
+    - Utilidad neta: ${netUtility}
     
-    Por favor responde en formato JSON con la siguiente estructura:
+    JSON:
     {
-      "summary": "Resumen ejecutivo del estado de la empresa considerando ingresos vs gastos",
+      "summary": "Breve resumen",
       "riskLevel": "Bajo/Medio/Alto",
-      "recommendations": ["Recomendación para mejorar la utilidad o reducir gastos", "Recomendación operativa"],
-      "topClients": ["Nombre de cliente con mejor comportamiento"]
+      "recommendations": ["Tip 1", "Tip 2"],
+      "topClients": []
     }
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const result = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary: { type: Type.STRING },
-            riskLevel: { type: Type.STRING },
-            recommendations: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            topClients: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          }
-        }
-      }
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" }
     });
 
-    return JSON.parse(response.text || '{}');
+    // Handle both cases if response is different in SDK versions
+    const text = (result as any).text || (result.response && (result.response as any).text());
+    return JSON.parse(text || '{}');
   } catch (error) {
     console.error("Gemini Insight Error:", error);
-    return null;
+    return {
+      summary: "Error de conexión con la IA. Verifique su API Key en Vercel.",
+      riskLevel: "Bajo",
+      recommendations: ["Reintentar más tarde"],
+      topClients: []
+    };
   }
 };
 
