@@ -258,7 +258,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           <div className="h-[220px] w-full mt-auto">
-            {/* <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barSize={40}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
@@ -291,10 +291,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer> */}
-            <div className="flex items-center justify-center h-full text-slate-400">
-              <p className="text-[10px] font-black uppercase tracking-widest">Gráfico desactivado (Diagnóstico)</p>
-            </div>
+            </ResponsiveContainer>
           </div>
         </div>
 
