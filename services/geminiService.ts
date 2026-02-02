@@ -4,12 +4,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AppState, Loan, Client, PaymentStatus, AppSettings } from "../types";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCNe0T1_TGwZUBz_nhil_4tDPQxcl-JzIg' });
 
 export const getFinancialInsights = async (state: AppState) => {
-  if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-    return null;
-  }
+  // Check is removed since we have a hardcoded fallback
+  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
+  //   return null;
+  // }
   const { loans, clients, payments, expenses, settings } = state;
 
   const totalLent = loans.reduce((acc, l) => acc + l.principal, 0);
@@ -75,9 +76,10 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
   const lastInstallment = loan.installments[loan.installments.length - 1];
   const settings = state.settings;
 
-  if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-    return `*ESTADO DE CUENTA - ANEXO COBRO*\n\nCliente: ${client.name}\nSaldo: ${formatCurrency(balance, settings)}\nAtraso: ${daysOverdue} días.`;
-  }
+  // API Key check removed - using hardcoded fallback
+  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
+  //   return `*ESTADO DE CUENTA - ANEXO COBRO*\n\nCliente: ${client.name}\nSaldo: ${formatCurrency(balance, settings)}\nAtraso: ${daysOverdue} días.`;
+  // }
 
   const prompt = `
     Eres un asistente profesional de una Fintech llamada "ANEXO COBRO". 
@@ -124,9 +126,10 @@ export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, da
   const totalPaid = loan.installments.reduce((acc, i) => acc + i.paidAmount, 0);
   const balance = loan.totalAmount - totalPaid;
 
-  if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-    return `Hola ${client.name}, registramos que hoy no se pudo realizar su abono. Por favor, trate de ponerse al día con su saldo de ${formatCurrency(balance, settings)}. Atentamente, ANEXO COBRO.`;
-  }
+  // API Key check removed - using hardcoded fallback
+  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
+  //   return `Hola ${client.name}, registramos que hoy no se pudo realizar su abono. Por favor, trate de ponerse al día con su saldo de ${formatCurrency(balance, settings)}. Atentamente, ANEXO COBRO.`;
+  // }
 
   const prompt = `
     Eres el asistente de cobranza de "ANEXO COBRO". Un cobrador acaba de visitar al cliente ${client.name} y NO se registró un pago hoy.
