@@ -66,13 +66,39 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
       markersLayer.current.clearLayers();
 
       filteredLogs.forEach((log) => {
-        if (!log.location || log.location.lat === 0) return; // Skip logs without location or invalid GPS
-        const isPayment = log.type === CollectionLogType.PAYMENT;
-        const emoji = isPayment ? '😊' : '😠';
+        if (!log.location || log.location.lat === 0) return;
 
-        const bgColor = isPayment ? '#dcfce7' : '#fee2e2';
-        const borderColor = isPayment ? '#16a34a' : '#ef4444';
-        const textColor = isPayment ? '#15803d' : '#991b1b';
+        const isPayment = log.type === CollectionLogType.PAYMENT;
+        const isVirtual = log.isVirtual;
+        const isRenewal = log.isRenewal;
+
+        let emoji = '😠';
+        let bgColor = '#fee2e2';
+        let borderColor = '#ef4444';
+        let textColor = '#991b1b';
+        let typeLabel = 'Sin Abono';
+
+        if (isPayment) {
+          if (isRenewal) {
+            emoji = '♻️';
+            bgColor = '#fff7ed'; // Amber lighter
+            borderColor = '#d97706'; // Amber 600
+            textColor = '#92400e'; // Amber 800
+            typeLabel = 'Liquidación';
+          } else if (isVirtual) {
+            emoji = '📱';
+            bgColor = '#eff6ff'; // Blue lighter
+            borderColor = '#2563eb'; // Blue 600
+            textColor = '#1e40af'; // Blue 800
+            typeLabel = 'Transferencia';
+          } else {
+            emoji = '💵';
+            bgColor = '#dcfce7'; // Emerald lighter
+            borderColor = '#16a34a'; // Emerald 600
+            textColor = '#15803d'; // Emerald 800
+            typeLabel = 'Efectivo';
+          }
+        }
 
         const collectorInitial = log.collectorName.split(' ')[0];
 
@@ -93,7 +119,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
                 white-space: nowrap;
               ">
                 <span style="font-size: 16px;">${emoji}</span>
-                <span style="font-size: 10px; font-weight: 900; color: ${textColor}; text-transform: uppercase; tracking: -0.2px;">
+                <span style="font-size: 10px; font-weight: 900; color: ${textColor}; text-transform: uppercase;">
                   ${collectorInitial}
                 </span>
               </div>
@@ -127,10 +153,10 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
               </div>
               <div>
                 <p style="margin: 0; font-size: 9px; font-weight: 900; color: ${borderColor}; text-transform: uppercase; letter-spacing: 0.5px;">
-                   ${isPayment ? 'Recaudo Confirmado' : 'Sin Abono'}
+                   ${typeLabel}
                 </p>
                 <p style="margin: 0; font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                   Gestionó: ${log.collectorName}
+                   ${log.collectorName}
                 </p>
               </div>
             </div>
@@ -222,10 +248,24 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
           <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2">Resumen de Vista</h4>
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-500 flex items-center justify-center text-xs">😊</div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-500 flex items-center justify-center text-xs">💵</div>
               <div>
-                <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Abonos</p>
-                <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">Captura Exitosa</p>
+                <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Efectivo</p>
+                <p className="text-[9px] font-bold text-emerald-600 uppercase mt-0.5">Cobro Físico</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-500 flex items-center justify-center text-xs">📱</div>
+              <div>
+                <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Transf.</p>
+                <p className="text-[9px] font-bold text-blue-600 uppercase mt-0.5">Abono Virtual</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-500 flex items-center justify-center text-xs">♻️</div>
+              <div>
+                <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Liq.</p>
+                <p className="text-[9px] font-bold text-orange-600 uppercase mt-0.5">Renovación</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

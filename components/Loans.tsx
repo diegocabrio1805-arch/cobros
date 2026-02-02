@@ -299,10 +299,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const client = state.clients.find(c => c.id === loan.clientId);
     if (!client) return;
 
-    // 1. Encontrar el ÚLTIMO pago registrado para este crédito
-    const lastPaymentLog = state.collectionLogs
-      .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN importar la fecha)
+    const allPaymentLogs = state.collectionLogs
+      .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+
+    // Ordenar por fecha descendente para obtener el más reciente
+    const lastPaymentLog = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");

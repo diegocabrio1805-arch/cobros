@@ -758,10 +758,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const handleReprintLastReceipt = async () => {
     if (!clientInLegajo || !activeLoanInLegajo) return;
 
-    // 1. Encontrar el ÚLTIMO pago registrado para este crédito
-    const lastPaymentLog = state.collectionLogs
-      .filter(l => l.loanId === activeLoanInLegajo.id && l.type === CollectionLogType.PAYMENT && !l.isOpening)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN IMPORTAR FECHA)
+    const allPaymentLogs = state.collectionLogs
+      .filter(l => l.loanId === activeLoanInLegajo.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+
+    const lastPaymentLog = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");
