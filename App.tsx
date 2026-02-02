@@ -1030,6 +1030,11 @@ const App: React.FC = () => {
   };
 
   const deleteCollectionLog = async (logId: string) => {
+    // SECURITY CHECK: Collectors cannot delete logs
+    if (state.currentUser?.role === Role.COLLECTOR) {
+      alert("ERROR: No tienes permisos para eliminar registros.");
+      return;
+    }
     // Notify remote DB first (or queue if offline)
     await deleteRemoteLog(logId);
 

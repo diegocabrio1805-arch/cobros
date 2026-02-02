@@ -538,7 +538,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                             >
                               {isGeneratingImage && sharingLog?.id === log.id ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-image"></i>}
                             </button>
-                            <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                            {isPowerUser && (
+                              <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                            )}
                           </div>
                         </td>
                       </tr>
