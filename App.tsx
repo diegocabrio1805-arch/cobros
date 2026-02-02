@@ -47,8 +47,8 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
     console.log("App: Initializing state...");
 
-    // RESET LOGIC: Change this ID to force a global reset on all devices
-    const RESET_ID = 'RESET_2026_02_01_FIX_FABIAN';
+    // RESET LOGIC: Force global reset to fix missing clients in APK
+    const RESET_ID = 'RESET_2026_02_02_V7_FIX_MISSING';
 
     try {
       const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
@@ -504,13 +504,18 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Aggressive Sync for Collectors: 1 second interval (Silent)
+    // Regular Users/Admins: 20 seconds
+    const intervalTime = state.currentUser?.role === Role.COLLECTOR ? 1000 : 20000;
+
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline) {
+        // Silent sync (true)
         handleForceSync(true);
       }
-    }, 20000);
+    }, intervalTime);
     return () => clearInterval(syncInterval);
-  }, [isSyncing, isOnline]);
+  }, [isSyncing, isOnline, state.currentUser?.role]);
 
   useEffect(() => {
     let syncHangingTimeout: any;
