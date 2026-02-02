@@ -139,19 +139,24 @@
   </div>
   <script>
     (function () {
-      const BUILD_ID = 'BUILD_2026_02_02_V4_2_FINAL';
-      if (localStorage.getItem('LAST_DEPLOY_ID') !== BUILD_ID) {
+      const BUILD_ID = 'BUILD_2026_02_02_V5_0_0_FINAL';
+      console.log("System Initializing: " + BUILD_ID);
+      const lastId = localStorage.getItem('LAST_DEPLOY_ID');
+
+      if (lastId !== BUILD_ID) {
+        console.warn("Update Detected. Synchronizing local environment...");
         localStorage.clear();
         sessionStorage.clear();
         localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID);
+
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(regs => {
             for (let r of regs) r.unregister();
             window.location.reload(true);
           });
-        } else {
-          window.location.reload(true);
+          return;
         }
+        window.location.reload(true);
       }
     })();
 
