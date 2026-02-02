@@ -261,26 +261,18 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           isRenewal
         }, state.settings);
 
-        // Condición: Solo mostrar recibo en pantalla si hay una impresora conectada
-        const { isPrinterConnected, printText } = await import('../services/bluetoothPrinterService');
-        const printerAppearsConnected = await isPrinterConnected();
+        // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
+        setReceipt(receiptText);
 
-        if (printerAppearsConnected) {
-          setReceipt(receiptText);
-          try {
-            await printText(receiptText);
-          } catch (printErr) {
-            console.error("Error direct printing:", printErr);
-            triggerPrintTicket(receiptText); // Fallback to system dialog
-          }
-        } else {
-          // Si no hay impresora, no mostramos el recibo en pantalla, solo abrimos WhatsApp
-          resetUI();
-          setReceipt(null);
-        }
+        // Attempt Automatic Print (Silent)
+        const { printText } = await import('../services/bluetoothPrinterService');
+        // We don't block UI on this, just try it.
+        printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
         const phone = client.phone.replace(/\D/g, '');
+        // WhatsApp opens in external app usually, checking settings
         window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
+
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
         if (client.customNoPayMessage) {
@@ -715,9 +707,20 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                 {receipt}
               </div>
-              <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                Cerrar y Continuar
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    const { printText } = await import('../services/bluetoothPrinterService');
+                    printText(receipt || '').catch(e => alert("Error impresión: " + e));
+                  }}
+                  className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir
+                </button>
+                <button onClick={resetUI} className="flex-1 py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all">
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         </div>

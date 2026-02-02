@@ -561,23 +561,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           isRenewal: dossierIsRenewal
         }, state.settings);
 
-        // Lógica de Impresión Condicional (Bluetooth o Web Fallback)
-        const { isPrinterConnected, printText } = await import('../services/bluetoothPrinterService');
-        const printerAppearsConnected = await isPrinterConnected();
+        // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
+        setReceipt(receiptText);
 
-        if (printerAppearsConnected) {
-          setReceipt(receiptText); // Mostrar en pantalla solo si hay impresora
-          try {
-            await printText(receiptText);
-          } catch (printErr) {
-            console.error("Error direct printing:", printErr);
-            const printWin = window.open('', '_blank', 'width=400,height=600');
-            printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
-            printWin?.print();
-          }
-        } else {
-          setReceipt(null);
-        }
+        // Attempt Automatic Print (Silent)
+        const { printText } = await import('../services/bluetoothPrinterService');
+        printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
         const phone = clientInLegajo.phone.replace(/\D/g, '');
         window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
@@ -1936,6 +1925,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
                   Cerrar y Continuar
                 </button>
+                <div className="mt-2">
+                  <button
+                    onClick={async () => {
+                      const { printText } = await import('../services/bluetoothPrinterService');
+                      printText(receipt || '').catch(e => alert("Error impresión: " + e));
+                    }}
+                    className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                  </button>
+                </div>
               </div>
             </div>
           </div>
