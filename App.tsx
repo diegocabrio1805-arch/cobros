@@ -1,4 +1,6 @@
 
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
 import Sidebar from './components/Sidebar';
@@ -46,6 +48,41 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<AppState>(() => {
     console.log("App: Initializing state...");
+
+    // AUTO-RESET ON UPDATE LOGIC (New "Self-Cleaning" Feature)
+    // Runs automatically when valid native app context is detected
+    useEffect(() => {
+      const checkAppVersion = async () => {
+        try {
+          if (!Capacitor.isNativePlatform()) return;
+
+          const info = await CapApp.getInfo();
+          const currentVersion = `${info.version}.${info.build}`;
+          const storedVersion = localStorage.getItem('LAST_RUN_VERSION');
+
+          console.log(`[VersionCheck] Current: ${currentVersion} | Stored: ${storedVersion}`);
+
+          if (storedVersion !== currentVersion) {
+            console.log("[VersionCheck] New version detected! Forcing cleanup...");
+            // Force Hard Reset Logic
+            localStorage.setItem('LAST_RUN_VERSION', currentVersion);
+            localStorage.removeItem('last_sync_timestamp'); // Force full re-sync
+            localStorage.removeItem('last_sync_timestamp_v6');
+
+            // Clean legacy reset flags to ensure a fresh start
+            sessionStorage.removeItem('reset_reload_count');
+
+            // If it's a major/minor change, we might want to clear more, but for now strict sync is enough
+            handleForceSync(true);
+            alert("Aplicación Actualizada: Se han sincronizado los datos automáticamente.");
+          }
+        } catch (err) {
+          console.warn("[VersionCheck] Failed to check/update version:", err);
+        }
+      };
+
+      checkAppVersion();
+    }, []);
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
     const RESET_ID = 'RESET_2026_02_02_V7_FIX_MISSING';
