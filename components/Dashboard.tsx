@@ -117,10 +117,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v5.1.0 PROD</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v5.3.4 FINAL STABLE</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
-            Estado actual de la sucursal
+            Panel de Control Principal
           </p>
         </div>
         <div className="flex items-center gap-3 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg">
@@ -259,35 +259,36 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             <span className="text-[7px] font-black text-slate-400 uppercase">Datos Proyectados</span>
           </div>
 
-          <div className="h-[220px] w-full mt-auto">
+          <div className="h-[250px] w-full mt-auto relative bg-slate-50/30 rounded-2xl p-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barSize={40}>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 900 }}
+                  tick={{ fontSize: 9, fill: '#64748b', fontWeight: 800 }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 8, fill: '#94a3b8' }}
-                  tickFormatter={(val) => `$${val / 1000}k`}
+                  tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
+                  cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
                   contentStyle={{
                     borderRadius: '1rem',
-                    border: 'none',
+                    border: '1px solid #e2e8f0',
                     boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    fontSize: '9px',
-                    fontWeight: '900',
-                    textTransform: 'uppercase'
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)'
                   }}
                   formatter={(value: number) => formatCurrency(value, state.settings)}
                 />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1500}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
