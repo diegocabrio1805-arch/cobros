@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anexo-cobro-v3';
+const CACHE_NAME = 'anexo-cobro-v5.2.0-nuclear';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
