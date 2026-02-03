@@ -603,11 +603,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
 
       // Delay para asegurar que el navegador aplique los estilos y renderice
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 1200));
 
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 4, // HD Resolution (4x DPI)
+        scale: 6, // ULTRA HD Resolution (6x DPI)
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -620,7 +620,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         shareContainer.setAttribute('style', originalStyle);
       }
 
-      const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.jpg`;
+      const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.png`;
 
       // LOGICA WEB (PC / MOBILE BROWSER)
       if (!Capacitor.isNativePlatform()) {
@@ -630,7 +630,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             return;
           }
           const blobUrl = URL.createObjectURL(blob);
-          const file = new File([blob], fileName, { type: 'image/jpeg' });
+          const file = new File([blob], fileName, { type: 'image/png' });
 
           let sharedSuccessfully = false;
           const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -668,11 +668,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               alert("¡Imagen descargada! Revisa tu carpeta de Descargas (el navegador bloqueó la ventana emergente).");
             }
           }
-        }, 'image/jpeg', 1.0);
+        }, 'image/png', 1.0);
       }
       // LOGICA CAPACITOR (APK)
       else {
-        const base64Data = canvas.toDataURL('image/jpeg', 1.0);
+        const base64Data = canvas.toDataURL('image/png', 1.0);
         const base64Content = base64Data.split(',')[1];
         const savedFile = await Filesystem.writeFile({
           path: fileName,

@@ -5,9 +5,9 @@ import { AppState, Loan, Client, PaymentStatus, AppSettings } from "../types";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const validApiKey = (apiKey && apiKey !== 'PLACEHOLDER_API_KEY') ? apiKey : 'AIzaSyCNe0T1_TGwZUBz_nhil_4tDPQxcl-JzIg';
 
-const ai = new GoogleGenAI({ apiKey: validApiKey });
+// Inicializamos la IA solo si existe la key, de lo contrario manejaremos el error en la llamada
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const getFinancialInsights = async (state: AppState) => {
   // Check is removed since we have a hardcoded fallback
@@ -42,13 +42,13 @@ export const getFinancialInsights = async (state: AppState) => {
 
   try {
     const result = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" }
     });
 
     // Handle both cases if response is different in SDK versions
-    const text = (result as any).text || (result.response && (result.response as any).text());
+    const text = (result as any).text || ((result as any).response && ((result as any).response as any).text());
     return JSON.parse(text || '{}');
   } catch (error) {
     console.error("Gemini Insight Error:", error);
@@ -99,7 +99,7 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         temperature: 0.7,
@@ -145,7 +145,7 @@ export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, da
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         temperature: 0.8

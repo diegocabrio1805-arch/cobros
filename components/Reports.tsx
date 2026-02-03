@@ -21,10 +21,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
    const [selectedCollector, setSelectedCollector] = useState<string>('all');
    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]); // NEW
    const [selectedFilter, setSelectedFilter] = useState<'all' | 'payment' | 'nopayment' | 'liquidation'>('all');
    const [stats, setStats] = useState({ totalStops: 0, devilStops: 0, totalDistance: 0 });
 
    const [aiReport, setAiReport] = useState<any>(null);
+   const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
 
    const collectors = state.users.filter(u => u.role === Role.COLLECTOR);
@@ -44,7 +46,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const routeData = useMemo(() => {
       let logs = state.collectionLogs.filter(log => {
          const logDate = new Date(log.date).toISOString().split('T')[0];
-         return logDate === selectedDate;
+         const start = selectedDate;
+         const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
+         return logDate >= start && logDate <= end;
       });
 
       if (selectedCollector !== 'all') {
@@ -64,7 +68,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
 
       return logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-   }, [state.collectionLogs, state.loans, selectedCollector, selectedDate, selectedFilter]);
+   }, [state.collectionLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
 
    useEffect(() => {
       if (mapRef.current && !leafletMap.current) {
@@ -293,63 +297,144 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       setLoadingAi(true);
       setAiReport(null);
+      setShowAiModal(true); // Open modal immediately showing loading state
 
       const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Desconocido';
+
+      // Get assigned clients to check who wasn't visited
       const assignedLoans = state.loans.filter(l =>
          l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
       );
-      const totalAssignedClients = new Set(assignedLoans.map(l => l.clientId)).size;
-      const visitedClientIds = new Set(routeData.map(log => log.clientId)).size; // Corrected to use routeData
-      const totalVisited = visitedClientIds;
-      const missingClients = totalAssignedClients - totalVisited;
+      const assignedClientIds = Array.from(new Set(assignedLoans.map(l => l.clientId)));
+
+      // Get active clients (exclude visited)
+      const visitedClientIds = new Set(routeData.map(log => log.clientId));
+      const notVisitedClients = assignedClientIds
+         .filter(id => !visitedClientIds.has(id))
+         .map(id => state.clients.find(c => c.id === id)?.name || 'Desconocido')
+         .filter(name => name !== 'Desconocido');
+
+      // Prepare stats
+      const totalAssignedClients = assignedClientIds.length;
+      const totalVisited = visitedClientIds.size;
+      const missingClients = notVisitedClients.length;
       const routeCoverage = totalAssignedClients > 0 ? (totalVisited / totalAssignedClients) * 100 : 0;
       const payments = routeData.filter(l => l.type === CollectionLogType.PAYMENT).length;
       const noPayments = routeData.filter(l => l.type === CollectionLogType.NO_PAGO).length;
       const collectedAmount = routeData.reduce((acc, l) => acc + (l.amount || 0), 0);
       const devilStops = stats.devilStops;
 
+      // New Prompt Logic strictly for Route Compliance (Visits)
       const prompt = `
-      Actúa como un Auditor Jefe de Cobranzas. Evalúa al cobrador "${collectorName}".
-      DATOS:
-      - Asignados: ${totalAssignedClients}
-      - Visitados: ${totalVisited}
-      - Cobertura: ${routeCoverage.toFixed(1)}%
-      - Faltantes: ${missingClients}
-      - Paradas sospechosas: ${devilStops}
-      - Gestión: ${payments} Pagos vs ${noPayments} No Pagos.
-      - Recaudo: ${formatCurrency(collectedAmount)}
+      Actúa como un Auditor de Cumplimiento de Rutas. Tu ÚNICO objetivo es verificar si el cobrador "${collectorName}" visitó a sus clientes asignados.
+      PERIODO: ${selectedDate} hasta ${endDate || selectedDate}.
 
-      Responde SOLAMENTE en JSON:
+      MÉTRICAS DE COBERTURA (LO MÁS IMPORTANTE):
+      - Clientes TOTALES Asignados: ${totalAssignedClients}
+      - Clientes VISITADOS: ${totalVisited}
+      - Clientes NO VISITADOS (Faltantes): ${missingClients}
+      - Porcentaje de Cobertura: ${routeCoverage.toFixed(1)}%
+
+      DETALLE DE FALTANTES:
+      [${notVisitedClients.slice(0, 50).join(', ')}${notVisitedClients.length > 50 ? '... y más' : ''}]
+
+      OTROS DATOS (Secundario):
+      - Paradas sospechosas: ${devilStops}
+      - Efectividad de Cobro: ${payments} Pagos vs ${noPayments} No Pagos.
+
+      INSTRUCCIONES:
+      1. Tu análisis debe centrarse en: ¿Visitó a todos sus clientes? ¿Sí o no?
+      2. Si faltaron clientes, CRITICA fuertemente la falta de cobertura.
+      3. Si la cobertura es alta (cerca del 100%), felicita el cumplimiento de ruta.
+      4. Ignora los montos de dinero, importa es LA VISITA (Presencia).
+
+      FORMATO JSON ESPERADO:
       {
-        "score": number (0 a 100),
-        "verdict": "string (Ej: EXCELENTE, PELIGRO)",
-        "analysis": "string (Resumen corto)",
-        "recommendation": "string (Acción)"
+        "score": number (0-100, basado principalmente en Cobertura),
+        "verdict": "string (Ej: RUTA COMPLETA, RUTA INCOMPLETA, DESERCIÓN)",
+        "analysis": "string (Enfócate en si cumplió con visitar a sus asignados)",
+        "missed_clients_analysis": "string (Menciona nombres de faltantes si los hay y qué tan grave es)",
+        "recommendation": "string (Acción para asegurar el 100% de visitas)"
       }
     `;
 
+      let data: any = null;
+
       try {
-         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-preview',
-            contents: prompt,
-            config: {
-               responseMimeType: "application/json",
-               responseSchema: {
-                  type: Type.OBJECT,
-                  properties: {
-                     score: { type: Type.INTEGER },
-                     verdict: { type: Type.STRING },
-                     analysis: { type: Type.STRING },
-                     recommendation: { type: Type.STRING }
+         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+         if (!apiKey) {
+            throw new Error("VITE_GEMINI_API_KEY no está configurada");
+         }
+
+         // Switch to 'gemini-flash-latest' as 1.5 is not explicitly listed but this alias is available
+         const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+            {
+               method: "POST",
+               headers: {
+                  "Content-Type": "application/json",
+               },
+               body: JSON.stringify({
+                  contents: [{
+                     parts: [{ text: prompt }]
+                  }],
+                  generationConfig: {
+                     temperature: 0.2,
+                     maxOutputTokens: 8192,
+                     response_mime_type: "application/json"
                   }
-               }
+               }),
             }
-         });
-         setAiReport(JSON.parse(response.text || '{}'));
-      } catch (error) {
+         );
+
+         if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            // Specific handling for Quota Exceeded
+            if (response.status === 429) {
+               throw new Error("⏳ Has excedido el límite de consultas gratuitas por minuto. Por favor espera 30 segundos e intenta de nuevo.");
+            }
+            throw new Error(errorData.error?.message || `Error HTTP ${response.status}`);
+         }
+
+         data = await response.json();
+         let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+         if (!jsonText) {
+            throw new Error("La IA no devolvió un análisis válido.");
+         }
+
+         // Aggressive JSON cleaning: Extract only the outer {} object
+         const firstBrace = jsonText.indexOf('{');
+         const lastBrace = jsonText.lastIndexOf('}');
+
+         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+         } else {
+            // Fallback: Remove common markdown wrappers if brace search fails
+            jsonText = jsonText.replace(/```json\s*/g, "").replace(/```\s*$/g, "").trim();
+         }
+
+         console.log("AI Cleaned Response:", jsonText.substring(0, 100) + "...");
+
+         setAiReport(JSON.parse(jsonText));
+
+      } catch (error: any) {
          console.error("AI Error", error);
-         alert("Error conectando con el Auditor IA.");
+         if (data) {
+            console.log("Failed JSON Content:", data?.candidates?.[0]?.content?.parts?.[0]?.text);
+         }
+
+         let msg = "Error conectando con el Auditor IA.";
+         // Customize user message based on error type
+         if (error.message && error.message.includes("excedido")) {
+            msg = error.message; // Use our custom 429 message
+         } else if (error.message && error.message.includes("JSON")) {
+            msg += "\nDetalle: La IA devolvió una respuesta con formato inválido.";
+         } else if (error.message) {
+            msg += `\nDetalle: ${error.message}`;
+         }
+         alert(msg);
+         setShowAiModal(false); // Close modal on error
       } finally {
          setLoadingAi(false);
       }
@@ -357,6 +442,86 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
    return (
       <div className="h-full flex flex-col space-y-4 animate-fadeIn pb-20">
+         {/* --- AI AUDIT MODAL --- */}
+         {showAiModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border-4 border-indigo-500/30 relative">
+                  {/* Close Button */}
+                  <button
+                     onClick={() => setShowAiModal(false)}
+                     className="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full w-10 h-10 flex items-center justify-center transition-all z-50"
+                  >
+                     <i className="fa-solid fa-xmark text-lg"></i>
+                  </button>
+
+                  <div className="p-8">
+                     <div className="flex items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                        <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                           <i className={`fa-solid ${loadingAi ? 'fa-satellite-dish animate-pulse' : 'fa-robot'} text-3xl text-indigo-600`}></i>
+                        </div>
+                        <div>
+                           <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Reporte Auditoría IA</h2>
+                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                              Periodo: {selectedDate} / {endDate || selectedDate}
+                           </p>
+                        </div>
+                     </div>
+
+                     {loadingAi ? (
+                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                           <i className="fa-solid fa-circle-notch animate-spin text-5xl text-indigo-500"></i>
+                           <p className="text-sm font-black text-indigo-400 uppercase tracking-widest animate-pulse">Analizando Recorrido y Rendimiento...</p>
+                        </div>
+                     ) : aiReport ? (
+                        <div className="space-y-6">
+                           {/* Score Card */}
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              <div className={`col-span-1 rounded-[2rem] p-6 text-center border-4 ${aiReport.score >= 80 ? 'bg-emerald-50 border-emerald-100' : aiReport.score >= 50 ? 'bg-amber-50 border-amber-100' : 'bg-red-50 border-red-100'}`}>
+                                 <p className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">Puntaje</p>
+                                 <div className={`text-6xl font-black mb-2 ${aiReport.score >= 80 ? 'text-emerald-600' : aiReport.score >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {aiReport.score}
+                                 </div>
+                                 <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${aiReport.score >= 80 ? 'bg-emerald-200 text-emerald-800' : aiReport.score >= 50 ? 'bg-amber-200 text-amber-800' : 'bg-red-200 text-red-800'}`}>
+                                    {aiReport.verdict}
+                                 </span>
+                              </div>
+
+                              <div className="col-span-2 bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
+                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <i className="fa-solid fa-chart-line text-indigo-500"></i> Análisis General
+                                 </h4>
+                                 <p className="text-sm text-slate-700 font-medium leading-relaxed mb-4 text-justify">
+                                    {aiReport.analysis}
+                                 </p>
+                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <i className="fa-solid fa-user-xmark text-red-500"></i> Clientes No Visitados
+                                 </h4>
+                                 <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
+                                    {aiReport.missed_clients_analysis}
+                                 </p>
+                              </div>
+                           </div>
+
+                           <div className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100 flex items-start gap-4">
+                              <div className="bg-indigo-100 p-3 rounded-full shrink-0">
+                                 <i className="fa-solid fa-lightbulb text-indigo-600 text-xl"></i>
+                              </div>
+                              <div>
+                                 <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Recomendación IA</h4>
+                                 <p className="text-sm font-bold text-indigo-900 leading-snug">
+                                    {aiReport.recommendation}
+                                 </p>
+                              </div>
+                           </div>
+                        </div>
+                     ) : (
+                        <div className="text-center py-10">Error al cargar reporte.</div>
+                     )}
+                  </div>
+               </div>
+            </div>
+         )}
+
          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                <div>
@@ -368,15 +533,27 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                </div>
 
                <div className="flex flex-wrap gap-4 w-full md:w-auto">
-                  <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
-                     <i className="fa-regular fa-calendar text-slate-900"></i>
-                     <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-transparent border-none outline-none text-xs font-black text-slate-700 uppercase"
-                        style={{ colorScheme: 'light' }}
-                     />
+                  <div className="flex gap-2">
+                     <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-400">DESDE</span>
+                        <input
+                           type="date"
+                           value={selectedDate}
+                           onChange={(e) => setSelectedDate(e.target.value)}
+                           className="bg-transparent border-none outline-none text-xs font-black text-slate-700 uppercase"
+                           style={{ colorScheme: 'light' }}
+                        />
+                     </div>
+                     <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-400">HASTA</span>
+                        <input
+                           type="date"
+                           value={endDate}
+                           onChange={(e) => setEndDate(e.target.value)}
+                           className="bg-transparent border-none outline-none text-xs font-black text-slate-700 uppercase"
+                           style={{ colorScheme: 'light' }}
+                        />
+                     </div>
                   </div>
 
                   <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
@@ -420,6 +597,15 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                >
                   😇 Liquidar
                </button>
+
+               <button
+                  onClick={handleRunAiAudit}
+                  disabled={selectedCollector === 'all'}
+                  className="ml-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                  <i className="fa-solid fa-microchip"></i>
+                  {t.reports.runAudit}
+               </button>
             </div>
          </div>
 
@@ -448,59 +634,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             </div>
          </div>
 
-         <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-[2rem] p-5 shadow-xl relative overflow-hidden border border-indigo-500/30">
-            <div className="absolute top-0 right-0 p-6 opacity-10">
-               <i className="fa-solid fa-robot text-7xl text-white"></i>
-            </div>
-
-            <div className="relative z-10">
-               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-                  <div>
-                     <h3 className="text-lg font-black text-white uppercase tracking-tighter flex items-center gap-2">
-                        <i className="fa-solid fa-brain text-indigo-400"></i>
-                        {t.reports.aiAudit}
-                     </h3>
-                  </div>
-                  <button
-                     onClick={handleRunAiAudit}
-                     disabled={loadingAi || selectedCollector === 'all'}
-                     className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                  >
-                     {loadingAi ? <i className="fa-solid fa-circle-notch animate-spin text-black"></i> : <i className="fa-solid fa-microchip text-black"></i>}
-                     {loadingAi ? t.common.loading : t.reports.runAudit}
-                  </button>
-               </div>
-
-               {aiReport && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fadeIn">
-                     <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 flex flex-col items-center justify-center text-center">
-                        <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest mb-1">{t.reports.score}</p>
-                        <div className={`text-4xl font-black mb-1 ${aiReport.score >= 80 ? 'text-emerald-400' : aiReport.score >= 50 ? 'text-amber-400' : 'text-red-500'}`}>
-                           {aiReport.score}/100
-                        </div>
-                        <span className={`px-3 py-0.5 rounded-full text-[9px] font-black uppercase ${aiReport.score >= 80 ? 'bg-emerald-500/20 text-emerald-300' : aiReport.score >= 50 ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
-                           {aiReport.verdict}
-                        </span>
-                     </div>
-
-                     <div className="lg:col-span-2 bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/10 flex flex-col justify-center">
-                        <div className="mb-2">
-                           <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                              <i className="fa-solid fa-magnifying-glass-chart text-indigo-400"></i> {t.reports.analysis}
-                           </h4>
-                           <p className="text-xs text-slate-200 leading-relaxed font-medium line-clamp-3">"{aiReport.analysis}"</p>
-                        </div>
-                        <div className="pt-2 border-t border-white/5">
-                           <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                              <i className="fa-solid fa-gavel text-red-400"></i> {t.reports.recommendation}
-                           </h4>
-                           <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-wide truncate">{aiReport.recommendation}</p>
-                        </div>
-                     </div>
-                  </div>
-               )}
-            </div>
-         </div>
+         {/* OLD CARD REMOVED */}
 
          <div className="w-full bg-slate-900 rounded-[2rem] shadow-xl overflow-hidden relative border-4 border-slate-800 h-[400px]">
             <div ref={mapRef} className="w-full h-full z-10"></div>

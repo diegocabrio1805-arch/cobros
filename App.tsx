@@ -540,9 +540,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Aggressive Sync for Collectors: 1 second interval (Silent)
-    // Regular Users/Admins: 20 seconds
-    const intervalTime = state.currentUser?.role === Role.COLLECTOR ? 1000 : 20000;
+    // Aggressive Sync for Everyone: 4 second interval (Silent)
+    // As requested by user: Force sync every 4 seconds, hidden window.
+    const intervalTime = 4000;
 
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline) {
@@ -551,7 +551,7 @@ const App: React.FC = () => {
       }
     }, intervalTime);
     return () => clearInterval(syncInterval);
-  }, [isSyncing, isOnline, state.currentUser?.role]);
+  }, [isSyncing, isOnline]);
 
   useEffect(() => {
     let syncHangingTimeout: any;
