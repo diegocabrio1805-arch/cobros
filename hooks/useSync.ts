@@ -79,6 +79,25 @@ export const useSync = () => {
             });
         };
 
+        // REALTIME SUBSCRIPTION FOR INSTANT UPDATES
+        // This addresses the user's request for "detecting and updating changes immediately"
+        const channel = supabase.channel('system_changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public' },
+                (payload) => {
+                    console.log('Realtime change detected:', payload.table, payload.eventType);
+                    // Debounce pullData to avoid multiple rapid calls
+                    const debounceTimer = (window as any)._syncDebounceTimer;
+                    if (debounceTimer) clearTimeout(debounceTimer);
+                    (window as any)._syncDebounceTimer = setTimeout(() => {
+                        console.log('Triggering incremental pull after realtime change...');
+                        pullData(false);
+                    }, 2000); // 2s debounce
+                }
+            )
+            .subscribe();
+
         const handlerPromise = setupListener();
         const appHandlerPromise = setupAppListener();
 
@@ -86,6 +105,7 @@ export const useSync = () => {
             clearInterval(interval);
             handlerPromise.then(h => h.remove());
             appHandlerPromise.then(h => h.remove());
+            supabase.removeChannel(channel);
         };
     }, []);
 
