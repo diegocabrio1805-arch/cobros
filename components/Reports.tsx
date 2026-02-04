@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings } from '../types';
+import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
 import { formatCurrency } from '../utils/helpers';
-import { GoogleGenAI, Type } from "@google/genai";
+
 import { getTranslation } from '../utils/translations';
 
 interface ReportsProps {
@@ -301,60 +301,70 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Desconocido';
 
-      // Get assigned clients to check who wasn't visited
+      // --- NEW: Contextual Data Collection per Client ---
       const assignedLoans = state.loans.filter(l =>
          l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
       );
-      const assignedClientIds = Array.from(new Set(assignedLoans.map(l => l.clientId)));
 
-      // Get active clients (exclude visited)
-      const visitedClientIds = new Set(routeData.map(log => log.clientId));
-      const notVisitedClients = assignedClientIds
-         .filter(id => !visitedClientIds.has(id))
-         .map(id => state.clients.find(c => c.id === id)?.name || 'Desconocido')
-         .filter(name => name !== 'Desconocido');
+      const clientContexts = assignedLoans.map(loan => {
+         const client = state.clients.find(c => c.id === loan.clientId);
+         const clientLogs = routeData.filter(log => log.clientId === loan.clientId);
 
-      // Prepare stats
-      const totalAssignedClients = assignedClientIds.length;
-      const totalVisited = visitedClientIds.size;
-      const missingClients = notVisitedClients.length;
-      const routeCoverage = totalAssignedClients > 0 ? (totalVisited / totalAssignedClients) * 100 : 0;
-      const payments = routeData.filter(l => l.type === CollectionLogType.PAYMENT).length;
-      const noPayments = routeData.filter(l => l.type === CollectionLogType.NO_PAGO).length;
-      const collectedAmount = routeData.reduce((acc, l) => acc + (l.amount || 0), 0);
-      const devilStops = stats.devilStops;
+         // Get relevant installments (those due in the period or the latest one)
+         const relevantInstallments = loan.installments.filter(inst => {
+            const dueStr = inst.dueDate.split('T')[0];
+            return (dueStr >= selectedDate && dueStr <= (endDate || selectedDate)) || inst.status !== PaymentStatus.PAID;
+         }).slice(0, 3); // Take top 3 for tokens efficiency
 
-      // New Prompt Logic strictly for Route Compliance (Visits)
+         return {
+            cliente: client?.name || 'Desconocido',
+            frecuencia: loan.frequency,
+            cuotas: relevantInstallments.map(i => ({
+               vencimiento: i.dueDate.split('T')[0],
+               estado: i.status,
+               valor: i.amount
+            })),
+            gestiones: clientLogs.map(log => ({
+               tipo: log.type,
+               fecha: new Date(log.date).toISOString().split('T')[0],
+               hora: new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+               monto: log.amount || 0
+            }))
+         };
+      });
+
+      const totalAssigned = clientContexts.length;
+      const visitedCount = clientContexts.filter(c => c.gestiones.length > 0).length;
+      const missingCount = totalAssigned - visitedCount;
+      const coverage = totalAssigned > 0 ? (visitedCount / totalAssigned) * 100 : 0;
+
       const prompt = `
-      Actúa como un Auditor de Cumplimiento de Rutas. Tu ÚNICO objetivo es verificar si el cobrador "${collectorName}" visitó a sus clientes asignados.
+      Actúa como un Auditor Senior de Cobranza. Tu objetivo es evaluar el CRITERIO y CUMPLIMIENTO del cobrador "${collectorName}".
       PERIODO: ${selectedDate} hasta ${endDate || selectedDate}.
 
-      MÉTRICAS DE COBERTURA (LO MÁS IMPORTANTE):
-      - Clientes TOTALES Asignados: ${totalAssignedClients}
-      - Clientes VISITADOS: ${totalVisited}
-      - Clientes NO VISITADOS (Faltantes): ${missingClients}
-      - Porcentaje de Cobertura: ${routeCoverage.toFixed(1)}%
+      REGLAS DE AUDITORÍA (Criterios):
+      1. PRÉSTAMO DIARIO: Debe haber una gestión (PAGO o NO PAGO) CADA DÍA del periodo auditado. Si no hay registro, es falta grave.
+      2. PRÉSTAMO SEMANAL: La gestión debe ocurrir máximo 1-3 días después del vencimiento de la cuota. Evalúa cuántos días pasaron.
+      3. PRÉSTAMO MENSUAL: Si la cuota vence un día específico (ej. el día 4), el cobrador tiene un margen de 1 a 6 días para reportar la gestión o el no pago.
+      4. SIEMPRE prioriza la presencia: Si el cliente no pagó, el cobrador DEBE registrar un "NO PAGO". La ausencia de registro es peor que un no pago.
 
-      DETALLE DE FALTANTES:
-      [${notVisitedClients.slice(0, 50).join(', ')}${notVisitedClients.length > 50 ? '... y más' : ''}]
+      DATOS DE LA RUTA:
+      - Cobertura Total: ${coverage.toFixed(1)}% (${visitedCount} de ${totalAssigned} clientes).
+      - Detalle Contextual por Cliente:
+      ${JSON.stringify(clientContexts, null, 2)}
 
-      OTROS DATOS (Secundario):
-      - Paradas sospechosas: ${devilStops}
-      - Efectividad de Cobro: ${payments} Pagos vs ${noPayments} No Pagos.
+      INSTRUCCIONES DE SALIDA:
+      - Define si el cobrador tiene "Criterio de Cobranza" o si es descuidado.
+      - Menciona casos específicos (nombres de clientes) donde se pasó de los días permitidos según la frecuencia.
+      - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
 
-      INSTRUCCIONES:
-      1. Tu análisis debe centrarse en: ¿Visitó a todos sus clientes? ¿Sí o no?
-      2. Si faltaron clientes, CRITICA fuertemente la falta de cobertura.
-      3. Si la cobertura es alta (cerca del 100%), felicita el cumplimiento de ruta.
-      4. Ignora los montos de dinero, importa es LA VISITA (Presencia).
-
-      FORMATO JSON ESPERADO:
+      FORMATO JSON:
       {
-        "score": number (0-100, basado principalmente en Cobertura),
-        "verdict": "string (Ej: RUTA COMPLETA, RUTA INCOMPLETA, DESERCIÓN)",
-        "analysis": "string (Enfócate en si cumplió con visitar a sus asignados)",
-        "missed_clients_analysis": "string (Menciona nombres de faltantes si los hay y qué tan grave es)",
-        "recommendation": "string (Acción para asegurar el 100% de visitas)"
+        "score": number (0-100),
+        "verdict": "string",
+        "analysis": "string (Análisis de cumplimiento y tiempos según frecuencia)",
+        "missed_clients_analysis": "string (Detalle de clientes abandonados o gestiones tardías)",
+        "recommendation": "string"
       }
     `;
 

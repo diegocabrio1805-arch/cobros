@@ -59,6 +59,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera'>('gestion');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
+  const [selectedCollector, setSelectedCollector] = useState<string>('all');
 
   // PAGINACIÓN PARA GAMA BAJA
   const [currentPage, setCurrentPage] = useState(1);
@@ -204,6 +205,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const isCollector = state.currentUser?.role === Role.COLLECTOR;
   const currentUserId = state.currentUser?.id;
 
+  const collectors = useMemo(() => state.users.filter(u => u.role === Role.COLLECTOR), [state.users]);
+
   const clientInLegajo = useMemo(() => state.clients.find(c => c.id === showLegajo), [showLegajo, state.clients]);
 
   const activeLoanInLegajo = useMemo(() => {
@@ -253,6 +256,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const s = globalSearch.toLowerCase();
       clients = clients.filter(c => (c.name || '').toLowerCase().includes(s) || (c.documentId || '').includes(s));
     }
+    if (selectedCollector !== 'all') {
+      clients = clients.filter(c => {
+        const activeLoan = state.loans.find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
+      });
+    }
     // SAFE SORT (NaN PROOF)
     return [...clients].sort((a, b) => {
       const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -266,7 +275,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   // RESETEAR PAGINA AL FILTRAR
   useEffect(() => {
     setCurrentPage(1);
-  }, [viewMode, globalSearch]);
+  }, [viewMode, globalSearch, selectedCollector]);
 
   const paginatedClients = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -284,7 +293,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return state.clients.filter(client => {
       if (!client.createdAt || client.isHidden) return false;
       const cDate = new Date(client.createdAt);
-      return cDate >= start && cDate <= end;
+      const inRange = cDate >= start && cDate <= end;
+      if (!inRange) return false;
+
+      if (selectedCollector !== 'all') {
+        const activeLoan = state.loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return activeLoan?.collectorId === selectedCollector || client.addedBy === selectedCollector;
+      }
+      return true;
     }).map(client => {
       const metrics = getClientMetrics(client);
       return { ...client, _metrics: metrics };
@@ -301,7 +317,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const client = state.clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return false;
       const lDate = new Date(loan.createdAt);
-      return loan.isRenewal && lDate >= start && lDate <= end;
+      const inRange = loan.isRenewal && lDate >= start && lDate <= end;
+      if (!inRange) return false;
+
+      if (selectedCollector !== 'all') {
+        return loan.collectorId === selectedCollector;
+      }
+      return true;
     }).map(loan => {
       const client = state.clients.find(c => c.id === loan.clientId);
       const metrics = getClientMetrics(client!);
@@ -312,7 +334,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
     if (viewMode !== 'cartera') return [];
-    return state.clients.filter(c => !c.isHidden).map(client => {
+    return state.clients.filter(c => {
+      if (c.isHidden) return false;
+      if (selectedCollector !== 'all') {
+        const activeLoan = state.loans.find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
+      }
+      return true;
+    }).map(client => {
       const metrics = getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).sort((a, b) => {
@@ -568,8 +597,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const { printText } = await import('../services/bluetoothPrinterService');
         printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
+        // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
         const phone = clientInLegajo.phone.replace(/\D/g, '');
-        window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`;
+        window.open(wpUrl, '_blank');
       } else if (type === CollectionLogType.NO_PAGO) {
         let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(activeLoanInLegajo, clientInLegajo, getDaysOverdue(activeLoanInLegajo, state.settings), state.settings);
         window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -607,11 +638,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 6, // ULTRA HD Resolution (6x DPI)
+        scale: 4, // HD Resolution (Optimized from 8 to avoid memory issues while keeping sharpness)
         useCORS: true,
         logging: false,
         allowTaint: true,
-        windowHeight: shareCardRef.current.scrollHeight,
+        windowWidth: 800,
+        width: 800,
         height: shareCardRef.current.scrollHeight,
       });
 
@@ -805,26 +837,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       isRenewal: lastPaymentLog.isRenewal
     }, state.settings);
 
-    // 4. Imprimir
-    const { isPrinterConnected, printText } = await import('../services/bluetoothPrinterService');
-    const printerAppearsConnected = await isPrinterConnected();
-
-    if (printerAppearsConnected) {
-      try {
-        await printText(receiptText);
-        alert("Reimpresión enviada a la impresora.");
-      } catch (printErr) {
-        console.error("Error direct printing:", printErr);
-        // Fallback Web
-        const printWin = window.open('', '_blank', 'width=400,height=600');
-        printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
-        printWin?.print();
-      }
-    } else {
-      // Fallback Web directo si no hay impresora
-      const printWin = window.open('', '_blank', 'width=400,height=600');
-      printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
-      printWin?.print();
+    // 4. Imprimir vía Bluetooth
+    const { printText } = await import('../services/bluetoothPrinterService');
+    try {
+      await printText(receiptText);
+      alert("Reimpresi\u00f3n enviada a la impresora.");
+    } catch (printErr) {
+      console.error("Error direct printing:", printErr);
+      alert("Error: No se pudo conectar con la impresora Bluetooth.");
     }
   };
 
@@ -854,7 +874,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     addLoan(newLoan);
     setShowRenewModal(false);
     if (onForceSync) onForceSync(false);
-    alert("Crédito renovado exitosamente.");
+    alert("Cr\u00e9dito renovado exitosamente.");
   };
 
   const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, disabled = false }: { startDate: string, customHolidays: string[], setDate: (iso: string) => void, toggleHoliday: (iso: string) => void, disabled?: boolean }) => {
@@ -970,6 +990,21 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : 'Cartera General'}
         </h2>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          {isAdminOrManager && (
+            <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
+              <i className="fa-solid fa-user-astronaut text-slate-900"></i>
+              <select
+                value={selectedCollector}
+                onChange={(e) => setSelectedCollector(e.target.value)}
+                className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
+              >
+                <option value="all">TODOS</option>
+                {collectors.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' ? (
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
@@ -1757,7 +1792,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       {/* TARJETA DE ESTADO DE CUENTA PROFESIONAL (OCULTA PARA CAPTURA) */}
       <div id="share-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1 }}>
-        <div ref={shareCardRef} className="w-[800px] bg-white text-slate-900 font-sans relative">
+        <div ref={shareCardRef} className="w-[800px] bg-white text-slate-900 font-sans relative" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>
           {/* HEADER */}
           <div className="bg-[#1e293b] p-8 flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -1851,27 +1886,33 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     const pendingAmount = installmentAmount - amountPaidForThisOne;
 
                     return (
-                      <div key={idx} className={`flex items-center justify-between p-3 rounded-2xl border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100 shadow-sm'}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isPaid ? 'bg-[#22c55e] text-white shadow-sm' : isPartial ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-300'}`}>
+                      <div key={idx} className={`flex items-center justify-between p-4 rounded-[2rem] border-2 ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-100 shadow-sm'}`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${isPaid ? 'bg-[#22c55e] text-white shadow-md' : isPartial ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-300'}`}>
                             {inst.number}
                           </div>
                           <div className="flex flex-col">
-                            <span className={`text-[11px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
+                            <span className={`text-[13px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
                               {new Date(inst.dueDate).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
                             </span>
-                            {isPartial && (
-                              <div className="flex flex-col mt-0.5">
-                                <span className="text-[9px] font-black text-emerald-600 uppercase">ABONADO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>
-                                <span className="text-[9px] font-black text-red-600 uppercase">FALTA: {formatCurrency(pendingAmount, state.settings)}</span>
-                              </div>
-                            )}
-                            {isPaid && <span className="text-[8px] font-black text-[#15803d] uppercase tracking-wider">PAGADO</span>}
+                            {isPaid && <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest mt-0.5">PAGADO TOTAL</span>}
+                            {!isPaid && !isPartial && <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5">PENDIENTE</span>}
                           </div>
                         </div>
-                        <span className={`font-black text-base ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
-                          {formatCurrency(installmentAmount, state.settings)}
-                        </span>
+
+                        <div className="flex flex-col items-end">
+                          {isPartial && (
+                            <span className="text-[11px] font-black text-emerald-600 uppercase leading-none mb-1">ABONADO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>
+                          )}
+
+                          <span className={`font-black text-xl leading-none ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
+                            {formatCurrency(installmentAmount, state.settings)}
+                          </span>
+
+                          {isPartial && (
+                            <span className="text-[11px] font-black text-red-600 uppercase leading-none mt-1">FALTA: {formatCurrency(pendingAmount, state.settings)}</span>
+                          )}
+                        </div>
                       </div>
                     );
                   });
@@ -1923,18 +1964,28 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                   {receipt}
                 </div>
-                <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                  Cerrar y Continuar
-                </button>
-                <div className="mt-2">
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
+                    Finalizar y Salir
+                  </button>
                   <button
                     onClick={async () => {
                       const { printText } = await import('../services/bluetoothPrinterService');
-                      printText(receipt || '').catch(e => alert("Error impresión: " + e));
+                      printText(receipt || '').catch(e => alert("Error impresi\u00f3n: " + e));
                     }}
                     className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                   >
                     <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                  </button>
+                  <button
+                    onClick={() => {
+                      const phone = clientInLegajo?.phone.replace(/\D/g, '') || '';
+                      const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
+                      window.open(wpUrl, '_blank');
+                    }}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
                   </button>
                 </div>
               </div>

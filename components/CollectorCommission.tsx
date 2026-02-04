@@ -600,7 +600,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <div className="space-y-8 px-4">
                 <div className="border-b-2 border-slate-100 pb-6">
                   <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">CLIENTE / TITULAR</p>
-                  <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tight truncate">{client.name}</h2>
+                  <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-normal py-4 break-words">{client.name}</h2>
                 </div>
 
                 <div className="grid grid-cols-2 gap-10">

@@ -11,6 +11,7 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https',
+    url: 'https://cobros-iota.vercel.app/',
     cleartext: true
   },
   plugins: {

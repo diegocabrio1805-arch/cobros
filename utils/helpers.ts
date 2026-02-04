@@ -366,14 +366,42 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const companyId = settings.companyIdentifier ? `\nNIT/RUC: ${settings.companyIdentifier}` : '';
   const contact = settings.contactPhone ? `\nSOPORTE: ${settings.contactPhone}` : '';
   const alias = settings.transferAlias ? `\nALIAS TRANSF: ${settings.transferAlias}` : '';
+
+  const phoneFmt = settings.contactPhoneBold ? '<B1>' : '';
+  const phoneEnd = settings.contactPhoneBold ? '<B0>' : '';
+
+  const getSizTag = (size?: 'normal' | 'medium' | 'large') => {
+    if (size === 'large') return '<GS1>';
+    if (size === 'medium') return '<GS2>';
+    return '<GS0>';
+  };
+  const getSizEnd = (size?: 'normal' | 'medium' | 'large') => {
+    if (size === 'large' || size === 'medium') return '<GS0>';
+    return '';
+  };
+
+  const shareLabelFmt = (settings.shareLabelBold ? '<B1>' : '') + getSizTag(settings.shareLabelSize);
+  const shareLabelEnd = getSizEnd(settings.shareLabelSize) + (settings.shareLabelBold ? '<B0>' : '');
+  const shareValueFmt = (settings.shareValueBold ? '<B1>' : '') + getSizTag(settings.shareValueSize);
+  const shareValueEnd = getSizEnd(settings.shareValueSize) + (settings.shareValueBold ? '<B0>' : '');
+
   const shareSection = (settings.shareLabel && settings.shareValue)
-    ? `\n-------------------------------\n${settings.shareLabel.toUpperCase()}:\n>>> ${settings.shareValue} <<<`
+    ? `\n-------------------------------\n${shareLabelFmt}${settings.shareLabel.toUpperCase()}${shareLabelEnd}:\n>>> ${shareValueFmt}${settings.shareValue}${shareValueEnd} <<<`
     : '';
+
+  const margin = settings.receiptPrintMargin ?? 2;
+  const marginLines = "\n".repeat(margin);
+
+  const nameFmt = (settings.companyNameBold ? '<B1>' : '') + getSizTag(settings.companyNameSize);
+  const nameEnd = getSizEnd(settings.companyNameSize) + (settings.companyNameBold ? '<B0>' : '');
+
+  const idFmt = settings.companyIdentifierBold ? '<B1>' : '';
+  const idEnd = settings.companyIdentifierBold ? '<B0>' : '';
 
   return `
 ===============================
-       ${company.toUpperCase()}
-    ${headerText}${companyId}
+       ${nameFmt}${company.toUpperCase()}${nameEnd}
+    ${headerText}${idFmt}${companyId}${idEnd}
 ===============================
 ${t.date}: ${dateFormatted}
 ${t.ref}: ${data.loanId.toUpperCase()}
@@ -392,8 +420,9 @@ ${t.overdue}: ${data.daysOverdue} ${t.days}
 ${t.balance}:
 >>> ${formatCurrency(data.remainingBalance, settings)} <<<
 -------------------------------
-${t.footer}${contact}${alias}
+${t.footer}${phoneFmt}${contact}${phoneEnd}${alias}
 ===============================
+${marginLines}
 `;
 };
 
@@ -405,10 +434,22 @@ export const generateNoPaymentReceiptText = (data: ReceiptData, settings: AppSet
   const companyId = settings.companyIdentifier ? `\nNIT/RUC: ${settings.companyIdentifier}` : '';
   const contact = settings.contactPhone ? `\nSOPORTE: ${settings.contactPhone}` : '';
 
+  const margin = settings.receiptPrintMargin ?? 2;
+  const marginLines = "\n".repeat(margin);
+
+  const nameFmt = (settings.companyNameBold ? '<B1>' : '') + (settings.companyNameSize === 'large' ? '<GS1>' : '');
+  const nameEnd = (settings.companyNameSize === 'large' ? '<GS0>' : '') + (settings.companyNameBold ? '<B0>' : '');
+
+  const idFmt = settings.companyIdentifierBold ? '<B1>' : '';
+  const idEnd = settings.companyIdentifierBold ? '<B0>' : '';
+
+  const phoneFmt = settings.contactPhoneBold ? '<B1>' : '';
+  const phoneEnd = settings.contactPhoneBold ? '<B0>' : '';
+
   return `
 ===============================
-       ${company.toUpperCase()}
-   ${t.noPayHeader}${companyId}
+       ${nameFmt}${company.toUpperCase()}${nameEnd}
+   ${t.noPayHeader}${idFmt}${companyId}${idEnd}
 ===============================
 ${t.visitDate}:
 >>> ${dateFormatted} <<<
@@ -426,8 +467,9 @@ ${t.daysLate}: ${data.daysOverdue} ${t.days}
 ${t.totalBalance}:
 >>> ${formatCurrency(data.remainingBalance, settings)} <<<
 -------------------------------
-${t.noPayFooter}${contact}
+${t.noPayFooter}${phoneFmt}${contact}${phoneEnd}
 ===============================
+${marginLines}
 `;
 };
 

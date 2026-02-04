@@ -4,6 +4,7 @@ import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, Collect
 import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
+import { Geolocation } from '@capacitor/geolocation';
 
 interface LoansProps {
   state: AppState;
@@ -118,14 +119,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     }
   };
 
-  const triggerPrintTicket = (receiptText: string) => {
-    const printWin = window.open('', '_blank', 'width=400,height=600');
-    if (printWin) {
-      printWin.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
-      printWin.document.close();
-      printWin.focus();
-      printWin.print();
-      printWin.close();
+  const triggerPrintTicket = async (receiptText: string) => {
+    // 4. Imprimir vía Bluetooth
+    const { printText } = await import('../services/bluetoothPrinterService');
+    try {
+      await printText(receiptText);
+      alert("Reimpresión enviada a la impresora.");
+    } catch (printErr) {
+      console.error("Error direct printing:", printErr);
+      alert("Error: No se pudo conectar con la impresora Bluetooth.");
     }
   };
 
@@ -362,20 +364,14 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       isRenewal: lastPaymentLog.isRenewal
     }, state.settings);
 
-    // 4. Imprimir
-    const { isPrinterConnected, printText } = await import('../services/bluetoothPrinterService');
-    const printerAppearsConnected = await isPrinterConnected();
-
-    if (printerAppearsConnected) {
-      try {
-        await printText(receiptText);
-        alert("Reimpresión enviada a la impresora.");
-      } catch (printErr) {
-        console.error("Error direct printing:", printErr);
-        triggerPrintTicket(receiptText);
-      }
-    } else {
-      triggerPrintTicket(receiptText);
+    // 4. Imprimir vía Bluetooth
+    const { printText } = await import('../services/bluetoothPrinterService');
+    try {
+      await printText(receiptText);
+      alert("Reimpresi\u00f3n enviada a la impresora.");
+    } catch (printErr) {
+      console.error("Error direct printing:", printErr);
+      alert("Error: No se pudo conectar con la impresora Bluetooth.");
     }
   };
 

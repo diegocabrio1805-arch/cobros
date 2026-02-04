@@ -37,7 +37,16 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
     companyAlias: state.settings.companyAlias || '',
     companyIdentifier: state.settings.companyIdentifier || '',
     shareLabel: state.settings.shareLabel || '',
-    shareValue: state.settings.shareValue || ''
+    shareValue: state.settings.shareValue || '',
+    receiptPrintMargin: state.settings.receiptPrintMargin ?? 2,
+    companyNameBold: state.settings.companyNameBold ?? false,
+    companyNameSize: state.settings.companyNameSize || 'normal',
+    companyIdentifierBold: state.settings.companyIdentifierBold ?? false,
+    contactPhoneBold: state.settings.contactPhoneBold ?? false,
+    shareLabelBold: state.settings.shareLabelBold ?? false,
+    shareLabelSize: state.settings.shareLabelSize || 'normal',
+    shareValueBold: state.settings.shareValueBold ?? false,
+    shareValueSize: state.settings.shareValueSize || 'normal'
   });
 
   const handleScanPrinters = async () => {
@@ -261,23 +270,152 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="space-y-4 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombres de banco o cuentas bancarias</label>
-                <input
-                  type="text"
-                  value={localForm.shareLabel}
-                  onChange={(e) => setLocalForm({ ...localForm, shareLabel: e.target.value })}
-                  placeholder="COMPLETAR"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={localForm.shareLabel}
+                    onChange={(e) => setLocalForm({ ...localForm, shareLabel: e.target.value })}
+                    placeholder="COMPLETAR"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-3 ml-1 mt-1 items-start sm:items-center">
+                    <button
+                      onClick={() => setLocalForm({ ...localForm, shareLabelBold: !localForm.shareLabelBold })}
+                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareLabelBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                    >
+                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                    </button>
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                      {['normal', 'medium', 'large'].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setLocalForm({ ...localForm, shareLabelSize: size as any })}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareLabelSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                        >
+                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Med.' : 'Gnd.'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Numero de cuenta o alias de la empresa</label>
-                <input
-                  type="text"
-                  value={localForm.shareValue}
-                  onChange={(e) => setLocalForm({ ...localForm, shareValue: e.target.value })}
-                  placeholder="COMPLETAR"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={localForm.shareValue}
+                    onChange={(e) => setLocalForm({ ...localForm, shareValue: e.target.value })}
+                    placeholder="COMPLETAR"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-3 ml-1 mt-1 items-start sm:items-center">
+                    <button
+                      onClick={() => setLocalForm({ ...localForm, shareValueBold: !localForm.shareValueBold })}
+                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareValueBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                    >
+                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                    </button>
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                      {['normal', 'medium', 'large'].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setLocalForm({ ...localForm, shareValueSize: size as any })}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareValueSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                        >
+                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Med.' : 'Gnd.'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* OPCIONES DE FORMATO DE IMPRESIÓN */}
+            <div className="col-span-1 md:col-span-2 pt-6 border-t border-slate-100 space-y-6">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-wand-magic-sparkles text-blue-600"></i>
+                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Estilos de Impresión (Resaltado)</h4>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Nombre de la Empresa */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Nombre de Empresa</p>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => setLocalForm({ ...localForm, companyNameBold: !localForm.companyNameBold })}
+                      className={`w-fit px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyNameBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                    >
+                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                    </button>
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 w-fit shadow-sm">
+                      {['normal', 'medium', 'large'].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setLocalForm({ ...localForm, companyNameSize: size as any })}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.companyNameSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                        >
+                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Mediano' : 'Grande'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ID Empresa */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">ID Legal (NIT/RUC)</p>
+                  <div>
+                    <button
+                      onClick={() => setLocalForm({ ...localForm, companyIdentifierBold: !localForm.companyIdentifierBold })}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyIdentifierBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                    >
+                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                    </button>
+                  </div>
+                </div>
+
+                {/* Teléfono */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Teléfono Soporte</p>
+                  <div>
+                    <button
+                      onClick={() => setLocalForm({ ...localForm, contactPhoneBold: !localForm.contactPhoneBold })}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.contactPhoneBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                    >
+                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Margen de Impresión */}
+              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                    <i className="fa-solid fa-arrows-up-down"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-800 uppercase leading-none">Margen Final (Cola del Recibo)</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Largo del papel sobrante</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 w-full sm:w-auto px-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={localForm.receiptPrintMargin}
+                    onChange={(e) => setLocalForm({ ...localForm, receiptPrintMargin: parseInt(e.target.value) })}
+                    className="flex-1 sm:w-32 accent-blue-600"
+                  />
+                  <span className="w-12 text-center py-1 bg-white border border-blue-200 rounded-lg text-[10px] font-black text-blue-700">
+                    {localForm.receiptPrintMargin} <span className="text-[8px] opacity-50">LÍNEAS</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>

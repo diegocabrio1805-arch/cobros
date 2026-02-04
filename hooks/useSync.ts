@@ -209,16 +209,20 @@ export const useSync = () => {
         let expensesQuery = supabase.from('expenses').select('*');
 
         if (lastSyncTime && !fullSync) {
-            clientsQuery = clientsQuery.gt('updated_at', lastSyncTime);
-            loansQuery = loansQuery.gt('updated_at', lastSyncTime);
-            paymentsQuery = paymentsQuery.gt('updated_at', lastSyncTime);
-            logsQuery = logsQuery.gt('updated_at', lastSyncTime);
-            settingsQuery = settingsQuery.gt('updated_at', lastSyncTime);
-            expensesQuery = expensesQuery.gt('updated_at', lastSyncTime);
+            // SAFETY MARGIN: Subtract 2 seconds to avoid missing records due to clock skew or race conditions
+            const safetyMargin = 2000;
+            const adjustedSyncTime = new Date(new Date(lastSyncTime).getTime() - safetyMargin).toISOString();
+
+            clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);
+            loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
+            paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
+            logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
+            settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
+            expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // Reduced from 180s to 60s for low-end devices
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120s for 2G/3G networks
 
         try {
             // 1. Settings (Small)

@@ -165,69 +165,55 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
         if (!reconnected) return false;
     }
 
-    const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    // Definición de Comandos ESC/POS
+    const ESC = '\x1B';
+    const GS = '\x1D';
+    const CMD_BOLD_ON = ESC + 'E' + '\x01';
+    const CMD_BOLD_OFF = ESC + 'E' + '\x00';
+    const CMD_SIZE_LARGE = GS + '!' + '\x11'; // Doble ancho y alto
+    const CMD_SIZE_MEDIUM = GS + '!' + '\x01'; // Doble alto, ancho normal
+    const CMD_SIZE_NORMAL = GS + '!' + '\x00';
 
-    // -- Lógica Nativa (Chunking) --
-    if (isNativeConnection && bs) {
-        const chunks = [];
-        for (let i = 0; i < text.length; i += CHUNK_SIZE) {
-            chunks.push(text.substring(i, i + CHUNK_SIZE));
-        }
+    // Normalizar texto y parsear etiquetas
+    // Mantenemos las etiquetas para el split pero quitamos acentos del resto
+    const parts = rawText.split(/(<B[01]>|<GS[012]>)/);
 
-        try {
-            for (const chunk of chunks) {
-                await new Promise<void>((resolve, reject) => {
-                    bs.write(chunk, () => resolve(), (err: any) => reject(err));
-                });
+    const sendChunk = async (chunk: string): Promise<void> => {
+        if (chunk === '<B1>') return bs ? bs.write(CMD_BOLD_ON) : printerCharacteristic.writeValue(new Uint8Array([0x1B, 0x45, 0x01]));
+        if (chunk === '<B0>') return bs ? bs.write(CMD_BOLD_OFF) : printerCharacteristic.writeValue(new Uint8Array([0x1B, 0x45, 0x00]));
+        if (chunk === '<GS1>') return bs ? bs.write(CMD_SIZE_LARGE) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x11]));
+        if (chunk === '<GS2>') return bs ? bs.write(CMD_SIZE_MEDIUM) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x01]));
+        if (chunk === '<GS0>') return bs ? bs.write(CMD_SIZE_NORMAL) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x00]));
+
+        const cleanText = chunk.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (isNativeConnection && bs) {
+            for (let i = 0; i < cleanText.length; i += CHUNK_SIZE) {
+                await new Promise<void>((res, rej) => bs.write(cleanText.substring(i, i + CHUNK_SIZE), res, rej));
                 await sleep(CHUNK_DELAY);
             }
-            return true;
-        } catch (e) {
-            console.warn("Write failed. Attempting hard reset and retry...", e);
-            if (retryCount < 2) { // Permitir hasta 2 reintentos completos de impresión
-                // Hard reset connection: Forzar desconexión antes de reintentar
-                try {
-                    if (isNativeConnection && bs) {
-                        await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
-                    }
-                } catch (disError) {
-                    console.error("Error during disconnect:", disError);
-                }
-
-                await sleep(1500); // Dar más tiempo para liberar el stack Bluetooth
-                console.log(`Reintentando impresión completa (${retryCount + 1}/2)...`);
-
-                const reconnected = await connectToPrinter();
-                if (reconnected) {
-                    return printText(rawText, retryCount + 1);
-                }
-            }
-            return false;
-        }
-    }
-
-    // -- Lógica Web Bluetooth --
-    if (!isNativeConnection && printerCharacteristic) {
-        try {
+        } else if (printerCharacteristic) {
             const encoder = new TextEncoder();
-            // Web Bluetooth también se beneficia del chunking
-            const chunks = [];
-            for (let i = 0; i < text.length; i += CHUNK_SIZE) {
-                chunks.push(text.substring(i, i + CHUNK_SIZE));
-            }
-
-            for (const chunk of chunks) {
-                const data = encoder.encode(chunk);
-                await printerCharacteristic.writeValue(data);
+            for (let i = 0; i < cleanText.length; i += CHUNK_SIZE) {
+                await printerCharacteristic.writeValue(encoder.encode(cleanText.substring(i, i + CHUNK_SIZE)));
                 await sleep(CHUNK_DELAY);
             }
-            return true;
-        } catch (e) {
-            console.error("Web Bluetooth write error:", e);
-            return false;
         }
+    };
+
+    try {
+        for (const part of parts) {
+            if (part) await sendChunk(part);
+        }
+        return true;
+    } catch (e) {
+        console.warn("Print failed. Retry...", e);
+        if (retryCount < 2) {
+            if (isNativeConnection && bs) await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
+            await sleep(1500);
+            return (await connectToPrinter()) ? printText(rawText, retryCount + 1) : false;
+        }
+        return false;
     }
-    return false;
 };
 
 export const isPrinterConnected = async (): Promise<boolean> => {

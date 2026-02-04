@@ -48,6 +48,25 @@ const App: React.FC = () => {
 
   // AUTO-RESET ON UPDATE LOGIC (Moved to Component Body)
   useEffect(() => {
+    // URL-BASED FORCED RESET (Using ?v= parameter)
+    const params = new URLSearchParams(window.location.search);
+    const urlVersion = params.get('v');
+    const storedUrlVersion = localStorage.getItem('LAST_URL_VERSION');
+
+    if (urlVersion && urlVersion !== storedUrlVersion) {
+      console.log(`[URLReset] Version mismatch! URL: ${urlVersion} | Stored: ${storedUrlVersion}`);
+      localStorage.setItem('LAST_URL_VERSION', urlVersion);
+
+      // Comprehensive Cleanup
+      localStorage.removeItem('last_sync_timestamp');
+      localStorage.removeItem('last_sync_timestamp_v6');
+      localStorage.removeItem('forced_resync_v5');
+
+      // Silent full sync trigger
+      handleForceSync(true, "Reset via URL", true);
+      alert("Actualización Forzada: Descargando datos nuevos desde la nube...");
+    }
+
     const checkAppVersion = async () => {
       try {
         if (!Capacitor.isNativePlatform()) return;
@@ -225,23 +244,29 @@ const App: React.FC = () => {
     if (!supabase) return;
 
     const channel = supabase.channel('global-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async (payload) => {
+        console.log('[Realtime] Payment updated:', payload.eventType);
         const newData = await pullData();
         if (newData?.payments) setState(prev => ({ ...prev, payments: mergeData(prev.payments, newData.payments!) }));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'collection_logs' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collection_logs' }, async (payload) => {
+        console.log('[Realtime] Log updated:', payload.eventType);
         const newData = await pullData();
         if (newData?.collectionLogs) setState(prev => ({ ...prev, collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs!) }));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, async (payload) => {
+        console.log('[Realtime] Loan updated:', payload.eventType);
         const newData = await pullData();
         if (newData?.loans) setState(prev => ({ ...prev, loans: mergeData(prev.loans, newData.loans!) }));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, async (payload) => {
+        console.log('[Realtime] Client updated:', payload.eventType);
         const newData = await pullData();
         if (newData?.clients) setState(prev => ({ ...prev, clients: mergeData(prev.clients, newData.clients!) }));
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -598,10 +623,10 @@ const App: React.FC = () => {
       // Rule 1: Ownership - If I OR one of my DIRECT COLLECTORS added it.
       if (itemAddedBy === user.id || (itemAddedBy && myDirectCollectorIds.has(itemAddedBy))) return true;
 
-      // Rule 2: Assignment - If it's assigned to my branch ID (Personal work)
-      if (itemBranchId === user.id) return true;
+      // Rule 2: Assignment - If it's assigned to my branch ID (Matches Gerente or shared Branch)
+      if (itemBranchId === branchId) return true;
 
-      // Rule 3: Direct Assignment - If it's assigned to me OR a collector in my team (Direct collectors only)
+      // Rule 3: Direct Assignment - If it's assigned to me OR a collector in my team
       if (itemCollectorId === user.id || (itemCollectorId && myDirectCollectorIds.has(itemCollectorId))) return true;
 
       // Legacy/System Compatibility for Super Admins
@@ -791,6 +816,8 @@ const App: React.FC = () => {
     }
 
     if (fullSync) {
+      localStorage.removeItem('last_sync_timestamp');
+      localStorage.removeItem('last_sync_timestamp_v6');
       await forceFullSync();
     } else {
       await processQueue(true);

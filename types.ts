@@ -58,6 +58,16 @@ export interface AppSettings {
   transferAlias?: string;
   technicalSupportPhone?: string;
   numberFormat?: 'dot' | 'comma'; // 'dot' -> 1.000,00 | 'comma' -> 1,000.00
+  // Configuración de Impresión
+  receiptPrintMargin?: number;
+  companyNameBold?: boolean;
+  companyNameSize?: 'normal' | 'medium' | 'large';
+  companyIdentifierBold?: boolean;
+  contactPhoneBold?: boolean;
+  shareLabelBold?: boolean;
+  shareLabelSize?: 'normal' | 'medium' | 'large';
+  shareValueBold?: boolean;
+  shareValueSize?: 'normal' | 'medium' | 'large';
 }
 
 export interface User {

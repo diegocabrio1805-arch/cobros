@@ -1,20 +1,42 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
-// Added AppSettings to the import from ../types
+// Removed GoogleGenAI SDK to prevent Fatal Errors on startup if API Key is missing or delayed
 import { AppState, Loan, Client, PaymentStatus, AppSettings } from "../types";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const MODEL = 'gemini-flash-latest';
 
-// Inicializamos la IA solo si existe la key, de lo contrario manejaremos el error en la llamada
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+const fetchGemini = async (prompt: string, isJson: boolean = false) => {
+  if (!apiKey) {
+    console.error("Gemini API Key missing");
+    throw new Error("API Key missing");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+          ...(isJson ? { response_mime_type: "application/json" } : {})
+        }
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini API Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+};
 
 export const getFinancialInsights = async (state: AppState) => {
-  // Check is removed since we have a hardcoded fallback
-  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-  //   return null;
-  // }
-  const { loans, clients, payments, expenses, settings } = state;
+  const { loans, clients, expenses } = state;
 
   const totalLent = loans.reduce((acc, l) => acc + l.principal, 0);
   const totalProfitProyected = loans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
@@ -41,14 +63,7 @@ export const getFinancialInsights = async (state: AppState) => {
   `;
 
   try {
-    const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { responseMimeType: "application/json" }
-    });
-
-    // Handle both cases if response is different in SDK versions
-    const text = (result as any).text || ((result as any).response && ((result as any).response as any).text());
+    const text = await fetchGemini(prompt, true);
     return JSON.parse(text || '{}');
   } catch (error) {
     console.error("Gemini Insight Error:", error);
@@ -67,11 +82,6 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
   const paidInstallments = loan.installments.filter(i => i.status === PaymentStatus.PAID).length;
   const lastInstallment = loan.installments[loan.installments.length - 1];
   const settings = state.settings;
-
-  // API Key check removed - using hardcoded fallback
-  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-  //   return `*ESTADO DE CUENTA - ANEXO COBRO*\n\nCliente: ${client.name}\nSaldo: ${formatCurrency(balance, settings)}\nAtraso: ${daysOverdue} días.`;
-  // }
 
   const prompt = `
     Eres un asistente profesional de una Fintech llamada "ANEXO COBRO". 
@@ -98,16 +108,8 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-        topP: 0.95
-      }
-    });
-
-    return response.text || "Error generando el extracto con IA.";
+    const text = await fetchGemini(prompt);
+    return text || "Error generando el extracto con IA.";
   } catch (error) {
     console.error("Gemini Statement Error:", error);
     return `*ESTADO DE CUENTA - ANEXO COBRO*\n\nCliente: ${client.name}\nSaldo: ${formatCurrency(balance, settings)}\nAtraso: ${daysOverdue} días.`;
@@ -117,11 +119,6 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
 export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, daysOverdue: number, settings?: AppSettings) => {
   const totalPaid = loan.installments.reduce((acc, i) => acc + i.paidAmount, 0);
   const balance = loan.totalAmount - totalPaid;
-
-  // API Key check removed - using hardcoded fallback
-  // if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_API_KEY) {
-  //   return `Hola ${client.name}, registramos que hoy no se pudo realizar su abono. Por favor, trate de ponerse al día con su saldo de ${formatCurrency(balance, settings)}. Atentamente, ANEXO COBRO.`;
-  // }
 
   const prompt = `
     Eres el asistente de cobranza de "ANEXO COBRO". Un cobrador acaba de visitar al cliente ${client.name} y NO se registró un pago hoy.
@@ -144,15 +141,8 @@ export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, da
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.8
-      }
-    });
-
-    return response.text || "Mensaje de recordatorio no disponible.";
+    const text = await fetchGemini(prompt);
+    return text || "Mensaje de recordatorio no disponible.";
   } catch (error) {
     console.error("No Payment AI Error:", error);
     return `Hola ${client.name}, registramos que hoy no se pudo realizar su abono. Por favor, trate de ponerse al día con su saldo de ${formatCurrency(balance, settings)}. Atentamente, ANEXO COBRO.`;
