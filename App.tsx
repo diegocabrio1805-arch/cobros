@@ -97,7 +97,7 @@ const App: React.FC = () => {
     console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = 'RESET_2026_02_04_V5_4_0_FINAL_CACHE_FIX';
+    const RESET_ID = 'RESET_STABLE_V6_FIX';
 
     try {
       const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
