@@ -97,41 +97,44 @@ const App: React.FC = () => {
     console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = 'RESET_V5_4_0_FINAL_STABLE_V6';
+    const RESET_ID = 'RESET_V5_4_0_FINAL_FIX_STABLE_V7';
 
     try {
       const currentResetId = localStorage.getItem('LAST_RESET_ID');
       if (currentResetId !== RESET_ID) {
         console.log(`>>> SYSTEM UPGRADE TO ${RESET_ID} <<<`);
 
-        // 1. UNREGISTER SERVICE WORKERS (The main culprit in Chrome)
+        // 1. Mark as RESET FIRST to prevent infinite loops if something crashes below
+        localStorage.setItem('LAST_RESET_ID', RESET_ID);
+
+        // 2. UNREGISTER SERVICE WORKERS
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then((registrations) => {
             for (let registration of registrations) {
               registration.unregister();
-              console.log('SW Unregistered for cleanup');
+              console.log('SW Unregistered');
             }
           });
         }
 
-        // 2. CLEAR LOCALSTORAGE EXCEPT NECESSARY SETTINGS
+        // 3. Selective Clear to avoid wiping the flag we just set
         const lang = localStorage.getItem('app_language');
         const country = localStorage.getItem('app_country');
 
-        localStorage.clear();
+        // Wipe specific app data instead of full clear() to be safer
+        localStorage.removeItem('prestamaster_v2');
+        localStorage.removeItem('last_sync_timestamp');
+        localStorage.removeItem('last_sync_timestamp_v6');
+        localStorage.removeItem('syncQueue');
+        localStorage.removeItem('user_credentials'); // Force re-login if necessary
 
         if (lang) localStorage.setItem('app_language', lang);
         if (country) localStorage.setItem('app_country', country);
 
-        // 3. Set the NEW RESET_ID so we don't loop
+        // Double confirm the flag is set
         localStorage.setItem('LAST_RESET_ID', RESET_ID);
 
-        // 4. Force a RELOAD to ensure clean start
-        // We use a small timeout to allow localStorage.setItem to persist
-        setTimeout(() => {
-          console.log("Reloading for clean state...");
-          window.location.reload();
-        }, 500);
+        console.log("Cleanup complete. Skipping automatic reload to prevent loops.");
 
         return {
           clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
