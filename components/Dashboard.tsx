@@ -311,7 +311,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-indigo-100 leading-none">Consultoría IA</h3>
-                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Auditoría 24/7</p>
+                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v5.4.0 FINAL STABLE</p>
               </div>
             </div>
 

@@ -992,7 +992,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           {isAdminOrManager && (
             <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
-              <i className="fa-solid fa-user-astronaut text-slate-900"></i>
+              <span className="text-lg">👩‍🚀</span>
               <select
                 value={selectedCollector}
                 onChange={(e) => setSelectedCollector(e.target.value)}
