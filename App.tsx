@@ -104,7 +104,7 @@ const App: React.FC = () => {
 
       // Hard Wipe if ID mismatches
       if (!isReset) {
-        console.log("App: PERFORMING HARD RESET (Data Wipe)");
+        console.log(">>> SYSTEM VERSION_V5_4_0_FINAL <<< HARD RESET (Data Wipe)");
 
         // Safety Check: Prevent Infinite Loop
         const reloadCount = parseInt(sessionStorage.getItem('reset_reload_count') || '0');
