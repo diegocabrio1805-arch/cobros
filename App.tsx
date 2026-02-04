@@ -100,10 +100,8 @@ const App: React.FC = () => {
     const RESET_ID = 'RESET_STABLE_V6_FIX';
 
     try {
-      const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
-
-      // Hard Wipe if ID mismatches
-      if (!isReset) {
+      if (localStorage.getItem('LAST_RESET_ID') !== RESET_ID) {
+        localStorage.setItem('LAST_RESET_ID', RESET_ID);
         console.log(">>> SYSTEM VERSION_V5_4_0_FINAL <<< FORCED CACHE & DATA WIPE");
 
         // 1. UNREGISTER SERVICE WORKERS (The main culprit in Chrome)
@@ -141,20 +139,12 @@ const App: React.FC = () => {
         const reloadCount = parseInt(sessionStorage.getItem('reset_reload_count') || '0');
         if (reloadCount > 2) {
           console.error("CRITICAL: Infinite Reload Detected. Stopping reset.");
-          return {
-            clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
-            currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
-          };
-        } else {
-          sessionStorage.setItem('reset_reload_count', (reloadCount + 1).toString());
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-          return {
-            clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
-            currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
-          };
         }
+
+        return {
+          clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
+          currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
+        };
       }
     } catch (e) {
       console.error("Reset Error:", e);
