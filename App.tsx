@@ -97,12 +97,12 @@ const App: React.FC = () => {
     console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = 'RESET_STABLE_V6_FIX';
+    const RESET_ID = 'RESET_V5_4_0_FINAL_STABLE_V6';
 
     try {
-      if (localStorage.getItem('LAST_RESET_ID') !== RESET_ID) {
-        localStorage.setItem('LAST_RESET_ID', RESET_ID);
-        console.log(">>> SYSTEM VERSION_V5_4_0_FINAL <<< FORCED CACHE & DATA WIPE");
+      const currentResetId = localStorage.getItem('LAST_RESET_ID');
+      if (currentResetId !== RESET_ID) {
+        console.log(`>>> SYSTEM UPGRADE TO ${RESET_ID} <<<`);
 
         // 1. UNREGISTER SERVICE WORKERS (The main culprit in Chrome)
         if ('serviceWorker' in navigator) {
@@ -114,17 +114,7 @@ const App: React.FC = () => {
           });
         }
 
-        // 2. CLEAR ALL CACHES (window.caches API)
-        if ('caches' in window) {
-          caches.keys().then((names) => {
-            for (let name of names) {
-              caches.delete(name);
-              console.log('Cache Storage cleared:', name);
-            }
-          });
-        }
-
-        // 3. CLEAR LOCALSTORAGE EXCEPT NECESSARY SETTINGS
+        // 2. CLEAR LOCALSTORAGE EXCEPT NECESSARY SETTINGS
         const lang = localStorage.getItem('app_language');
         const country = localStorage.getItem('app_country');
 
@@ -133,13 +123,15 @@ const App: React.FC = () => {
         if (lang) localStorage.setItem('app_language', lang);
         if (country) localStorage.setItem('app_country', country);
 
+        // 3. Set the NEW RESET_ID so we don't loop
         localStorage.setItem('LAST_RESET_ID', RESET_ID);
 
-        // Safety Check: Prevent Infinite Loop
-        const reloadCount = parseInt(sessionStorage.getItem('reset_reload_count') || '0');
-        if (reloadCount > 2) {
-          console.error("CRITICAL: Infinite Reload Detected. Stopping reset.");
-        }
+        // 4. Force a RELOAD to ensure clean start
+        // We use a small timeout to allow localStorage.setItem to persist
+        setTimeout(() => {
+          console.log("Reloading for clean state...");
+          window.location.reload();
+        }, 500);
 
         return {
           clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
