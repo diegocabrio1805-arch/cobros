@@ -97,35 +97,59 @@ const App: React.FC = () => {
     console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = 'RESET_2026_02_04_V5_4_0_FINAL';
+    const RESET_ID = 'RESET_2026_02_04_V5_4_0_FINAL_CACHE_FIX';
 
     try {
       const isReset = localStorage.getItem('LAST_RESET_ID') === RESET_ID;
 
       // Hard Wipe if ID mismatches
       if (!isReset) {
-        console.log(">>> SYSTEM VERSION_V5_4_0_FINAL <<< HARD RESET (Data Wipe)");
+        console.log(">>> SYSTEM VERSION_V5_4_0_FINAL <<< FORCED CACHE & DATA WIPE");
+
+        // 1. UNREGISTER SERVICE WORKERS (The main culprit in Chrome)
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (let registration of registrations) {
+              registration.unregister();
+              console.log('SW Unregistered for cleanup');
+            }
+          });
+        }
+
+        // 2. CLEAR ALL CACHES (window.caches API)
+        if ('caches' in window) {
+          caches.keys().then((names) => {
+            for (let name of names) {
+              caches.delete(name);
+              console.log('Cache Storage cleared:', name);
+            }
+          });
+        }
+
+        // 3. CLEAR LOCALSTORAGE EXCEPT NECESSARY SETTINGS
+        const lang = localStorage.getItem('app_language');
+        const country = localStorage.getItem('app_country');
+
+        localStorage.clear();
+
+        if (lang) localStorage.setItem('app_language', lang);
+        if (country) localStorage.setItem('app_country', country);
+
+        localStorage.setItem('LAST_RESET_ID', RESET_ID);
 
         // Safety Check: Prevent Infinite Loop
         const reloadCount = parseInt(sessionStorage.getItem('reset_reload_count') || '0');
         if (reloadCount > 2) {
           console.error("CRITICAL: Infinite Reload Detected. Stopping reset.");
-          // We allow the app to continue (potentially broken) rather than infinite loop
-          // Or better: set the flag to stop trying
-          localStorage.setItem('LAST_RESET_ID', RESET_ID);
+          return {
+            clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
+            currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
+          };
         } else {
-          localStorage.removeItem('prestamaster_v2');
-          localStorage.removeItem('last_sync_timestamp_v6');
-          localStorage.setItem('LAST_RESET_ID', RESET_ID);
-
-          // Increment reload counter
           sessionStorage.setItem('reset_reload_count', (reloadCount + 1).toString());
-
-          // Force reload to clear memory state
-          window.location.reload();
-
-          // CRITICAL FIX: Do NOT reference 'state' here as it is not initialized yet.
-          // Return a safe empty state to prevent crash while browser reloads.
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
           return {
             clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
             currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
@@ -133,8 +157,7 @@ const App: React.FC = () => {
         }
       }
     } catch (e) {
-      console.error("Storage Access Error during Reset Check:", e);
-      // If storage fails, we can't reliably reset, so we assume we are good to go to avoid crash
+      console.error("Reset Error:", e);
     }
 
     const saved = localStorage.getItem('prestamaster_v2');
