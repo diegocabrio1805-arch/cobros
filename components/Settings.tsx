@@ -11,9 +11,11 @@ interface SettingsProps {
   onClearQueue?: () => void;
   isOnline?: boolean;
   isSyncing?: boolean;
+  isFullSyncing?: boolean;
+  onDeepReset?: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab, onForceSync, onClearQueue, isOnline = true, isSyncing = false }) => {
+const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab, onForceSync, onClearQueue, isOnline = true, isSyncing = false, isFullSyncing = false, onDeepReset }) => {
   const { language, country, numberFormat } = state.settings;
   const t = getTranslation(language);
   const isAdmin = state.currentUser?.role === Role.ADMIN;
@@ -484,6 +486,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 onClick={() => {
                   if (confirm("¿USAR ESTA OPCIÓN SI FALTAN PAGOS O DATOS ANTIGUOS? ESTO RE-DESCARGARÁ TODO DESDE CERO.")) {
                     localStorage.removeItem('last_sync_timestamp');
+                    localStorage.removeItem('last_sync_timestamp_v6');
                     if (onForceSync) onForceSync();
                   }
                 }}
@@ -492,10 +495,19 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <i className="fa-solid fa-cloud-arrow-down text-xl"></i>
                 <span className="text-[10px] font-black uppercase tracking-widest text-center">REPARAR PROBL. SINCRONIZACIÓN</span>
               </button>
+
+              {/* BOTON DE REPARACIÓN PROFUNDA (EL DEFINITIVO) */}
+              <button
+                onClick={onDeepReset}
+                className="w-full p-4 rounded-2xl border-2 border-red-600 bg-white text-red-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-red-50"
+              >
+                <i className="fa-solid fa-triangle-exclamation text-xl"></i>
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">REPARACIÓN PROFUNDA (BORRAR TODO)</span>
+              </button>
             </div>
           </div>
           <p className="text-[9px] font-bold text-slate-400 mt-4 uppercase tracking-widest leading-relaxed text-center">
-            * Use "Forzar Sincronización" si sus pagos no aparecen. Use "Limpiar Cola" solo si la sincronización está bloqueada.
+            * Use "Forzar Sincronización" si sus pagos no aparecen. Use "Reparación Profunda" solo si el problema persiste tras forzar.
           </p>
         </div>
       )}

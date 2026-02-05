@@ -43,8 +43,44 @@ const App: React.FC = () => {
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
 
-  const { isSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync();
+  const { isSyncing, isFullSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync();
   const [showErrorModal, setShowErrorModal] = useState(false);
+
+  // DEEP RESET LOGIC: For solving stubborn Chrome caching issues
+  const handleDeepReset = async () => {
+    if (!confirm("ESTA ACCIÓN ELIMINARÁ TODO EL CACHÉ Y DATOS LOCALES PARA FORZAR UNA DESCARGA TOTAL. ¿CONTINUAR?")) return;
+
+    console.log(">>> INITIATING DEEP RESET <<<");
+
+    // 1. Clear LocalStorage (Critical App Data)
+    localStorage.removeItem('prestamaster_v2');
+    localStorage.removeItem('last_sync_timestamp');
+    localStorage.removeItem('last_sync_timestamp_v6');
+    localStorage.removeItem('syncQueue');
+
+    // 2. Unregister Service Workers
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let registration of registrations) {
+        await registration.unregister();
+        console.log('SW Unregistered during Deep Reset');
+      }
+    }
+
+    // 3. Clear Cache API
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      for (let name of cacheNames) {
+        await caches.delete(name);
+        console.log(`Cache deleted: ${name}`);
+      }
+    }
+
+    // 4. Force Reload with Cache Busting
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+  };
+
+
 
   // AUTO-RESET ON UPDATE LOGIC (Moved to Component Body)
   useEffect(() => {
@@ -231,8 +267,8 @@ const App: React.FC = () => {
   }, [state]);
 
   // Helper for Merging Data (Moved out for reuse in realtime + periodic)
-  const mergeData = <T extends { id: string }>(local: T[], remote: T[]): T[] => {
-    // Safe Merge: Union of Remote + Local-not-in-Remote
+  const mergeData = <T extends { id: string, updated_at?: string }>(local: T[], remote: T[]): T[] => {
+    // Aggressive Merge: Use the item with the LATEST updated_at timestamp
     const remoteMap = new Map();
     remote.forEach(i => {
       if (i && i.id) remoteMap.set(i.id, i);
@@ -240,10 +276,25 @@ const App: React.FC = () => {
 
     const result = [...remote];
     local.forEach(l => {
-      if (l && l.id && !remoteMap.has(l.id)) {
+      if (!l || !l.id) return;
+      const r = remoteMap.get(l.id);
+
+      if (!r) {
+        // Not in remote, keep local (might be pending sync)
         result.push(l);
+      } else if (l.updated_at && r.updated_at) {
+        // Both exist, compare timestamps
+        const lTime = new Date(l.updated_at).getTime();
+        const rTime = new Date(r.updated_at).getTime();
+        if (lTime > rTime) {
+          // Local is newer (unlikely in pull, but possible if pending changes exist)
+          const idx = result.findIndex(item => item.id === l.id);
+          if (idx !== -1) result[idx] = l;
+        }
       }
     });
+
+    // Final sorting or cleanup could go here
     return result;
   };
 
@@ -1191,7 +1242,15 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
       <FloatingBackButton onClick={handleBack} visible={!isHomeTab} />
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} user={state.currentUser} state={filteredState} />
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onLogout={handleLogout}
+        user={state.currentUser}
+        state={filteredState}
+        isSyncing={isSyncing}
+        isFullSyncing={isFullSyncing}
+      />
 
       {showManagerExpiryModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
@@ -1414,13 +1473,12 @@ const App: React.FC = () => {
             state={state}
             updateSettings={updateSettings}
             setActiveTab={setActiveTab}
-            onForceSync={async () => {
-              console.log("Manuall Pull Data Triggered");
-              await pullData();
-            }}
+            onForceSync={() => handleForceSync(true)}
             onClearQueue={clearQueue}
             isOnline={isOnline}
             isSyncing={isSyncing}
+            isFullSyncing={isFullSyncing}
+            onDeepReset={handleDeepReset}
           />}
           {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
         </div>

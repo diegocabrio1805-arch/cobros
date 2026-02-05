@@ -12,6 +12,7 @@ const isValidUuid = (id: string | undefined | null) => {
 
 export const useSync = () => {
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isFullSyncing, setIsFullSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState("¡Sincronizado!");
@@ -229,16 +230,21 @@ export const useSync = () => {
         let expensesQuery = supabase.from('expenses').select('*');
 
         if (lastSyncTime && !fullSync) {
-            // SAFETY MARGIN: Subtract 2 seconds to avoid missing records due to clock skew or race conditions
-            const safetyMargin = 2000;
+            // SAFETY MARGIN: Increased to 10 seconds to definitively solve Chrome/ClockSkew issues
+            const safetyMargin = 10000;
             const adjustedSyncTime = new Date(new Date(lastSyncTime).getTime() - safetyMargin).toISOString();
 
             clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);
             loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
             paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
             logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
+            profilesQuery = profilesQuery.gt('updated_at', adjustedSyncTime);
             settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
             expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
+        } else {
+            // FULL SYNC or NO TIMESTAMP: Ensure we use updated_at for consistency if needed, 
+            // but for full sync we just want everything.
+            console.log("[Sync] Performing FULL SYNC - Ignoring timestamps.");
         }
 
         const controller = new AbortController();
@@ -371,6 +377,7 @@ export const useSync = () => {
             return null;
         } finally {
             setIsSyncing(false);
+            if (fullSync) setIsFullSyncing(false);
         }
     };
 
@@ -1072,6 +1079,7 @@ export const useSync = () => {
 
     return {
         isSyncing,
+        isFullSyncing,
         syncError,
         showSuccess,
         successMessage,

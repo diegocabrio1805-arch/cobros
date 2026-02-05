@@ -10,9 +10,11 @@ interface SidebarProps {
   onLogout: () => void;
   user: User;
   state: AppState;
+  isSyncing?: boolean;
+  isFullSyncing?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, user, state }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, user, state, isSyncing, isFullSyncing }) => {
   const isAdmin = user.role === Role.ADMIN;
   const isManager = user.role === Role.MANAGER;
   const isPowerUser = isAdmin || isManager;
@@ -124,6 +126,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
             <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">{user.role}</p>
           </div>
         </div>
+
+        {/* INDICADOR DE SINCRONIZACIÓN */}
+        {(isSyncing || isFullSyncing) && (
+          <div className="px-4 py-2 bg-emerald-600/10 border border-emerald-600/20 rounded-xl flex items-center gap-3 animate-pulse">
+            <i className="fa-solid fa-arrows-rotate animate-spin text-emerald-500 text-xs"></i>
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+              {isFullSyncing ? 'DESCARGANDO TODO...' : 'SINCRONIZANDO...'}
+            </span>
+          </div>
+        )}
 
         <button
           onClick={onLogout}

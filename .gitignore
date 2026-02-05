@@ -45,3 +45,6 @@ android/.gradle
 
 .vercel
 .env*.local
+
+# Local Netlify folder
+.netlify

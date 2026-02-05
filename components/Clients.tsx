@@ -53,6 +53,104 @@ const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise
   });
 };
 
+const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, disabled = false }: { startDate: string, customHolidays: string[], setDate: (iso: string) => void, toggleHoliday: (iso: string) => void, disabled?: boolean }) => {
+  const [currentCalDate, setCurrentCalDate] = useState(new Date(startDate + 'T00:00:00'));
+  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+  const month = currentCalDate.getMonth();
+  const year = currentCalDate.getFullYear();
+  const totalDays = daysInMonth(month, year);
+  const startDay = firstDayOfMonth(month, year);
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const days = [];
+  for (let i = 0; i < startDay; i++) days.push(null);
+  for (let i = 1; i <= totalDays; i++) days.push(i);
+
+  const handleDayClick = (day: number) => {
+    if (disabled) return;
+    const date = new Date(year, month, day);
+    const iso = date.toISOString().split('T')[0];
+    if (startDate === iso) {
+      toggleHoliday(iso);
+    } else {
+      setDate(iso);
+    }
+  };
+
+  return (
+    <div className={`bg-white border border-slate-300 rounded-2xl p-4 shadow-sm animate-fadeIn ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className="flex justify-between items-center mb-4">
+        <h5 className="text-[10px] font-black uppercase text-slate-900">{monthNames[month]} {year}</h5>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month - 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-left text-[10px]"></i></button>
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month + 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-right text-[10px]"></i></button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center mb-1">
+        {["D", "L", "M", "M", "J", "V", "S"].map(d => <div key={d} className="text-[8px] font-black text-slate-500 py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day, idx) => {
+          if (day === null) return <div key={`empty-${idx}`} />;
+          const date = new Date(year, month, day);
+          const iso = date.toISOString().split('T')[0];
+          const isStart = startDate === iso;
+          const isHoliday = customHolidays.includes(iso);
+          const isSunday = date.getDay() === 0;
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => handleDayClick(day)}
+              onContextMenu={(e) => { e.preventDefault(); !disabled && toggleHoliday(iso); }}
+              className={`h-10 w-full rounded-lg text-[10px] font-black flex flex-col items-center justify-center transition-all border
+                ${isStart ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-105 z-10' :
+                  isHoliday ? 'bg-orange-500 text-white border-orange-400' :
+                    isSunday ? 'bg-red-50 text-red-700 border-red-200' :
+                      'bg-white text-slate-800 border-slate-300 hover:border-blue-400'}`}
+            >
+              {day}
+              {isHoliday && <div className="w-1 h-1 bg-white rounded-full mt-0.5"></div>}
+              {isStart && <div className="text-[6px] opacity-70">INICIO</div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, forEdit?: boolean, disabled?: boolean }) => (
+  <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
+    <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
+    <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
+      {value ? (
+        <>
+          <img src={value} className="w-full h-full object-cover" />
+          {!disabled && (
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">Cambiar Foto</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
+          <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
+        </>
+      )}
+      {!disabled && (
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => onFileChange(e, field, forEdit)}
+          className="absolute inset-0 opacity-0 cursor-pointer"
+        />
+      )}
+    </div>
+  </div>
+);
+
 const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
@@ -877,103 +975,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     alert("Cr\u00e9dito renovado exitosamente.");
   };
 
-  const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, disabled = false }: { startDate: string, customHolidays: string[], setDate: (iso: string) => void, toggleHoliday: (iso: string) => void, disabled?: boolean }) => {
-    const [currentCalDate, setCurrentCalDate] = useState(new Date(startDate + 'T00:00:00'));
-    const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
-    const month = currentCalDate.getMonth();
-    const year = currentCalDate.getFullYear();
-    const totalDays = daysInMonth(month, year);
-    const startDay = firstDayOfMonth(month, year);
-    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    const days = [];
-    for (let i = 0; i < startDay; i++) days.push(null);
-    for (let i = 1; i <= totalDays; i++) days.push(i);
-
-    const handleDayClick = (day: number) => {
-      if (disabled) return;
-      const date = new Date(year, month, day);
-      const iso = date.toISOString().split('T')[0];
-      if (startDate === iso) {
-        toggleHoliday(iso);
-      } else {
-        setDate(iso);
-      }
-    };
-
-    return (
-      <div className={`bg-white border border-slate-300 rounded-2xl p-4 shadow-sm animate-fadeIn ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="flex justify-between items-center mb-4">
-          <h5 className="text-[10px] font-black uppercase text-slate-900">{monthNames[month]} {year}</h5>
-          <div className="flex gap-1">
-            <button type="button" onClick={() => setCurrentCalDate(new Date(year, month - 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-left text-[10px]"></i></button>
-            <button type="button" onClick={() => setCurrentCalDate(new Date(year, month + 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-right text-[10px]"></i></button>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center mb-1">
-          {["D", "L", "M", "M", "J", "V", "S"].map(d => <div key={d} className="text-[8px] font-black text-slate-500 py-1">{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((day, idx) => {
-            if (day === null) return <div key={`empty-${idx}`} />;
-            const date = new Date(year, month, day);
-            const iso = date.toISOString().split('T')[0];
-            const isStart = startDate === iso;
-            const isHoliday = customHolidays.includes(iso);
-            const isSunday = date.getDay() === 0;
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => handleDayClick(day)}
-                onContextMenu={(e) => { e.preventDefault(); !disabled && toggleHoliday(iso); }}
-                className={`h-10 w-full rounded-lg text-[10px] font-black flex flex-col items-center justify-center transition-all border
-                  ${isStart ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-105 z-10' :
-                    isHoliday ? 'bg-orange-500 text-white border-orange-400' :
-                      isSunday ? 'bg-red-50 text-red-700 border-red-200' :
-                        'bg-white text-slate-800 border-slate-300 hover:border-blue-400'}`}
-              >
-                {day}
-                {isHoliday && <div className="w-1 h-1 bg-white rounded-full mt-0.5"></div>}
-                {isStart && <div className="text-[6px] opacity-70">INICIO</div>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const PhotoUploadField = ({ label, field, value, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, forEdit?: boolean, disabled?: boolean }) => (
-    <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
-      <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
-      <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
-        {value ? (
-          <>
-            <img src={value} className="w-full h-full object-cover" />
-            {!disabled && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Cambiar Foto</span>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
-            <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
-          </>
-        )}
-        {!disabled && (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange(e, field, forEdit)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          />
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
@@ -1282,10 +1283,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <div className="space-y-3 pt-2">
                       <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">II. Documentación Fotográfica</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200">
-                        <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} />
-                        <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} />
-                        <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} />
-                        <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} />
+                        <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} />
+                        <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} />
+                        <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} />
+                        <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} />
                       </div>
                     </div>
                   </div>
@@ -1631,10 +1632,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="space-y-4">
                             <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">III. Documentación Fotográfica</h5>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
-                              <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} forEdit={true} disabled={isCollector} />
-                              <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} forEdit={true} disabled={isCollector} />
-                              <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} forEdit={true} disabled={isCollector} />
-                              <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} forEdit={true} disabled={isCollector} />
+                              <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
+                              <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
+                              <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
+                              <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
                             </div>
                           </div>
 
