@@ -179,7 +179,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   html: `
                   <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
                     <div style="position: absolute; inset: 0; background: rgba(239, 68, 68, 0.5); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                    <div style="font-size: 24px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); border: 2px solid #ef4444; border-radius: 50%; background: white; width: 32px; height: 32px; display: flex; items-center; justify-content: center;">😈</div>
+                    <div style="font-size: 24px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); border: 2px solid #ef4444; border-radius: 50%; background: white; width: 32px; height: 32px; display: flex; items-center; justify-content: center;">⏳</div>
                   </div>
                 `,
                   iconSize: [32, 32],
