@@ -179,7 +179,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   html: `
                   <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
                     <div style="position: absolute; inset: 0; background: rgba(239, 68, 68, 0.5); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                    <div style="font-size: 24px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));">⏳</div>
+                    <div style="font-size: 24px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); border: 2px solid #ef4444; border-radius: 50%; background: white; width: 32px; height: 32px; display: flex; items-center; justify-content: center;">😈</div>
                   </div>
                 `,
                   iconSize: [32, 32],
@@ -493,7 +493,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   <div className="p-8">
                      <div className="flex items-center gap-4 mb-6 border-b border-slate-100 pb-4">
                         <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center">
-                           <i className={`fa-solid ${loadingAi ? 'fa-satellite-dish animate-pulse' : 'fa-robot'} text-3xl text-indigo-600`}></i>
+                           <i className={`fa-solid ${loadingAi ? 'fa-spinner animate-spin' : 'fa-robot'} text-3xl text-indigo-600`}></i>
                         </div>
                         <div>
                            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Reporte Auditoría IA</h2>
