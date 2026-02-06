@@ -88,12 +88,24 @@ export const useSync = () => {
                 { event: '*', schema: 'public' },
                 (payload) => {
                     console.log('Realtime change detected:', payload.table, payload.eventType);
+
+                    // CRITICAL FIX: Force FULL sync on deletions
+                    // Incremental sync (gt updated_at) cannot detect deleted records
+                    // because they no longer exist in the database
+                    const isDeleteEvent = payload.eventType === 'DELETE';
+                    const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients'].includes(payload.table);
+                    const needsFullSync = isDeleteEvent && isCriticalTable;
+
+                    if (needsFullSync) {
+                        console.log(`[Realtime] DELETE detected on ${payload.table}. Triggering FULL sync...`);
+                    }
+
                     // Debounce pullData to avoid multiple rapid calls
                     const debounceTimer = (window as any)._syncDebounceTimer;
                     if (debounceTimer) clearTimeout(debounceTimer);
                     (window as any)._syncDebounceTimer = setTimeout(() => {
-                        console.log('Triggering incremental pull after realtime change...');
-                        pullData(false);
+                        console.log(`Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull after realtime change...`);
+                        pullData(needsFullSync);
                     }, 2000); // 2s debounce
                 }
             )

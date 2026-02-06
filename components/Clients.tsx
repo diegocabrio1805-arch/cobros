@@ -204,7 +204,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     frequency: Frequency.DAILY,
     startDate: countryTodayStr,
     endDate: '',
-    customHolidays: [] as string[]
+    customHolidays: [] as string[],
+    selectedCollectorId: ''
   });
 
   useEffect(() => {
@@ -336,7 +337,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // Progreso Cuotas: Total Abonado / Valor Cuota (para reflejar parciales)
       const progress = totalPaid / (activeLoan.installmentValue || 1);
-      const formattedProgress = progress % 1 === 0 ? progress.toString() : progress.toFixed(1);
+      const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
       installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
 
       daysOverdue = getDaysOverdue(activeLoan, state.settings, totalPaid);
@@ -511,7 +512,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         loan = {
           id: generateUUID(),
           clientId,
-          collectorId: currentUserId,
+          collectorId: initialLoan.selectedCollectorId || currentUserId,
           principal: p,
           interestRate: i,
           totalInstallments: inst,
@@ -671,7 +672,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (activeLoanInLegajo.installmentValue || 1);
-        const paidInstCount = progress % 1 === 0 ? progress : Number(progress.toFixed(1));
+        const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
         const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
 
@@ -846,6 +847,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
 
+      const progress = newTotalPaid / (activeLoanInLegajo.installmentValue || 1);
+      const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
+
       const receiptText = generateReceiptText({
         clientName: clientInLegajo.name,
         amountPaid: amt,
@@ -854,7 +858,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         expiryDate: lastDueDate,
         daysOverdue: getDaysOverdue(activeLoanInLegajo, state.settings),
         remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - newTotalPaid),
-        paidInstallments: installments.filter(i => i.status === PaymentStatus.PAID).length,
+        paidInstallments: paidInstCount,
         totalInstallments: activeLoanInLegajo.totalInstallments,
         isRenewal: logToEdit.isRenewal
       }, state.settings);
@@ -919,7 +923,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
 
     const progress = totalPaidAtThatMoment / (activeLoanInLegajo.installmentValue || 1);
-    const paidInstCount = progress % 1 === 0 ? progress : Number(progress.toFixed(1));
+    const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
     // 3. Generar Texto
     const receiptText = generateReceiptText({
@@ -1319,6 +1323,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             ))}
                           </div>
                         </div>
+
+                        {isAdminOrManager && (
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Asignar a Cobrador</label>
+                            <select
+                              value={initialLoan.selectedCollectorId}
+                              onChange={e => setInitialLoan(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
+                              className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
+                            >
+                              <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
+                              {collectors.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            <p className="text-[7px] text-slate-400 font-bold uppercase pl-1">Selecciona quién cobrará este crédito para que le aparezca en su celular</p>
+                          </div>
+                        )}
                       </div>
                       <GenericCalendar
                         startDate={initialLoan.startDate}

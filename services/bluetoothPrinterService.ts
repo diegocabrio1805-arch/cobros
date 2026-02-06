@@ -5,6 +5,7 @@
 let connectedDevice: any = null;
 let printerCharacteristic: any = null;
 let isNativeConnection = false;
+let isCurrentlyPrinting = false;
 
 // Claves para persistencia
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
@@ -76,19 +77,22 @@ export const listBondedDevices = async (): Promise<any[]> => {
     });
 };
 
-// 3. Conexión Genérica Robusta (con Retries)
-const attemptNativeConnection = async (address: string): Promise<boolean> => {
+// 3. Conexión Genérica Robusta (con Retries Progresivos)
+const attemptNativeConnection = async (address: string, attemptNumber = 1): Promise<boolean> => {
     const bs = getBluetoothSerial();
     return new Promise((resolve) => {
+        console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
         bs.connect(
             address,
             () => {
+                console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
                 isNativeConnection = true;
+                connectedDevice = { address };
                 localStorage.setItem(PRINTER_STORAGE_KEY, address);
                 resolve(true);
             },
             (err: any) => {
-                console.warn(`Connection attempt failed to ${address}:`, err);
+                console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
                 resolve(false);
             }
         );
@@ -110,25 +114,37 @@ export const connectToPrinter = async (addressOrId?: string): Promise<boolean> =
         // Verificar si ya está conectado al dispositivo correcto
         const isConnectedNow = await new Promise<boolean>(r => bs.isConnected(() => r(true), () => r(false)));
         if (isConnectedNow) {
+            console.log('[Bluetooth] Already connected');
             isNativeConnection = true;
+            connectedDevice = { address: targetAddress };
             return true;
         }
 
-        // Intentar conectar con retries
-        console.log(`Iniciando conexión robusta a ${targetAddress}...`);
+        // Disconnect any stale connection before attempting new one
+        try {
+            await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
+            await sleep(800); // Wait for radio to settle
+        } catch (e) {
+            console.log('[Bluetooth] No previous connection to clear');
+        }
+
+        // Intentar conectar con retries progresivos
+        console.log(`[Bluetooth] Starting robust connection to ${targetAddress}...`);
         for (let i = 0; i < CONNECTION_RETRIES; i++) {
-            const success = await attemptNativeConnection(targetAddress);
+            const success = await attemptNativeConnection(targetAddress, i + 1);
             if (success) {
-                console.log("Conectado exitosamente.");
-                // Pequeña pausa para estabilizar conexión en gama baja
-                await sleep(500);
+                console.log("[Bluetooth] Connection established and stable");
+                await sleep(500); // Stabilization delay for low-end devices
                 return true;
             }
             if (i < CONNECTION_RETRIES - 1) {
-                console.log(`Reintentando conexión (${i + 1}/${CONNECTION_RETRIES})...`);
-                await sleep(RETRY_DELAY);
+                // Progressive delay: 1s, 2s, 3s
+                const delay = RETRY_DELAY * (i + 1);
+                console.log(`[Bluetooth] Waiting ${delay}ms before retry ${i + 2}/${CONNECTION_RETRIES}...`);
+                await sleep(delay);
             }
         }
+        console.error('[Bluetooth] All connection attempts exhausted');
         return false;
     }
 
@@ -155,6 +171,12 @@ export const connectToPrinter = async (addressOrId?: string): Promise<boolean> =
 
 // 4. Función de Impresión Robusta con Chunking y Reintento de Conexión
 export const printText = async (rawText: string, retryCount = 0): Promise<boolean> => {
+    if (isCurrentlyPrinting && retryCount === 0) {
+        console.warn("Print already in progress. Skipping duplicate request.");
+        return false;
+    }
+
+    isCurrentlyPrinting = true;
     const bs = getBluetoothSerial();
 
     // Asegurar conexión antes de imprimir
@@ -206,15 +228,32 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
         }
         return true;
     } catch (e) {
-        console.warn("Print failed. Retry...", e);
+        console.warn("Print failed. Attempting recovery...", e);
         if (retryCount < 2) {
-            if (isNativeConnection && bs) await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
-            await sleep(1500);
-            return (await connectToPrinter()) ? printText(rawText, retryCount + 1) : false;
+            // Disconnect and wait for radio to settle
+            if (isNativeConnection && bs) {
+                await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
+            }
+            await sleep(2000); // Increased wait time for stability
+
+            // Verify connection before retry
+            const reconnected = await connectToPrinter();
+            if (reconnected) {
+                console.log(`[Print] Retry attempt ${retryCount + 1} after reconnection`);
+                return printText(rawText, retryCount + 1);
+            } else {
+                console.error('[Print] Reconnection failed. Aborting print.');
+                return false;
+            }
         }
+        console.error('[Print] Max retries reached. Print failed.');
         return false;
+    } finally {
+        isCurrentlyPrinting = false;
     }
 };
+
+export const isPrintingNow = () => isCurrentlyPrinting;
 
 export const isPrinterConnected = async (): Promise<boolean> => {
     const bs = getBluetoothSerial();

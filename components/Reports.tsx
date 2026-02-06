@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
 import { formatCurrency } from '../utils/helpers';
@@ -165,12 +165,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                const distToNext = calculateDistance(lat, lng, nextLog.location.lat, nextLog.location.lng);
                calculatedDist += distToNext;
 
-               if (diffMinutes > 60 && distToNext < 1) {
+               if (diffMinutes > 20 && distToNext < 1) {
                   isDevil = true;
                   devils++;
-                  const hours = Math.floor(diffMinutes / 60);
-                  const mins = Math.round(diffMinutes % 60);
-                  timeDiffText = `${hours}h ${mins}m detenido aquí`;
+                  const mins = Math.round(diffMinutes);
+                  timeDiffText = `${mins} min detenido aquí`;
                }
             }
 
@@ -178,13 +177,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                const devilIcon = L.divIcon({
                   className: 'devil-marker',
                   html: `
-                  <div style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                  <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
                     <div style="position: absolute; inset: 0; background: rgba(239, 68, 68, 0.5); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                    <div style="font-size: 32px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); transform: scale(1.2);">😈</div>
+                    <div style="font-size: 24px; position: relative; z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));">⏳</div>
                   </div>
                 `,
-                  iconSize: [40, 40],
-                  iconAnchor: [20, 20]
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16]
                });
 
                L.marker([lat, lng], { icon: devilIcon })
@@ -301,14 +300,24 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Desconocido';
 
-      // --- NEW: Contextual Data Collection per Client ---
+      // --- ENHANCED: Calculate days since last visit for each client ---
       const assignedLoans = state.loans.filter(l =>
          l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
       );
-
+      const today = new Date();
       const clientContexts = assignedLoans.map(loan => {
          const client = state.clients.find(c => c.id === loan.clientId);
          const clientLogs = routeData.filter(log => log.clientId === loan.clientId);
+
+         // Calculate days since last visit (any log type)
+         const allClientLogs = state.collectionLogs.filter(log => log.clientId === loan.clientId);
+         const lastVisit = allClientLogs.length > 0
+            ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
+            : null;
+
+         const daysSinceVisit = lastVisit
+            ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
+            : 999; // Large number if never visited
 
          // Get relevant installments (those due in the period or the latest one)
          const relevantInstallments = loan.installments.filter(inst => {
@@ -319,6 +328,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          return {
             cliente: client?.name || 'Desconocido',
             frecuencia: loan.frequency,
+            dias_sin_visita: daysSinceVisit,
+            alerta_critica: daysSinceVisit >= 6, // Red flag for 6+ days
             cuotas: relevantInstallments.map(i => ({
                vencimiento: i.dueDate.split('T')[0],
                estado: i.status,
@@ -338,6 +349,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const missingCount = totalAssigned - visitedCount;
       const coverage = totalAssigned > 0 ? (visitedCount / totalAssigned) * 100 : 0;
 
+      // Identify unvisited clients and critical alerts
+      const unvisitedClients = clientContexts.filter(c => c.gestiones.length === 0);
+      const criticalAlerts = clientContexts.filter(c => c.alerta_critica);
+
       const prompt = `
       Actúa como un Auditor Senior de Cobranza. Tu objetivo es evaluar el CRITERIO y CUMPLIMIENTO del cobrador "${collectorName}".
       PERIODO: ${selectedDate} hasta ${endDate || selectedDate}.
@@ -347,14 +362,24 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       2. PRÉSTAMO SEMANAL: La gestión debe ocurrir máximo 1-3 días después del vencimiento de la cuota. Evalúa cuántos días pasaron.
       3. PRÉSTAMO MENSUAL: Si la cuota vence un día específico (ej. el día 4), el cobrador tiene un margen de 1 a 6 días para reportar la gestión o el no pago.
       4. SIEMPRE prioriza la presencia: Si el cliente no pagó, el cobrador DEBE registrar un "NO PAGO". La ausencia de registro es peor que un no pago.
+      5. **ALERTA CRÍTICA**: Clientes con 6+ días hábiles sin visita DEBEN ser marcados en ROJO para auditoría física inmediata.
 
       DATOS DE LA RUTA:
-      - Cobertura Total: ${coverage.toFixed(1)}% (${visitedCount} de ${totalAssigned} clientes).
+      - Total Clientes Asignados: ${totalAssigned}
+      - Visitados en el Periodo: ${visitedCount} (${coverage.toFixed(1)}%)
+      - NO Visitados en el Periodo: ${missingCount}
+      - **ALERTAS CRÍTICAS (6+ días sin visita)**: ${criticalAlerts.length} clientes
+      
+      CLIENTES NO VISITADOS EN ESTE PERIODO:
+      ${unvisitedClients.map(c => `- ${c.cliente} (${c.dias_sin_visita} días sin visita${c.alerta_critica ? ' ⚠️ CRÍTICO' : ''})`).join('\n')}
+
       - Detalle Contextual por Cliente:
       ${JSON.stringify(clientContexts, null, 2)}
 
       INSTRUCCIONES DE SALIDA:
       - Define si el cobrador tiene "Criterio de Cobranza" o si es descuidado.
+      - **MENCIONA ESPECÍFICAMENTE** los nombres de los clientes no visitados en el periodo.
+      - **MARCA EN ROJO** (usando formato de texto) los clientes con 6+ días sin visita que requieren auditoría física.
       - Menciona casos específicos (nombres de clientes) donde se pasó de los días permitidos según la frecuencia.
       - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
 
@@ -363,7 +388,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         "score": number (0-100),
         "verdict": "string",
         "analysis": "string (Análisis de cumplimiento y tiempos según frecuencia)",
-        "missed_clients_analysis": "string (Detalle de clientes abandonados o gestiones tardías)",
+        "missed_clients_analysis": "string (Detalle de clientes abandonados o gestiones tardías, INCLUYE nombres específicos y días sin visita)",
+        "critical_clients": ["lista de nombres de clientes con 6+ días sin visita que requieren auditoría física"],
         "recommendation": "string"
       }
     `;
@@ -506,9 +532,30 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                     <i className="fa-solid fa-user-xmark text-red-500"></i> Clientes No Visitados
                                  </h4>
-                                 <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify">
+                                 <p className="text-sm text-slate-700 font-medium leading-relaxed text-justify mb-4">
                                     {aiReport.missed_clients_analysis}
                                  </p>
+
+                                 {aiReport.critical_clients && aiReport.critical_clients.length > 0 && (
+                                    <>
+                                       <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-2 flex items-center gap-2 animate-pulse">
+                                          <i className="fa-solid fa-triangle-exclamation"></i> ⚠️ ALERTAS CRÍTICAS (6+ Días Sin Visita)
+                                       </h4>
+                                       <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
+                                          <ul className="space-y-2">
+                                             {aiReport.critical_clients.map((client: string, idx: number) => (
+                                                <li key={idx} className="flex items-center gap-2 text-sm font-black text-red-700">
+                                                   <i className="fa-solid fa-circle-exclamation text-red-500"></i>
+                                                   {client}
+                                                </li>
+                                             ))}
+                                          </ul>
+                                          <p className="text-xs font-bold text-red-600 mt-3 uppercase tracking-wide">
+                                             ⚠️ Requieren auditoría física inmediata o registro de acción
+                                          </p>
+                                       </div>
+                                    </>
+                                 )}
                               </div>
                            </div>
 
@@ -628,7 +675,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                <div className={`absolute inset-0 opacity-10 ${stats.devilStops > 0 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">{t.reports.longStops}</p>
                <div className="relative z-10 flex items-center justify-center gap-2">
-                  <span className="text-2xl">{stats.devilStops > 0 ? '😈' : '✅'}</span>
+                  <span className="text-2xl">{stats.devilStops > 0 ? '⏳' : '✅'}</span>
                   <p className={`text-xl font-black ${stats.devilStops > 0 ? 'text-red-600' : 'text-green-600'}`}>{stats.devilStops}</p>
                </div>
             </div>

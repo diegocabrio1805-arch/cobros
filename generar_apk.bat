@@ -1,38 +1,28 @@
 @echo off
-echo ==========================================
-echo GENERADOR AUTOMATICO DE APK - COBROS IOTA
-echo ==========================================
+echo ========================================
+echo   GENERADOR DE APK - ANEXO COBRO v5.4.3
+echo ========================================
 echo.
-echo 1. Compilando version Web (esto puede tardar)...
-call npm run build
-if %errorlevel% neq 0 (
-    echo [ERROR] Fallo al compilar la web.
-    pause
-    exit /b %errorlevel%
-)
+
+echo [1/4] Deteniendo procesos de Gradle...
+taskkill /F /IM java.exe 2>nul
+timeout /t 2 /nobreak >nul
+
+echo [2/4] Limpiando cache de Gradle...
+cd /d "%~dp0android"
+call gradlew --stop
+timeout /t 2 /nobreak >nul
+
+echo [3/4] Generando APK Release...
+call gradlew assembleRelease --no-daemon
 
 echo.
-echo 2. Sincronizando con Android...
-call npx cap sync android
-if %errorlevel% neq 0 (
-    echo [ERROR] Fallo al sincronizar capacitor.
-    pause
-    exit /b %errorlevel%
+echo ========================================
+if exist "app\build\outputs\apk\release\app-release.apk" (
+    echo   APK GENERADA EXITOSAMENTE
+    echo   Ubicacion: android\app\build\outputs\apk\release\app-release.apk
+) else (
+    echo   ERROR: No se pudo generar la APK
 )
-
-echo.
-echo 3. Generando APK Final (Gradle)...
-cd android
-call gradlew assembleRelease
-if %errorlevel% neq 0 (
-    echo [ERROR] Fallo al generar el APK.
-    pause
-    exit /b %errorlevel%
-)
-
-echo.
-echo ==========================================
-echo [EXITO] APK GENERADA CORRECTAMENTE
-echo Ubicacion: android\app\build\outputs\apk\release\app-release.apk
-echo ==========================================
+echo ========================================
 pause

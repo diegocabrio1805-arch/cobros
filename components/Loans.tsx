@@ -223,6 +223,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
 
+      // VALIDACIÓN DE SALDO: No permitir pagos mayores al saldo
+      const loanLogs = state.collectionLogs.filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+      const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
+      const remainingBalance = loan.totalAmount - currentTotalPaid;
+
+      if (type === CollectionLogType.PAYMENT && amountToPay > (remainingBalance + 0.01)) {
+        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(remainingBalance, state.settings)}).`);
+        setIsProcessingPayment(false);
+        return;
+      }
+
       // Intentar obtener ubicación real con timeout extendido
       try {
         console.log("Obteniendo ubicación GPS obligatoria...");
@@ -266,7 +277,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (loan.installmentValue || 1);
-        const paidInstCount = progress % 1 === 0 ? progress : Number(progress.toFixed(1));
+        const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
         const overdueDays = getDaysOverdue(loan, state.settings, totalPaidHistory);
 
@@ -348,7 +359,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : loan.createdAt;
 
     const progress = totalPaidAtThatMoment / (loan.installmentValue || 1);
-    const paidInstCount = progress % 1 === 0 ? progress : Number(progress.toFixed(1));
+    const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
     // 3. Generar Texto
     const receiptText = generateReceiptText({

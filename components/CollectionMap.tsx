@@ -72,7 +72,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
         const isVirtual = log.isVirtual;
         const isRenewal = log.isRenewal;
 
-        let emoji = '😠';
+        let emoji = '⏳';
         let bgColor = '#fee2e2';
         let borderColor = '#ef4444';
         let textColor = '#991b1b';
@@ -118,7 +118,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
                 z-index: 2;
                 white-space: nowrap;
               ">
-                <span style="font-size: 16px;">${emoji}</span>
+                <span style="font-size: 12px;">${emoji}</span>
                 <span style="font-size: 10px; font-weight: 900; color: ${textColor}; text-transform: uppercase;">
                   ${collectorInitial}
                 </span>
@@ -183,7 +183,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
         leafletMap.current.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
       }
     }
-  }, [state, typeFilter, collectorFilter, filteredLogs, enrichedLogs]);
+  }, [typeFilter, collectorFilter, filteredLogs, enrichedLogs]);
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-fadeIn">
@@ -217,7 +217,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
                 onClick={() => setTypeFilter(CollectionLogType.NO_PAGO)}
                 className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${typeFilter === CollectionLogType.NO_PAGO ? 'bg-red-600 text-white shadow-md' : 'text-slate-500 hover:text-red-600'}`}
               >
-                😠 No Pagos
+                ⏳ No Pagos
               </button>
             </div>
 
@@ -269,7 +269,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-500 flex items-center justify-center text-xs">😠</div>
+              <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-500 flex items-center justify-center text-xs">⏳</div>
               <div>
                 <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Sin Pago</p>
                 <p className="text-[9px] font-bold text-red-500 uppercase mt-0.5">Mora Reportada</p>

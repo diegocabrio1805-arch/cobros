@@ -24,6 +24,7 @@ import { getTranslation } from './utils/translations';
 import { getLocalDateStringForCountry, generateUUID } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
 import { useSync } from './hooks/useSync';
+import { isPrintingNow } from './services/bluetoothPrinterService';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import { Geolocation } from '@capacitor/geolocation';
@@ -133,9 +134,29 @@ const App: React.FC = () => {
     console.log("App v3.1: Initializing state...");
 
     // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = 'RESET_V5_4_0_FINAL_FIX_STABLE_V7';
+    const RESET_ID = '2026-02-05-VISIBILITY-FIX-V1';
+
+    // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
+    const CURRENT_VERSION_ID = '5.4.1-FORCE-LOGOUT-2026-02-05-10:10';
+    const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {
+      if (lastAppVersion !== CURRENT_VERSION_ID) {
+        console.log(">>> NEW VERSION DETECTED / APK REINSTALLED <<<");
+        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
+        // Force full resync and logout
+        localStorage.removeItem('last_sync_timestamp');
+        localStorage.removeItem('last_sync_timestamp_v6');
+        localStorage.removeItem('prestamaster_v2'); // Wipe local cache
+        localStorage.removeItem('user_credentials');
+
+        // Return empty state to force login screen
+        return {
+          clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
+          currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
+        };
+      }
+
       const currentResetId = localStorage.getItem('LAST_RESET_ID');
       if (currentResetId !== RESET_ID) {
         console.log(`>>> SYSTEM UPGRADE TO ${RESET_ID} <<<`);
@@ -213,14 +234,29 @@ const App: React.FC = () => {
     let rawData = parsed;
     if (rawData) {
       // Aggressive migration of all legacy IDs to stable UUID locally
-      const migrateId = (id: string | undefined) => id === 'admin-1' ? SYSTEM_ADMIN_ID : id;
       const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
       rawData = JSON.parse(json);
     }
 
+    // Helper to normalize roles (legacy 'admin' -> 'Administrador')
+    const normalizeUser = (u: any): User | null => {
+      if (!u) return null;
+      let role = u.role;
+      if (role === 'admin' || role === 'Administrador') role = Role.ADMIN;
+      else if (role === 'gerente' || role === 'Gerente') role = Role.MANAGER;
+      else if (role === 'cobrador' || role === 'Cobrador') role = Role.COLLECTOR;
+
+      return { ...u, role };
+    };
+
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
-    const users = (rawData?.users || [initialAdmin]).map((u: User) => u.id === 'admin-1' ? initialAdmin : u);
-    const currentUser = (rawData?.currentUser?.id === 'admin-1') ? initialAdmin : rawData?.currentUser;
+    const users = (rawData?.users || [initialAdmin]).map((u: User) => {
+      const normalized = normalizeUser(u);
+      return normalized?.id === 'admin-1' ? initialAdmin : normalized;
+    }) as User[];
+
+    let currentUser = rawData?.currentUser ? normalizeUser(rawData.currentUser) : null;
+    if (currentUser?.id === 'admin-1') currentUser = initialAdmin;
 
     return {
       clients: rawData?.clients || [],
@@ -229,7 +265,7 @@ const App: React.FC = () => {
       expenses: rawData?.expenses || [],
       collectionLogs: rawData?.collectionLogs || [],
       users: users,
-      currentUser: currentUser || null,
+      currentUser: currentUser,
       commissionPercentage: rawData?.commissionPercentage ?? 10,
       commissionBrackets: rawData?.commissionBrackets || defaultBrackets,
       settings: rawData?.settings || defaultSettings,
@@ -624,14 +660,18 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Aggressive Sync for Everyone: 4 second interval (Silent)
-    // As requested by user: Force sync every 4 seconds, hidden window.
-    const intervalTime = 4000;
+    // Background Sync for Everyone: 30 second interval (Silent)
+    // Optimized for Low-End Devices: Prevent contention with Bluetooth printer
+    const intervalTime = 30000;
 
     const syncInterval = setInterval(() => {
-      if (!isSyncing && isOnline) {
+      // Skip sync if already syncing, offline, or PRINTING
+      if (!isSyncing && isOnline && !isPrintingNow()) {
         // Silent sync (true)
+        console.log("[Background Sync] Periodic pulse started");
         handleForceSync(true);
+      } else if (isPrintingNow()) {
+        console.log("[Background Sync] Skipped: Printing in progress");
       }
     }, intervalTime);
     return () => clearInterval(syncInterval);
@@ -670,28 +710,30 @@ const App: React.FC = () => {
 
     // Pass 1: Add Direct Reports
     state.users.forEach(u => {
-      if (u.managedBy === user.id) {
-        myTeamIds.add(u.id);
+      if (u.managedBy?.toLowerCase() === user.id.toLowerCase()) {
+        myTeamIds.add(u.id.toLowerCase());
         if (u.role === Role.COLLECTOR) {
-          myDirectCollectorIds.add(u.id);
+          myDirectCollectorIds.add(u.id.toLowerCase());
         }
       }
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      // Rule 1: Ownership - If I OR one of my DIRECT COLLECTORS added it.
-      if (itemAddedBy === user.id || (itemAddedBy && myDirectCollectorIds.has(itemAddedBy))) return true;
+      const myId = user.id.toLowerCase();
+      const bId = branchId.toLowerCase();
+      const iBranchId = itemBranchId?.toLowerCase();
+      const iAddedBy = itemAddedBy?.toLowerCase();
+      const iCollectorId = itemCollectorId?.toLowerCase();
 
-      // Rule 2: Assignment - If it's assigned to my branch ID (Matches Gerente or shared Branch)
-      if (itemBranchId === branchId) return true;
+      // Regla 1: Autoría - Si YO o uno de mis COBRADORES DIRECTOS lo creó.
+      if (iAddedBy === myId || (iAddedBy && myDirectCollectorIds.has(iAddedBy))) return true;
 
-      // Rule 3: Direct Assignment - If it's assigned to me OR a collector in my team
-      if (itemCollectorId === user.id || (itemCollectorId && myDirectCollectorIds.has(itemCollectorId))) return true;
+      // Regla 2: Asignación por Sucursal - Si está asignado a mi propio ID de Rama (Único para cada Admin/Gerente)
+      // Nota: branchId para administradores es su propio user.id
+      if (iBranchId === bId && bId !== '00000000-0000-0000-0000-000000000001') return true;
 
-      // Legacy/System Compatibility for Super Admins
-      if (user.role === Role.ADMIN) {
-        if (itemBranchId === SYSTEM_ADMIN_ID || itemBranchId === LEGACY_ADMIN_ID) return true;
-      }
+      // Regla 3: Asignación Directa - Si está asignado a mí O a un cobrador de mi equipo
+      if (iCollectorId === myId || (iCollectorId && myDirectCollectorIds.has(iCollectorId))) return true;
 
       return false;
     };
@@ -791,15 +833,20 @@ const App: React.FC = () => {
   }, [state.currentUser?.id, state.collectionLogs.length]);
 
   const handleLogin = (user: User) => {
-    setState(prev => ({ ...prev, currentUser: user }));
-    const branchId = getBranchId(user);
+    // Normalizar rol 'admin' a Role.ADMIN ('Administrador') para compatibilidad con filtros
+    const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
+    const normalizedUser = { ...user, role: normalizedRole };
+
+    setState(prev => ({ ...prev, currentUser: normalizedUser }));
+    const branchId = getBranchId(normalizedUser);
     if (branchId && branchId !== 'none') {
       localStorage.setItem('LAST_VALID_BRANCH_ID', branchId);
     }
     // CRITICAL FIX: Clear sync timestamp to force full resync on login
     // This ensures APK gets fresh data and removes any incorrectly cached clients
     localStorage.removeItem('last_sync_timestamp');
-    console.log('[Login] Cleared sync timestamp - forcing full data resync');
+    localStorage.removeItem('last_sync_timestamp_v6');
+    console.log('[Login] Cleared sync timestamps - forcing full data resync');
 
     // Force immediate sync on login to ensure fresh data
     setTimeout(() => handleForceSync(true), 100);
@@ -1026,7 +1073,9 @@ const App: React.FC = () => {
       collectionLogs: prev.collectionLogs.filter(l => l.clientId !== clientId)
     }));
 
-    await handleForceSync(false);
+    // CRITICAL: Force FULL sync to trigger realtime propagation
+    // This ensures other users (web/APK) see the deletion immediately
+    await handleForceSync(true);
   };
 
   const updateLoan = async (updatedLoan: Loan) => {
@@ -1175,7 +1224,9 @@ const App: React.FC = () => {
       for (const l of loansToSync) await pushLoan(l);
     }
 
-    await handleForceSync(false);
+    // CRITICAL: Force FULL sync to trigger realtime propagation
+    // This ensures other users (web/APK) see the deletion immediately
+    await handleForceSync(true);
   };
 
   const updateCollectionLog = (logId: string, newAmount: number) => {
