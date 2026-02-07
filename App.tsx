@@ -366,64 +366,7 @@ const App: React.FC = () => {
     return result;
   };
 
-  // Realtime Subscription Effect
-  useEffect(() => {
-    if (!supabase) return;
-
-    const channel = supabase.channel('global-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async (payload) => {
-        console.log('[Realtime] Payment updated:', payload.eventType);
-        const isDelete = payload.eventType === 'DELETE';
-        const newData = await pullData(isDelete);
-        if (newData?.payments) {
-          setState(prev => ({
-            ...prev,
-            payments: isDelete ? [...newData.payments!] : mergeData(prev.payments, newData.payments!)
-          }));
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'collection_logs' }, async (payload) => {
-        console.log('[Realtime] Log updated:', payload.eventType);
-        const isDelete = payload.eventType === 'DELETE';
-        const newData = await pullData(isDelete);
-        if (newData?.collectionLogs) {
-          // Force new array for DELETE to trigger useMemo re-computation
-          setState(prev => ({
-            ...prev,
-            collectionLogs: isDelete ? [...newData.collectionLogs!] : mergeData(prev.collectionLogs, newData.collectionLogs!)
-          }));
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, async (payload) => {
-        console.log('[Realtime] Loan updated:', payload.eventType);
-        const isDelete = payload.eventType === 'DELETE';
-        const newData = await pullData(isDelete);
-        if (newData?.loans) {
-          setState(prev => ({
-            ...prev,
-            loans: isDelete ? [...newData.loans!] : mergeData(prev.loans, newData.loans!)
-          }));
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, async (payload) => {
-        console.log('[Realtime] Client updated:', payload.eventType);
-        const isDelete = payload.eventType === 'DELETE';
-        const newData = await pullData(isDelete);
-        if (newData?.clients) {
-          setState(prev => ({
-            ...prev,
-            clients: isDelete ? [...newData.clients!] : mergeData(prev.clients, newData.clients!)
-          }));
-        }
-      })
-      .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, pullData]);
+  // Realtime is handled by useSync hook - no need for duplicate listeners here
 
   useEffect(() => {
     const setupBackButton = async () => {
