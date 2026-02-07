@@ -423,7 +423,7 @@ const App: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, pullData]);
 
   useEffect(() => {
     const setupBackButton = async () => {
