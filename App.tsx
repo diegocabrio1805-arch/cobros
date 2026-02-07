@@ -373,23 +373,48 @@ const App: React.FC = () => {
     const channel = supabase.channel('global-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async (payload) => {
         console.log('[Realtime] Payment updated:', payload.eventType);
-        const newData = await pullData();
-        if (newData?.payments) setState(prev => ({ ...prev, payments: mergeData(prev.payments, newData.payments!) }));
+        const isDelete = payload.eventType === 'DELETE';
+        const newData = await pullData(isDelete);
+        if (newData?.payments) {
+          setState(prev => ({
+            ...prev,
+            payments: isDelete ? [...newData.payments!] : mergeData(prev.payments, newData.payments!)
+          }));
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'collection_logs' }, async (payload) => {
         console.log('[Realtime] Log updated:', payload.eventType);
-        const newData = await pullData();
-        if (newData?.collectionLogs) setState(prev => ({ ...prev, collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs!) }));
+        const isDelete = payload.eventType === 'DELETE';
+        const newData = await pullData(isDelete);
+        if (newData?.collectionLogs) {
+          // Force new array for DELETE to trigger useMemo re-computation
+          setState(prev => ({
+            ...prev,
+            collectionLogs: isDelete ? [...newData.collectionLogs!] : mergeData(prev.collectionLogs, newData.collectionLogs!)
+          }));
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, async (payload) => {
         console.log('[Realtime] Loan updated:', payload.eventType);
-        const newData = await pullData();
-        if (newData?.loans) setState(prev => ({ ...prev, loans: mergeData(prev.loans, newData.loans!) }));
+        const isDelete = payload.eventType === 'DELETE';
+        const newData = await pullData(isDelete);
+        if (newData?.loans) {
+          setState(prev => ({
+            ...prev,
+            loans: isDelete ? [...newData.loans!] : mergeData(prev.loans, newData.loans!)
+          }));
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, async (payload) => {
         console.log('[Realtime] Client updated:', payload.eventType);
-        const newData = await pullData();
-        if (newData?.clients) setState(prev => ({ ...prev, clients: mergeData(prev.clients, newData.clients!) }));
+        const isDelete = payload.eventType === 'DELETE';
+        const newData = await pullData(isDelete);
+        if (newData?.clients) {
+          setState(prev => ({
+            ...prev,
+            clients: isDelete ? [...newData.clients!] : mergeData(prev.clients, newData.clients!)
+          }));
+        }
       })
       .subscribe((status) => {
         console.log('[Realtime] Subscription status:', status);

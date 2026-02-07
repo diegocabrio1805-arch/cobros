@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Iconos Android</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .preview {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        #iconPreview {
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 20px;
+            padding: 10px;
+            display: inline-block;
+        }
+
+        .sizes {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .size-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.2);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎨 Generador de Iconos Android</h1>
+        <p class="subtitle">Icono de Billetera - Anexo Cobro</p>
+
+        <div class="preview">
+            <div id="iconPreview"></div>
+        </div>
+
+        <div class="sizes">
+            <h3>📱 Tamaños a generar:</h3>
+            <div class="size-item">
+                <span>mipmap-mdpi</span>
+                <span>48 × 48 px</span>
+            </div>
+            <div class="size-item">
+                <span>mipmap-hdpi</span>
+                <span>72 × 72 px</span>
+            </div>
+            <div class="size-item">
+                <span>mipmap-xhdpi</span>
+                <span>96 × 96 px</span>
+            </div>
+            <div class="size-item">
+                <span>mipmap-xxhdpi</span>
+                <span>144 × 144 px</span>
+            </div>
+            <div class="size-item">
+                <span>mipmap-xxxhdpi</span>
+                <span>192 × 192 px</span>
+            </div>
+        </div>
+
+        <button onclick="generateAllIcons()">⬇️ Generar y Descargar Todos los Iconos</button>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  <g stroke="#ffffff" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="140" y="200" width="232" height="160" rx="20"/>
+    <path d="M 140 200 L 140 180 Q 140 160 160 160 L 352 160 Q 372 160 372 180 L 372 200"/>
+    <circle cx="340" cy="280" r="20"/>
+    <circle cx="340" cy="280" r="8" fill="#ffffff"/>
+    <text x="220" y="310" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+  </g>
+</svg>`;
+
+        // Mostrar preview
+        document.getElementById('iconPreview').innerHTML = svgContent;
+
+        const sizes = {
+            'mdpi': 48,
+            'hdpi': 72,
+            'xhdpi': 96,
+            'xxhdpi': 144,
+            'xxxhdpi': 192
+        };
+
+        function svgToPng(svgString, width, height) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                const img = new Image();
+                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+
+                img.onload = function () {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+
+                img.src = url;
+            });
+        }
+
+        function downloadImage(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            link.click();
+        }
+
+        async function generateAllIcons() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.classList.add('show');
+            statusDiv.innerHTML = '⏳ Generando iconos...';
+
+            let count = 0;
+            for (const [density, size] of Object.entries(sizes)) {
+                const pngData = await svgToPng(svgContent, size, size);
+
+                // Descargar ic_launcher.png
+                downloadImage(pngData, `ic_launcher_${density}.png`);
+
+                // Pequeño delay entre descargas
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // También descargar como ic_launcher_round.png
+                downloadImage(pngData, `ic_launcher_round_${density}.png`);
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                count++;
+                statusDiv.innerHTML = `⏳ Generando iconos... (${count}/${Object.keys(sizes).length})`;
+            }
+
+            statusDiv.innerHTML = `✅ ¡Todos los iconos generados! (${count * 2} archivos descargados)<br><br>
+                📁 Ahora debes copiar los archivos a sus carpetas correspondientes:<br>
+                • ic_launcher_mdpi.png → android/app/src/main/res/mipmap-mdpi/<br>
+                • ic_launcher_hdpi.png → android/app/src/main/res/mipmap-hdpi/<br>
+                • ic_launcher_xhdpi.png → android/app/src/main/res/mipmap-xhdpi/<br>
+                • ic_launcher_xxhdpi.png → android/app/src/main/res/mipmap-xxhdpi/<br>
+                • ic_launcher_xxxhdpi.png → android/app/src/main/res/mipmap-xxxhdpi/<br>
+                <br>(Igual para los archivos _round)`;
+        }
+    </script>
+</body>
+
+</html>

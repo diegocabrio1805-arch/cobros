@@ -103,10 +103,13 @@ export const useSync = () => {
                     // Debounce pullData to avoid multiple rapid calls
                     const debounceTimer = (window as any)._syncDebounceTimer;
                     if (debounceTimer) clearTimeout(debounceTimer);
+
+                    // CRITICAL: Use shorter delay for DELETE events (500ms vs 2s)
+                    const debounceDelay = needsFullSync ? 500 : 2000;
                     (window as any)._syncDebounceTimer = setTimeout(() => {
                         console.log(`Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull after realtime change...`);
                         pullData(needsFullSync);
-                    }, 2000); // 2s debounce
+                    }, debounceDelay);
                 }
             )
             .subscribe();
