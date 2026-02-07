@@ -46,11 +46,20 @@ export const useSync = () => {
 
         initNetwork();
 
-        // Check periodically (every 30s) if we think we are online, to catch "dead" wifi
+        // Check periodically (every 60s instead of 30s) to reduce battery drain
         const interval = setInterval(async () => {
             const online = await checkConnection();
-            if (online !== isOnline) setIsOnline(online);
-        }, 30000);
+            if (online !== isOnline) {
+                setIsOnline(online);
+
+                // If we just came back online, try to refresh the session token
+                if (online && !isOnline) {
+                    console.log('Connection restored - refreshing session token...');
+                    const { refreshSessionIfOnline } = await import('../utils/sessionRefresh');
+                    await refreshSessionIfOnline();
+                }
+            }
+        }, 60000);
 
         const setupListener = async () => {
             const handler = await Network.addListener('networkStatusChange', async (status) => {
@@ -106,7 +115,7 @@ export const useSync = () => {
                     (window as any)._syncDebounceTimer = setTimeout(() => {
                         console.log(`Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull after realtime change...`);
                         pullData(needsFullSync);
-                    }, 2000); // 2s debounce
+                    }, 3000); // 3s debounce (increased from 2s for better stability)
                 }
             )
             .subscribe();

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID } from '../utils/helpers';
+import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, convertReceiptForWhatsApp, getDaysOverdue, getLocalDateStringForCountry, generateUUID } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -412,12 +412,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
+    // Obtener todos los préstamos del cliente para detectar renovaciones
+    const clientLoanCounts = new Map<string, number>();
+    state.loans.forEach(loan => {
+      const count = clientLoanCounts.get(loan.clientId) || 0;
+      clientLoanCounts.set(loan.clientId, count + 1);
+    });
+
     return state.loans.filter(loan => {
       const client = state.clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return false;
       const lDate = new Date(loan.createdAt);
-      const inRange = loan.isRenewal && lDate >= start && lDate <= end;
+      const inRange = lDate >= start && lDate <= end;
       if (!inRange) return false;
+
+      // Un préstamo es renovación si:
+      // 1. Tiene la propiedad isRenewal: true (nuevo sistema)
+      // 2. O el cliente tiene más de un préstamo en su historial (sistema antiguo)
+      const isRenewal = loan.isRenewal || (clientLoanCounts.get(loan.clientId) || 0) > 1;
+      if (!isRenewal) return false;
 
       if (selectedCollector !== 'all') {
         return loan.collectorId === selectedCollector;
@@ -428,7 +441,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const metrics = getClientMetrics(client!);
       return { ...client, _loan: loan, _metrics: metrics };
     }).sort((a, b) => new Date(b._loan!.createdAt).getTime() - new Date(a._loan!.createdAt).getTime());
-  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode]);
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
@@ -696,9 +709,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const { printText } = await import('../services/bluetoothPrinterService');
         printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
-        // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
+        // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente (con formato Markdown)
         const phone = clientInLegajo.phone.replace(/\D/g, '');
-        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`;
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(convertReceiptForWhatsApp(receiptText))}`;
         window.open(wpUrl, '_blank');
       } else if (type === CollectionLogType.NO_PAGO) {
         let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(activeLoanInLegajo, clientInLegajo, getDaysOverdue(activeLoanInLegajo, state.settings), state.settings);

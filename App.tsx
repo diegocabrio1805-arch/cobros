@@ -1,6 +1,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Preferences } from '@capacitor/preferences';
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
 import Sidebar from './components/Sidebar';
@@ -300,7 +301,38 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('prestamaster_v2', JSON.stringify(state));
+
+    // Persistencia Nativa: Guardar usuario por separado para evitar pérdida en purgas de LocalStorage
+    if (state.currentUser) {
+      Preferences.set({
+        key: 'NATIVE_CURRENT_USER',
+        value: JSON.stringify(state.currentUser)
+      });
+    } else {
+      Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+    }
   }, [state]);
+
+  // Recuperación Nativa al Iniciar
+  useEffect(() => {
+    const recoverSession = async () => {
+      if (state.currentUser) return;
+
+      const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+      if (value) {
+        try {
+          const recoveredUser = JSON.parse(value);
+          console.log("[NativeAuth] Sesión recuperada de Preferences:", recoveredUser.username);
+          setState(prev => ({ ...prev, currentUser: recoveredUser }));
+          // Forzar sincronización inmediata al recuperar sesión
+          setTimeout(() => handleForceSync(true), 1000);
+        } catch (e) {
+          console.error("[NativeAuth] Error al parsear usuario recuperado", e);
+        }
+      }
+    };
+    recoverSession();
+  }, []);
 
   // Helper for Merging Data (Moved out for reuse in realtime + periodic)
   const mergeData = <T extends { id: string, updated_at?: string }>(local: T[], remote: T[]): T[] => {
@@ -869,7 +901,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => setState(prev => ({ ...prev, currentUser: null }));
+  const handleLogout = async () => {
+    // Close Supabase session explicitly
+    await supabase.auth.signOut();
+    // Clear current user from state
+    setState(prev => ({ ...prev, currentUser: null }));
+    // Reload app to ensure clean state
+    window.location.reload();
+  };
 
   const handleGenerateManager = async (data: { name: string, username: string, pass: string }) => {
     const expiry = new Date();

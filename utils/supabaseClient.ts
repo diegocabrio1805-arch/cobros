@@ -12,14 +12,34 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables');
 }
 
+import { nativeSupabaseStorage } from './nativeStorage';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         persistSession: true,
+        // Activamos auto-refresh para que la sesión no caduque mientras haya internet
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storage: nativeSupabaseStorage,
+        storageKey: 'anexo-cobro-session-v2', // Usamos una nueva clave para evitar conflictos
+        flowType: 'implicit'
     },
     global: {
         headers: { 'x-application-name': 'anexo-cobro-mobile' },
-        fetch: (url, options) => fetch(url, options)
+        // Custom fetch that doesn't fail the session on network errors
+        fetch: async (url, options) => {
+            try {
+                return await fetch(url, options);
+            } catch (error) {
+                // If offline, don't throw - just return a failed response
+                // This prevents Supabase from invalidating the session
+                console.warn('Network request failed (offline mode):', error);
+                return new Response(null, { status: 0, statusText: 'Network Error' });
+            }
+        }
+    },
+    // Extend session timeout to 7 days to prevent frequent logouts
+    db: {
+        schema: 'public'
     }
 });

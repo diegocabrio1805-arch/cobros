@@ -21,21 +21,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   // Hoy según país
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
-  useEffect(() => {
-    const fetchInsights = async () => {
-      if (state.loans.length === 0 || loadingInsights) return;
-      setLoadingInsights(true);
-      try {
-        const data = await getFinancialInsights(state);
-        setInsights(data);
-      } catch (e) {
-        console.error("Error al obtener insights:", e);
-      } finally {
-        setLoadingInsights(false);
-      }
-    };
-    fetchInsights();
-  }, [state.loans.length]);
+  const fetchInsights = async () => {
+    if (state.loans.length === 0 || loadingInsights) return;
+    setLoadingInsights(true);
+    try {
+      const data = await getFinancialInsights(state);
+      setInsights(data);
+    } catch (e) {
+      console.error("Error al obtener insights:", e);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
 
   const totalPrincipal = (state.loans || []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (state.loans || []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
@@ -315,12 +312,24 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
             </div>
 
-            {loadingInsights ? (
-              <div className="flex flex-col items-center justify-center py-10 space-y-3">
-                <div className="w-8 h-8 border-3 border-indigo-500/20 border-t-indigo-400 rounded-full animate-spin"></div>
-                <p className="text-[8px] font-black text-indigo-300 uppercase tracking-widest">Escaneando...</p>
+            {(!insights || loadingInsights) ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 border border-indigo-500/20 mb-2">
+                  <i className={`fa-solid ${loadingInsights ? 'fa-microchip animate-pulse' : 'fa-robot'} text-xl`}></i>
+                </div>
+                <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest text-center px-6 leading-tight">
+                  {loadingInsights ? 'Procesando auditoría financiera...' : 'El análisis automático está desactivado para ahorrar recursos.'}
+                </p>
+                <button
+                  onClick={fetchInsights}
+                  disabled={loadingInsights}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-xl shadow-lg shadow-indigo-500/20 uppercase tracking-widest transition-all flex items-center gap-2 group disabled:opacity-50"
+                >
+                  <i className={`fa-solid ${loadingInsights ? 'fa-spinner animate-spin' : 'fa-bolt-lightning group-hover:animate-pulse'}`}></i>
+                  {loadingInsights ? 'Analizando...' : 'Obtener Consultoría IA'}
+                </button>
               </div>
-            ) : insights ? (
+            ) : (
               <div className="space-y-4 animate-fadeIn">
                 <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
                   <p className="text-[8px] uppercase font-black text-slate-400">Riesgo</p>
@@ -351,10 +360,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     ))}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="py-10 text-center opacity-20 border border-dashed border-white/10 rounded-2xl">
-                <p className="text-[8px] font-black uppercase">Sin datos de análisis</p>
               </div>
             )}
           </div>

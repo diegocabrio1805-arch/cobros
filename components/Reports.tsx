@@ -28,6 +28,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [aiReport, setAiReport] = useState<any>(null);
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
+   const [lastMapUpdate, setLastMapUpdate] = useState<number>(Date.now()); // Control de actualización del mapa
 
    const collectors = state.users.filter(u => u.role === Role.COLLECTOR);
 
@@ -285,11 +286,24 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             totalDistance: parseFloat(calculatedDist.toFixed(2))
          });
       }
-   }, [routeData, state.clients]);
+   }, [routeData, state.clients, lastMapUpdate]); // Agregado lastMapUpdate para controlar actualizaciones
+
+   // Intervalo de actualización del mapa cada 50 segundos para evitar pestañeo
+   useEffect(() => {
+      const interval = setInterval(() => {
+         setLastMapUpdate(Date.now());
+      }, 50000); // 50 segundos
+
+      return () => clearInterval(interval);
+   }, []);
 
    const handleRunAiAudit = async () => {
       if (selectedCollector === 'all') {
          alert("Por favor selecciona un cobrador específico para auditar.");
+         return;
+      }
+
+      if (!confirm("¿Deseas ejecutar la Auditoría IA para este cobrador? Esta acción consume cuota de procesamiento.")) {
          return;
       }
 

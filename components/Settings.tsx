@@ -25,7 +25,9 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportPhone, setSupportPhone] = useState(state.settings.technicalSupportPhone || '');
   const [isSearching, setIsSearching] = useState(false);
-  const [connectedDevice, setConnectedDevice] = useState<string | null>(localStorage.getItem('printer_name'));
+  // Get user-specific printer name
+  const printerKey = state.currentUser ? `printer_name_${state.currentUser.id}` : 'printer_name';
+  const [connectedDevice, setConnectedDevice] = useState<string | null>(localStorage.getItem(printerKey));
 
   // --- PRINTER LOGIC ---
   const [showPrinterModal, setShowPrinterModal] = useState(false);
@@ -80,7 +82,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       if (connected) {
         alert(`Conectado a ${device.name}`);
         setConnectedDevice(device.name);
-        localStorage.setItem('printer_name', device.name);
+        localStorage.setItem(printerKey, device.name);
         setShowPrinterModal(false);
       } else {
         alert("No se pudo conectar.");
