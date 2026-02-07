@@ -901,14 +901,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    // Close Supabase session explicitly
-    await supabase.auth.signOut();
-    // Clear current user from state
-    setState(prev => ({ ...prev, currentUser: null }));
-    // Reload app to ensure clean state
-    window.location.reload();
-  };
+  const handleLogout = () => setState(prev => ({ ...prev, currentUser: null }));
 
   const handleGenerateManager = async (data: { name: string, username: string, pass: string }) => {
     const expiry = new Date();

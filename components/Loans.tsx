@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, convertReceiptForWhatsApp } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
@@ -303,8 +303,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
         const phone = client.phone.replace(/\D/g, '');
-        // WhatsApp opens in external app usually, checking settings (con formato Markdown)
-        window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(convertReceiptForWhatsApp(receiptText))}`, '_blank');
+        // WhatsApp opens in external app usually, checking settings
+        window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
 
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';

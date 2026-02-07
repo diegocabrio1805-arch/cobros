@@ -181,15 +181,12 @@ export const formatCurrency = (amount: number, settings?: AppSettings) => {
   const format = settings?.numberFormat || 'dot';
   const locale = format === 'comma' ? 'en-US' : 'de-DE';
 
-  const formatted = new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency: 'USD', // Usamos USD solo para el símbolo $, el locale controla los separadores
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
-
-  // Remover el símbolo $ del inicio y ponerlo al final con espacio
-  return formatted.replace(/^\$\s?/, '').replace(/US\$\s?/, '') + ' $';
+  }).format(amount).replace('$', '$ ').replace('US$', '$');
 };
 
 export const formatDate = (dateString: string) => {
@@ -412,7 +409,7 @@ ${t.ref}: ${data.loanId.toUpperCase()}
 ${t.client}: ${data.clientName.toUpperCase()}
 -------------------------------${shareSection}
 ${t.paid}:
->>> <GS2>${formatCurrency(data.amountPaid, settings)}<GS0> <<<
+>>> ${formatCurrency(data.amountPaid, settings)} <<<
 -------------------------------
 ${t.progress}:
 ${t.installments}: ${data.paidInstallments} / ${data.totalInstallments}
@@ -421,24 +418,12 @@ ${t.end}: ${formatDate(data.expiryDate)}
 ${t.overdue}: ${data.daysOverdue} ${t.days}
 -------------------------------
 ${t.balance}:
->>> <GS2>${formatCurrency(data.remainingBalance, settings)}<GS0> <<<
+>>> ${formatCurrency(data.remainingBalance, settings)} <<<
 -------------------------------
 ${t.footer}${phoneFmt}${contact}${phoneEnd}${alias}
 ===============================
 ${marginLines}
 `;
-}
-
-  ;
-
-// Convierte el recibo con etiquetas de impresora a formato WhatsApp con Markdown
-export const convertReceiptForWhatsApp = (receiptText: string): string => {
-  return receiptText
-    // Remover todas las etiquetas de control de impresora
-    .replace(/<GS[012]>/g, '')
-    .replace(/<B[01]>/g, '')
-    // No se aplica negrita, solo se remueven las etiquetas de impresora
-    ;
 };
 
 export const generateNoPaymentReceiptText = (data: ReceiptData, settings: AppSettings) => {
