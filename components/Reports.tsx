@@ -651,7 +651,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   onClick={() => setSelectedFilter('liquidation')}
                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
                >
-                  😇 Liquidar
+                  😇 Renovar
                </button>
 
                <button

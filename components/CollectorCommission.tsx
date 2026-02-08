@@ -554,7 +554,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <div className="flex flex-wrap gap-6 text-center md:text-left">
                 <div><p className="text-[8px] font-black text-slate-500 uppercase">Recaudo Bruto</p><p className="text-xl font-black font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p></div>
                 <div className="border-x border-white/10 px-6"><p className="text-[8px] font-black text-slate-500 uppercase">Eficiencia Ruta</p><p className="text-xl font-black text-emerald-400">{Math.round(currentViewStats.performanceFactor * 100)}%</p></div>
-                <div><p className="text-[8px] font-black text-slate-500 uppercase">Total a Liquidar</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
+                <div><p className="text-[8px] font-black text-slate-500 uppercase">Total a Renovar</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
                 <button onClick={() => window.print()} className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">

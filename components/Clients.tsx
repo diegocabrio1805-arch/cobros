@@ -1766,7 +1766,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <div className="grid grid-cols-3 gap-2">
                   <button onClick={() => setDossierPaymentMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!dossierIsVirtual && !dossierIsRenewal ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Efectivo</button>
                   <button onClick={() => setDossierPaymentMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsVirtual ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Transf.</button>
-                  <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Liquidar</button>
+                  <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Renovar</button>
                 </div>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
