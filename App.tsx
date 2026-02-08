@@ -45,7 +45,7 @@ const App: React.FC = () => {
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
 
-  // Ultra-Fast Realtime Sync Handler
+  // Ultra-Fast Realtime Sync Handler (Also used for manual sync data application)
   const handleRealtimeData = (newData: Partial<AppState>) => {
     setState(prev => {
       // 1. Get Pending Deletions/Additions from Queue
@@ -76,15 +76,25 @@ const App: React.FC = () => {
         if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
         if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
         if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
-        // Note: clients are usually soft deleted, but if hard deleted, this handles it.
+        if (updatedState.expenses) updatedState.expenses = updatedState.expenses.filter(i => !delIds.has(i.id));
       }
 
       if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds);
       if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds);
       if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds);
       if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds);
-      if (newData.users) updatedState.users = newData.users;
-      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
+      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds);
+      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds);
+
+      if (newData.branchSettings) {
+        updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
+      }
+
+      // Recalculate settings if critical data changed
+      if (newData.branchSettings || newData.users || newData.branchSettings) {
+        updatedState.settings = resolveSettings(updatedState.currentUser, updatedState.branchSettings, updatedState.users, updatedState.settings);
+      }
+
       return updatedState;
     });
   };
@@ -1025,21 +1035,9 @@ const App: React.FC = () => {
     }
 
     const newData = await pullData(fullSync);
-
     if (newData) {
-      console.log("Forced pull data", newData);
-      setState(prev => {
-        return {
-          ...prev,
-          users: mergeData(prev.users, newData.users || []),
-          clients: mergeData(prev.clients, newData.clients || []),
-          loans: mergeData(prev.loans, newData.loans || []),
-          payments: mergeData(prev.payments, newData.payments || []),
-          collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs || []),
-          branchSettings: { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) },
-          settings: resolveSettings(prev.currentUser, { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) }, prev.users, prev.settings)
-        };
-      });
+      console.log("Forced pull data applied via unification:", newData);
+      handleRealtimeData(newData);
     }
   };
 
