@@ -67,11 +67,23 @@ const App: React.FC = () => {
       }
 
       const updatedState = { ...prev };
-      if (newData.payments) updatedState.payments = mergeData(prev.payments, newData.payments, pendingAddIds, pendingDeleteIds);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(prev.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds);
-      if (newData.loans) updatedState.loans = mergeData(prev.loans, newData.loans, pendingAddIds, pendingDeleteIds);
-      if (newData.clients) updatedState.clients = mergeData(prev.clients, newData.clients, pendingAddIds, pendingDeleteIds);
-      if (newData.users) updatedState.users = newData.users; // Users usually don't delete often via queue
+
+      // SERVER-SIDE DELETIONS (Sync from other devices)
+      if (newData.deletedItems && newData.deletedItems.length > 0) {
+        const delIds = new Set(newData.deletedItems.map(d => d.recordId));
+        // Filter out deleted items from current state BEFORE merging
+        if (updatedState.payments) updatedState.payments = updatedState.payments.filter(i => !delIds.has(i.id));
+        if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
+        if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
+        if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
+        // Note: clients are usually soft deleted, but if hard deleted, this handles it.
+      }
+
+      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds);
+      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds);
+      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds);
+      if (newData.users) updatedState.users = newData.users;
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
       return updatedState;
     });
@@ -417,11 +429,21 @@ const App: React.FC = () => {
           const rTime = new Date(r.updated_at).getTime();
           if (lTime > rTime) {
             // Local is newer. Update the result item.
-            // Note: This modifies the object already pushed to result if reference logic holds, but let's be explicit
             const idx = result.findIndex(item => item.id === l.id);
             if (idx !== -1) result[idx] = l;
           }
         }
+      }
+    });
+
+    // 3. Add any remaining local items that were NOT in remote (Incremental Sync Support)
+    // The previous logic dropped them, causing the "Ping Pong" bug.
+    // Now we keep them. If user wants to clean ghosts, they must use Deep Reset.
+    local.forEach(l => {
+      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
+      if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
+        result.push(l);
+        resultMap.set(l.id, l);
       }
     });
 

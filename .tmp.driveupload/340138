@@ -1,0 +1,27 @@
+import {
+  Directory,
+  Encoding,
+  FilesystemDirectory,
+  FilesystemEncoding
+} from "./chunk-6PFVU7LO.js";
+import {
+  f
+} from "./chunk-K2NGWVR7.js";
+import {
+  registerPlugin
+} from "./chunk-DYYYOWMI.js";
+import "./chunk-DC5AMYBS.js";
+
+// node_modules/@capacitor/filesystem/dist/esm/index.js
+var Filesystem = registerPlugin("Filesystem", {
+  web: () => import("./web-KAEIZRV3.js").then((m) => new m.FilesystemWeb())
+});
+f();
+export {
+  Directory,
+  Encoding,
+  Filesystem,
+  FilesystemDirectory,
+  FilesystemEncoding
+};
+//# sourceMappingURL=@capacitor_filesystem.js.map

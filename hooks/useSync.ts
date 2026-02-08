@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense } from '../types';
+import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 
@@ -159,6 +159,21 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
     const forceSync = () => processQueue(true);
     const forceFullSync = () => processQueue(true, true);
 
+    const trackDeletion = async (tableName: string, recordId: string, branchId?: string) => {
+        try {
+            await supabase.from('deleted_items').insert({
+                table_name: tableName,
+                record_id: recordId,
+                branch_id: branchId
+            });
+        } catch (e) {
+            console.error('[Sync] Failed to track deletion:', e);
+            // Non-blocking, we don't want to fail the UI flow if this fails, 
+            // but it means other devices might miss the delete (Consistency vs Availability).
+            // For now, log and move on.
+        }
+    };
+
     const pullData = async (fullSync = false): Promise<Partial<AppState> | null> => {
         const online = await checkConnection();
         // If not online, we can try anyway if it's a pull request triggered manually, 
@@ -241,13 +256,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
         };
 
         // Queries - Optimized for low-end devices: only fetch active data
-        let clientsQuery = supabase.from('clients').select('*').eq('is_active', true);
+        let clientsQuery = supabase.from('clients').select('*'); // Removed is_active filter to allow soft-delete syncing
         let loansQuery = supabase.from('loans').select('*'); // No is_active column in loans table
         let paymentsQuery = supabase.from('payments').select('*');
         let logsQuery = supabase.from('collection_logs').select('*');
         let profilesQuery = supabase.from('profiles').select('*');
         let settingsQuery = supabase.from('branch_settings').select('*');
         let expensesQuery = supabase.from('expenses').select('*');
+        let deletedItemsQuery = supabase.from('deleted_items').select('*');
 
         if (lastSyncTime && !fullSync) {
             // SAFETY MARGIN: Increased to 10 seconds to definitively solve Chrome/ClockSkew issues
@@ -261,6 +277,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             profilesQuery = profilesQuery.gt('updated_at', adjustedSyncTime);
             settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
             expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
+            deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
         } else {
             // FULL SYNC or NO TIMESTAMP: Ensure we use updated_at for consistency if needed, 
             // but for full sync we just want everything.
@@ -317,6 +334,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             // setSyncError("Sincronizando: Gastos...");
             const expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal));
             if (expensesResult.error) throw new Error(`Gastos: ${expensesResult.error.message}`);
+
+            // 8. Deleted Items (Sync Deletions)
+            const deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal));
+            if (deletedResult.error) throw new Error(`Eliminaciones: ${deletedResult.error.message}`);
+
 
             // Update last sync time
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
@@ -388,7 +410,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                 branchSettings: (settingsResult.data || []).reduce((acc: any, s: any) => {
                     acc[s.id] = s.settings;
                     return acc;
-                }, {} as Record<string, AppSettings>)
+                }, {} as Record<string, AppSettings>),
+                deletedItems: (deletedResult.data || []).map((d: any) => ({
+                    id: d.id,
+                    tableName: d.table_name,
+                    recordId: d.record_id,
+                    branchId: d.branch_id,
+                    deletedAt: d.deleted_at
+                })) as DeletedItem[]
             };
 
         } catch (err: any) {
@@ -677,6 +706,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                     const { error } = await supabase.from(table).delete().in('id', ids);
                     if (error) throw error;
                     itemsWithIndex.forEach(x => processedIndices.add(x.index));
+
+                    // Track deletions
+                    for (const x of itemsWithIndex) {
+                        try {
+                            await trackDeletion(table, x.item.data.id, x.item.data.branchId);
+                        } catch (e) { console.error("Track delete failed", e); }
+                    }
+
                 } catch (err) {
                     console.error(`Batch delete failed ${table}`, err);
                     // Fallback one by one
@@ -684,6 +721,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                         try {
                             await supabase.from(table).delete().eq('id', x.item.data.id);
                             processedIndices.add(x.index);
+                            await trackDeletion(table, x.item.data.id, x.item.data.branchId);
                         } catch (e) { console.error(e); }
                     }
                 }
@@ -984,6 +1022,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             clearTimeout(timeoutId);
             if (error) throw error;
 
+            await trackDeletion('collection_logs', logId);
+
             // CRITICAL: Trigger pull after delete to refresh local state/balances
             const newData = await pullData(true);
             if (newData && onDataUpdated) onDataUpdated(newData);
@@ -1008,6 +1048,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             clearTimeout(timeoutId);
             if (error) throw error;
 
+            await trackDeletion('payments', paymentId);
+
             // CRITICAL: Trigger pull after delete to refresh local state/balances
             const newData = await pullData(true);
             if (newData && onDataUpdated) onDataUpdated(newData);
@@ -1031,6 +1073,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                 .abortSignal(controller.signal);
             clearTimeout(timeoutId);
             if (error) throw error;
+
+            await trackDeletion('loans', loanId);
         } catch (err) {
             console.error('Error deleting remote loan:', err);
             addToQueue('DELETE_LOAN', { id: loanId });

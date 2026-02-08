@@ -202,4 +202,13 @@ export interface AppState {
   initialCapital: number;
   settings: AppSettings;
   branchSettings?: Record<string, AppSettings>;
+  deletedItems?: DeletedItem[];
+}
+
+export interface DeletedItem {
+  id: string;
+  tableName: string;
+  recordId: string;
+  branchId?: string;
+  deletedAt: string;
 }
