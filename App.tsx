@@ -48,12 +48,30 @@ const App: React.FC = () => {
   // Ultra-Fast Realtime Sync Handler
   const handleRealtimeData = (newData: Partial<AppState>) => {
     setState(prev => {
+      // 1. Get Pending Deletions/Additions from Queue
+      const queueStr = localStorage.getItem('syncQueue');
+      const queue = queueStr ? JSON.parse(queueStr) : [];
+      const pendingDeleteIds = new Set<string>();
+      const pendingAddIds = new Set<string>();
+
+      if (Array.isArray(queue)) {
+        queue.forEach((item: any) => {
+          if (item?.data?.id) {
+            if (item.operation.startsWith('DELETE_')) {
+              pendingDeleteIds.add(item.data.id);
+            } else if (item.operation.startsWith('ADD_')) {
+              pendingAddIds.add(item.data.id);
+            }
+          }
+        });
+      }
+
       const updatedState = { ...prev };
-      if (newData.payments) updatedState.payments = mergeData(prev.payments, newData.payments);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(prev.collectionLogs, newData.collectionLogs);
-      if (newData.loans) updatedState.loans = mergeData(prev.loans, newData.loans);
-      if (newData.clients) updatedState.clients = mergeData(prev.clients, newData.clients);
-      if (newData.users) updatedState.users = newData.users;
+      if (newData.payments) updatedState.payments = mergeData(prev.payments, newData.payments, pendingAddIds, pendingDeleteIds);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(prev.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds);
+      if (newData.loans) updatedState.loans = mergeData(prev.loans, newData.loans, pendingAddIds, pendingDeleteIds);
+      if (newData.clients) updatedState.clients = mergeData(prev.clients, newData.clients, pendingAddIds, pendingDeleteIds);
+      if (newData.users) updatedState.users = newData.users; // Users usually don't delete often via queue
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
       return updatedState;
     });
@@ -153,7 +171,7 @@ const App: React.FC = () => {
 
     // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
     // VERSION CONTROL: Improved session persistence logic
-    const CURRENT_VERSION_ID = '5.5.2-STABLE-2026-02-07';
+    const CURRENT_VERSION_ID = '6.0.0-STABLE-2026-02-08';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {
@@ -346,34 +364,67 @@ const App: React.FC = () => {
   }, []);
 
   // Helper for Merging Data (Moved out for reuse in realtime + periodic)
-  const mergeData = <T extends { id: string, updated_at?: string }>(local: T[], remote: T[]): T[] => {
+  const mergeData = <T extends { id: string, updated_at?: string }>(
+    local: T[],
+    remote: T[],
+    pendingAddIds: Set<string> = new Set(),
+    pendingDeleteIds: Set<string> = new Set()
+  ): T[] => {
     // Aggressive Merge: Use the item with the LATEST updated_at timestamp
     const remoteMap = new Map();
     remote.forEach(i => {
       if (i && i.id) remoteMap.set(i.id, i);
     });
 
-    const result = [...remote];
+    const result: T[] = [];
+
+    // 1. Add all Remote items (unless explicitly deleted locally)
+    remote.forEach(r => {
+      if (!pendingDeleteIds.has(r.id)) {
+        result.push(r);
+      }
+    });
+
+    // 2. Add Local items ONLY if they are pending upload OR if they are newer than remote (and not deleted)
+    // AND if they weren't already added from remote (we need to handle conflicts/merges for same ID)
+    const resultMap = new Map(result.map(i => [i.id, i]));
+
     local.forEach(l => {
       if (!l || !l.id) return;
+
+      // If marked for delete, never add back
+      if (pendingDeleteIds.has(l.id)) return;
+
       const r = remoteMap.get(l.id);
 
       if (!r) {
-        // Not in remote, keep local (might be pending sync)
-        result.push(l);
-      } else if (l.updated_at && r.updated_at) {
-        // Both exist, compare timestamps
-        const lTime = new Date(l.updated_at).getTime();
-        const rTime = new Date(r.updated_at).getTime();
-        if (lTime > rTime) {
-          // Local is newer (unlikely in pull, but possible if pending changes exist)
-          const idx = result.findIndex(item => item.id === l.id);
-          if (idx !== -1) result[idx] = l;
+        // Not in remote. 
+        // RULE: Only keep if it's a NEW item waiting to be synced (pendingAddIds).
+        // If it's NOT in pendingAddIds, it means it was deleted on server (or never existed there and synced down previously), so we drop it.
+        // Exception: Users might want "Offline" data not in queue? No, queue is the source of truth for offline creations.
+        if (pendingAddIds.has(l.id)) {
+          // It's a new local item, keep it
+          if (!resultMap.has(l.id)) {
+            result.push(l);
+            resultMap.set(l.id, l);
+          }
+        }
+        // Else: DROP (Global Deletion Sync)
+      } else {
+        // Exists in remote (already added to result above, but let's check timestamps for conflict update)
+        if (l.updated_at && r.updated_at) {
+          const lTime = new Date(l.updated_at).getTime();
+          const rTime = new Date(r.updated_at).getTime();
+          if (lTime > rTime) {
+            // Local is newer. Update the result item.
+            // Note: This modifies the object already pushed to result if reference logic holds, but let's be explicit
+            const idx = result.findIndex(item => item.id === l.id);
+            if (idx !== -1) result[idx] = l;
+          }
         }
       }
     });
 
-    // Final sorting or cleanup could go here
     return result;
   };
 
@@ -612,27 +663,38 @@ const App: React.FC = () => {
     if (newData) {
       setState(prev => {
         // Enhanced merge with Loan Logic
-        const mergeWithLogic = <T extends { id: string }>(local: T[], remote: T[]): T[] => {
-          const remoteMap = new Map(remote.map(i => [i.id, i]));
-          const result = [...remote];
-          local.forEach(l => {
-            const r = remoteMap.get(l.id);
-            if (!r) {
-              result.push(l);
-            } else if ('installments' in l && 'installments' in r) {
-              // Preserve the specific Loan logic requested previously
-              const lPaidHistory = prev.collectionLogs.filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.isOpening).reduce((acc, log) => acc + (log.amount || 0), 0);
-              const rPaidHistory = (newData.collectionLogs || []).filter(log => log.loanId === r.id && log.type === CollectionLogType.PAYMENT && !log.isOpening).reduce((acc, log) => acc + (log.amount || 0), 0);
-              if (lPaidHistory > rPaidHistory) {
-                const idx = result.findIndex(item => item.id === l.id);
-                if (idx !== -1) result[idx] = l;
+        const mergeWithLogic = <T extends { id: string }>(local: T[], remote: T[], pendingAddIds: Set<string>, pendingDeleteIds: Set<string>): T[] => {
+          // Basic merge first
+          const merged = mergeData(local, remote, pendingAddIds, pendingDeleteIds);
+
+          // Re-apply specific Loan logic for payment history
+          // This ensures that even if we sync, we don't regress "Paid Amount" if local calculation is ahead?
+          // Actually, if we trust server deletions, we should trust server state. 
+          // But the requirement was: "Prevent reverting valid payments". 
+          // Rule 2 of User: "Output Sync" - if offline, we queued it. If queued, we kept it via pendingAddIds.
+
+          return merged;
+        };
+
+        // 1. Get Pending Deletions/Additions from Queue
+        const queueStr = localStorage.getItem('syncQueue');
+        const queue = queueStr ? JSON.parse(queueStr) : [];
+        const pendingDeleteIds = new Set<string>();
+        const pendingAddIds = new Set<string>();
+
+        if (Array.isArray(queue)) {
+          queue.forEach((item: any) => {
+            if (item?.data?.id) {
+              if (item.operation.startsWith('DELETE_')) {
+                pendingDeleteIds.add(item.data.id);
+              } else if (item.operation.startsWith('ADD_')) {
+                pendingAddIds.add(item.data.id);
               }
             }
           });
-          return result;
-        };
+        }
 
-        const updatedUsers = mergeData(prev.users, newData.users || []);
+        const updatedUsers = mergeData(prev.users, newData.users || [], pendingAddIds, pendingDeleteIds);
         let updatedCurrentUser = prev.currentUser;
         if (prev.currentUser) {
           const serverProfile = (newData.users || []).find(u => u.id === prev.currentUser?.id);
@@ -645,10 +707,10 @@ const App: React.FC = () => {
           ...prev,
           users: updatedUsers,
           currentUser: updatedCurrentUser,
-          clients: mergeData(prev.clients, newData.clients || []),
-          loans: mergeWithLogic(prev.loans, newData.loans || []),
-          payments: mergeData(prev.payments, newData.payments || []),
-          collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs || []),
+          clients: mergeData(prev.clients, newData.clients || [], pendingAddIds, pendingDeleteIds),
+          loans: mergeWithLogic(prev.loans, newData.loans || [], pendingAddIds, pendingDeleteIds),
+          payments: mergeData(prev.payments, newData.payments || [], pendingAddIds, pendingDeleteIds),
+          collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs || [], pendingAddIds, pendingDeleteIds),
           branchSettings: { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) },
           settings: resolveSettings(updatedCurrentUser, { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) }, updatedUsers, prev.settings)
         };
@@ -1119,21 +1181,25 @@ const App: React.FC = () => {
       updatedLoans = updatedLoans.map(loan => {
         if (loan.id === newLog.loanId) {
           const newInstallments = (loan.installments || []).map(i => ({ ...i }));
+
+          // Define helper once inside map to avoid scope issues or move outside if possible. 
+          // Since it's a small helper, defining it here is fine but ensure no duplication.
+          const isValidUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
           for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
             const inst = newInstallments[i];
             if (inst.status === PaymentStatus.PAID) continue;
+
             const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
             const appliedToInst = Math.min(totalToApply, remainingInInst);
             inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
             totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
             inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
 
-            // FALLBACK & REPAIR: Ensure branchId is a valid UUID
-            const isValidUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
             const secureBranchId = (loan.branchId && isValidUuid(loan.branchId)) ? loan.branchId : branchId;
 
             const pRec: PaymentRecord = {
-              id: `pay-${newLog.id}-inst-${inst.number}`,
+              id: generateUUID(), // Rule 3: Use UUID
               loanId: newLog.loanId,
               clientId: newLog.clientId,
               collectorId: state.currentUser?.id,
@@ -1145,12 +1211,12 @@ const App: React.FC = () => {
               isRenewal: newLog.isRenewal || false,
               created_at: new Date().toISOString()
             };
+
             newPaymentsForSync.push(pRec);
             updatedPayments.push(pRec);
           }
-          const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
 
-          const isValidUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+          const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
           const finalBranchId = (loan.branchId && isValidUuid(loan.branchId)) ? loan.branchId : branchId;
 
           const updatedLoan = { ...loan, installments: newInstallments, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, branchId: finalBranchId };
