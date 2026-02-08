@@ -117,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v5.5.5</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v6.1.2</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Panel de Control Principal
@@ -311,7 +311,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-indigo-100 leading-none">Consultoría IA</h3>
-                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v5.5.5</p>
+                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v6.1.2</p>
               </div>
             </div>
 
