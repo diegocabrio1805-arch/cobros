@@ -48,7 +48,12 @@ export const getCountryName = (country: CountryCode): string => {
     'MX': 'México',
     'NI': 'Nicaragua',
     'CR': 'Costa Rica',
-    'DO': 'Rep. Dominicana'
+    'DO': 'Rep. Dominicana',
+    'AR': 'Argentina', 'BO': 'Bolivia', 'BR': 'Brasil', 'CL': 'Chile', 'PE': 'Perú', 'UY': 'Uruguay', 'VE': 'Venezuela',
+    'US': 'Estados Unidos', 'ES': 'España', 'BZ': 'Belice', 'GY': 'Guyana', 'SR': 'Surinam',
+    'CU': 'Cuba', 'HT': 'Haití', 'JM': 'Jamaica', 'TT': 'Trinidad y Tobago', 'BS': 'Bahamas', 'BB': 'Barbados',
+    'LC': 'Santa Lucía', 'VC': 'San Vicente', 'GD': 'Granada', 'AG': 'Antigua y Barbuda', 'DM': 'Dominica', 'KN': 'San Cristóbal y Nieves',
+    'CA': 'Canadá'
   };
   return names[country] || 'Colombia';
 };
@@ -60,9 +65,9 @@ export const isHoliday = (date: Date | null | undefined, country: string, custom
   return false;
 };
 
-export const formatCurrency = (value: number | undefined, settings: AppSettings): string => {
+export const formatCurrency = (value: number | undefined, settings: AppSettings | undefined): string => {
   if (value === undefined) return '$0';
-  const currencySymbol = settings.currencySymbol || '$';
+  const currencySymbol = settings?.currencySymbol || '$';
   return `${currencySymbol}${Math.round(value).toLocaleString('es-CO')}`;
 };
 

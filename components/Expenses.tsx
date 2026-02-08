@@ -12,6 +12,11 @@ interface ExpensesProps {
 }
 
 const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateInitialCapital }) => {
+  // PROTECTION: If settings are not loaded yet, prevent crash
+  if (!state.settings || !state.settings.country) {
+    return <div className="p-10 text-center animate-pulse text-slate-400 font-bold uppercase tracking-widest">Cargando Configuración...</div>;
+  }
+
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const [showModal, setShowModal] = useState(false);
@@ -124,7 +129,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital de Trabajo</p>
-            <h3 className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital)}</h3>
+            <h3 className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
             <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">Fondo base inicial cargado</p>
           </div>
           <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
@@ -135,16 +140,16 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="relative z-10">
             <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Efectivo Real en Caja</p>
             <h3 className={`text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
-              {formatCurrency(currentCashInHand)}
+              {formatCurrency(currentCashInHand, state.settings)}
             </h3>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
                 <span>Base + Cobros:</span>
-                <span className="text-emerald-400">+{formatCurrency(state.initialCapital + collectedCash)}</span>
+                <span className="text-emerald-400">+{formatCurrency(state.initialCapital + collectedCash, state.settings)}</span>
               </div>
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
                 <span>Entregado + Gastos:</span>
-                <span className="text-red-400">-{formatCurrency(lentCash + totalOperatingExpenses)}</span>
+                <span className="text-red-400">-{formatCurrency(lentCash + totalOperatingExpenses, state.settings)}</span>
               </div>
             </div>
           </div>
@@ -161,7 +166,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             </div>
             <div className="mt-3 pt-3 border-t border-white/10">
               <p className="text-[8px] font-black text-blue-200 uppercase">Utilidad Proyectada</p>
-              <p className="text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit)}</p>
+              <p className="text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
             </div>
           </div>
           <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-7xl text-white/10 group-hover:rotate-12 transition-transform"></i>
@@ -171,7 +176,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         <div className="bg-rose-50 p-5 rounded-[2rem] border border-rose-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">Mora Crítica (+40 d)</p>
-            <h3 className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance)}</h3>
+            <h3 className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
             <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">Capital en alto riesgo de pérdida</p>
           </div>
           <div className="absolute -right-2 top-2 w-12 h-12 bg-rose-200/30 rounded-full flex items-center justify-center animate-bounce">
@@ -217,7 +222,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                       </span>
                     </td>
                     <td className="px-5 py-4 text-slate-400 whitespace-nowrap uppercase text-[10px]">{formatDate(exp.date)}</td>
-                    <td className="px-5 py-4 font-black text-red-600 font-mono whitespace-nowrap">{formatCurrency(exp.amount)}</td>
+                    <td className="px-5 py-4 font-black text-red-600 font-mono whitespace-nowrap">{formatCurrency(exp.amount, state.settings)}</td>
                     <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => removeExpense(exp.id)}

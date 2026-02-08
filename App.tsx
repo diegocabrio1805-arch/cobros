@@ -171,7 +171,7 @@ const App: React.FC = () => {
 
     // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
     // VERSION CONTROL: Improved session persistence logic
-    const CURRENT_VERSION_ID = '6.0.0-STABLE-2026-02-08';
+    const CURRENT_VERSION_ID = '6.0.1-STABLE-2026-02-08';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {

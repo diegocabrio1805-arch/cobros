@@ -41,7 +41,7 @@ export enum CollectionLogType {
 export type Language = 'es' | 'en' | 'pt' | 'fr';
 
 export type CountryCode =
-  | 'AR' | 'BO' | 'BR' | 'CL' | 'CO' | 'EC' | 'GY' | 'PY' | 'PE' | 'SR' | 'UY' | 'VE'
+  | 'AR' | 'BO' | 'BR' | 'CL' | 'CO' | 'EC' | 'GY' | 'PY' | 'PE' | 'SR' | 'UY' | 'VE' | 'ES'
   | 'BZ' | 'CR' | 'SV' | 'GT' | 'HN' | 'NI' | 'PA'
   | 'CA' | 'US' | 'MX'
   | 'DO' | 'CU' | 'HT' | 'JM' | 'TT' | 'BS' | 'BB' | 'LC' | 'VC' | 'GD' | 'AG' | 'DM' | 'KN';
@@ -50,6 +50,7 @@ export interface AppSettings {
   language: Language;
   country: CountryCode;
   companyName?: string;
+  currencySymbol?: string; // Added optional currency symbol
   contactPhone?: string;
   companyAlias?: string; // Para el Legajo (Nombre corto o comercial)
   companyIdentifier?: string; // RUC/NIT/ID Legal

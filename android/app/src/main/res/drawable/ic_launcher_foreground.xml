@@ -1,0 +1,52 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+  <!-- Body of Wallet -->
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#FFFFFF"
+      android:strokeWidth="14"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M140,200 h232 v160 a20,20 0 0 1 -20,20 h-192 a20,20 0 0 1 -20,-20 z" />
+
+  <!-- Top Flap -->
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#FFFFFF"
+      android:strokeWidth="14"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M140,200 v-20 q0,-20 20,-20 h192 q20,0 20,20 v20" />
+
+  <!-- Closure Detail -->
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#FFFFFF"
+      android:strokeWidth="14"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M360,280 a20,20 0 1,0 -40,0 a20,20 0 1,0 40,0" />
+
+  <!-- Inner Closure Dot -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M348,280 a8,8 0 1,0 -16,0 a8,8 0 1,0 16,0" />
+
+  <!-- Dollar Sign (Simplified Path) -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M230,270 
+                        c-15,0 -25,10 -25,25 
+                        s10,25 25,25 
+                        c15,0 25,10 25,25 
+                        s-10,25 -25,25 
+                        m0,-110 v120"
+      android:strokeColor="#FFFFFF"
+      android:strokeWidth="14"
+      android:strokeLineCap="round" 
+      android:strokeLineJoin="round" />
+</vector>
