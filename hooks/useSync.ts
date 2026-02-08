@@ -10,7 +10,7 @@ const isValidUuid = (id: string | undefined | null) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 };
 
-export const useSync = () => {
+export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isFullSyncing, setIsFullSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -81,35 +81,40 @@ export const useSync = () => {
         };
 
         // REALTIME SUBSCRIPTION FOR INSTANT UPDATES
-        // This addresses the user's request for "detecting and updating changes immediately"
         const channel = supabase.channel('system_changes')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public' },
-                (payload) => {
+                async (payload) => {
                     console.log('Realtime change detected:', payload.table, payload.eventType);
 
-                    // CRITICAL FIX: Force FULL sync on deletions
-                    // Incremental sync (gt updated_at) cannot detect deleted records
-                    // because they no longer exist in the database
                     const isDeleteEvent = payload.eventType === 'DELETE';
                     const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients'].includes(payload.table);
                     const needsFullSync = isDeleteEvent && isCriticalTable;
 
                     if (needsFullSync) {
-                        console.log(`[Realtime] DELETE detected on ${payload.table}. Triggering FULL sync...`);
+                        console.log(`[Realtime] DELETE detected on ${payload.table}. Immediate sync triggered.`);
                     }
 
-                    // Debounce pullData to avoid multiple rapid calls
-                    const debounceTimer = (window as any)._syncDebounceTimer;
-                    if (debounceTimer) clearTimeout(debounceTimer);
+                    // For deletions, we trigger IMMEDIATELY (no debounce) for better UX
+                    const debounceDelay = isDeleteEvent ? 0 : 2000;
 
-                    // CRITICAL: Use shorter delay for DELETE events (500ms vs 2s)
-                    const debounceDelay = needsFullSync ? 500 : 2000;
-                    (window as any)._syncDebounceTimer = setTimeout(() => {
+                    const triggerSync = async () => {
                         console.log(`Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull after realtime change...`);
-                        pullData(needsFullSync);
-                    }, debounceDelay);
+                        const newData = await pullData(needsFullSync);
+                        if (newData && onDataUpdated) {
+                            console.log('[Realtime] Pushing fresh data to UI...');
+                            onDataUpdated(newData);
+                        }
+                    };
+
+                    if (debounceDelay === 0) {
+                        triggerSync();
+                    } else {
+                        const debounceTimer = (window as any)._syncDebounceTimer;
+                        if (debounceTimer) clearTimeout(debounceTimer);
+                        (window as any)._syncDebounceTimer = setTimeout(triggerSync, debounceDelay);
+                    }
                 }
             )
             .subscribe();
@@ -978,6 +983,10 @@ export const useSync = () => {
                 .abortSignal(controller.signal);
             clearTimeout(timeoutId);
             if (error) throw error;
+
+            // CRITICAL: Trigger pull after delete to refresh local state/balances
+            const newData = await pullData(true);
+            if (newData && onDataUpdated) onDataUpdated(newData);
         } catch (err) {
             console.error('Error deleting remote log:', err);
             addToQueue('DELETE_LOG', { id: logId });
@@ -998,6 +1007,10 @@ export const useSync = () => {
                 .abortSignal(controller.signal);
             clearTimeout(timeoutId);
             if (error) throw error;
+
+            // CRITICAL: Trigger pull after delete to refresh local state/balances
+            const newData = await pullData(true);
+            if (newData && onDataUpdated) onDataUpdated(newData);
         } catch (err) {
             console.error('Error deleting remote payment:', err);
             addToQueue('DELETE_PAYMENT', { id: paymentId });

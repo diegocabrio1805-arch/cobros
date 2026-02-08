@@ -505,7 +505,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
             <div className="grid grid-cols-3 gap-2 mb-6">
               <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualProcessing && !isRenewalProcessing ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Efectivo</button>
               <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Transf.</button>
-              <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Liquidar</button>
+              <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Renovar</button>
             </div>
 
             <div className="relative mb-6">

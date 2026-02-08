@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID } from '../utils/helpers';
+import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -614,11 +614,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const setDossierPaymentMethod = (method: 'cash' | 'virtual' | 'renewal') => {
     setDossierIsVirtual(method === 'virtual');
     setDossierIsRenewal(method === 'renewal');
+
+    // Solo cambiar el monto automáticamente si está vacío o es el valor por defecto
+    const currentAmount = dossierPaymentAmount.toString();
+    const isDefaultValue = activeLoanInLegajo && (currentAmount === activeLoanInLegajo.installmentValue.toString() || currentAmount === '');
+
     if (method === 'renewal' && activeLoanInLegajo) {
       const installments = activeLoanInLegajo.installments || [];
       const tPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
       setDossierPaymentAmount(Math.max(0, activeLoanInLegajo.totalAmount - tPaid).toString());
-    } else if (activeLoanInLegajo) {
+    } else if (activeLoanInLegajo && isDefaultValue) {
       setDossierPaymentAmount(activeLoanInLegajo.installmentValue.toString());
     }
   };
@@ -698,11 +703,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
         const phone = clientInLegajo.phone.replace(/\D/g, '');
-        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`;
+        const cleanReceipt = convertReceiptForWhatsApp(receiptText);
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(cleanReceipt)}`;
         window.open(wpUrl, '_blank');
       } else if (type === CollectionLogType.NO_PAGO) {
         let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(activeLoanInLegajo, clientInLegajo, getDaysOverdue(activeLoanInLegajo, state.settings), state.settings);
-        window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        const cleanMsg = convertReceiptForWhatsApp(msg);
+        window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
       }
     } catch (e) { console.error(e); } finally {
       setIsProcessingDossierAction(false);
@@ -1592,7 +1599,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </div>
                             <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-2">
                               <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
-                              <button onClick={handleOpenDossierPayment} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">Cobrar / Liquidar</button>
+                              <button onClick={handleOpenDossierPayment} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">Cobrar / Renovación</button>
                             </div>
                             <div className="px-3 pb-3 bg-white">
                               <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">

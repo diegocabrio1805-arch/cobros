@@ -45,7 +45,21 @@ const App: React.FC = () => {
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
 
-  const { isSyncing, isFullSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync();
+  // Ultra-Fast Realtime Sync Handler
+  const handleRealtimeData = (newData: Partial<AppState>) => {
+    setState(prev => {
+      const updatedState = { ...prev };
+      if (newData.payments) updatedState.payments = mergeData(prev.payments, newData.payments);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(prev.collectionLogs, newData.collectionLogs);
+      if (newData.loans) updatedState.loans = mergeData(prev.loans, newData.loans);
+      if (newData.clients) updatedState.clients = mergeData(prev.clients, newData.clients);
+      if (newData.users) updatedState.users = newData.users;
+      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
+      return updatedState;
+    });
+  };
+
+  const { isSyncing, isFullSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync(handleRealtimeData);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   // DEEP RESET LOGIC: For solving stubborn Chrome caching issues
@@ -138,34 +152,37 @@ const App: React.FC = () => {
     const RESET_ID = '2026-02-05-VISIBILITY-FIX-V1';
 
     // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
-    const CURRENT_VERSION_ID = '5.4.1-FORCE-LOGOUT-2026-02-05-10:10';
+    // VERSION CONTROL: Improved session persistence logic
+    const CURRENT_VERSION_ID = '5.5.2-STABLE-2026-02-07';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {
-      if (lastAppVersion !== CURRENT_VERSION_ID) {
-        console.log(">>> NEW VERSION DETECTED / APK REINSTALLED <<<");
+      // Only force full clear on major version changes or specific forced reset IDs
+      if (lastAppVersion && lastAppVersion.split('.')[0] !== CURRENT_VERSION_ID.split('.')[0]) {
+        console.log(">>> MAJOR VERSION UPGRADE DETECTED <<<");
         localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-        // Force full resync and logout
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
-        localStorage.removeItem('prestamaster_v2'); // Wipe local cache
+        localStorage.removeItem('prestamaster_v2');
         localStorage.removeItem('user_credentials');
-
-        // Return empty state to force login screen
         return {
           clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
           currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
         };
+      } else if (lastAppVersion !== CURRENT_VERSION_ID) {
+        console.log(">>> MINOR UPDATE DETECTED - Keeping Session <<<");
+        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
       }
+    } catch (e) {
+      console.error("Version Check Error:", e);
+    }
 
+    try {
       const currentResetId = localStorage.getItem('LAST_RESET_ID');
       if (currentResetId !== RESET_ID) {
         console.log(`>>> SYSTEM UPGRADE TO ${RESET_ID} <<<`);
-
-        // 1. Mark as RESET FIRST to prevent infinite loops if something crashes below
         localStorage.setItem('LAST_RESET_ID', RESET_ID);
 
-        // 2. UNREGISTER SERVICE WORKERS
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then((registrations) => {
             for (let registration of registrations) {
@@ -175,24 +192,18 @@ const App: React.FC = () => {
           });
         }
 
-        // 3. Selective Clear to avoid wiping the flag we just set
         const lang = localStorage.getItem('app_language');
         const country = localStorage.getItem('app_country');
 
-        // Wipe specific app data instead of full clear() to be safer
         localStorage.removeItem('prestamaster_v2');
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
         localStorage.removeItem('syncQueue');
-        localStorage.removeItem('user_credentials'); // Force re-login if necessary
+        // Do NOT remove user_credentials here to persist session
 
         if (lang) localStorage.setItem('app_language', lang);
         if (country) localStorage.setItem('app_country', country);
-
-        // Double confirm the flag is set
         localStorage.setItem('LAST_RESET_ID', RESET_ID);
-
-        console.log("Cleanup complete. Skipping automatic reload to prevent loops.");
 
         return {
           clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],

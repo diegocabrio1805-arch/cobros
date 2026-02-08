@@ -142,13 +142,23 @@
 
     <script>
         const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#2563eb" rx="80"/>
-  <g stroke="#ffffff" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="140" y="200" width="232" height="160" rx="20"/>
-    <path d="M 140 200 L 140 180 Q 140 160 160 160 L 352 160 Q 372 160 372 180 L 372 200"/>
-    <circle cx="340" cy="280" r="20"/>
-    <circle cx="340" cy="280" r="8" fill="#ffffff"/>
-    <text x="220" y="310" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#blueGrad)" rx="100"/>
+  <g stroke="#ffffff" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Wallet Body -->
+    <rect x="130" y="210" width="252" height="150" rx="25"/>
+    <!-- Wallet Top Flap -->
+    <path d="M 130 210 L 130 185 Q 130 160 160 160 L 352 160 Q 382 160 382 185 L 382 210"/>
+    <!-- Wallet Button -->
+    <circle cx="345" cy="285" r="22"/>
+    <circle cx="345" cy="285" r="8" fill="#ffffff"/>
+    <!-- Dollar Symbol with Serif Font -->
+    <text x="225" y="320" font-family="'Times New Roman', Georgia, serif" font-size="115" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
   </g>
 </svg>`;
 

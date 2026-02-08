@@ -111,6 +111,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
                     className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700 transition-all uppercase placeholder:normal-case"
                     required
                   />
@@ -125,6 +126,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                     className="w-full pl-12 pr-12 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700 transition-all"
                     placeholder="••••••••"
                     required

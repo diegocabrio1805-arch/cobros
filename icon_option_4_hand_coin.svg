@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fondo azul sólido -->
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  
+  <!-- Mano con moneda en líneas blancas -->
+  <g stroke="#ffffff" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Moneda -->
+    <circle cx="280" cy="180" r="70"/>
+    <text x="280" y="205" font-family="Arial, sans-serif" font-size="70" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+    
+    <!-- Mano -->
+    <path d="M 180 320 L 180 380 Q 180 400 200 400 L 340 400 Q 360 400 360 380 L 360 320"/>
+    
+    <!-- Dedos -->
+    <path d="M 200 320 L 200 260 Q 200 240 220 240 Q 240 240 240 260 L 240 320"/>
+    <path d="M 250 320 L 250 240 Q 250 220 270 220 Q 290 220 290 240 L 290 320"/>
+    <path d="M 300 320 L 300 260 Q 300 240 320 240 Q 340 240 340 260 L 340 320"/>
+    
+    <!-- Pulgar -->
+    <path d="M 180 340 Q 140 340 140 300 Q 140 280 160 280 L 180 280"/>
+  </g>
+</svg>
