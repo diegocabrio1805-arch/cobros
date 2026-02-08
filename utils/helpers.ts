@@ -53,7 +53,8 @@ export const getCountryName = (country: CountryCode): string => {
   return names[country] || 'Colombia';
 };
 
-export const isHoliday = (date: Date, country: string, customHolidays: string[] = []): boolean => {
+export const isHoliday = (date: Date | null | undefined, country: string, customHolidays: string[] = []): boolean => {
+  if (!date || isNaN(date.getTime())) return false;
   const dateStr = date.toISOString().split('T')[0];
   if (customHolidays.includes(dateStr)) return true;
   return false;
@@ -81,7 +82,13 @@ export const generateAmortizationTable = (
   const totalAmount = calculateTotalReturn(amount, rate);
   const installmentValue = Math.ceil(totalAmount / installments);
   const table = [];
-  let currentDate = new Date(startDate + 'T00:00:00');
+
+  // Validar fecha de inicio
+  const safeStartDate = startDate ? startDate : getLocalDateStringForCountry(country);
+  let currentDate = new Date(safeStartDate + 'T00:00:00');
+  if (isNaN(currentDate.getTime())) {
+    currentDate = new Date();
+  }
 
   for (let i = 1; i <= installments; i++) {
     // Calcular siguiente fecha según frecuencia
@@ -96,8 +103,10 @@ export const generateAmortizationTable = (
     }
 
     // Saltar domingos y festivos
-    while (currentDate.getDay() === 0 || isHoliday(currentDate, country, customHolidays)) {
+    let safetyCounter = 0;
+    while ((currentDate.getDay() === 0 || isHoliday(currentDate, country, customHolidays)) && safetyCounter < 30) {
       currentDate.setDate(currentDate.getDate() + 1);
+      safetyCounter++;
     }
 
     table.push({
