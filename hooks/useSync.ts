@@ -164,7 +164,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             await supabase.from('deleted_items').insert({
                 table_name: tableName,
                 record_id: recordId,
-                branch_id: branchId
+                branch_id: branchId,
+                deleted_at: new Date().toISOString()
             });
         } catch (e) {
             console.error('[Sync] Failed to track deletion:', e);
