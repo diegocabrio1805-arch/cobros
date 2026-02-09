@@ -44,7 +44,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     let moneyNotCollected = 0;
     collectorLoans.filter(l => l.status !== LoanStatus.PAID).forEach(loan => {
       (loan.installments || []).forEach(inst => {
-        const dueDate = new Date(inst.dueDate);
+        const dueDate = new Date(inst.dueDate + 'T00:00:00');
         if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
           if (inst.status !== PaymentStatus.PAID) {
             moneyNotCollected += (inst.amount - inst.paidAmount);
@@ -143,7 +143,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Recaudado este mes</p>
-                        <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.collectedThisMonth)}</p>
+                        <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.collectedThisMonth, state.settings)}</p>
                       </div>
                     </div>
 
@@ -153,7 +153,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1">No recaudado (Mes)</p>
-                        <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.moneyNotCollected)}</p>
+                        <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.moneyNotCollected, state.settings)}</p>
                       </div>
                     </div>
 

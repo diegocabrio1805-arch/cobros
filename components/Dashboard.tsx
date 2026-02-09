@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus } from '../types';
-import { formatCurrency, getLocalDateStringForCountry } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -75,10 +75,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId)).size;
 
       const overdueLoansCount = assignedActiveLoans.filter(loan => {
-        return (loan.installments || []).some(inst =>
-          inst.status !== PaymentStatus.PAID &&
-          new Date(inst.dueDate) < todayDate
-        );
+        return getDaysOverdue(loan, state.settings) > 0;
       }).length;
 
       const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;

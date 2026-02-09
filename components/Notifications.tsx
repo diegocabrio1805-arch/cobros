@@ -1,7 +1,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { AppState, PaymentStatus, LoanStatus } from '../types';
-import { formatCurrency, formatDate, generateNoPaymentReceiptText, ReceiptData } from '../utils/helpers';
+import { formatCurrency, formatDate, generateNoPaymentReceiptText, ReceiptData, getDaysOverdue } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 
 interface NotificationsProps {
@@ -17,19 +17,20 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
     const pendingAlerts: any[] = [];
     state.loans.filter(l => l.status === LoanStatus.ACTIVE).forEach(loan => {
       const client = state.clients.find(c => c.id === loan.clientId);
-      if (!client || !loan.installments) return;
+      if (!client) return;
+      const mDays = getDaysOverdue(loan, state.settings);
+
       loan.installments.forEach(inst => {
-        const dueDate = new Date(inst.dueDate);
+        const dueDate = new Date(inst.dueDate + 'T00:00:00');
         dueDate.setHours(0, 0, 0, 0);
-        if (inst.status !== PaymentStatus.PAID && dueDate <= today) {
-          const isOverdue = dueDate < today;
+        if (inst.status !== PaymentStatus.PAID && (dueDate <= today || mDays > 0)) {
           pendingAlerts.push({
             id: `${loan.id}-${inst.number}`,
             client,
             loan,
             installment: inst,
-            isOverdue,
-            daysDiff: Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+            isOverdue: mDays > 0,
+            daysDiff: mDays
           });
         }
       });

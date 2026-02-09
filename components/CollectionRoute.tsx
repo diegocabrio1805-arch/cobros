@@ -100,7 +100,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
       // Suma de lo que debería haber pagado hasta el final del día de hoy
       const dueUntilToday = (loan.installments || [])
-        .filter(inst => new Date(inst.dueDate) <= todayEnd)
+        .filter(inst => new Date(inst.dueDate + 'T00:00:00') <= todayEnd)
         .reduce((acc, inst) => acc + inst.amount, 0);
 
       // Si lo pagado históricamente cubre o supera lo debido hasta hoy, el saldo es 0 (Al Día)

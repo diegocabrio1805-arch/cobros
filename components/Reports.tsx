@@ -1,7 +1,7 @@
 ﻿
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, getDaysOverdue } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';
 
@@ -307,6 +307,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const clientContexts = assignedLoans.map(loan => {
          const client = state.clients.find(c => c.id === loan.clientId);
          const clientLogs = routeData.filter(log => log.clientId === loan.clientId);
+         const moraReal = getDaysOverdue(loan, state.settings);
 
          // Calculate days since last visit (any log type)
          const allClientLogs = state.collectionLogs.filter(log => log.clientId === loan.clientId);
@@ -328,7 +329,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             cliente: client?.name || 'Desconocido',
             frecuencia: loan.frequency,
             dias_sin_visita: daysSinceVisit,
-            alerta_critica: daysSinceVisit >= 6, // Red flag for 6+ days
+            dias_mora_real: moraReal,
+            alerta_critica: daysSinceVisit >= 6 || moraReal > 1, // Flag if overdue or unvisited
             cuotas: relevantInstallments.map(i => ({
                vencimiento: i.dueDate.split('T')[0],
                estado: i.status,

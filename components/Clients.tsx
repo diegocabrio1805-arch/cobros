@@ -214,12 +214,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const i = Number(initialLoan.interestRate) || 0;
       const inst = Number(initialLoan.installments) || 0;
 
+      let startDateObj;
+      if (typeof initialLoan.startDate === 'string') {
+        startDateObj = new Date(initialLoan.startDate.split('T')[0] + 'T00:00:00');
+      } else {
+        startDateObj = new Date(initialLoan.startDate);
+        startDateObj.setHours(0, 0, 0, 0);
+      }
+
       const table = generateAmortizationTable(
         p,
         i,
         inst,
         initialLoan.frequency,
-        new Date(initialLoan.startDate + 'T00:00:00'),
+        startDateObj,
         state.settings.country,
         initialLoan.customHolidays
       );
@@ -236,7 +244,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const i = Number(editLoanFormData.interestRate) || 0;
       const inst = Number(editLoanFormData.totalInstallments) || 0;
 
-      const startDateTime = new Date(editLoanFormData.createdAt);
+      let startDateTime;
+      if (typeof editLoanFormData.createdAt === 'string') {
+        startDateTime = new Date(editLoanFormData.createdAt.split('T')[0] + 'T00:00:00');
+      } else {
+        startDateTime = new Date(editLoanFormData.createdAt);
+        startDateTime.setHours(0, 0, 0, 0);
+      }
+
+      console.log(`[REGEN DEBUG] Regenerating Loan: ${editLoanFormData.id} | Principal: ${p} | StartDate (createdAt): ${editLoanFormData.createdAt}`);
+
       const table = generateAmortizationTable(
         p,
         i,
@@ -271,6 +288,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     editLoanFormData?.totalInstallments,
     editLoanFormData?.frequency,
     editLoanFormData?.customHolidays,
+    editLoanFormData?.createdAt,
     isEditingClient,
     state.settings.country
   ]);
@@ -363,8 +381,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
     // SAFE SORT (NaN PROOF)
     return [...clients].sort((a, b) => {
-      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const tA = a.createdAt ? new Date(a.createdAt.split('T')[0] + 'T00:00:00').getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt.split('T')[0] + 'T00:00:00').getTime() : 0;
       const vA = isNaN(tA) ? 0 : tA;
       const vB = isNaN(tB) ? 0 : tB;
       return vB - vA;
@@ -1496,7 +1514,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <tbody className="divide-y divide-slate-800 font-bold">
                                 {(clientHistory || []).map((log) => (
                                   <tr key={log.id} className="hover:bg-slate-800 transition-colors">
-                                    <td className="px-4 py-3"><p className="text-slate-100 font-black">{new Date(log.date).toLocaleDateString()}</p></td>
+                                    <td className="px-4 py-3"><p className="text-slate-100 font-black">{new Date(log.date.split('T')[0] + 'T00:00:00').toLocaleDateString()}</p></td>
                                     <td className="px-4 py-3"><p className={`uppercase font-black text-[9px] ${log.isOpening ? 'text-emerald-400' : log.type === CollectionLogType.PAYMENT ? 'text-slate-300' : 'text-red-400'}`}>{log.isOpening ? 'Crédito Habilitado' : log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' : 'Visita sin Pago'}</p></td>
                                     <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">{log.amount ? formatCurrency(log.amount, state.settings) : '-'}</td>
                                     <td className="px-4 py-3 text-center">
@@ -1551,7 +1569,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         </div>
                                         <div className="flex flex-col">
                                           <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-emerald-700' : 'text-slate-700'}`}>
-                                            {new Date(inst.dueDate).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
+                                            {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
                                           </span>
                                           {isPartial && <span className="text-[7px] font-black text-emerald-600 uppercase">ABONO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>}
                                           {isPaid && <span className="text-[7px] font-black text-emerald-700 uppercase">PAGADO</span>}
@@ -1922,7 +1940,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
                           <div className="flex flex-col">
                             <span className={`text-[13px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
-                              {new Date(inst.dueDate).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
+                              {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
                             </span>
                             {isPaid && <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest mt-0.5">PAGADO TOTAL</span>}
                             {!isPaid && !isPartial && <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5">PENDIENTE</span>}
