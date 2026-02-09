@@ -113,135 +113,143 @@ export const generateAmortizationTable = (
   country: string,
   customHolidays: string[] = []
 ) => {
-  const numAmount = Number(amount);
-  const numRate = Number(rate);
-  const numInstallments = Number(installments);
+  try {
+    const numAmount = Number(amount);
+    const numRate = Number(rate);
+    const numInstallments = Number(installments);
 
-  const totalAmount = calculateTotalReturn(numAmount, numRate);
-  const installmentValue = Math.ceil(totalAmount / (numInstallments || 1));
-  const table = [];
+    const totalAmount = calculateTotalReturn(numAmount, numRate);
+    const installmentValue = Math.ceil(totalAmount / (numInstallments || 1));
+    const table = [];
 
-  // Asegurar que startDate sea un objeto Date a las 00:00:00
-  let currentDate: Date;
-  if (typeof startDate === "string") {
-    // Handle DD/MM/YYYY or YYYY-MM-DD
-    if (startDate.includes('/') && !startDate.includes('-')) {
-      const parts = startDate.split(' ')[0].split('/');
-      if (parts[0].length === 2) { // DD/MM/YYYY
-        currentDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-      } else { // YYYY/MM/DD
-        currentDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
+    // Asegurar que startDate sea un objeto Date a las 00:00:00
+    let currentDate: Date;
+    if (typeof startDate === "string") {
+      // Handle DD/MM/YYYY or YYYY-MM-DD
+      if (startDate.includes('/') && !startDate.includes('-')) {
+        const parts = startDate.split(' ')[0].split('/');
+        if (parts[0].length === 2) { // DD/MM/YYYY
+          currentDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+        } else { // YYYY/MM/DD
+          currentDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
+        }
+      } else {
+        const cleanStartDate = startDate.split(" ")[0].split("T")[0];
+        currentDate = new Date(cleanStartDate + "T00:00:00");
       }
     } else {
-      const cleanStartDate = startDate.split(" ")[0].split("T")[0];
-      currentDate = new Date(cleanStartDate + "T00:00:00");
-    }
-  } else {
-    currentDate = new Date(startDate);
-    currentDate.setHours(0, 0, 0, 0);
-  }
-
-  if (isNaN(currentDate.getTime())) {
-    currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-  }
-
-  for (let i = 1; i <= numInstallments; i++) {
-    // Calcular siguiente fecha según frecuencia
-    if (frequency === Frequency.DAILY) {
-      currentDate.setDate(currentDate.getDate() + 1);
-    } else if (frequency === Frequency.WEEKLY) {
-      currentDate.setDate(currentDate.getDate() + 7);
-    } else if (frequency === Frequency.BIWEEKLY) {
-      currentDate.setDate(currentDate.getDate() + 15);
-    } else if (frequency === Frequency.MONTHLY) {
-      currentDate.setMonth(currentDate.getMonth() + 1);
+      currentDate = new Date(startDate);
+      currentDate.setHours(0, 0, 0, 0);
     }
 
-    // REGLA DE ORO: Saltar Domingos (getDay === 0) y Festivos
-    let safetyCounter = 0;
-    while ((currentDate.getDay() === 0 || isHoliday(currentDate, country, customHolidays)) && safetyCounter < 45) {
-      currentDate.setDate(currentDate.getDate() + 1);
-      safetyCounter++;
+    if (isNaN(currentDate.getTime())) {
+      console.warn("Fecha inválida en amortización, usando hoy");
+      currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
     }
 
-    table.push({
-      number: i,
-      dueDate: currentDate.toISOString().split('T')[0],
-      amount: i === numInstallments ? totalAmount - (installmentValue * (numInstallments - 1)) : installmentValue,
-      status: 'pending'
-    });
+    for (let i = 1; i <= numInstallments; i++) {
+      // Calcular siguiente fecha según frecuencia
+      if (frequency === Frequency.DAILY) {
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else if (frequency === Frequency.WEEKLY) {
+        currentDate.setDate(currentDate.getDate() + 7);
+      } else if (frequency === Frequency.BIWEEKLY) {
+        currentDate.setDate(currentDate.getDate() + 15);
+      } else if (frequency === Frequency.MONTHLY) {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+
+      // REGLA DE ORO: Saltar Domingos (getDay === 0) y Festivos
+      let safetyCounter = 0;
+      while ((currentDate.getDay() === 0 || isHoliday(currentDate, country, customHolidays)) && safetyCounter < 45) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        safetyCounter++;
+      }
+
+      table.push({
+        number: i,
+        dueDate: currentDate.toISOString().split('T')[0],
+        amount: i === numInstallments ? totalAmount - (installmentValue * (numInstallments - 1)) : installmentValue,
+        status: 'pending'
+      });
+    }
+    return table;
+  } catch (error) {
+    console.error("Error generando tabla amortización:", error);
+    return [];
   }
-  return table;
 };
 
 export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPaid?: number): number => {
-  if (!loan || !loan.createdAt) return 0;
+  try {
+    if (!loan || !loan.createdAt) return 0;
 
-  const todayStr = getLocalDateStringForCountry(settings?.country || 'CO');
-  const today = new Date(todayStr + 'T00:00:00');
+    const todayStr = getLocalDateStringForCountry(settings?.country || 'CO');
+    const today = new Date(todayStr + 'T00:00:00');
 
-  const totalPaid = customTotalPaid !== undefined
-    ? Number(customTotalPaid)
-    : (loan.installments || []).reduce((acc, i) => acc + (Number(i.paidAmount) || 0), 0);
+    const totalPaid = customTotalPaid !== undefined
+      ? Number(customTotalPaid)
+      : (loan.installments || []).reduce((acc, i) => acc + (Number(i.paidAmount) || 0), 0);
 
-  // SIEMPRE generar tabla virtual desde la fecha de creación real para el cálculo de mora.
-  // Esto evita errores si el cronograma guardado en el objeto 'loan' tiene fechas futuras.
-  const virtualInstallments = generateAmortizationTable(
-    loan.principal,
-    loan.interestRate,
-    loan.totalInstallments,
-    loan.frequency,
-    loan.createdAt,
-    settings?.country || 'CO',
-    loan.customHolidays || []
-  );
+    // SIEMPRE generar tabla virtual desde la fecha de creación real para el cálculo de mora.
+    // Esto evita errores si el cronograma guardado en el objeto 'loan' tiene fechas futuras.
+    const virtualInstallments = generateAmortizationTable(
+      loan.principal,
+      loan.interestRate,
+      loan.totalInstallments,
+      loan.frequency,
+      loan.createdAt,
+      settings?.country || 'CO',
+      loan.customHolidays || []
+    );
 
-  if (!virtualInstallments || virtualInstallments.length === 0) return 0;
+    if (!virtualInstallments || virtualInstallments.length === 0) return 0;
 
-  // 1. Encontrar la primera cuota que no está totalmente pagada en la tabla virtual
-  let accumulatedPaid = totalPaid;
-  const firstUnpaidInstallment = virtualInstallments.find(inst => {
-    const amount = Number(inst.amount) || 0;
-    if (accumulatedPaid >= amount - 0.1) {
-      accumulatedPaid -= amount;
-      return false;
+    // 1. Encontrar la primera cuota que no está totalmente pagada en la tabla virtual
+    let accumulatedPaid = totalPaid;
+    const firstUnpaidInstallment = virtualInstallments.find(inst => {
+      const amount = Number(inst.amount) || 0;
+      if (accumulatedPaid >= amount - 0.1) {
+        accumulatedPaid -= amount;
+        return false;
+      }
+      return true;
+    });
+
+    if (!firstUnpaidInstallment) return 0;
+
+    const cleanDueDateStr = firstUnpaidInstallment.dueDate.split('T')[0];
+    const firstDueDate = new Date(cleanDueDateStr + 'T00:00:00');
+
+    if (isNaN(firstDueDate.getTime()) || firstDueDate >= today) {
+      return 0;
     }
-    return true;
-  });
 
-  if (!firstUnpaidInstallment) return 0;
+    // 2. Contar DÍAS DE ATRASO (Excluyendo domingos y feriados sugeridos por el usuario)
+    let delayedWorkingDays = 0;
+    let tempDate = new Date(firstDueDate);
 
-  const cleanDueDateStr = firstUnpaidInstallment.dueDate.split('T')[0];
-  const firstDueDate = new Date(cleanDueDateStr + 'T00:00:00');
+    // El atraso cuenta desde el día siguiente al vencimiento HASTA EL DÍA ANTERIOR A HOY
+    // (Según ejemplo del usuario: si vence el 1 y es el 4, son 2 días de mora: el 2 y el 3)
+    while (tempDate < today) {
+      tempDate.setDate(tempDate.getDate() + 1);
 
-  if (firstDueDate >= today) {
-    console.log(`[MORA DEBUG] Client: ${loan.clientId} | Al día. Primera cuota pendiente: ${cleanDueDateStr} | Hoy: ${todayStr}`);
-    return 0;
-  }
+      if (tempDate >= today) break; // NO contar el día de hoy ni días después
 
-  // 2. Contar DÍAS DE ATRASO (Excluyendo domingos y feriados sugeridos por el usuario)
-  let delayedWorkingDays = 0;
-  let tempDate = new Date(firstDueDate);
+      const isSun = tempDate.getDay() === 0;
+      const isHol = isHoliday(tempDate, settings?.country || 'CO', loan.customHolidays || []);
 
-  // El atraso cuenta desde el día siguiente al vencimiento HASTA EL DÍA ANTERIOR A HOY
-  // (Según ejemplo del usuario: si vence el 1 y es el 4, son 2 días de mora: el 2 y el 3)
-  while (tempDate < today) {
-    tempDate.setDate(tempDate.getDate() + 1);
-
-    if (tempDate >= today) break; // NO contar el día de hoy ni días después
-
-    const isSun = tempDate.getDay() === 0;
-    const isHol = isHoliday(tempDate, settings?.country || 'CO', loan.customHolidays || []);
-
-    if (!isSun && !isHol) {
-      delayedWorkingDays++;
+      if (!isSun && !isHol) {
+        delayedWorkingDays++;
+      }
     }
+
+    return delayedWorkingDays;
+  } catch (err) {
+    console.error("Error calculando mora para prestamo:", loan?.id, err);
+    return 0; // Fallback seguro
   }
-
-  console.log(`[MORA DEBUG] Client: ${loan.clientId} | Start: ${loan.createdAt} | FirstDue: ${cleanDueDateStr} | Today: ${todayStr} | Mora: ${delayedWorkingDays}`);
-
-  return delayedWorkingDays;
 };
 
 export const calculateOverdueDays = (dueDate: string, country: string, loan: Loan): number => {
