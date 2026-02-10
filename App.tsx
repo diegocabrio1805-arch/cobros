@@ -45,10 +45,88 @@ const App: React.FC = () => {
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
 
+  // Helper for Merging Data (Moved out for reuse in realtime + periodic)
+  const mergeData = <T extends { id: string, updated_at?: string }>(
+    local: T[],
+    remote: T[],
+    pendingAddIds: Set<string> = new Set(),
+    pendingDeleteIds: Set<string> = new Set(),
+    isFullSync: boolean = false
+  ): T[] => {
+    if (isFullSync) {
+      // CLEAN INSTALL MODE: Remote is the absolute truth.
+      // We only keep local items that are in the queue for being ADDED.
+      const result = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
+      const remoteIds = new Set(result.map(r => r.id));
+
+      local.forEach(l => {
+        if (l && l.id && pendingAddIds.has(l.id) && !remoteIds.has(l.id)) {
+          result.push(l);
+        }
+      });
+      return result;
+    }
+
+    // Aggressive Merge: Use the item with the LATEST updated_at timestamp
+    const remoteMap = new Map();
+    remote.forEach(i => {
+      if (i && i.id) remoteMap.set(i.id, i);
+    });
+
+    const result: T[] = [];
+
+    // 1. Add all Remote items (unless explicitly deleted locally)
+    remote.forEach(r => {
+      if (!pendingDeleteIds.has(r.id) && !(r as any).deletedAt) {
+        result.push(r);
+      }
+    });
+
+    // 2. Add Local items ONLY if they are pending upload OR if they are newer than remote (and not deleted)
+    const resultMap = new Map(result.map(i => [i.id, i]));
+
+    local.forEach(l => {
+      if (!l || !l.id) return;
+      if (pendingDeleteIds.has(l.id)) return;
+
+      const r = remoteMap.get(l.id);
+
+      if (!r) {
+        if (pendingAddIds.has(l.id)) {
+          if (!resultMap.has(l.id)) {
+            result.push(l);
+            resultMap.set(l.id, l);
+          }
+        }
+      } else {
+        if (l.updated_at && r.updated_at) {
+          const lTime = new Date(l.updated_at).getTime();
+          const rTime = new Date(r.updated_at).getTime();
+          if (lTime > rTime) {
+            const idx = result.findIndex(item => item.id === l.id);
+            if (idx !== -1) result[idx] = l;
+          }
+        }
+      }
+    });
+
+    // 3. Add any remaining local items that were NOT in remote (Incremental Sync Support)
+    if (!isFullSync) {
+      local.forEach(l => {
+        if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
+        if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
+          result.push(l);
+          resultMap.set(l.id, l);
+        }
+      });
+    }
+
+    return result;
+  };
+
   // Ultra-Fast Realtime Sync Handler (Also used for manual sync data application)
   const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
     setState(prev => {
-      // 1. Get Pending Deletions/Additions from Queue
       const queueStr = localStorage.getItem('syncQueue');
       const queue = queueStr ? JSON.parse(queueStr) : [];
       const pendingDeleteIds = new Set<string>();
@@ -68,10 +146,8 @@ const App: React.FC = () => {
 
       const updatedState = { ...prev };
 
-      // SERVER-SIDE DELETIONS (Sync from other devices)
       if (newData.deletedItems && newData.deletedItems.length > 0) {
         const delIds = new Set(newData.deletedItems.map(d => d.recordId));
-        // Filter out deleted items from current state BEFORE merging
         if (updatedState.payments) updatedState.payments = updatedState.payments.filter(i => !delIds.has(i.id));
         if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
         if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
@@ -90,7 +166,6 @@ const App: React.FC = () => {
         updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
       }
 
-      // Recalculate settings if critical data changed
       if (newData.branchSettings || newData.users || newData.branchSettings) {
         updatedState.settings = resolveSettings(updatedState.currentUser, updatedState.branchSettings, updatedState.users, updatedState.settings);
       }
@@ -100,6 +175,22 @@ const App: React.FC = () => {
   };
 
   const { isSyncing, isFullSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync(handleRealtimeData);
+
+  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
+    if (!silent) setSuccessMessage(message);
+
+    if (isSyncing) {
+      if (!silent) console.log("Ya hay una sincronización en curso...");
+      return;
+    }
+
+    // Unify sync paths: processQueue handles both upload and pull (via onDataUpdated)
+    if (fullSync) {
+      await forceFullSync();
+    } else {
+      await processQueue(true);
+    }
+  };
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   // DEEP RESET LOGIC: For solving stubborn Chrome caching issues
@@ -193,7 +284,7 @@ const App: React.FC = () => {
 
     // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
     // VERSION CONTROL: Improved session persistence logic
-    const CURRENT_VERSION_ID = '6.1.9-STABLE-2026-02-10';
+    const CURRENT_VERSION_ID = '6.1.10-STABLE-2026-02-10';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {
@@ -385,82 +476,6 @@ const App: React.FC = () => {
     recoverSession();
   }, []);
 
-  // Helper for Merging Data (Moved out for reuse in realtime + periodic)
-  const mergeData = <T extends { id: string, updated_at?: string }>(
-    local: T[],
-    remote: T[],
-    pendingAddIds: Set<string> = new Set(),
-    pendingDeleteIds: Set<string> = new Set(),
-    isFullSync: boolean = false
-  ): T[] => {
-    // Aggressive Merge: Use the item with the LATEST updated_at timestamp
-    const remoteMap = new Map();
-    remote.forEach(i => {
-      if (i && i.id) remoteMap.set(i.id, i);
-    });
-
-    const result: T[] = [];
-
-    // 1. Add all Remote items (unless explicitly deleted locally)
-    remote.forEach(r => {
-      if (!pendingDeleteIds.has(r.id) && !(r as any).deletedAt) {
-        result.push(r);
-      }
-    });
-
-    // 2. Add Local items ONLY if they are pending upload OR if they are newer than remote (and not deleted)
-    // AND if they weren't already added from remote (we need to handle conflicts/merges for same ID)
-    const resultMap = new Map(result.map(i => [i.id, i]));
-
-    local.forEach(l => {
-      if (!l || !l.id) return;
-
-      // If marked for delete, never add back
-      if (pendingDeleteIds.has(l.id)) return;
-
-      const r = remoteMap.get(l.id);
-
-      if (!r) {
-        // Not in remote. 
-        // RULE: Only keep if it's a NEW item waiting to be synced (pendingAddIds).
-        // If it's NOT in pendingAddIds, it means it was deleted on server (or never existed there and synced down previously), so we drop it.
-        // Exception: Users might want "Offline" data not in queue? No, queue is the source of truth for offline creations.
-        if (pendingAddIds.has(l.id)) {
-          // It's a new local item, keep it
-          if (!resultMap.has(l.id)) {
-            result.push(l);
-            resultMap.set(l.id, l);
-          }
-        }
-        // Else: DROP (Global Deletion Sync)
-      } else {
-        // Exists in remote (already added to result above, but let's check timestamps for conflict update)
-        if (l.updated_at && r.updated_at) {
-          const lTime = new Date(l.updated_at).getTime();
-          const rTime = new Date(r.updated_at).getTime();
-          if (lTime > rTime) {
-            // Local is newer. Update the result item.
-            const idx = result.findIndex(item => item.id === l.id);
-            if (idx !== -1) result[idx] = l;
-          }
-        }
-      }
-    });
-
-    // 3. Add any remaining local items that were NOT in remote (Incremental Sync Support)
-    // IMPORTANT: If isFullSync is TRUE, we skip this to allow HARD DELETIONS to sync (Global Purge).
-    if (!isFullSync) {
-      local.forEach(l => {
-        if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
-        if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
-          result.push(l);
-          resultMap.set(l.id, l);
-        }
-      });
-    }
-
-    return result;
-  };
 
   // Realtime is handled by useSync hook - no need for duplicate listeners here
 
@@ -508,15 +523,18 @@ const App: React.FC = () => {
   }, [activeTab, state.currentUser]);
 
   // AUTO-REFRESH INTERVAL (Every 5 seconds as requested by USER)
-  // This ensures deleted records on web are removed from APK even if Realtime misses the event
+  // Use Ref to avoid stale closure of handleForceSync
+  const forceSyncRef = React.useRef(handleForceSync);
+  useEffect(() => {
+    forceSyncRef.current = handleForceSync;
+  }, [handleForceSync]);
+
   useEffect(() => {
     if (!state.currentUser) return;
 
     console.log("[AutoSync] Initializing 5s interval...");
     const syncInterval = setInterval(() => {
-      // Priority 1: High frequency sync to catch deletions and remote updates
-      // This is a "Full Sync" (third arg = true) but silent (first arg = true)
-      handleForceSync(true, "", true);
+      forceSyncRef.current(true, "", true);
     }, 5000);
 
     return () => {
@@ -1050,28 +1068,6 @@ const App: React.FC = () => {
     await handleForceSync(false);
   };
 
-  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
-    if (!silent) setSuccessMessage(message);
-
-    if (isSyncing) {
-      if (!silent) console.log("Ya hay una sincronización en curso...");
-      return;
-    }
-
-    if (fullSync) {
-      localStorage.removeItem('last_sync_timestamp');
-      localStorage.removeItem('last_sync_timestamp_v6');
-      await forceFullSync();
-    } else {
-      await processQueue(true);
-    }
-
-    const newData = await pullData(fullSync);
-    if (newData) {
-      console.log("Forced pull data applied via unification:", newData);
-      handleRealtimeData(newData, fullSync);
-    }
-  };
 
   const addClient = async (client: Client, loan?: Loan) => {
     const branchId = getBranchId(state.currentUser);
