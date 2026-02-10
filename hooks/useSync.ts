@@ -81,62 +81,103 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         };
 
         // REALTIME SUBSCRIPTION FOR INSTANT UPDATES
-        const channel = supabase.channel('system_changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public' },
-                async (payload) => {
-                    console.log(`[Realtime] change detected in ${payload.table}: ${payload.eventType}`);
-                    if (payload.eventType === 'DELETE') {
-                        console.log(`[Realtime] DELETE item:`, payload.old);
-                    }
+        let channel: any = null;
+        let reconnectTimeout: any = null;
 
-                    const isDeleteEvent = payload.eventType === 'DELETE';
-                    const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items'].includes(payload.table);
-                    const needsFullSync = isDeleteEvent && isCriticalTable;
+        const subscribeToRealtime = () => {
+            if (channel) {
+                console.log('[Realtime] Cleaning up old channel before resubscribing...');
+                supabase.removeChannel(channel);
+            }
 
-                    if (needsFullSync) {
-                        console.log(`[Realtime] DELETE detected on ${payload.table}. Immediate sync triggered.`);
-                    }
+            console.log('[Realtime] Attempting to subscribe...');
+            channel = supabase.channel('system_changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public' },
+                    async (payload) => {
+                        console.log(`[Realtime] change detected in ${payload.table}: ${payload.eventType}`);
 
-                    // For deletions, we trigger IMMEDIATELY (no debounce) for better UX
-                    const debounceDelay = isDeleteEvent ? 0 : 2000;
-
-                    const triggerSync = async () => {
-                        console.log(`[Realtime] Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull...`);
-                        const newData = await pullData(needsFullSync);
-                        if (newData && onDataUpdated) {
-                            console.log('[Realtime] Pushing fresh data to UI...');
-                            onDataUpdated(newData);
+                        // For deletions, we log the old record data (thanks to REPLICA IDENTITY FULL)
+                        if (payload.eventType === 'DELETE') {
+                            console.log(`[Realtime] DELETE record:`, payload.old);
                         }
-                    };
 
-                    if (debounceDelay === 0) {
-                        triggerSync();
-                    } else {
-                        const debounceTimer = (window as any)._syncDebounceTimer;
-                        if (debounceTimer) clearTimeout(debounceTimer);
-                        (window as any)._syncDebounceTimer = setTimeout(triggerSync, debounceDelay);
+                        const isDeleteEvent = payload.eventType === 'DELETE';
+                        // Include deleted_items in the critical tables list
+                        const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses'].includes(payload.table);
+                        const needsFullSync = isDeleteEvent && isCriticalTable;
+
+                        if (needsFullSync) {
+                            console.log(`[Realtime] Deletion sync triggered for ${payload.table}`);
+                        }
+
+                        // Trigger sync (Instant for deletes, debounced for others)
+                        const triggerSync = async () => {
+                            console.log(`[Realtime] Syncing data after remote change...`);
+                            const newData = await pullData(needsFullSync);
+                            if (newData && onDataUpdated) {
+                                onDataUpdated(newData);
+                            }
+                        };
+
+                        if (isDeleteEvent) {
+                            triggerSync();
+                        } else {
+                            const debounceTimer = (window as any)._syncDebounceTimer;
+                            if (debounceTimer) clearTimeout(debounceTimer);
+                            (window as any)._syncDebounceTimer = setTimeout(triggerSync, 2000);
+                        }
                     }
-                }
-            )
-            .subscribe((status) => {
-                console.log(`[Realtime] Status change: ${status}`);
-                if (status === 'SUBSCRIBED') {
-                    console.log('[Realtime] SUCCESS: Subscribed to channel');
-                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                    console.error('[Realtime] CRITICAL ERROR: Subscription failed!', status);
-                }
-            });
+                )
+                .subscribe((status) => {
+                    console.log(`[Realtime] Status update: ${status}`);
+                    (window as any)._lastRealtimeStatus = status;
+
+                    if (status === 'SUBSCRIBED') {
+                        console.log('[Realtime] CONNECTED SUCCESSFULLY');
+                        if (reconnectTimeout) {
+                            clearTimeout(reconnectTimeout);
+                            reconnectTimeout = null;
+                        }
+                        // HEURISTIC: Always pull full data on fresh connection to ensure no gaps
+                        pullData(true).then(newData => {
+                            if (newData && onDataUpdated) onDataUpdated(newData);
+                        });
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                        console.warn(`[Realtime] Connection dropped: ${status}. Retrying in 5s...`);
+                        if (!reconnectTimeout) {
+                            reconnectTimeout = setTimeout(() => {
+                                reconnectTimeout = null;
+                                subscribeToRealtime();
+                            }, 5000);
+                        }
+                    }
+                });
+        };
+
+        // Health Check Interval (Every 2 minutes)
+        const healthCheckInterval = setInterval(() => {
+            const status = (window as any)._lastRealtimeStatus;
+            console.log(`[Realtime] Health Check: ${status || 'NONE'}`);
+            if (status !== 'SUBSCRIBED') {
+                console.log('[Realtime] Health Check failed. Forcing re-subscription...');
+                subscribeToRealtime();
+            }
+        }, 120000);
+
+        subscribeToRealtime();
 
         const handlerPromise = setupListener();
         const appHandlerPromise = setupAppListener();
 
         return () => {
             clearInterval(interval);
+            clearInterval(healthCheckInterval);
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
             handlerPromise.then(h => h.remove());
             appHandlerPromise.then(h => h.remove());
-            supabase.removeChannel(channel);
+            if (channel) supabase.removeChannel(channel);
         };
     }, []);
 
