@@ -86,10 +86,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'postgres_changes',
                 { event: '*', schema: 'public' },
                 async (payload) => {
-                    console.log('Realtime change detected:', payload.table, payload.eventType);
+                    console.log(`[Realtime] change detected in ${payload.table}: ${payload.eventType}`);
+                    if (payload.eventType === 'DELETE') {
+                        console.log(`[Realtime] DELETE item:`, payload.old);
+                    }
 
                     const isDeleteEvent = payload.eventType === 'DELETE';
-                    const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients'].includes(payload.table);
+                    const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items'].includes(payload.table);
                     const needsFullSync = isDeleteEvent && isCriticalTable;
 
                     if (needsFullSync) {
@@ -100,7 +103,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     const debounceDelay = isDeleteEvent ? 0 : 2000;
 
                     const triggerSync = async () => {
-                        console.log(`Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull after realtime change...`);
+                        console.log(`[Realtime] Triggering ${needsFullSync ? 'FULL' : 'incremental'} pull...`);
                         const newData = await pullData(needsFullSync);
                         if (newData && onDataUpdated) {
                             console.log('[Realtime] Pushing fresh data to UI...');
@@ -117,7 +120,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[Realtime] Status change: ${status}`);
+                if (status === 'SUBSCRIBED') {
+                    console.log('[Realtime] SUCCESS: Subscribed to channel');
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    console.error('[Realtime] CRITICAL ERROR: Subscription failed!', status);
+                }
+            });
 
         const handlerPromise = setupListener();
         const appHandlerPromise = setupAppListener();
