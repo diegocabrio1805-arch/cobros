@@ -20,7 +20,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const [queueLength, setQueueLength] = useState(0);
     const [lastErrors, setLastErrors] = useState<{ table: string, error: any, timestamp: string }[]>([]);
     const isProcessingRef = useRef(false);
-    const hasShownInitialSuccessRef = useRef(false); // Flag to track if initial success message was shown
 
     // Checks for internet connection
     // OPTIMIZATION: Trust Network.getStatus() immediately.
@@ -513,14 +512,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             if (queue.length === 0) {
                 if (force || fullSync) {
-                    pullData(fullSync).then(newData => console.log('Manual pull completed'));
-                    setSyncError(null);
-                    // Only show success message on initial login/page load, not on subsequent syncs
-                    if (!hasShownInitialSuccessRef.current) {
+                    pullData(fullSync).then(newData => {
+                        console.log('Manual pull completed');
                         setShowSuccess(true);
                         setTimeout(() => setShowSuccess(false), 3000);
-                        hasShownInitialSuccessRef.current = true; // Mark as shown
-                    }
+                    });
+                    setSyncError(null);
                 }
 
                 setIsSyncing(false);

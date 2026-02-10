@@ -48,8 +48,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
-    console.log("App v6.1.11: Initializing state...");
-    const CURRENT_VERSION_ID = '6.1.12-STABLE-2026-02-10';
+    const CURRENT_VERSION_ID = '6.1.13-STABLE-2026-02-10';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-RADICAL-PURGE-V1';
 
@@ -208,7 +207,7 @@ const App: React.FC = () => {
   // 4. COMMAND FUNCTIONS
   const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
     if (!silent) setSuccessMessage(message);
-    if (isSyncing) return;
+    // REMOVED: if (isSyncing) return; // Allow manual/automatic retry to ensure visibility
     if (fullSync) await forceFullSync();
     else await processQueue(true);
   };
@@ -219,9 +218,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!state.currentUser) return;
-    const isAndroid = Capacitor.getPlatform() === 'android';
+    // For debugging: SHOW ALWAYS (both web and APK)
     const syncInterval = setInterval(() => {
-      forceSyncRef.current(!isAndroid, isAndroid ? "¡Actualizado Automáticamente!" : "", true);
+      console.log("[Auto-Sync] 5s pulse triggered...");
+      forceSyncRef.current(false, "¡Buscando Cambios en la Nube!", true);
     }, 5000);
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
