@@ -48,7 +48,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.16-STABLE-2026-02-10';
+    const CURRENT_VERSION_ID = '6.1.17-ARMAGEDON-2026-02-10';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-ULTRA-PURGE-V1';
 
@@ -224,8 +224,8 @@ const App: React.FC = () => {
     if (!state.currentUser) return;
     const isAndroid = Capacitor.getPlatform() === 'android';
     const syncInterval = setInterval(() => {
-      // Manual sync for Android (with message), Silent for Web
-      forceSyncRef.current(!isAndroid, isAndroid ? "¡Buscando Cambios!" : "", true);
+      // FORCE SILENCE ON WEB ALWAYS, ONLY SHOW ON ANDROID
+      forceSyncRef.current(!isAndroid, isAndroid ? "¡ARMAGEDON ACTIVO!" : "", true);
     }, 5000);
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
@@ -1020,7 +1020,7 @@ const App: React.FC = () => {
               </button>
             )}
             <div>
-              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.16</span></h1>
+              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.17 ARMAGEDON</span></h1>
               <div className="flex items-center gap-2 mt-1">
                 <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
