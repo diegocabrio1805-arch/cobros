@@ -219,7 +219,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!state.currentUser) return;
-    const syncInterval = setInterval(() => forceSyncRef.current(false, "¡Actualizado Automáticamente!", true), 5000);
+    const isAndroid = Capacitor.getPlatform() === 'android';
+    const syncInterval = setInterval(() => {
+      forceSyncRef.current(!isAndroid, isAndroid ? "¡Actualizado Automáticamente!" : "", true);
+    }, 5000);
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
 
