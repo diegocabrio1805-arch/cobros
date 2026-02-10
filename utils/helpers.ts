@@ -301,8 +301,9 @@ export const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): 
 export interface ReceiptData {
   clientName: string;
   amountPaid: number;
+  previousBalance: number; // Nuevo
   loanId: string;
-  startDate: string;
+  startDate: string; // Nuevo
   expiryDate: string;
   daysOverdue: number;
   remainingBalance: number;
@@ -312,21 +313,35 @@ export interface ReceiptData {
 }
 
 export const generateReceiptText = (data: ReceiptData, settings: AppSettings) => {
-  const company = settings.companyName || 'ANEXO COBRO';
+  const company = (settings.companyName || 'ANEXO COBRO').toUpperCase();
+  const alias = (settings.companyAlias || '---').toUpperCase();
+  const phone = settings.contactPhone || '---';
+  const support = settings.technicalSupportPhone || '---';
+  const idValue = settings.companyIdentifier || '---';
+  const banco = (settings.transferAlias || '---').toUpperCase();
   const currencySymbol = settings.currencySymbol || '$';
 
   return `
 ===============================
        ${company}
 ===============================
-FECHA: ${formatFullDateTime(settings.country)}
-CLIENTE: ${data.clientName}
-ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
-SALDO: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+MARCA: ${alias}
+TEL. PUBLICO: ${support}
+ID EMPRESA: ${idValue}
+BANCO: ${banco}
+NUMERO CO: ${phone}
 ===============================
+FECHA: ${formatFullDateTime(settings.country)}
+CLIENTE: ${data.clientName.toUpperCase()}
+===============================
+SALDO ANT: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
+ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
+SALDO ACT: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+===============================
+INICIO: ${formatDate(data.startDate)}
+VENCE: ${formatDate(data.expiryDate)}
 CUOTAS: ${data.paidInstallments} / ${data.totalInstallments}
-VENCE: ${data.expiryDate}
-ATRASO: ${data.daysOverdue} dias
+MORA: ${data.daysOverdue} dias
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
 `;

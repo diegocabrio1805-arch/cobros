@@ -702,6 +702,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const receiptText = generateReceiptText({
           clientName: clientInLegajo.name,
           amountPaid: amountToPay,
+          previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: activeLoanInLegajo.id,
           startDate: activeLoanInLegajo.createdAt,
           expiryDate: lastDueDate,
@@ -954,6 +955,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const receiptText = generateReceiptText({
       clientName: clientInLegajo.name,
       amountPaid: amountPaidInLastLog,
+      previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
       loanId: activeLoanInLegajo.id,
       startDate: activeLoanInLegajo.createdAt,
       expiryDate: lastDueDate,
