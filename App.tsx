@@ -193,7 +193,7 @@ const App: React.FC = () => {
 
     // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
     // VERSION CONTROL: Improved session persistence logic
-    const CURRENT_VERSION_ID = '6.0.1-STABLE-2026-02-08';
+    const CURRENT_VERSION_ID = '6.1.9-STABLE-2026-02-10';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
 
     try {
@@ -506,6 +506,24 @@ const App: React.FC = () => {
       setupBackButton();
     }
   }, [activeTab, state.currentUser]);
+
+  // AUTO-REFRESH INTERVAL (Every 5 seconds as requested by USER)
+  // This ensures deleted records on web are removed from APK even if Realtime misses the event
+  useEffect(() => {
+    if (!state.currentUser) return;
+
+    console.log("[AutoSync] Initializing 5s interval...");
+    const syncInterval = setInterval(() => {
+      // Priority 1: High frequency sync to catch deletions and remote updates
+      // This is a "Full Sync" (third arg = true) but silent (first arg = true)
+      handleForceSync(true, "", true);
+    }, 5000);
+
+    return () => {
+      console.log("[AutoSync] Clearing interval");
+      clearInterval(syncInterval);
+    };
+  }, [state.currentUser?.id]);
 
   useEffect(() => {
     // CRITICAL FIX: Purge legacy "admin-1" user AND Sanitize invalid UUIDs
@@ -1051,7 +1069,7 @@ const App: React.FC = () => {
     const newData = await pullData(fullSync);
     if (newData) {
       console.log("Forced pull data applied via unification:", newData);
-      handleRealtimeData(newData);
+      handleRealtimeData(newData, fullSync);
     }
   };
 

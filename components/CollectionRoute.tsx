@@ -45,11 +45,11 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
   const routeLoans = useMemo(() => {
     let loans = state.loans.filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT);
-    if (selectedCollectorFilter !== 'all') {
+    if (isAdminOrManager && selectedCollectorFilter !== 'all') {
       loans = loans.filter(l => l.collectorId === selectedCollectorFilter);
     }
     return loans;
-  }, [state.loans, selectedCollectorFilter]);
+  }, [state.loans, selectedCollectorFilter, isAdminOrManager]);
 
   const handleRecoverClient = (client: Client) => {
     if (updateClient && confirm(`¿RECUPERAR CLIENTE ${client.name.toUpperCase()} A LA RUTA ACTIVA?`)) {

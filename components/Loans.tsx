@@ -41,19 +41,18 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const client = state.clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return false;
       const searchLower = searchTerm.toLowerCase();
-      const isAssigned = isAdminOrManager || loan.collectorId === state.currentUser?.id;
 
       const matchesSearch = client.name.toLowerCase().includes(searchLower) ||
         client.address.toLowerCase().includes(searchLower) ||
         client.documentId.includes(searchLower);
 
       if (viewMode === 'vencidos') {
-        return isAssigned && matchesSearch && getDaysOverdue(loan, state.settings) > 0;
+        return matchesSearch && getDaysOverdue(loan, state.settings) > 0;
       }
 
       const totalPaidOnLoan = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
       const isActuallyPaid = loan.status === LoanStatus.PAID || (loan.totalAmount - totalPaidOnLoan) <= 0.01;
-      return isAssigned && matchesSearch && !isActuallyPaid;
+      return matchesSearch && !isActuallyPaid;
     }).sort((a, b) => {
       if (viewMode === 'vencidos') {
         return getDaysOverdue(b, state.settings) - getDaysOverdue(a, state.settings);
