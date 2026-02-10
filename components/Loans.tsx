@@ -224,7 +224,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       let currentLocation = { lat: 0, lng: 0 };
 
       // VALIDACIÓN DE SALDO: No permitir pagos mayores al saldo
-      const loanLogs = state.collectionLogs.filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+      const loanLogs = state.collectionLogs.filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
       const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
       const remainingBalance = loan.totalAmount - currentTotalPaid;
 
@@ -273,7 +273,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         const expiryDate = loan.installments && loan.installments.length > 0
           ? loan.installments[loan.installments.length - 1].dueDate
           : new Date().toISOString();
-        const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+        const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (loan.installmentValue || 1);
@@ -334,7 +334,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN importar la fecha)
     const allPaymentLogs = state.collectionLogs
-      .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+      .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
 
     // Ordenar por fecha descendente para obtener el más reciente
     const lastPaymentLog = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -349,6 +349,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       l.loanId === loan.id &&
       l.type === CollectionLogType.PAYMENT &&
       !l.isOpening &&
+      !l.deletedAt &&
       new Date(l.date).getTime() <= new Date(lastPaymentLog.date).getTime()
     );
 

@@ -10,7 +10,7 @@ const isValidUuid = (id: string | undefined | null) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 };
 
-export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) => {
+export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?: boolean) => void) => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isFullSyncing, setIsFullSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -345,7 +345,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
             localStorage.setItem('last_sync_timestamp_v6', new Date().toISOString());
 
-            return {
+            const result = {
                 clients: (clientsResult.data || []).map((c: any) => ({
                     ...c,
                     documentId: c.document_id,
@@ -362,7 +362,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                     isHidden: c.is_hidden,
                     addedBy: c.added_by,
                     branchId: c.branch_id,
-                    createdAt: c.created_at
+                    createdAt: c.created_at,
+                    deletedAt: c.deleted_at
                 })) as Client[],
                 loans: (loansResult.data || []).map((l: any) => ({
                     ...l,
@@ -374,6 +375,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                     totalAmount: l.total_amount,
                     installmentValue: l.installment_value,
                     createdAt: l.created_at,
+                    deletedAt: l.deleted_at,
                     customHolidays: l.custom_holidays,
                     installments: l.installments,
                     frequency: l.frequency
@@ -385,17 +387,19 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                     branchId: p.branch_id,
                     installmentNumber: p.installment_number,
                     isVirtual: p.is_virtual,
-                    isRenewal: p.is_renewal
+                    isRenewal: p.is_renewal,
+                    deletedAt: p.deleted_at
                 })) as PaymentRecord[],
                 collectionLogs: (logsResult.data || []).map((cl: any) => ({
                     ...cl,
                     loanId: cl.loan_id,
-                    clientId: cl.client_id, // Back to cl.client_id as it was cl.clientId in my last failed edit
+                    clientId: cl.client_id,
                     branchId: cl.branch_id,
                     isVirtual: cl.is_virtual,
                     isRenewal: cl.is_renewal,
                     isOpening: cl.is_opening,
-                    recordedBy: cl.recorded_by
+                    recordedBy: cl.recorded_by,
+                    deletedAt: cl.deleted_at
                 })) as CollectionLog[],
                 expenses: (expensesResult.data || []).map((e: any) => ({
                     ...e,
@@ -420,6 +424,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
                     deletedAt: d.deleted_at
                 })) as DeletedItem[]
             };
+
+            if (onDataUpdated) {
+                onDataUpdated(result, fullSync);
+            }
+
+            return result;
 
         } catch (err: any) {
             console.error('Pull failed:', err);
@@ -1014,20 +1024,27 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             return;
         }
         try {
+            // STEP 1: Fetch branch_id before deleting
+            const { data: item } = await supabase.from('collection_logs').select('branch_id').eq('id', logId).single();
+            const branchId = item?.branch_id;
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            // STEP 2: Soft Delete (Update deleted_at)
             const { error } = await supabase.from('collection_logs')
-                .delete()
+                .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
                 .eq('id', logId)
                 .abortSignal(controller.signal);
+
             clearTimeout(timeoutId);
             if (error) throw error;
 
-            await trackDeletion('collection_logs', logId);
+            // STEP 3: Track with branch_id
+            await trackDeletion('collection_logs', logId, branchId);
 
             // CRITICAL: Trigger pull after delete to refresh local state/balances
-            const newData = await pullData(true);
-            if (newData && onDataUpdated) onDataUpdated(newData);
+            await pullData(true);
         } catch (err) {
             console.error('Error deleting remote log:', err);
             addToQueue('DELETE_LOG', { id: logId });
@@ -1040,20 +1057,27 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             return;
         }
         try {
+            // STEP 1: Fetch branch_id before deleting
+            const { data: item } = await supabase.from('payments').select('branch_id').eq('id', paymentId).single();
+            const branchId = item?.branch_id;
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            // STEP 2: Soft Delete (Update deleted_at)
             const { error } = await supabase.from('payments')
-                .delete()
+                .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
                 .eq('id', paymentId)
                 .abortSignal(controller.signal);
+
             clearTimeout(timeoutId);
             if (error) throw error;
 
-            await trackDeletion('payments', paymentId);
+            // STEP 3: Track with branch_id
+            await trackDeletion('payments', paymentId, branchId);
 
             // CRITICAL: Trigger pull after delete to refresh local state/balances
-            const newData = await pullData(true);
-            if (newData && onDataUpdated) onDataUpdated(newData);
+            await pullData(true);
         } catch (err) {
             console.error('Error deleting remote payment:', err);
             addToQueue('DELETE_PAYMENT', { id: paymentId });
@@ -1066,16 +1090,24 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
             return;
         }
         try {
+            // STEP 1: Fetch branch_id before deleting
+            const { data: item } = await supabase.from('loans').select('branch_id').eq('id', loanId).single();
+            const branchId = item?.branch_id;
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            // STEP 2: Soft Delete (Update deleted_at)
             const { error } = await supabase.from('loans')
-                .delete()
+                .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
                 .eq('id', loanId)
                 .abortSignal(controller.signal);
+
             clearTimeout(timeoutId);
             if (error) throw error;
 
-            await trackDeletion('loans', loanId);
+            // STEP 3: Track with branch_id
+            await trackDeletion('loans', loanId, branchId);
         } catch (err) {
             console.error('Error deleting remote loan:', err);
             addToQueue('DELETE_LOAN', { id: loanId });
@@ -1103,7 +1135,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>) => void) =>
 
             // SOFT DELETE: Update is_active to false
             const { error } = await supabase.from('clients')
-                .update({ is_active: false, updated_at: new Date().toISOString() })
+                .update({ is_active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
                 .eq('id', clientId)
                 .abortSignal(controller.signal);
 

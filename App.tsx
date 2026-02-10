@@ -46,7 +46,7 @@ const App: React.FC = () => {
   const [isJumping, setIsJumping] = useState(false);
 
   // Ultra-Fast Realtime Sync Handler (Also used for manual sync data application)
-  const handleRealtimeData = (newData: Partial<AppState>) => {
+  const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
     setState(prev => {
       // 1. Get Pending Deletions/Additions from Queue
       const queueStr = localStorage.getItem('syncQueue');
@@ -79,12 +79,12 @@ const App: React.FC = () => {
         if (updatedState.expenses) updatedState.expenses = updatedState.expenses.filter(i => !delIds.has(i.id));
       }
 
-      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds);
-      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds);
-      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds);
-      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds);
-      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds);
+      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds, isFullSync);
 
       if (newData.branchSettings) {
         updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
@@ -390,7 +390,8 @@ const App: React.FC = () => {
     local: T[],
     remote: T[],
     pendingAddIds: Set<string> = new Set(),
-    pendingDeleteIds: Set<string> = new Set()
+    pendingDeleteIds: Set<string> = new Set(),
+    isFullSync: boolean = false
   ): T[] => {
     // Aggressive Merge: Use the item with the LATEST updated_at timestamp
     const remoteMap = new Map();
@@ -402,7 +403,7 @@ const App: React.FC = () => {
 
     // 1. Add all Remote items (unless explicitly deleted locally)
     remote.forEach(r => {
-      if (!pendingDeleteIds.has(r.id)) {
+      if (!pendingDeleteIds.has(r.id) && !(r as any).deletedAt) {
         result.push(r);
       }
     });
@@ -447,15 +448,16 @@ const App: React.FC = () => {
     });
 
     // 3. Add any remaining local items that were NOT in remote (Incremental Sync Support)
-    // The previous logic dropped them, causing the "Ping Pong" bug.
-    // Now we keep them. If user wants to clean ghosts, they must use Deep Reset.
-    local.forEach(l => {
-      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
-      if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
-        result.push(l);
-        resultMap.set(l.id, l);
-      }
-    });
+    // IMPORTANT: If isFullSync is TRUE, we skip this to allow HARD DELETIONS to sync (Global Purge).
+    if (!isFullSync) {
+      local.forEach(l => {
+        if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
+        if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
+          result.push(l);
+          resultMap.set(l.id, l);
+        }
+      });
+    }
 
     return result;
   };
@@ -726,7 +728,19 @@ const App: React.FC = () => {
           });
         }
 
-        const updatedUsers = mergeData(prev.users, newData.users || [], pendingAddIds, pendingDeleteIds);
+        // 2. CRITICAL FIX: Handle Server-Side Deletions
+        // Filter out items that verify as deleted on server (present in deleted_items table)
+        // This prevents "Zombie" records that are deleted on server but kept locally by mergeData
+        const serverDeletedIds = new Set((newData.deletedItems || []).map(d => d.recordId));
+
+        const currentUsers = prev.users.filter(u => !serverDeletedIds.has(u.id));
+        const currentClients = prev.clients.filter(c => !serverDeletedIds.has(c.id));
+        const currentLoans = prev.loans.filter(l => !serverDeletedIds.has(l.id));
+        const currentPayments = prev.payments.filter(p => !serverDeletedIds.has(p.id));
+        const currentLogs = prev.collectionLogs.filter(l => !serverDeletedIds.has(l.id));
+        const currentExpenses = prev.expenses.filter(e => !serverDeletedIds.has(e.id));
+
+        const updatedUsers = mergeData(currentUsers, newData.users || [], pendingAddIds, pendingDeleteIds);
         let updatedCurrentUser = prev.currentUser;
         if (prev.currentUser) {
           const serverProfile = (newData.users || []).find(u => u.id === prev.currentUser?.id);
@@ -739,10 +753,10 @@ const App: React.FC = () => {
           ...prev,
           users: updatedUsers,
           currentUser: updatedCurrentUser,
-          clients: mergeData(prev.clients, newData.clients || [], pendingAddIds, pendingDeleteIds),
-          loans: mergeWithLogic(prev.loans, newData.loans || [], pendingAddIds, pendingDeleteIds),
-          payments: mergeData(prev.payments, newData.payments || [], pendingAddIds, pendingDeleteIds),
-          collectionLogs: mergeData(prev.collectionLogs, newData.collectionLogs || [], pendingAddIds, pendingDeleteIds),
+          clients: mergeData(currentClients, newData.clients || [], pendingAddIds, pendingDeleteIds),
+          loans: mergeWithLogic(currentLoans, newData.loans || [], pendingAddIds, pendingDeleteIds),
+          payments: mergeData(currentPayments, newData.payments || [], pendingAddIds, pendingDeleteIds),
+          collectionLogs: mergeData(currentLogs, newData.collectionLogs || [], pendingAddIds, pendingDeleteIds),
           branchSettings: { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) },
           settings: resolveSettings(updatedCurrentUser, { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) }, updatedUsers, prev.settings)
         };
@@ -846,17 +860,17 @@ const App: React.FC = () => {
     // SOFT DELETE FILTER: Only show active clients (unless specifically viewing archives, but standard view hides them)
     // Also Admin sees everything, but even Admin shouldn't see "Deleted" clients in the main list.
     // If we want an "Archive", we'd add a toggle. For now, User wants them GONE.
-    let clients = state.clients.filter(c => isOurBranch(c.branchId, c.addedBy, undefined) && c.isActive !== false);
+    let clients = state.clients.filter(c => isOurBranch(c.branchId, c.addedBy, undefined) && c.isActive !== false && !c.deletedAt);
 
     // Performance optimization: Create a Set of visible/active client IDs
     const activeClientIds = new Set(clients.map(c => c.id));
 
     // Filter related data to only show what belongs to visible clients
     // This ensures that if a client is "Deleted" (Soft), their loans/payments also disappear from the UI.
-    let loans = state.loans.filter(l => activeClientIds.has(l.clientId));
-    let payments = state.payments.filter(p => activeClientIds.has(p.clientId));
-    let expenses = state.expenses.filter(e => isOurBranch(e.branchId, e.addedBy, undefined));
-    let collectionLogs = state.collectionLogs.filter(log => activeClientIds.has(log.clientId));
+    let loans = state.loans.filter(l => activeClientIds.has(l.clientId) && !l.deletedAt);
+    let payments = state.payments.filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
+    let expenses = state.expenses.filter(e => isOurBranch(e.branchId, e.addedBy, undefined)); // Expenses don't have deletedAt yet or handle differently
+    let collectionLogs = state.collectionLogs.filter(log => activeClientIds.has(log.clientId) && !log.deletedAt);
 
     let users = state.users.filter(u => {
       if (u.id === user.id) return true;

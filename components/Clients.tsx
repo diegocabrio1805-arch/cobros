@@ -334,7 +334,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const clientHistory = useMemo(() => {
     if (!showLegajo) return [];
     return state.collectionLogs
-      .filter(log => log.clientId === showLegajo)
+      .filter(log => log.clientId === showLegajo && !log.deletedAt)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [showLegajo, state.collectionLogs]);
 
@@ -347,7 +347,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const installments = activeLoan.installments || [];
 
       // Regla de Oro: El Abonado debe coincidir exactamente con el historial reciente (logs)
-      const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+      const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
       totalPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
 
       // Saldo Pendiente: Total Crédito - Suma de Abonos en Historial
@@ -691,7 +691,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const installments = activeLoanInLegajo.installments || [];
 
         // REGLA DE ORO: Recalcular histórico para el recibo
-        const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+        const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (activeLoanInLegajo.installmentValue || 1);

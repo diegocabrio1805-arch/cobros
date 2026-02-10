@@ -48,7 +48,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const logDate = new Date(log.date).toISOString().split('T')[0];
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
-         return logDate >= start && logDate <= end;
+         return logDate >= start && logDate <= end && !log.deletedAt;
       });
 
       if (selectedCollector !== 'all') {
@@ -310,7 +310,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const moraReal = getDaysOverdue(loan, state.settings);
 
          // Calculate days since last visit (any log type)
-         const allClientLogs = state.collectionLogs.filter(log => log.clientId === loan.clientId);
+         const allClientLogs = state.collectionLogs.filter(log => log.clientId === loan.clientId && !log.deletedAt);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
             : null;

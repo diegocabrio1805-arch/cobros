@@ -79,12 +79,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       const client = state.clients.find(c => c.id === loan.clientId);
 
       // Regla de Oro: Histórico total para determinar si está adelantado o en mora
-      const allPayments = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+      const allPayments = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
       const totalPaidAllTime = allPayments.reduce((acc, log) => acc + (log.amount || 0), 0);
 
       const rangeLogs = state.collectionLogs.filter(log => {
         const logDate = new Date(log.date);
-        return log.loanId === loan.id && logDate >= startLimit && logDate <= endLimit;
+        return log.loanId === loan.id && logDate >= startLimit && logDate <= endLimit && !log.deletedAt;
       });
 
       const totalPaidInRange = rangeLogs
@@ -189,7 +189,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     if (!loan) return;
 
     // Regla de Oro: El saldo siempre sale de los logs de pago
-    const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+    const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
     const totalPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
 
     if (method === 'renewal') {
@@ -240,7 +240,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       if (client && type === CollectionLogType.PAYMENT) {
         const installments = loan.installments || [];
         // Regla de Oro: Recalculamos el total abonado BASADO EN EL HISTORIAL (incluyendo el nuevo pago)
-        const loanLogs = state.collectionLogs.filter(log => log.loanId === loanId && log.type === CollectionLogType.PAYMENT && !log.isOpening);
+        const loanLogs = state.collectionLogs.filter(log => log.loanId === loanId && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToApply;
 
         const overdueDays = getDaysOverdue(loan, state.settings);
@@ -314,7 +314,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     endLimit.setHours(23, 59, 59, 999);
 
     const targetLogs = state.collectionLogs
-      .filter(l => l.loanId === loanId && l.type === CollectionLogType.PAYMENT)
+      .filter(l => l.loanId === loanId && l.type === CollectionLogType.PAYMENT && !l.deletedAt)
       .filter(l => {
         const d = new Date(l.date);
         return d >= startLimit && d <= endLimit;
@@ -425,7 +425,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                         {item.client?.phone}
                       </td>
                       <td className="px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] text-red-600">
-                        {formatCurrency(Math.max(0, (item.totalAmount || 0) - (state.collectionLogs.filter(log => log.loanId === item.id && log.type === CollectionLogType.PAYMENT && !log.isOpening).reduce((acc, log) => acc + (log.amount || 0), 0))), state.settings)}
+                        {formatCurrency(Math.max(0, (item.totalAmount || 0) - (state.collectionLogs.filter(log => log.loanId === item.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt).reduce((acc, log) => acc + (log.amount || 0), 0))), state.settings)}
                       </td>
                     </>
                   ) : (
