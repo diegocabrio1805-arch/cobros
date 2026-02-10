@@ -113,10 +113,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
                         // Trigger sync (Instant for deletes, debounced for others)
                         const triggerSync = async () => {
-                            console.log(`[Realtime] Syncing data after remote change...`);
+                            console.log(`[Realtime] Syncing data after remote change... FullSync needed: ${needsFullSync}`);
                             const newData = await pullData(needsFullSync);
                             if (newData && onDataUpdated) {
-                                onDataUpdated(newData);
+                                // FIX: Pass the flag so mergeData actually PURGES orphans
+                                onDataUpdated(newData, needsFullSync);
                             }
                         };
 
