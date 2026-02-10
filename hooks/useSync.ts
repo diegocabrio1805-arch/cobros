@@ -514,8 +514,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 if (force || fullSync) {
                     pullData(fullSync).then(newData => {
                         console.log('Manual pull completed');
-                        setShowSuccess(true);
-                        setTimeout(() => setShowSuccess(false), 3000);
                     });
                     setSyncError(null);
                 }
