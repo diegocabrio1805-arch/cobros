@@ -44,8 +44,66 @@ const App: React.FC = () => {
   const [expiringCollectorsNames, setExpiringCollectorsNames] = useState<string[]>([]);
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // Helper for Merging Data (Moved out for reuse in realtime + periodic)
+  // 1. STATE INITIALIZATION (Moved to top)
+  const [state, setState] = useState<AppState>(() => {
+    console.log("App v6.1.11: Initializing state...");
+    const CURRENT_VERSION_ID = '6.1.11-STABLE-2026-02-10';
+    const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
+    const RESET_ID = '2026-02-10-RADICAL-PURGE-V1';
+
+    try {
+      if (lastAppVersion && lastAppVersion.split('.')[1] !== CURRENT_VERSION_ID.split('.')[1]) {
+        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
+        localStorage.removeItem('last_sync_timestamp');
+        localStorage.removeItem('last_sync_timestamp_v6');
+        localStorage.removeItem('prestamaster_v2');
+      }
+    } catch (e) {
+      console.error("Version Check Error:", e);
+    }
+
+    const saved = localStorage.getItem('prestamaster_v2');
+    let parsed = null;
+    try {
+      if (saved) parsed = JSON.parse(saved);
+    } catch (e) {
+      localStorage.removeItem('prestamaster_v2');
+    }
+
+    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+    const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
+
+    let rawData = parsed;
+    if (rawData) {
+      const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
+      rawData = JSON.parse(json);
+    }
+
+    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
+    const users = (rawData?.users || [initialAdmin]).map((u: any) => ({ ...u, role: u.role === 'admin' ? Role.ADMIN : u.role }));
+
+    return {
+      clients: rawData?.clients || [],
+      loans: rawData?.loans || [],
+      payments: rawData?.payments || [],
+      expenses: rawData?.expenses || [],
+      collectionLogs: rawData?.collectionLogs || [],
+      users: users,
+      currentUser: rawData?.currentUser || null,
+      commissionPercentage: rawData?.commissionPercentage ?? 10,
+      commissionBrackets: rawData?.commissionBrackets || [],
+      settings: rawData?.settings || defaultSettings,
+      branchSettings: rawData?.branchSettings || {}
+    };
+  });
+
+  const resolvedSettings = useMemo(() => {
+    return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, { language: 'es', country: 'CO', numberFormat: 'dot' });
+  }, [state.currentUser, state.branchSettings, state.users]);
+
+  // 2. HELPER FUNCTIONS
   const mergeData = <T extends { id: string, updated_at?: string }>(
     local: T[],
     remote: T[],
@@ -54,11 +112,8 @@ const App: React.FC = () => {
     isFullSync: boolean = false
   ): T[] => {
     if (isFullSync) {
-      // CLEAN INSTALL MODE: Remote is the absolute truth.
-      // We only keep local items that are in the queue for being ADDED.
       const result = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
       const remoteIds = new Set(result.map(r => r.id));
-
       local.forEach(l => {
         if (l && l.id && pendingAddIds.has(l.id) && !remoteIds.has(l.id)) {
           result.push(l);
@@ -67,64 +122,31 @@ const App: React.FC = () => {
       return result;
     }
 
-    // Aggressive Merge: Use the item with the LATEST updated_at timestamp
-    const remoteMap = new Map();
-    remote.forEach(i => {
-      if (i && i.id) remoteMap.set(i.id, i);
-    });
-
-    const result: T[] = [];
-
-    // 1. Add all Remote items (unless explicitly deleted locally)
-    remote.forEach(r => {
-      if (!pendingDeleteIds.has(r.id) && !(r as any).deletedAt) {
-        result.push(r);
-      }
-    });
-
-    // 2. Add Local items ONLY if they are pending upload OR if they are newer than remote (and not deleted)
+    const remoteMap = new Map(remote.map(i => [i.id, i]));
+    const result: T[] = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
     const resultMap = new Map(result.map(i => [i.id, i]));
 
     local.forEach(l => {
-      if (!l || !l.id) return;
-      if (pendingDeleteIds.has(l.id)) return;
-
+      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
       const r = remoteMap.get(l.id);
-
       if (!r) {
-        if (pendingAddIds.has(l.id)) {
-          if (!resultMap.has(l.id)) {
-            result.push(l);
-            resultMap.set(l.id, l);
-          }
-        }
-      } else {
-        if (l.updated_at && r.updated_at) {
-          const lTime = new Date(l.updated_at).getTime();
-          const rTime = new Date(r.updated_at).getTime();
-          if (lTime > rTime) {
-            const idx = result.findIndex(item => item.id === l.id);
-            if (idx !== -1) result[idx] = l;
-          }
-        }
+        if (pendingAddIds.has(l.id) && !resultMap.has(l.id)) result.push(l);
+      } else if (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()) {
+        const idx = result.findIndex(item => item.id === l.id);
+        if (idx !== -1) result[idx] = l;
       }
     });
 
-    // 3. Add any remaining local items that were NOT in remote (Incremental Sync Support)
     if (!isFullSync) {
       local.forEach(l => {
-        if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
-        if (!remoteMap.has(l.id) && !resultMap.has(l.id)) {
+        if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
           result.push(l);
-          resultMap.set(l.id, l);
         }
       });
     }
-
     return result;
   };
 
-  // Ultra-Fast Realtime Sync Handler (Also used for manual sync data application)
   const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
     setState(prev => {
       const queueStr = localStorage.getItem('syncQueue');
@@ -135,11 +157,8 @@ const App: React.FC = () => {
       if (Array.isArray(queue)) {
         queue.forEach((item: any) => {
           if (item?.data?.id) {
-            if (item.operation.startsWith('DELETE_')) {
-              pendingDeleteIds.add(item.data.id);
-            } else if (item.operation.startsWith('ADD_')) {
-              pendingAddIds.add(item.data.id);
-            }
+            if (item.operation.startsWith('DELETE_')) pendingDeleteIds.add(item.data.id);
+            else if (item.operation.startsWith('ADD_')) pendingAddIds.add(item.data.id);
           }
         });
       }
@@ -152,653 +171,78 @@ const App: React.FC = () => {
         if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
         if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
         if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
-        if (updatedState.expenses) updatedState.expenses = updatedState.expenses.filter(i => !delIds.has(i.id));
       }
 
-      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, isFullSync);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, isFullSync);
-      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds, isFullSync);
-      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds, isFullSync);
-      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds, isFullSync);
-      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds, isFullSync);
+      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
 
-      if (newData.branchSettings) {
-        updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
-      }
-
-      if (newData.branchSettings || newData.users || newData.branchSettings) {
-        updatedState.settings = resolveSettings(updatedState.currentUser, updatedState.branchSettings, updatedState.users, updatedState.settings);
-      }
+      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
 
       return updatedState;
     });
   };
 
-  const { isSyncing, isFullSyncing, syncError, showSuccess, lastErrors, setLastErrors, successMessage, setSuccessMessage, isOnline, processQueue, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, clearQueue, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, supabase, queueLength, addToQueue } = useSync(handleRealtimeData);
+  // 3. SYNC HOOK
+  const {
+    isSyncing, isFullSyncing, syncError, isOnline, processQueue, forceFullSync, pullData,
+    pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, addToQueue,
+    setSuccessMessage, showSuccess, successMessage, queueLength, clearQueue,
+    deleteRemoteLog, deleteRemotePayment, deleteRemoteClient
+  } = useSync(handleRealtimeData);
 
-  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
-    if (!silent) setSuccessMessage(message);
+  const doPull = () => pullData();
 
-    if (isSyncing) {
-      if (!silent) console.log("Ya hay una sincronización en curso...");
-      return;
-    }
-
-    // Unify sync paths: processQueue handles both upload and pull (via onDataUpdated)
-    if (fullSync) {
-      await forceFullSync();
-    } else {
-      await processQueue(true);
-    }
-  };
-  const [showErrorModal, setShowErrorModal] = useState(false);
-
-  // DEEP RESET LOGIC: For solving stubborn Chrome caching issues
-  const handleDeepReset = async () => {
-    if (!confirm("ESTA ACCIÓN ELIMINARÁ TODO EL CACHÉ Y DATOS LOCALES PARA FORZAR UNA DESCARGA TOTAL. ¿CONTINUAR?")) return;
-
-    console.log(">>> INITIATING DEEP RESET <<<");
-
-    // 1. Clear LocalStorage (Critical App Data)
-    localStorage.removeItem('prestamaster_v2');
-    localStorage.removeItem('last_sync_timestamp');
-    localStorage.removeItem('last_sync_timestamp_v6');
-    localStorage.removeItem('syncQueue');
-
-    // 2. Unregister Service Workers
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (let registration of registrations) {
-        await registration.unregister();
-        console.log('SW Unregistered during Deep Reset');
-      }
-    }
-
-    // 3. Clear Cache API
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      for (let name of cacheNames) {
-        await caches.delete(name);
-        console.log(`Cache deleted: ${name}`);
-      }
-    }
-
-    // 4. Force Reload with Cache Busting
-    window.location.href = window.location.pathname + '?v=' + Date.now();
-  };
-
-
-
-  // AUTO-RESET ON UPDATE LOGIC (Moved to Component Body)
-  useEffect(() => {
-    // URL-BASED FORCED RESET (Using ?v= parameter)
-    const params = new URLSearchParams(window.location.search);
-    const urlVersion = params.get('v');
-    const storedUrlVersion = localStorage.getItem('LAST_URL_VERSION');
-
-    if (urlVersion && urlVersion !== storedUrlVersion) {
-      console.log(`[URLReset] Version mismatch! URL: ${urlVersion} | Stored: ${storedUrlVersion}`);
-      localStorage.setItem('LAST_URL_VERSION', urlVersion);
-
-      // Comprehensive Cleanup
+  const handleDeepReset = () => {
+    if (confirm("¿Estás seguro? Esto borrará todos los datos locales y forzará una descarga total.")) {
+      localStorage.removeItem('prestamaster_v2');
       localStorage.removeItem('last_sync_timestamp');
       localStorage.removeItem('last_sync_timestamp_v6');
-      localStorage.removeItem('forced_resync_v5');
-
-      // Silent full sync trigger
-      handleForceSync(true, "Reset via URL", true);
-      alert("Actualización Forzada: Descargando datos nuevos desde la nube...");
+      window.location.reload();
     }
+  };
 
-    const checkAppVersion = async () => {
-      try {
-        if (!Capacitor.isNativePlatform()) return;
+  // 4. COMMAND FUNCTIONS
+  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
+    if (!silent) setSuccessMessage(message);
+    if (isSyncing) return;
+    if (fullSync) await forceFullSync();
+    else await processQueue(true);
+  };
 
-        const info = await CapApp.getInfo();
-        const currentVersion = `${info.version}.${info.build}`;
-        const storedVersion = localStorage.getItem('LAST_RUN_VERSION');
-
-        console.log(`[VersionCheck] Current: ${currentVersion} | Stored: ${storedVersion}`);
-
-        if (storedVersion !== currentVersion) {
-          console.log("[VersionCheck] New version detected! Forcing cleanup...");
-          localStorage.setItem('LAST_RUN_VERSION', currentVersion);
-          localStorage.removeItem('last_sync_timestamp');
-          localStorage.removeItem('last_sync_timestamp_v6');
-          sessionStorage.removeItem('reset_reload_count');
-          handleForceSync(true);
-          alert("Aplicación Actualizada: Se han sincronizado los datos automáticamente.");
-        }
-      } catch (err) {
-        console.warn("[VersionCheck] Failed to check/update version:", err);
-      }
-    };
-    checkAppVersion();
-  }, []);
-
-  const [state, setState] = useState<AppState>(() => {
-    console.log("App v3.1: Initializing state...");
-
-    // RESET LOGIC: Force global reset to fix missing clients in APK
-    const RESET_ID = '2026-02-05-VISIBILITY-FIX-V1';
-
-    // VERSION CONTROL: If this doesn't match, we force a full sync to avoid "ghost session" issues
-    // VERSION CONTROL: Improved session persistence logic
-    const CURRENT_VERSION_ID = '6.1.10-STABLE-2026-02-10';
-    const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
-
-    try {
-      // Only force full clear on major version changes or specific forced reset IDs
-      if (lastAppVersion && lastAppVersion.split('.')[0] !== CURRENT_VERSION_ID.split('.')[0]) {
-        console.log(">>> MAJOR VERSION UPGRADE DETECTED <<<");
-        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-        localStorage.removeItem('last_sync_timestamp');
-        localStorage.removeItem('last_sync_timestamp_v6');
-        localStorage.removeItem('prestamaster_v2');
-        localStorage.removeItem('user_credentials');
-        return {
-          clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
-          currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
-        };
-      } else if (lastAppVersion !== CURRENT_VERSION_ID) {
-        console.log(">>> MINOR UPDATE DETECTED - Keeping Session <<<");
-        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-      }
-    } catch (e) {
-      console.error("Version Check Error:", e);
-    }
-
-    try {
-      const currentResetId = localStorage.getItem('LAST_RESET_ID');
-      if (currentResetId !== RESET_ID) {
-        console.log(`>>> SYSTEM UPGRADE TO ${RESET_ID} <<<`);
-        localStorage.setItem('LAST_RESET_ID', RESET_ID);
-
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then((registrations) => {
-            for (let registration of registrations) {
-              registration.unregister();
-              console.log('SW Unregistered');
-            }
-          });
-        }
-
-        const lang = localStorage.getItem('app_language');
-        const country = localStorage.getItem('app_country');
-
-        localStorage.removeItem('prestamaster_v2');
-        localStorage.removeItem('last_sync_timestamp');
-        localStorage.removeItem('last_sync_timestamp_v6');
-        localStorage.removeItem('syncQueue');
-        // Do NOT remove user_credentials here to persist session
-
-        if (lang) localStorage.setItem('app_language', lang);
-        if (country) localStorage.setItem('app_country', country);
-        localStorage.setItem('LAST_RESET_ID', RESET_ID);
-
-        return {
-          clients: [], loans: [], payments: [], expenses: [], collectionLogs: [], users: [],
-          currentUser: null, commissionPercentage: 10, commissionBrackets: [], settings: { language: 'es', country: 'CO', numberFormat: 'dot' }, branchSettings: {}
-        };
-      }
-    } catch (e) {
-      console.error("Reset Error:", e);
-    }
-
-    const saved = localStorage.getItem('prestamaster_v2');
-    let parsed = null;
-    try {
-      if (saved) {
-        parsed = JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error("CRITICAL: LocalStorage corruption detected. Resetting...", e);
-      localStorage.removeItem('prestamaster_v2');
-      parsed = null;
-    }
-    // STABLE ADMIN ID: Used to replace 'admin-1' and ensure consistency
-    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-    const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
-    const defaultBrackets: CommissionBracket[] = [
-      { maxMora: 20, payoutPercent: 100 },
-      { maxMora: 30, payoutPercent: 80 },
-      { maxMora: 40, payoutPercent: 60 },
-      { maxMora: 100, payoutPercent: 40 }
-    ];
-
-    // Aggressive migration for the separate syncQueue
-    const savedQueue = localStorage.getItem('syncQueue');
-    if (savedQueue && savedQueue.includes('admin-1')) {
-      console.log("App: Migrating syncQueue to SYSTEM_ADMIN_ID");
-      const migratedQueue = savedQueue.replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-      localStorage.setItem('syncQueue', migratedQueue);
-    }
-
-    let rawData = parsed;
-    if (rawData) {
-      // Aggressive migration of all legacy IDs to stable UUID locally
-      const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-      rawData = JSON.parse(json);
-    }
-
-    // Helper to normalize roles (legacy 'admin' -> 'Administrador')
-    const normalizeUser = (u: any): User | null => {
-      if (!u) return null;
-      let role = u.role;
-      if (role === 'admin' || role === 'Administrador') role = Role.ADMIN;
-      else if (role === 'gerente' || role === 'Gerente') role = Role.MANAGER;
-      else if (role === 'cobrador' || role === 'Cobrador') role = Role.COLLECTOR;
-
-      return { ...u, role };
-    };
-
-    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
-    const users = (rawData?.users || [initialAdmin]).map((u: User) => {
-      const normalized = normalizeUser(u);
-      return normalized?.id === 'admin-1' ? initialAdmin : normalized;
-    }) as User[];
-
-    let currentUser = rawData?.currentUser ? normalizeUser(rawData.currentUser) : null;
-    if (currentUser?.id === 'admin-1') currentUser = initialAdmin;
-
-    return {
-      clients: rawData?.clients || [],
-      loans: rawData?.loans || [],
-      payments: rawData?.payments || [],
-      expenses: rawData?.expenses || [],
-      collectionLogs: rawData?.collectionLogs || [],
-      users: users,
-      currentUser: currentUser,
-      commissionPercentage: rawData?.commissionPercentage ?? 10,
-      commissionBrackets: rawData?.commissionBrackets || defaultBrackets,
-      settings: rawData?.settings || defaultSettings,
-      branchSettings: rawData?.branchSettings || {}
-    };
-  });
-
-  const resolvedSettings = useMemo(() => {
-    return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, { language: 'es', country: 'CO', numberFormat: 'dot' });
-  }, [state.currentUser, state.branchSettings, state.users]);
-
-  useEffect(() => {
-    const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
-    const today = new Date(countryTodayStr + 'T00:00:00');
-
-    setState(prev => {
-      let hasChanges = false;
-      const updatedUsers = prev.users.map(u => {
-        if (u.expiryDate && !u.blocked) {
-          const expiry = new Date(u.expiryDate + 'T00:00:00');
-          if (expiry < today) {
-            hasChanges = true;
-            return { ...u, blocked: true };
-          }
-        }
-        return u;
-      });
-
-      return hasChanges ? { ...prev, users: updatedUsers } : prev;
-    });
-  }, [state.settings.country]);
-
-  useEffect(() => {
-    localStorage.setItem('prestamaster_v2', JSON.stringify(state));
-
-    // Persistencia Nativa: Guardar usuario por separado para evitar pérdida en purgas de LocalStorage
-    if (state.currentUser) {
-      Preferences.set({
-        key: 'NATIVE_CURRENT_USER',
-        value: JSON.stringify(state.currentUser)
-      });
-    } else {
-      Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
-    }
-  }, [state]);
-
-  // Recuperación Nativa al Iniciar
-  useEffect(() => {
-    const recoverSession = async () => {
-      if (state.currentUser) return;
-
-      const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
-      if (value) {
-        try {
-          const recoveredUser = JSON.parse(value);
-          console.log("[NativeAuth] Sesión recuperada de Preferences:", recoveredUser.username);
-          setState(prev => ({ ...prev, currentUser: recoveredUser }));
-          // Forzar sincronización inmediata al recuperar sesión
-          setTimeout(() => handleForceSync(true), 1000);
-        } catch (e) {
-          console.error("[NativeAuth] Error al parsear usuario recuperado", e);
-        }
-      }
-    };
-    recoverSession();
-  }, []);
-
-
-  // Realtime is handled by useSync hook - no need for duplicate listeners here
-
-  useEffect(() => {
-    const setupBackButton = async () => {
-      // @ts-ignore
-      const { App: CapApp } = await import('@capacitor/app');
-      CapApp.addListener('backButton', ({ canGoBack }: any) => {
-        if (state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) {
-          if (activeTab !== 'dashboard') {
-            setActiveTab('dashboard');
-          } else {
-            // @ts-ignore
-            if (!canGoBack) CapApp.exitApp();
-          }
-        } else {
-          if (activeTab !== 'route') {
-            setActiveTab('route');
-          } else {
-            // @ts-ignore
-            if (!canGoBack) CapApp.exitApp();
-          }
-        }
-      });
-    };
-
-    if (navigator.userAgent.includes('Android')) {
-      const requestPermissions = async () => {
-        try {
-          const geoStatus = await Geolocation.checkPermissions();
-          if (geoStatus.location !== 'granted') await Geolocation.requestPermissions();
-          const camStatus = await Camera.checkPermissions();
-          if (camStatus.camera !== 'granted') await Camera.requestPermissions();
-          const contactsStatus = await Contacts.checkPermissions();
-          if (contactsStatus.contacts !== 'granted') await Contacts.requestPermissions();
-          const pushStatus = await PushNotifications.checkPermissions();
-          if (pushStatus.receive !== 'granted') await PushNotifications.requestPermissions();
-        } catch (err) {
-          console.error("Error requesting permissions:", err);
-        }
-      };
-      requestPermissions();
-      setupBackButton();
-    }
-  }, [activeTab, state.currentUser]);
-
-  // AUTO-REFRESH INTERVAL (Every 5 seconds as requested by USER)
-  // Use Ref to avoid stale closure of handleForceSync
+  // 5. EFFECTS
   const forceSyncRef = React.useRef(handleForceSync);
-  useEffect(() => {
-    forceSyncRef.current = handleForceSync;
-  }, [handleForceSync]);
+  useEffect(() => { forceSyncRef.current = handleForceSync; }, [handleForceSync]);
 
   useEffect(() => {
     if (!state.currentUser) return;
-
-    console.log("[AutoSync] Initializing 5s interval...");
-    const syncInterval = setInterval(() => {
-      forceSyncRef.current(true, "", true);
-    }, 5000);
-
-    return () => {
-      console.log("[AutoSync] Clearing interval");
-      clearInterval(syncInterval);
-    };
+    const syncInterval = setInterval(() => forceSyncRef.current(true, "", true), 5000);
+    return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
 
   useEffect(() => {
-    // CRITICAL FIX: Purge legacy "admin-1" user AND Sanitize invalid UUIDs
-    setState(prev => {
-      let newState = { ...prev };
-      let hasChanges = false;
+    localStorage.setItem('prestamaster_v2', JSON.stringify(state));
+    if (state.currentUser) Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
+    else Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+  }, [state]);
 
-      // 1. Fix Legacy Admin ID
-      const isLegacyUser = newState.currentUser?.id === 'admin-1';
-      const hasLegacyInList = newState.users.some(u => u.id === 'admin-1');
-
-      if (isLegacyUser || hasLegacyInList) {
-        console.log("Legacy data detected. Forcing Admin ID migration...");
-        const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-        const newStateStr = JSON.stringify(newState).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-        newState = JSON.parse(newStateStr);
-        hasChanges = true;
-      }
-
-      // 2. Fix Invalid UUIDs (The "wzzegxk3a" error)
-      const isValidUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-      // FORCE RESYNC V5: Ensure we have all clients by clearing incremental cache
-      const hasResynced = localStorage.getItem('forced_resync_v5');
-      if (!hasResynced) {
-        console.log("Applying V5 Fix: Forcing full data re-download...");
-        localStorage.removeItem('last_sync_timestamp');
-        localStorage.setItem('forced_resync_v5', 'true');
-        // We don't reload page here to avoid loops, but clearing timestamp ensures next pullData gets EVERYTHING.
-      }
-
-      // Map to track old ID -> new UUID replacements
-      const idMap = new Map<string, string>();
-
-      // A. Sanitize Clients
-      const sanitizedClients = newState.clients.map(c => {
-        if (!c.id || !isValidUuid(c.id)) {
-          const newId = generateUUID();
-          if (c.id) idMap.set(c.id, newId); // Track replacement
-          hasChanges = true;
-          return { ...c, id: newId };
-        }
-        return c;
-      });
-
-      // B. Sanitize Loans
-      const sanitizedLoans = newState.loans.map(l => {
-        let lChanged = false;
-        let newId = l.id;
-        let newClientId = l.clientId;
-
-        // Fix Loan ID
-        if (!l.id || !isValidUuid(l.id)) {
-          newId = generateUUID();
-          lChanged = true;
-          hasChanges = true;
-        }
-
-        // Fix Client ID reference
-        if (idMap.has(l.clientId)) {
-          newClientId = idMap.get(l.clientId)!;
-          lChanged = true;
-          hasChanges = true;
-        }
-
-        return lChanged ? { ...l, id: newId, clientId: newClientId } : l;
-      });
-
-      // C. Sanitize Payments
-      const sanitizedPayments = newState.payments.map(p => {
-        let pChanged = false;
-        let newId = p.id;
-        let newClientId = p.clientId;
-        // Note: Payment IDs often have custom format like "pay-UUID-inst-1", we check basic validity or partial UUID existence
-        // For simplicity, if clientId needed change, we update it. 
-
-        if (idMap.has(p.clientId)) {
-          newClientId = idMap.get(p.clientId)!;
-          pChanged = true;
-          hasChanges = true;
-        }
-
-        // Ensure ID is valid or structured correctly? 
-        // We trust custom IDs like 'pay-...' BUT if they contain the BAD ID, we must fix
-        // e.g. "pay-badId-inst-1" -> "pay-newUUID-inst-1"
-        // This is complex. For now, rely on clientId fix and Loan syncs regenerate them? 
-        // Actually, preventing the crash is priority. If ID is strictly checked by postgres as uuid, then 'pay-...' might fail if column is UUID.
-        // CHECK: Payment ID column in Supabase MUST be text if using 'pay-...'. 
-        // IF it is UUID, then 'pay-...' is invalid. 
-        // ASSUMPTION: Payment ID is TEXT. The error "invalid input syntax for type uuid" usually comes from Reference columns (loan_id, client_id) or Primary Key if UUID.
-        // The reported error was in LOANS table sync potentially? Or Payments referencing Loan/Client.
-
-        return pChanged ? { ...p, clientId: newClientId } : p;
-      });
-
-      // D. Sanitize Collection Logs
-      const sanitizedLogs = newState.collectionLogs.map(log => {
-        let logChanged = false;
-        let newId = log.id;
-        let newClientId = log.clientId;
-
-        if (!log.id || (!isValidUuid(log.id) && !log.id.startsWith('init-') && !log.id.startsWith('pay-'))) {
-          // Logs might have prefixes. If raw invalid string, replace.
-          if (!log.id.includes('-')) {
-            newId = generateUUID();
-            logChanged = true;
-            hasChanges = true;
-          }
-        }
-
-        if (idMap.has(log.clientId)) {
-          newClientId = idMap.get(log.clientId)!;
-          logChanged = true;
-          hasChanges = true;
-        }
-
-        return logChanged ? { ...log, id: newId, clientId: newClientId } : log;
-      });
-
-      if (hasChanges) {
-        console.log("UUID Sanitization applied. Invalid IDs replaced.");
-
-        // E. Fix Sync Queue (Crucial for the "wzzegxk3a" error)
+  useEffect(() => {
+    const recover = async () => {
+      if (state.currentUser) return;
+      const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+      if (value) {
         try {
-          const queueStr = localStorage.getItem('syncQueue');
-          if (queueStr) {
-            const queue = JSON.parse(queueStr);
-            if (Array.isArray(queue)) {
-              let queueChanged = false;
-              // Helper: Check if ID looks like the specific corrupt pattern
-              const isBadId = (id: any) => typeof id === 'string' && (id === 'wzzegxk3a' || !id.includes('-') && id.length < 20 && !id.startsWith('init-') && !id.startsWith('pay-'));
-
-              const cleanQueue = queue.map((item: any) => {
-                if (!item || !item.data) return item;
-
-                let pItem = { ...item };
-                let itemChanged = false;
-
-                // Check top level data.id
-                if (item.data.id && isBadId(item.data.id)) {
-                  console.warn("Found bad ID in queue item, dropping/fixing:", item);
-                  return null; // Drop bad items safely
-                }
-
-                // Check client_id ref
-                if (item.data.client_id && idMap.has(item.data.client_id)) {
-                  pItem.data.client_id = idMap.get(item.data.client_id);
-                  itemChanged = true;
-                }
-                if (item.data.clientId && idMap.has(item.data.clientId)) {
-                  pItem.data.clientId = idMap.get(item.data.clientId);
-                  itemChanged = true;
-                }
-
-                if (itemChanged) {
-                  queueChanged = true;
-                  return pItem;
-                }
-                return item;
-              }).filter(Boolean);
-
-              if (queueChanged || cleanQueue.length !== queue.length) {
-                console.log("Sync Queue Sanitized. Saving...");
-                localStorage.setItem('syncQueue', JSON.stringify(cleanQueue));
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Error cleaning syncQueue:", e);
-        }
-
-        return {
-          ...newState,
-          clients: sanitizedClients,
-          loans: sanitizedLoans,
-          payments: sanitizedPayments,
-          collectionLogs: sanitizedLogs
-        };
+          const user = JSON.parse(value);
+          setState(prev => ({ ...prev, currentUser: user }));
+          setTimeout(() => handleForceSync(true), 1000);
+        } catch (e) { }
       }
-      return prev;
-    });
+    };
+    recover();
   }, []);
-
-  const doPull = async () => {
-    // We TRUST useSync's internal check. navigator.onLine is unreliable on Android WebView.
-    // Auto-detect: If we have no clients, force full sync regardless of timestamp
-    const shouldFullSync = state.clients.length === 0;
-    const newData = await pullData(shouldFullSync);
-    if (newData) {
-      setState(prev => {
-        // Enhanced merge with Loan Logic
-        const mergeWithLogic = <T extends { id: string }>(local: T[], remote: T[], pendingAddIds: Set<string>, pendingDeleteIds: Set<string>): T[] => {
-          // Basic merge first
-          const merged = mergeData(local, remote, pendingAddIds, pendingDeleteIds);
-
-          // Re-apply specific Loan logic for payment history
-          // This ensures that even if we sync, we don't regress "Paid Amount" if local calculation is ahead?
-          // Actually, if we trust server deletions, we should trust server state. 
-          // But the requirement was: "Prevent reverting valid payments". 
-          // Rule 2 of User: "Output Sync" - if offline, we queued it. If queued, we kept it via pendingAddIds.
-
-          return merged;
-        };
-
-        // 1. Get Pending Deletions/Additions from Queue
-        const queueStr = localStorage.getItem('syncQueue');
-        const queue = queueStr ? JSON.parse(queueStr) : [];
-        const pendingDeleteIds = new Set<string>();
-        const pendingAddIds = new Set<string>();
-
-        if (Array.isArray(queue)) {
-          queue.forEach((item: any) => {
-            if (item?.data?.id) {
-              if (item.operation.startsWith('DELETE_')) {
-                pendingDeleteIds.add(item.data.id);
-              } else if (item.operation.startsWith('ADD_')) {
-                pendingAddIds.add(item.data.id);
-              }
-            }
-          });
-        }
-
-        // 2. CRITICAL FIX: Handle Server-Side Deletions
-        // Filter out items that verify as deleted on server (present in deleted_items table)
-        // This prevents "Zombie" records that are deleted on server but kept locally by mergeData
-        const serverDeletedIds = new Set((newData.deletedItems || []).map(d => d.recordId));
-
-        const currentUsers = prev.users.filter(u => !serverDeletedIds.has(u.id));
-        const currentClients = prev.clients.filter(c => !serverDeletedIds.has(c.id));
-        const currentLoans = prev.loans.filter(l => !serverDeletedIds.has(l.id));
-        const currentPayments = prev.payments.filter(p => !serverDeletedIds.has(p.id));
-        const currentLogs = prev.collectionLogs.filter(l => !serverDeletedIds.has(l.id));
-        const currentExpenses = prev.expenses.filter(e => !serverDeletedIds.has(e.id));
-
-        const updatedUsers = mergeData(currentUsers, newData.users || [], pendingAddIds, pendingDeleteIds);
-        let updatedCurrentUser = prev.currentUser;
-        if (prev.currentUser) {
-          const serverProfile = (newData.users || []).find(u => u.id === prev.currentUser?.id);
-          if (serverProfile) {
-            updatedCurrentUser = { ...prev.currentUser, ...serverProfile };
-          }
-        }
-
-        return {
-          ...prev,
-          users: updatedUsers,
-          currentUser: updatedCurrentUser,
-          clients: mergeData(currentClients, newData.clients || [], pendingAddIds, pendingDeleteIds),
-          loans: mergeWithLogic(currentLoans, newData.loans || [], pendingAddIds, pendingDeleteIds),
-          payments: mergeData(currentPayments, newData.payments || [], pendingAddIds, pendingDeleteIds),
-          collectionLogs: mergeData(currentLogs, newData.collectionLogs || [], pendingAddIds, pendingDeleteIds),
-          branchSettings: { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) },
-          settings: resolveSettings(updatedCurrentUser, { ...(prev.branchSettings || {}), ...(newData.branchSettings || {}) }, updatedUsers, prev.settings)
-        };
-      });
-    }
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
