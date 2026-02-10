@@ -49,7 +49,7 @@ const App: React.FC = () => {
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
     console.log("App v6.1.11: Initializing state...");
-    const CURRENT_VERSION_ID = '6.1.11-STABLE-2026-02-10';
+    const CURRENT_VERSION_ID = '6.1.12-STABLE-2026-02-10';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-RADICAL-PURGE-V1';
 
@@ -219,7 +219,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!state.currentUser) return;
-    const syncInterval = setInterval(() => forceSyncRef.current(true, "", true), 5000);
+    const syncInterval = setInterval(() => forceSyncRef.current(false, "¡Actualizado Automáticamente!", true), 5000);
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
 
