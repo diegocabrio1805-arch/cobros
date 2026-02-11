@@ -341,6 +341,7 @@ MARCA: ${alias}
 TEL. PUBLICO: ${phone}
 ID EMPRESA: ${idValue}
 ${bankLabel}: ${bankValue}
+VER: AGENT-FIX
 ===============================
 FECHA: ${formatFullDateTime(settings.country)}
 CLIENTE: ${data.clientName.toUpperCase()}
