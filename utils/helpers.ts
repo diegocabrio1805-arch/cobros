@@ -319,6 +319,8 @@ export interface ReceiptData {
   companyIdentifierManual?: string;
   shareLabelManual?: string;
   shareValueManual?: string;
+  supportLabelManual?: string;
+  supportPhoneManual?: string;
   fullDateTimeManual?: string;
 }
 
@@ -344,8 +346,11 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
   const idValue = format(data.companyIdentifierManual || settings.companyIdentifier || '---', settings.companyIdentifierBold);
 
-  const bankLabel = format((data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase(), settings.shareLabelBold, settings.shareLabelSize);
+  const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
   const bankValue = format((data.shareValueManual || settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
+
+  const supportLabel = (data.supportLabelManual || "NUMERO CO").toUpperCase();
+  const supportValue = format(data.supportPhoneManual || settings.technicalSupportPhone || '---', false);
 
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
 
@@ -359,6 +364,7 @@ ${aliasLabel}: ${alias}
 ${contactLabel}: ${phone}
 ${idLabel}: ${idValue}
 ${bankLabel}: ${bankValue}
+${supportLabel}: ${supportValue}
 ===============================
 FECHA: ${dateTime}
 CLIENTE: ${data.clientName.toUpperCase()}

@@ -798,7 +798,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta Banco</label>
                       <input
                         type="text"
-                        value={editingReceipt.shareLabelManual ?? state.settings.shareLabel ?? ''}
+                        value={editingReceipt.shareLabelManual ?? state.settings.shareLabel ?? 'BANCO'}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareLabelManual: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -809,6 +809,27 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.shareValueManual ?? state.settings.shareValue ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareValueManual: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 5 (Ej: NUMERO CO)</label>
+                      <input
+                        type="text"
+                        value={editingReceipt.supportLabelManual ?? "NUMERO CO"}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, supportLabelManual: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor 5</label>
+                      <input
+                        type="text"
+                        value={editingReceipt.supportPhoneManual ?? state.settings.technicalSupportPhone ?? ''}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, supportPhoneManual: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
