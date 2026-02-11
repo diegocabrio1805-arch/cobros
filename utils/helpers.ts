@@ -375,10 +375,10 @@ SALDO ACT: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
 INICIO: ${formatDate(data.startDate)}
 VENCE: ${formatDate(data.expiryDate)}
-CUOTAS PAG: ${data.paidInstallments}
-CUOTAS PEN: ${remainingInst}
+CUOTAS PAGADAS: ${data.paidInstallments}
+CUOTAS A PAGAR: ${remainingInst}
 TOTAL CUOTAS: ${data.totalInstallments}
-MORA: ${data.daysOverdue} dias
+DIAS DE ATRASO: ${data.daysOverdue} dias
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
 `;

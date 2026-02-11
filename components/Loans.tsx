@@ -270,10 +270,6 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       setLastLogId(logId);
 
       if (client && type === CollectionLogType.PAYMENT) {
-        const totalPaidOnLoan = (loan.installments || []).reduce((acc, inst) => acc + (inst.paidAmount || 0), 0) + amountToPay;
-        const expiryDate = loan.installments && loan.installments.length > 0
-          ? loan.installments[loan.installments.length - 1].dueDate
-          : new Date().toISOString();
         const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
@@ -288,12 +284,26 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: loan.id,
           startDate: loan.createdAt,
-          expiryDate,
+          expiryDate: loan.installments && loan.installments.length > 0
+            ? loan.installments[loan.installments.length - 1].dueDate
+            : new Date().toISOString(),
           daysOverdue: overdueDays,
           remainingBalance: Math.max(0, loan.totalAmount - totalPaidHistory),
           paidInstallments: paidInstCount,
           totalInstallments: loan.totalInstallments,
-          isRenewal
+          isRenewal,
+          // Pre-populate with settings
+          companyNameManual: state.settings.companyName,
+          companyAliasManual: state.settings.companyAlias,
+          contactLabelManual: "TEL. PUBLICO",
+          contactPhoneManual: state.settings.contactPhone,
+          companyIdentifierLabelManual: "ID EMPRESA",
+          companyIdentifierManual: state.settings.companyIdentifier,
+          shareLabelManual: state.settings.shareLabel || "BANCO",
+          shareValueManual: state.settings.shareValue,
+          supportLabelManual: "NUMERO CO",
+          supportPhoneManual: state.settings.technicalSupportPhone,
+          fullDateTimeManual: new Date().toLocaleString()
         };
 
         // Open the editor instead of generating immediate text
@@ -367,7 +377,19 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       remainingBalance: Math.max(0, loan.totalAmount - totalPaidAtThatMoment),
       paidInstallments: paidInstCount,
       totalInstallments: loan.totalInstallments,
-      isRenewal: lastPaymentLog.isRenewal
+      isRenewal: lastPaymentLog.isRenewal,
+      // Pre-populate with settings
+      companyNameManual: state.settings.companyName,
+      companyAliasManual: state.settings.companyAlias,
+      contactLabelManual: "TEL. PUBLICO",
+      contactPhoneManual: state.settings.contactPhone,
+      companyIdentifierLabelManual: "ID EMPRESA",
+      companyIdentifierManual: state.settings.companyIdentifier,
+      shareLabelManual: state.settings.shareLabel || "BANCO",
+      shareValueManual: state.settings.shareValue,
+      supportLabelManual: "NUMERO CO",
+      supportPhoneManual: state.settings.technicalSupportPhone,
+      fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
     });
   };
 
@@ -862,7 +884,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Mora (días)</label>
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Días de Atraso</label>
                       <input
                         type="number"
                         value={editingReceipt.daysOverdue}
