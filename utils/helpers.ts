@@ -313,7 +313,9 @@ export interface ReceiptData {
   // Manual overrides
   companyNameManual?: string;
   companyAliasManual?: string;
+  contactLabelManual?: string;
   contactPhoneManual?: string;
+  companyIdentifierLabelManual?: string;
   companyIdentifierManual?: string;
   shareLabelManual?: string;
   shareValueManual?: string;
@@ -329,26 +331,33 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
     return result;
   };
 
+  const currencySymbol = settings.currencySymbol || '$';
   const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRO';
   const company = format(companyRaw.toUpperCase(), settings.companyNameBold, settings.companyNameSize);
 
+  const aliasLabel = "MARCA";
   const alias = (data.companyAliasManual || settings.companyAlias || '---').toUpperCase();
+
+  const contactLabel = data.contactLabelManual || "TEL. PUBLICO";
   const phone = format(data.contactPhoneManual || settings.contactPhone || '---', settings.contactPhoneBold);
+
+  const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
   const idValue = format(data.companyIdentifierManual || settings.companyIdentifier || '---', settings.companyIdentifierBold);
 
   const bankLabel = format((data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase(), settings.shareLabelBold, settings.shareLabelSize);
   const bankValue = format((data.shareValueManual || settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
-  const currencySymbol = settings.currencySymbol || '$';
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
+
+  const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
   return `
 ===============================
 ${company}
 ===============================
-MARCA: ${alias}
-TEL. PUBLICO: ${phone}
-ID EMPRESA: ${idValue}
+${aliasLabel}: ${alias}
+${contactLabel}: ${phone}
+${idLabel}: ${idValue}
 ${bankLabel}: ${bankValue}
 ===============================
 FECHA: ${dateTime}
@@ -360,7 +369,9 @@ SALDO ACT: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
 INICIO: ${formatDate(data.startDate)}
 VENCE: ${formatDate(data.expiryDate)}
-CUOTAS: ${data.paidInstallments} / ${data.totalInstallments}
+CUOTAS PAG: ${data.paidInstallments}
+CUOTAS PEN: ${remainingInst}
+TOTAL CUOTAS: ${data.totalInstallments}
 MORA: ${data.daysOverdue} dias
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
