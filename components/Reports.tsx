@@ -287,6 +287,52 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
    }, [routeData, state.clients]);
 
+   const fetchWithRetry = async (prompt: string, retries = 3, delay = 5000): Promise<any> => {
+      try {
+         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+         if (!apiKey) throw new Error("VITE_GEMINI_API_KEY no está configurada");
+
+         // Switch to 'gemini-flash-latest' as 1.5 is not explicitly listed but this alias is available
+         const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+            {
+               method: "POST",
+               headers: {
+                  "Content-Type": "application/json",
+               },
+               body: JSON.stringify({
+                  contents: [{
+                     parts: [{ text: prompt }]
+                  }],
+                  generationConfig: {
+                     temperature: 0.2,
+                     maxOutputTokens: 8192,
+                     response_mime_type: "application/json"
+                  }
+               }),
+            }
+         );
+
+         if (!response.ok) {
+            if (response.status === 429 && retries > 0) {
+               console.warn(`AI Quota Exceeded. Retrying in ${delay / 1000}s... (${retries} left)`);
+               setLoadingAiText(`Esperando recursos AI... Reintentando en ${delay / 1000}s`);
+               await new Promise(resolve => setTimeout(resolve, delay));
+               return fetchWithRetry(prompt, retries - 1, delay);
+            }
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `Error HTTP ${response.status}`);
+         }
+
+         return await response.json();
+      } catch (error) {
+         throw error;
+      }
+   };
+
+   // State for custom loading text
+   const [loadingAiText, setLoadingAiText] = useState("Analizando Recorrido y Rendimiento...");
+
    const handleRunAiAudit = async () => {
       if (selectedCollector === 'all') {
          alert("Por favor selecciona un cobrador específico para auditar.");
@@ -294,6 +340,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
 
       setLoadingAi(true);
+      setLoadingAiText("Analizando Recorrido y Rendimiento...");
       setAiReport(null);
       setShowAiModal(true); // Open modal immediately showing loading state
 
@@ -398,42 +445,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       let data: any = null;
 
       try {
-         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-         if (!apiKey) {
-            throw new Error("VITE_GEMINI_API_KEY no está configurada");
-         }
+         data = await fetchWithRetry(prompt);
 
-         // Switch to 'gemini-flash-latest' as 1.5 is not explicitly listed but this alias is available
-         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-            {
-               method: "POST",
-               headers: {
-                  "Content-Type": "application/json",
-               },
-               body: JSON.stringify({
-                  contents: [{
-                     parts: [{ text: prompt }]
-                  }],
-                  generationConfig: {
-                     temperature: 0.2,
-                     maxOutputTokens: 8192,
-                     response_mime_type: "application/json"
-                  }
-               }),
-            }
-         );
-
-         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            // Specific handling for Quota Exceeded
-            if (response.status === 429) {
-               throw new Error("⏳ Has excedido el límite de consultas gratuitas por minuto. Por favor espera 30 segundos e intenta de nuevo.");
-            }
-            throw new Error(errorData.error?.message || `Error HTTP ${response.status}`);
-         }
-
-         data = await response.json();
          let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
          if (!jsonText) {
@@ -507,7 +520,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      {loadingAi ? (
                         <div className="flex flex-col items-center justify-center py-20 space-y-4">
                            <i className="fa-solid fa-circle-notch animate-spin text-5xl text-indigo-500"></i>
-                           <p className="text-sm font-black text-indigo-400 uppercase tracking-widest animate-pulse">Analizando Recorrido y Rendimiento...</p>
+                           <p className="text-sm font-black text-indigo-400 uppercase tracking-widest animate-pulse">{loadingAiText}</p>
                         </div>
                      ) : aiReport ? (
                         <div className="space-y-6">

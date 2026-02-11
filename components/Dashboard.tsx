@@ -21,21 +21,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   // Hoy según país
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
-  useEffect(() => {
-    const fetchInsights = async () => {
-      if (state.loans.length === 0 || loadingInsights) return;
-      setLoadingInsights(true);
-      try {
-        const data = await getFinancialInsights(state);
-        setInsights(data);
-      } catch (e) {
-        console.error("Error al obtener insights:", e);
-      } finally {
-        setLoadingInsights(false);
-      }
-    };
-    fetchInsights();
-  }, [state.loans.length]);
+  const fetchInsights = async () => {
+    if (loadingInsights) return;
+    setLoadingInsights(true);
+    setInsights(null); // Reset previous insights
+    try {
+      const data = await getFinancialInsights(state);
+      setInsights(data);
+    } catch (e) {
+      console.error("Error al obtener insights:", e);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
 
   const totalPrincipal = (state.loans || []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (state.loans || []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
@@ -350,8 +348,20 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 </div>
               </div>
             ) : (
-              <div className="py-10 text-center opacity-20 border border-dashed border-white/10 rounded-2xl">
-                <p className="text-[8px] font-black uppercase">Sin datos de análisis</p>
+              <div className="py-8 text-center flex flex-col items-center justify-center space-y-3">
+                <div className="p-3 bg-white/5 rounded-full mb-2">
+                  <i className="fa-solid fa-robot text-2xl text-indigo-400"></i>
+                </div>
+                <p className="text-[9px] font-black uppercase text-indigo-200/50 max-w-[200px]">
+                  La Inteligencia Artificial está lista para analizar tus finanzas.
+                </p>
+                <button
+                  onClick={fetchInsights}
+                  className="px-6 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-bolt"></i>
+                  CONSULTAR IA
+                </button>
               </div>
             )}
           </div>
