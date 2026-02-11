@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https',
-    url: 'https://cobros-kqwbje37o-diego-villalbas-projects-829483ce.vercel.app',
+    url: 'https://cobros-anexo-2026.netlify.app/',
     cleartext: true
   },
   plugins: {
