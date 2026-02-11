@@ -6,6 +6,7 @@ let connectedDevice: any = null;
 let printerCharacteristic: any = null;
 let isNativeConnection = false;
 let isCurrentlyPrinting = false;
+let connectionKeeperInterval: any = null; // Interval ID for keep-alive
 
 // Claves para persistencia
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
@@ -15,6 +16,7 @@ const CHUNK_SIZE = 200; // Aumentado para menos iteraciones
 const CHUNK_DELAY = 15; // Reducido drásticamente (antes 100ms) para velocidad
 const CONNECTION_RETRIES = 3; // Menos reintentos pero más rápidos
 const RETRY_DELAY = 500; // 500ms entre intentos iniciales
+const KEEPER_INTERVAL_MS = 8000; // Check connection every 8 seconds
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {
@@ -78,28 +80,28 @@ export const listBondedDevices = async (): Promise<any[]> => {
 };
 
 // 3. Conexión Genérica Robusta
-const attemptNativeConnection = async (address: string, attemptNumber = 1): Promise<boolean> => {
+const attemptNativeConnection = async (address: string, attemptNumber = 1, silent = false): Promise<boolean> => {
     const bs = getBluetoothSerial();
     return new Promise((resolve) => {
-        console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
+        if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
         bs.connect(
             address,
             () => {
-                console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
+                if (!silent) console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
                 isNativeConnection = true;
                 connectedDevice = { address };
                 localStorage.setItem(PRINTER_STORAGE_KEY, address);
                 resolve(true);
             },
             (err: any) => {
-                console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
+                if (!silent) console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
                 resolve(false);
             }
         );
     });
 };
 
-export const connectToPrinter = async (addressOrId?: string, forceReconnect = false): Promise<boolean> => {
+export const connectToPrinter = async (addressOrId?: string, forceReconnect = false, silent = false): Promise<boolean> => {
     // A. Intento Nativo con Retries
     if (await waitForPlugin()) {
         const bs = getBluetoothSerial();
@@ -107,7 +109,7 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
         const targetAddress = addressOrId || savedAddress;
 
         if (!targetAddress) {
-            console.log("No address provided and none saved.");
+            if (!silent) console.log("No address provided and none saved.");
             return false;
         }
 
@@ -115,7 +117,7 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
         if (!forceReconnect) {
             const isConnectedNow = await new Promise<boolean>(r => bs.isConnected(() => r(true), () => r(false)));
             if (isConnectedNow) {
-                console.log('[Bluetooth] Fast Path: Already connected');
+                if (!silent) console.log('[Bluetooth] Fast Path: Already connected');
                 isNativeConnection = true;
                 connectedDevice = { address: targetAddress };
                 return true;
@@ -128,14 +130,14 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
                 await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
                 await sleep(300); // Reduce wait time
             } catch (e) {
-                console.log('[Bluetooth] No previous connection to clear');
+                if (!silent) console.log('[Bluetooth] No previous connection to clear');
             }
         }
 
         // Intentar conectar con retries optimizados
-        console.log(`[Bluetooth] Starting connection to ${targetAddress}...`);
+        if (!silent) console.log(`[Bluetooth] Starting connection to ${targetAddress}...`);
         for (let i = 0; i < CONNECTION_RETRIES; i++) {
-            const success = await attemptNativeConnection(targetAddress, i + 1);
+            const success = await attemptNativeConnection(targetAddress, i + 1, silent);
             if (success) {
                 await sleep(200); // Reduced stabilization delay
                 return true;
@@ -143,7 +145,7 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
             if (i < CONNECTION_RETRIES - 1) {
                 // Faster retries: 500ms, 1000ms, 1500ms
                 const delay = RETRY_DELAY * (i + 1);
-                console.log(`[Bluetooth] Waiting ${delay}ms before retry...`);
+                if (!silent) console.log(`[Bluetooth] Waiting ${delay}ms before retry...`);
                 await sleep(delay);
             }
         }
@@ -257,4 +259,33 @@ export const isPrinterConnected = async (): Promise<boolean> => {
         });
     }
     return !!(connectedDevice && connectedDevice.gatt.connected);
+};
+
+// 5. CONNECTION KEEPER (Nuevo: Mantiene la conexión viva)
+export const startConnectionKeeper = () => {
+    if (connectionKeeperInterval) return; // Already running
+
+    console.log("[Bluetooth Keeper] Starting background connection keeper...");
+    connectionKeeperInterval = setInterval(async () => {
+        // Skip check if printing to avoid interference
+        if (isCurrentlyPrinting) return;
+
+        const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+        if (!savedAddress) return; // Nothing to keep alive
+
+        const connected = await isPrinterConnected();
+        if (!connected) {
+            // Try to reconnect silently
+            console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
+            await connectToPrinter(savedAddress, false, true);
+        }
+    }, KEEPER_INTERVAL_MS);
+};
+
+export const stopConnectionKeeper = () => {
+    if (connectionKeeperInterval) {
+        clearInterval(connectionKeeperInterval);
+        connectionKeeperInterval = null;
+        console.log("[Bluetooth Keeper] Stopped.");
+    }
 };

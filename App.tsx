@@ -25,7 +25,7 @@ import { getTranslation } from './utils/translations';
 import { getLocalDateStringForCountry, generateUUID } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
 import { useSync } from './hooks/useSync';
-import { isPrintingNow } from './services/bluetoothPrinterService';
+import { isPrintingNow, startConnectionKeeper } from './services/bluetoothPrinterService';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import { Geolocation } from '@capacitor/geolocation';
@@ -252,6 +252,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // START BLUETOOTH KEEPER
+    startConnectionKeeper();
+
     const timer = setTimeout(() => {
       console.log("Mount Auto-Pull Triggered");
       doPull();
