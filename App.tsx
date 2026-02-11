@@ -255,6 +255,16 @@ const App: React.FC = () => {
     // START BLUETOOTH KEEPER
     startConnectionKeeper();
 
+    // BACKGROUND/RESUME HANDLER
+    const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive) {
+        console.log("App resumed: Checking Bluetooth connection...");
+        // Reconnect silently if needed
+        const { connectToPrinter } = await import('./services/bluetoothPrinterService');
+        connectToPrinter(undefined, false, true);
+      }
+    });
+
     const timer = setTimeout(() => {
       console.log("Mount Auto-Pull Triggered");
       doPull();
@@ -265,6 +275,7 @@ const App: React.FC = () => {
     return () => {
       clearTimeout(timer);
       window.removeEventListener('focus', doPull);
+      resumeListener.then(handle => handle.remove());
     };
   }, []);
 
