@@ -341,7 +341,6 @@ MARCA: ${alias}
 TEL. PUBLICO: ${phone}
 ID EMPRESA: ${idValue}
 ${bankLabel}: ${bankValue}
-SOPORTE TECNICO: ${support}
 ===============================
 FECHA: ${formatFullDateTime(settings.country)}
 CLIENTE: ${data.clientName.toUpperCase()}
