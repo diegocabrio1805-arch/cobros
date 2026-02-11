@@ -292,17 +292,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           paidInstallments: paidInstCount,
           totalInstallments: loan.totalInstallments,
           isRenewal,
-          // Pre-populate with settings
-          companyNameManual: state.settings.companyName,
-          companyAliasManual: state.settings.companyAlias,
+          // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
+          companyNameManual: state.settings.companyName || null,
+          companyAliasManual: state.settings.companyAlias || null,
           contactLabelManual: "TEL. PUBLICO",
-          contactPhoneManual: state.settings.contactPhone,
+          contactPhoneManual: state.settings.contactPhone || null,
           companyIdentifierLabelManual: "ID EMPRESA",
-          companyIdentifierManual: state.settings.companyIdentifier,
-          shareLabelManual: state.settings.shareLabel || "BANCO",
-          shareValueManual: state.settings.shareValue,
+          companyIdentifierManual: state.settings.companyIdentifier || null,
+          shareLabelManual: state.settings.shareLabel || null,
+          shareValueManual: state.settings.shareValue || null,
           supportLabelManual: "NUMERO CO",
-          supportPhoneManual: state.settings.technicalSupportPhone,
+          supportPhoneManual: state.settings.technicalSupportPhone || null,
           fullDateTimeManual: new Date().toLocaleString()
         };
 
@@ -379,16 +379,16 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       totalInstallments: loan.totalInstallments,
       isRenewal: lastPaymentLog.isRenewal,
       // Pre-populate with settings
-      companyNameManual: state.settings.companyName,
-      companyAliasManual: state.settings.companyAlias,
+      companyNameManual: state.settings.companyName || null,
+      companyAliasManual: state.settings.companyAlias || null,
       contactLabelManual: "TEL. PUBLICO",
-      contactPhoneManual: state.settings.contactPhone,
+      contactPhoneManual: state.settings.contactPhone || null,
       companyIdentifierLabelManual: "ID EMPRESA",
-      companyIdentifierManual: state.settings.companyIdentifier,
-      shareLabelManual: state.settings.shareLabel || "BANCO",
-      shareValueManual: state.settings.shareValue,
+      companyIdentifierManual: state.settings.companyIdentifier || null,
+      shareLabelManual: state.settings.shareLabel || null,
+      shareValueManual: state.settings.shareValue || null,
       supportLabelManual: "NUMERO CO",
-      supportPhoneManual: state.settings.technicalSupportPhone,
+      supportPhoneManual: state.settings.technicalSupportPhone || null,
       fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
     });
   };

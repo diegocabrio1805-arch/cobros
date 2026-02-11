@@ -1097,7 +1097,7 @@ const App: React.FC = () => {
           {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
           {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
           {activeTab === 'settings' && <Settings
-            state={state}
+            state={filteredState}
             updateSettings={updateSettings}
             setActiveTab={setActiveTab}
             onForceSync={() => handleForceSync(true)}
