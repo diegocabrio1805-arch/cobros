@@ -301,15 +301,23 @@ export const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): 
 export interface ReceiptData {
   clientName: string;
   amountPaid: number;
-  previousBalance: number; // Nuevo
+  previousBalance: number;
   loanId: string;
-  startDate: string; // Nuevo
+  startDate: string;
   expiryDate: string;
   daysOverdue: number;
   remainingBalance: number;
   paidInstallments: number;
   totalInstallments: number;
   isRenewal?: boolean;
+  // Manual overrides
+  companyNameManual?: string;
+  companyAliasManual?: string;
+  contactPhoneManual?: string;
+  companyIdentifierManual?: string;
+  shareLabelManual?: string;
+  shareValueManual?: string;
+  fullDateTimeManual?: string;
 }
 
 export const generateReceiptText = (data: ReceiptData, settings: AppSettings) => {
@@ -321,17 +329,18 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
     return result;
   };
 
-  const company = format((settings.companyName || 'ANEXO COBRO').toUpperCase(), settings.companyNameBold, settings.companyNameSize);
-  const alias = (settings.companyAlias || '---').toUpperCase();
-  // Fix: TEL. PUBLICO should be contactPhone based on Settings UI
-  const phone = format(settings.contactPhone || '---', settings.contactPhoneBold);
-  const support = settings.technicalSupportPhone || '---';
-  const idValue = format(settings.companyIdentifier || '---', settings.companyIdentifierBold);
+  const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRO';
+  const company = format(companyRaw.toUpperCase(), settings.companyNameBold, settings.companyNameSize);
 
-  const bankLabel = format((settings.shareLabel || 'BANCO').toUpperCase(), settings.shareLabelBold, settings.shareLabelSize);
-  const bankValue = format((settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
+  const alias = (data.companyAliasManual || settings.companyAlias || '---').toUpperCase();
+  const phone = format(data.contactPhoneManual || settings.contactPhone || '---', settings.contactPhoneBold);
+  const idValue = format(data.companyIdentifierManual || settings.companyIdentifier || '---', settings.companyIdentifierBold);
+
+  const bankLabel = format((data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase(), settings.shareLabelBold, settings.shareLabelSize);
+  const bankValue = format((data.shareValueManual || settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
   const currencySymbol = settings.currencySymbol || '$';
+  const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
 
   return `
 ===============================
@@ -341,9 +350,8 @@ MARCA: ${alias}
 TEL. PUBLICO: ${phone}
 ID EMPRESA: ${idValue}
 ${bankLabel}: ${bankValue}
-VER: AGENT-FIX
 ===============================
-FECHA: ${formatFullDateTime(settings.country)}
+FECHA: ${dateTime}
 CLIENTE: ${data.clientName.toUpperCase()}
 ===============================
 SALDO ANT: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}

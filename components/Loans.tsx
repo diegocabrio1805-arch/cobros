@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
@@ -26,6 +26,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   const [isVirtualPayment, setIsVirtualPayment] = useState(false);
   const [isRenewalPayment, setIsRenewalPayment] = useState(false);
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [editingReceipt, setEditingReceipt] = useState<ReceiptData | null>(null);
   const [lastLogId, setLastLogId] = useState<string | null>(null);
 
   // PAGINATION LOGIC
@@ -94,6 +95,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
   const resetUI = () => {
     setReceipt(null);
+    setEditingReceipt(null);
     setLastLogId(null);
     setShowPaymentInput(false);
     setSelectedLoanId(null);
@@ -280,7 +282,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
         const overdueDays = getDaysOverdue(loan, state.settings, totalPaidHistory);
 
-        const receiptText = generateReceiptText({
+        const receiptData: ReceiptData = {
           clientName: client.name,
           amountPaid: amountToPay,
           previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToPay)),
@@ -292,20 +294,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           paidInstallments: paidInstCount,
           totalInstallments: loan.totalInstallments,
           isRenewal
-        }, state.settings);
+        };
 
-        // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
-        setReceipt(receiptText);
-
-        // Attempt Automatic Print (Silent)
-        const { printText } = await import('../services/bluetoothPrinterService');
-        // We don't block UI on this, just try it.
-        printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
-
-        const phone = client.phone.replace(/\D/g, '');
-        // WhatsApp opens in external app usually, checking settings
-        window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
-
+        // Open the editor instead of generating immediate text
+        setEditingReceipt(receiptData);
+        setShowPaymentInput(false);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
         if (client.customNoPayMessage) {
@@ -362,8 +355,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const progress = totalPaidAtThatMoment / (loan.installmentValue || 1);
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
-    // 3. Generar Texto
-    const receiptText = generateReceiptText({
+    // 3. Open editor
+    setEditingReceipt({
       clientName: client.name,
       amountPaid: amountPaidInLastLog,
       previousBalance: Math.max(0, loan.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
@@ -375,17 +368,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       paidInstallments: paidInstCount,
       totalInstallments: loan.totalInstallments,
       isRenewal: lastPaymentLog.isRenewal
-    }, state.settings);
-
-    // 4. Imprimir vía Bluetooth
-    const { printText } = await import('../services/bluetoothPrinterService');
-    try {
-      await printText(receiptText);
-      alert("Reimpresi\u00f3n enviada a la impresora.");
-    } catch (printErr) {
-      console.error("Error direct printing:", printErr);
-      alert("Error: No se pudo conectar con la impresora Bluetooth.");
-    }
+    });
   };
 
   return (
@@ -711,6 +694,215 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <input type="number" autoFocus value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-2xl md:rounded-[2.5rem] text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
               </div>
               <button onClick={() => selectedLoanId && handleQuickAction(selectedLoanId, CollectionLogType.PAYMENT, paymentAmount, isVirtualPayment, isRenewalPayment)} disabled={isProcessingPayment} className="w-full py-4 md:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl md:rounded-[2rem] font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-50">{isProcessingPayment ? <i className="fa-solid fa-circle-notch animate-spin mr-2"></i> : 'Confirmar Cobro'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingReceipt && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[170] p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn border border-white/20">
+            <div className="p-5 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
+              <div>
+                <h3 className="text-base font-black uppercase tracking-tighter leading-none">Editor de Recibo</h3>
+                <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mt-1">Verifique y edite los datos</p>
+              </div>
+              <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto bg-slate-50 custom-scrollbar">
+              {/* SECCIÓN EMPRESA */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-2">Datos de Empresa</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.companyNameManual ?? state.settings.companyName ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, companyNameManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Marca</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.companyAliasManual ?? state.settings.companyAlias ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, companyAliasManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Soporte/Tel</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.contactPhoneManual ?? state.settings.contactPhone ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, contactPhoneManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">ID Legal</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.companyIdentifierManual ?? state.settings.companyIdentifier ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta Banco</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.shareLabelManual ?? state.settings.shareLabel ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, shareLabelManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuenta/Alias</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.shareValueManual ?? state.settings.shareValue ?? ''}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, shareValueManual: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECCIÓN CLIENTE Y FECHAS */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 pb-2">Datos del Cliente e Importes</h4>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Cliente</label>
+                    <input
+                      type="text"
+                      value={editingReceipt.clientName}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, clientName: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha/Hora Recibo</label>
+                      <input
+                        type="text"
+                        value={editingReceipt.fullDateTimeManual ?? ''}
+                        placeholder="Automático si está vacío"
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, fullDateTimeManual: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Mora (días)</label>
+                      <input
+                        type="number"
+                        value={editingReceipt.daysOverdue}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, daysOverdue: Number(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Inicio Préstamo</label>
+                      <input
+                        type="text"
+                        value={editingReceipt.startDate}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, startDate: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimiento</label>
+                      <input
+                        type="text"
+                        value={editingReceipt.expiryDate}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, expiryDate: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Saldo Anterior</label>
+                    <input
+                      type="number"
+                      value={editingReceipt.previousBalance}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, previousBalance: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Abono</label>
+                    <input
+                      type="number"
+                      value={editingReceipt.amountPaid}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, amountPaid: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Saldo Actual</label>
+                    <input
+                      type="number"
+                      value={editingReceipt.remainingBalance}
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, remainingBalance: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuotas (Pagas / Total)</label>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        value={editingReceipt.paidInstallments}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, paidInstallments: Number(e.target.value) })}
+                        className="w-full px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 text-center"
+                      />
+                      <span className="text-slate-400 flex items-center">/</span>
+                      <input
+                        type="number"
+                        value={editingReceipt.totalInstallments}
+                        onChange={(e) => setEditingReceipt({ ...editingReceipt, totalInstallments: Number(e.target.value) })}
+                        className="w-full px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 bg-white border-t border-slate-100 flex gap-3">
+              <button
+                onClick={async () => {
+                  if (!editingReceipt) return;
+                  const finalReceipt = generateReceiptText(editingReceipt, state.settings);
+                  setReceipt(finalReceipt);
+                  setEditingReceipt(null);
+
+                  // Silent print
+                  const { printText } = await import('../services/bluetoothPrinterService');
+                  printText(finalReceipt).catch(() => { });
+
+                  // WhatsApp
+                  const client = state.clients.find(c => c.name === editingReceipt.clientName);
+                  if (client) {
+                    const phone = client.phone.replace(/\D/g, '');
+                    window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+                  }
+                }}
+                className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-paper-plane"></i> FINALIZAR Y ENVIAR
+              </button>
             </div>
           </div>
         </div>
