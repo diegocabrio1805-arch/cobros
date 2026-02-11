@@ -318,7 +318,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const phone = settings.contactPhone || '---';
   const support = settings.technicalSupportPhone || '---';
   const idValue = settings.companyIdentifier || '---';
-  const banco = (settings.transferAlias || '---').toUpperCase();
+
   const currencySymbol = settings.currencySymbol || '$';
 
   return `
@@ -328,7 +328,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
 MARCA: ${alias}
 TEL. PUBLICO: ${support}
 ID EMPRESA: ${idValue}
-BANCO: ${banco}
+${(settings.shareLabel || 'BANCO').toUpperCase()}: ${(settings.shareValue || '---').toUpperCase()}
 NUMERO CO: ${phone}
 ===============================
 FECHA: ${formatFullDateTime(settings.country)}
