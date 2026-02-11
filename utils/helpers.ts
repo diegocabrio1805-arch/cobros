@@ -313,23 +313,35 @@ export interface ReceiptData {
 }
 
 export const generateReceiptText = (data: ReceiptData, settings: AppSettings) => {
-  const company = (settings.companyName || 'ANEXO COBRO').toUpperCase();
+  const format = (text: string, bold?: boolean, size?: 'normal' | 'medium' | 'large') => {
+    let result = text;
+    if (bold) result = `<B1>${result}<B0>`;
+    if (size === 'large') result = `<GS1>${result}<GS0>`;
+    if (size === 'medium') result = `<GS2>${result}<GS0>`;
+    return result;
+  };
+
+  const company = format((settings.companyName || 'ANEXO COBRO').toUpperCase(), settings.companyNameBold, settings.companyNameSize);
   const alias = (settings.companyAlias || '---').toUpperCase();
-  const phone = settings.contactPhone || '---';
+  // Fix: TEL. PUBLICO should be contactPhone based on Settings UI
+  const phone = format(settings.contactPhone || '---', settings.contactPhoneBold);
   const support = settings.technicalSupportPhone || '---';
-  const idValue = settings.companyIdentifier || '---';
+  const idValue = format(settings.companyIdentifier || '---', settings.companyIdentifierBold);
+
+  const bankLabel = format((settings.shareLabel || 'BANCO').toUpperCase(), settings.shareLabelBold, settings.shareLabelSize);
+  const bankValue = format((settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
   const currencySymbol = settings.currencySymbol || '$';
 
   return `
 ===============================
-       ${company}
+${company}
 ===============================
 MARCA: ${alias}
-TEL. PUBLICO: ${support}
+TEL. PUBLICO: ${phone}
 ID EMPRESA: ${idValue}
-${(settings.shareLabel || 'BANCO').toUpperCase()}: ${(settings.shareValue || '---').toUpperCase()}
-NUMERO CO: ${phone}
+${bankLabel}: ${bankValue}
+SOPORTE TECNICO: ${support}
 ===============================
 FECHA: ${formatFullDateTime(settings.country)}
 CLIENTE: ${data.clientName.toUpperCase()}
