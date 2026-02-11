@@ -253,6 +253,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         const receiptText = generateReceiptText({
           clientName: client.name,
           amountPaid: amountToApply,
+          previousBalance: Math.max(0, (loan.totalAmount || 0) - (totalPaidHistory - amountToApply)),
           loanId,
           startDate: loan.createdAt,
           expiryDate: lastDueDate,

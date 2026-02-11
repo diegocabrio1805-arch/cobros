@@ -283,6 +283,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         const receiptText = generateReceiptText({
           clientName: client.name,
           amountPaid: amountToPay,
+          previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: loan.id,
           startDate: loan.createdAt,
           expiryDate,
@@ -365,6 +366,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const receiptText = generateReceiptText({
       clientName: client.name,
       amountPaid: amountPaidInLastLog,
+      previousBalance: Math.max(0, loan.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
       loanId: loan.id,
       startDate: loan.createdAt,
       expiryDate: lastDueDate,
