@@ -424,29 +424,71 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }).sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   }, [state.clients, filterStartDate, filterEndDate, viewMode]);
 
-  // VISTA EXCEL: RENOVACIONES EN RANGO
+  // VISTA EXCEL: RENOVACIONES EN RANGO - FIX: Incluir tanto préstamos nuevos como logs de pagos marcados como "Renovación"
   const renovacionesExcelData = useMemo(() => {
     if (viewMode !== 'renovaciones') return [];
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
-    return state.loans.filter(loan => {
+    const results: any[] = [];
+
+    // 1. Préstamos creados explícitamente como renovación (handleRenewLoan)
+    state.loans.forEach(loan => {
       const client = state.clients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return false;
+      if (!client || client.isHidden) return;
+
       const lDate = new Date(loan.createdAt);
       const inRange = loan.isRenewal && lDate >= start && lDate <= end;
-      if (!inRange) return false;
 
-      if (selectedCollector !== 'all') {
-        return loan.collectorId === selectedCollector;
+      if (inRange) {
+        if (selectedCollector === 'all' || loan.collectorId === selectedCollector || client.addedBy === selectedCollector) {
+          results.push({
+            ...client,
+            _loan: loan,
+            _metrics: getClientMetrics(client),
+            _type: 'loan_creation'
+          });
+        }
       }
-      return true;
-    }).map(loan => {
-      const client = state.clients.find(c => c.id === loan.clientId);
-      const metrics = getClientMetrics(client!);
-      return { ...client, _loan: loan, _metrics: metrics };
-    }).sort((a, b) => new Date(b._loan!.createdAt).getTime() - new Date(a._loan!.createdAt).getTime());
-  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode]);
+    });
+
+    // 2. Registros de cobro marcados como renovación (handleDossierAction - "Renovar")
+    // Estos son pagos que cierran un crédito para renovar, el usuario quiere verlos también
+    state.collectionLogs.forEach(log => {
+      if (log.type === CollectionLogType.PAYMENT && log.isRenewal && !log.deletedAt) {
+        const logDate = new Date(log.date);
+        if (logDate >= start && logDate <= end) {
+          const loan = state.loans.find(l => l.id === log.loanId);
+          if (loan) {
+            const client = state.clients.find(c => c.id === loan.clientId);
+            if (client && !client.isHidden) {
+              if (selectedCollector === 'all' || loan.collectorId === selectedCollector || client.addedBy === selectedCollector) {
+                // Construimos un objeto visual que representa esta transacción
+                // "Monto Renovado" será el monto PAGADO en este caso
+                const displayLoan = {
+                  ...loan,
+                  createdAt: log.date, // Mostramos fecha del pago
+                  principal: log.amount || 0, // Mostramos lo que pagó para renovar
+                  totalInstallments: loan.totalInstallments,
+                  totalAmount: loan.totalAmount
+                };
+
+                results.push({
+                  ...client,
+                  _loan: displayLoan,
+                  _metrics: getClientMetrics(client),
+                  _type: 'renewal_payment'
+                });
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Ordenar por fecha más reciente
+    return results.sort((a, b) => new Date(b._loan!.createdAt).getTime() - new Date(a._loan!.createdAt).getTime());
+  }, [state.loans, state.collectionLogs, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {

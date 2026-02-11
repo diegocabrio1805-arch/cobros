@@ -359,35 +359,34 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const supportValue = format(data.supportPhoneManual || settings.technicalSupportPhone || '---', false);
 
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
+  const [datePart, timePart] = dateTime.split(','); // Assuming format like "DD/MM/YYYY, HH:MM:SS AM/PM" or similar
 
   const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
   return `
 ===============================
+${bankLabel}
+${idLabel.includes('CUENTA') || bankLabel.includes('CUENTA') ? 'NUMERO DE CUENTA' : 'CUENTA'}: ${bankValue}
+===============================
 ${company}
 ===============================
-${aliasLabel}: ${alias}
+CLIENTE: ${data.clientName.toUpperCase()}
+FECHA: ${datePart ? datePart.trim() : dateTime}
+HORA: ${timePart ? timePart.trim() : '---'}
+===============================
+SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
+ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
+SALDO ACTUAL: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+===============================
+FECHA DE INICIO: ${formatDate(data.startDate)}
+FECHA DE VENCIMIENTO: ${formatDate(data.expiryDate)}
+DIAS DE MORA: ${data.daysOverdue} dias
+===============================
 ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
-${bankLabel}: ${bankValue}
-${supportLabel}: ${supportValue}
-===============================
-FECHA: ${dateTime}
-CLIENTE: ${data.clientName.toUpperCase()}
-===============================
-SALDO ANT: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
-ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
-SALDO ACT: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
-===============================
-INICIO: ${formatDate(data.startDate)}
-VENCE: ${formatDate(data.expiryDate)}
-CUOTAS PAGADAS: ${data.paidInstallments}
-CUOTAS A PAGAR: ${remainingInst}
-TOTAL CUOTAS: ${data.totalInstallments}
-DIAS DE ATRASO: ${data.daysOverdue} dias
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.27-ULTRA
+VER: v6.1.28-ULTRA
 `;
 };
 

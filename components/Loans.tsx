@@ -17,7 +17,7 @@ interface LoansProps {
 }
 
 const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync }) => {
-  const [viewMode, setViewMode] = useState<'gestion' | 'vencidos' | 'ocultos'>('gestion');
+  const [viewMode, setViewMode] = useState<'gestion' | 'renovaciones' | 'vencidos' | 'ocultos'>('gestion');
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPaymentInput, setShowPaymentInput] = useState(false);
@@ -51,12 +51,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         return matchesSearch && getDaysOverdue(loan, state.settings) > 0;
       }
 
+      if (viewMode === 'renovaciones') {
+        // Solo mostrar créditos marcados como renovaciones
+        return matchesSearch && loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
+      }
+
       const totalPaidOnLoan = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
       const isActuallyPaid = loan.status === LoanStatus.PAID || (loan.totalAmount - totalPaidOnLoan) <= 0.01;
       return matchesSearch && !isActuallyPaid;
     }).sort((a, b) => {
       if (viewMode === 'vencidos') {
         return getDaysOverdue(b, state.settings) - getDaysOverdue(a, state.settings);
+      }
+      // Ordenar por fecha de creación para renovaciones (más recientes primero)
+      if (viewMode === 'renovaciones') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       return 0;
     });
@@ -396,24 +405,31 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   return (
     <div className="space-y-4 md:space-y-6 pb-20 animate-fadeIn px-1">
       {/* SELECTOR DE OPCIONES DE COBRO */}
-      <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-1">
+      <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
         <button
           onClick={() => setViewMode('gestion')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-hand-holding-dollar"></i>
           GESTIÓN
         </button>
         <button
+          onClick={() => setViewMode('renovaciones')}
+          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'renovaciones' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+        >
+          <i className="fa-solid fa-rotate"></i>
+          RENOVADOS
+        </button>
+        <button
           onClick={() => setViewMode('vencidos')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-calendar-xmark"></i>
           VENCIDOS
         </button>
         <button
           onClick={() => setViewMode('ocultos')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-eye-slash"></i>
           OCULTOS
@@ -423,11 +439,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="w-full md:w-auto text-center md:text-left">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center justify-center md:justify-start gap-3">
-            <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-money-bill-wave text-blue-600' : viewMode === 'vencidos' ? 'fa-triangle-exclamation text-red-600' : 'fa-eye-slash text-slate-900'}`}></i>
-            {viewMode === 'gestion' ? t.loans.title : viewMode === 'vencidos' ? 'Cartera Vencida' : 'Clientes Ocultos'}
+            <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-money-bill-wave text-blue-600' : viewMode === 'renovaciones' ? 'fa-rotate text-emerald-600' : viewMode === 'vencidos' ? 'fa-triangle-exclamation text-red-600' : 'fa-eye-slash text-slate-900'}`}></i>
+            {viewMode === 'gestion' ? t.loans.title : viewMode === 'renovaciones' ? 'Renovaciones' : viewMode === 'vencidos' ? 'Cartera Vencida' : 'Clientes Ocultos'}
           </h2>
           <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-            {viewMode === 'gestion' ? t.loans.subtitle : viewMode === 'vencidos' ? 'Créditos con pagos atrasados' : 'Base de datos de clientes archivados'}
+            {viewMode === 'gestion' ? t.loans.subtitle : viewMode === 'renovaciones' ? 'Créditos renovados activos' : viewMode === 'vencidos' ? 'Créditos con pagos atrasados' : 'Base de datos de clientes archivados'}
           </p>
         </div>
 
@@ -454,13 +470,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         </div>
       </div>
 
-      {viewMode === 'gestion' && (
+      {(viewMode === 'gestion' || viewMode === 'renovaciones') && (
         <>
           <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {paginatedLoans.length === 0 ? (
               <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center px-4">
                 <i className="fa-solid fa-folder-open text-4xl md:text-5xl mb-4 opacity-10"></i>
-                <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">Sin cobros pendientes encontrados</p>
+                <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">
+                  {viewMode === 'renovaciones' ? 'Sin renovaciones activas encontradas' : 'Sin cobros pendientes encontrados'}
+                </p>
               </div>
             ) : (
               paginatedLoans.map((loan) => {
