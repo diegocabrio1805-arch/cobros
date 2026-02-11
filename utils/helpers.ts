@@ -341,13 +341,19 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const alias = (data.companyAliasManual || settings.companyAlias || '---').toUpperCase();
 
   const contactLabel = data.contactLabelManual || "TEL. PUBLICO";
-  const phone = format(data.contactPhoneManual || settings.contactPhone || '---', settings.contactPhoneBold);
+  let phone = data.contactPhoneManual || settings.contactPhone || '---';
+  // Fallback extra robust if it's still empty but we have it in settings
+  if (phone === '---' && settings.contactPhone) phone = settings.contactPhone;
+  const formattedPhone = format(phone, settings.contactPhoneBold);
 
   const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
   const idValue = format(data.companyIdentifierManual || settings.companyIdentifier || '---', settings.companyIdentifierBold);
 
   const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
-  const bankValue = format((data.shareValueManual || settings.shareValue || '---').toUpperCase(), settings.shareValueBold, settings.shareValueSize);
+  let bankVal = data.shareValueManual || settings.shareValue || '---';
+  // Fallback extra robust
+  if (bankVal === '---' && settings.shareValue) bankVal = settings.shareValue;
+  const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
   const supportLabel = (data.supportLabelManual || "NUMERO CO").toUpperCase();
   const supportValue = format(data.supportPhoneManual || settings.technicalSupportPhone || '---', false);
@@ -361,7 +367,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
 ${company}
 ===============================
 ${aliasLabel}: ${alias}
-${contactLabel}: ${phone}
+${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ${bankLabel}: ${bankValue}
 ${supportLabel}: ${supportValue}
@@ -381,6 +387,7 @@ TOTAL CUOTAS: ${data.totalInstallments}
 DIAS DE ATRASO: ${data.daysOverdue} dias
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
+VER: v6.1.27-ULTRA
 `;
 };
 
