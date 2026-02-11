@@ -634,7 +634,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <p className="text-3xl font-black text-red-600 font-mono">{formatCurrency(balance, state.settings)}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">DÍAS EN ATRASO:</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">DÍAS EN MORA:</p>
                     <p className="text-3xl font-black text-slate-900">{daysOverdue} días</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
