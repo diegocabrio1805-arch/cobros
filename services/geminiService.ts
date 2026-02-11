@@ -119,32 +119,9 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
 export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, daysOverdue: number, settings?: AppSettings) => {
   const totalPaid = loan.installments.reduce((acc, i) => acc + i.paidAmount, 0);
   const balance = loan.totalAmount - totalPaid;
+  const companyName = settings?.companyName || 'ANEXO COBRO';
 
-  const prompt = `
-    Eres el asistente de cobranza de "ANEXO COBRO". Un cobrador acaba de visitar al cliente ${client.name} y NO se registró un pago hoy.
-    Usa el formato numérico: ${settings?.numberFormat === 'comma' ? '1,000,000.00' : '1.000.000,00'}.
-    
-    Debes redactar un mensaje de WhatsApp MUY EDUCADO, amable pero profesional.
-    Pídele por favor que intente realizar su abono lo antes posible para evitar recargos o afectar su historial.
-    
-    DATOS PARA INCLUIR:
-    - Saldo pendiente actual: ${formatCurrency(balance, settings)}
-    - Días de atraso registrados: ${daysOverdue} días
-    
-    INSTRUCCIONES:
-    - Usa un tono empático ("entendemos que pueden surgir inconvenientes").
-    - Pide "por favor" que abone.
-    - Resalta la importancia de estar al día.
-    - Firma como: Equipo de Gestión - ANEXO COBRO.
-    
-    RESPONDE SOLAMENTE CON EL TEXTO DEL MENSAJE.
-  `;
-
-  try {
-    const text = await fetchGemini(prompt);
-    return text || "Mensaje de recordatorio no disponible.";
-  } catch (error) {
-    console.error("No Payment AI Error:", error);
-    return `Hola ${client.name}, registramos que hoy no se pudo realizar su abono. Por favor, trate de ponerse al día con su saldo de ${formatCurrency(balance, settings)}. Atentamente, ANEXO COBRO.`;
-  }
+  // Template solicitado por usuario:
+  // "Hola (nombre) registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo (saldo) ATENTAMENTE (empresa)"
+  return `Hola ${client.name} registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo ${formatCurrency(balance, settings)} ATENTAMENTE ${companyName.toUpperCase()}`;
 };
