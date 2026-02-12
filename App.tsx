@@ -87,7 +87,7 @@ const App: React.FC = () => {
     }
 
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
-    const users = (rawData?.users || [initialAdmin]).map((u: any) => ({ ...u, role: u.role === 'admin' ? Role.ADMIN : u.role }));
+    const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({ ...u, role: u.role === 'admin' ? Role.ADMIN : u.role }));
 
     return {
       clients: rawData?.clients || [],

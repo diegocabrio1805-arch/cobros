@@ -267,7 +267,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const totalAmount = calculateTotalReturn(p, i);
       const installmentValue = inst > 0 ? totalAmount / inst : 0;
 
-      const updatedInstallments = table.map(newInst => {
+      const updatedInstallments = (Array.isArray(table) ? table : []).map(newInst => {
         const existing = (editLoanFormData.installments || []).find((e: any) => e.number === newInst.number);
         if (existing) {
           return { ...newInst, paidAmount: existing.paidAmount, status: existing.status };

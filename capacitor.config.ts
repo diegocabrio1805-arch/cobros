@@ -10,9 +10,10 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   server: {
-    androidScheme: 'https',
+    // androidScheme: 'https', // Comentado para evitar conflictos con server.url
     url: 'https://cobros-anexo-2026.netlify.app/',
-    cleartext: true
+    cleartext: true,
+    allowNavigation: ['*']
   },
   plugins: {
     SplashScreen: {
