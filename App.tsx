@@ -50,14 +50,14 @@ const App: React.FC = () => {
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
     // --- CONSTANTS ---
-    const CURRENT_VERSION_ID = 'v6.1.40-ULTRA-PWA-REDUX'; // <--- UPDATED VERSION
+    const CURRENT_VERSION_ID = 'v6.1.42-ULTRA-PWA-REDUX'; // <--- UPDATED VERSION
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
-    const RESET_ID = '2026-02-10-ULTRA-PURGE-V2-ARMAGEDON';
+    const RESET_ID = '2026-02-12-ULTRA-PURGE-V3-FINAL';
 
     try {
       // FIX: Comparación estricta para asegurar que CUALQUIER cambio de versión limpie la cache vieja
       if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-        console.log("App v6.1.14: Version mismatch detected. PURGING CACHE...");
+        console.log("App v6.1.42: Version mismatch detected. PURGING CACHE...");
         localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
