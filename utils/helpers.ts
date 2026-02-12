@@ -378,6 +378,9 @@ SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
 ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
 SALDO ACTUAL: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
+CUOTAS PAGADAS: ${data.paidInstallments}
+CUOTAS TOTALES: ${data.totalInstallments}
+===============================
 FECHA DE INICIO: ${formatDate(data.startDate)}
 FECHA DE VENCIMIENTO: ${formatDate(data.expiryDate)}
 DIAS DE MORA: ${data.daysOverdue} dias
@@ -386,7 +389,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.28-ULTRA
+VER: v6.1.36-ULTRA
 `;
 };
 

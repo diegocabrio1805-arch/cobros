@@ -248,7 +248,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
         // Cuotas pagadas basadas en el dinero total / valor cuota
         const progress = totalPaidHistory / (loan.installmentValue || 1);
-        const formattedProgress = progress % 1 === 0 ? progress.toString() : progress.toFixed(1);
+        const formattedProgress = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
         const receiptText = generateReceiptText({
           clientName: client.name,
