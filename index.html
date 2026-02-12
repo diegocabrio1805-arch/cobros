@@ -31,9 +31,18 @@
       if (lastId !== BUILD_ID) {
         console.warn("Update Detected. Force Clearing Cache and Service Workers...");
 
+        // Prevent infinite loop if clearing storage fails
+        const reloadCount = parseInt(sessionStorage.getItem('version_reload_count') || '0');
+        if (reloadCount >= 3) {
+          console.error("Too many reloads for version update. Stopping.");
+          localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID); // Try to force it
+          return;
+        }
+        sessionStorage.setItem('version_reload_count', (reloadCount + 1).toString());
+
         // Purga Masiva
         localStorage.clear();
-        sessionStorage.clear();
+        // sessionStorage.clear(); // Don't clear session storage here as we use it for loop prevention
         localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID);
 
         if ('serviceWorker' in navigator) {
@@ -42,12 +51,13 @@
               console.log("Unregistering old SW:", r);
               r.unregister();
             }
-            // Forzar recarga desde servidor ignorando caché
-            window.location.replace(window.location.href + '?v=' + Date.now());
+            window.location.reload(true);
           });
           return;
         }
-        window.location.replace(window.location.href + '?v=' + Date.now());
+        window.location.reload(true);
+      } else {
+        sessionStorage.removeItem('version_reload_count'); // Clear counter on success
       }
     })();
 
