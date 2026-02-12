@@ -328,12 +328,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const activeLoanInLegajo = useMemo(() => {
     if (!showLegajo) return null;
-    return state.loans.find(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    return (state.loans || []).find(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
   }, [showLegajo, state.loans]);
 
   const clientHistory = useMemo(() => {
     if (!showLegajo) return [];
-    return state.collectionLogs
+    return (state.collectionLogs || [])
       .filter(log => log.clientId === showLegajo && !log.deletedAt)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [showLegajo, state.collectionLogs]);
@@ -433,8 +433,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const results: any[] = [];
 
     // 1. Préstamos creados explícitamente como renovación (handleRenewLoan)
-    state.loans.forEach(loan => {
-      const client = state.clients.find(c => c.id === loan.clientId);
+    (state.loans || []).forEach(loan => {
+      const client = (state.clients || []).find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return;
 
       const lDate = new Date(loan.createdAt);
@@ -454,13 +454,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     // 2. Registros de cobro marcados como renovación (handleDossierAction - "Renovar")
     // Estos son pagos que cierran un crédito para renovar, el usuario quiere verlos también
-    state.collectionLogs.forEach(log => {
+    (state.collectionLogs || []).forEach(log => {
       if (log.type === CollectionLogType.PAYMENT && log.isRenewal && !log.deletedAt) {
         const logDate = new Date(log.date);
         if (logDate >= start && logDate <= end) {
-          const loan = state.loans.find(l => l.id === log.loanId);
+          const loan = (state.loans || []).find(l => l.id === log.loanId);
           if (loan) {
-            const client = state.clients.find(c => c.id === loan.clientId);
+            const client = (state.clients || []).find(c => c.id === loan.clientId);
             if (client && !client.isHidden) {
               if (selectedCollector === 'all' || loan.collectorId === selectedCollector || client.addedBy === selectedCollector) {
                 // Construimos un objeto visual que representa esta transacción

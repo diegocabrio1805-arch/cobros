@@ -50,7 +50,7 @@ const App: React.FC = () => {
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
     // --- CONSTANTS ---
-    const CURRENT_VERSION_ID = 'v6.1.39-ULTRA-PWA'; // <--- UPDATED VERSION
+    const CURRENT_VERSION_ID = 'v6.1.40-ULTRA-PWA-REDUX'; // <--- UPDATED VERSION
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-ULTRA-PURGE-V2-ARMAGEDON';
 

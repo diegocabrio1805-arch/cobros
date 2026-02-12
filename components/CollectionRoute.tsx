@@ -44,7 +44,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   }, [startDate, endDate, countryTodayStr]);
 
   const routeLoans = useMemo(() => {
-    let loans = state.loans.filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT);
+    let loans = (state.loans || []).filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT);
     if (isAdminOrManager && selectedCollectorFilter !== 'all') {
       loans = loans.filter(l => l.collectorId === selectedCollectorFilter);
     }
@@ -78,7 +78,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     // OPTIMIZATION: Index logs by loanId once to avoid O(n^2) behavior
     const logsByLoan = useMemo(() => {
       const map: Record<string, CollectionLog[]> = {};
-      state.collectionLogs.forEach(log => {
+      (state.collectionLogs || []).forEach(log => {
         if (!log.deletedAt) {
           if (!map[log.loanId]) map[log.loanId] = [];
           map[log.loanId].push(log);
@@ -88,7 +88,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     }, [state.collectionLogs]);
 
     return routeLoans.map(loan => {
-      const client = state.clients.find(c => c.id === loan.clientId);
+      const client = (state.clients || []).find(c => c.id === loan.clientId);
       const loanLogs = logsByLoan[loan.id] || [];
 
       // Regla de Oro: Histórico total para determinar si está adelantado o en mora
@@ -105,7 +105,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const hasNoPayReport = rangeLogs.some(log => log.type === CollectionLogType.NO_PAGO);
-      const collector = state.users.find(u => u.id === loan.collectorId);
+      const collector = (state.users || []).find(u => u.id === loan.collectorId);
 
       // CALCULO DE SALDO PENDIENTE REAL HASTA HOY
       const todayEnd = new Date();
