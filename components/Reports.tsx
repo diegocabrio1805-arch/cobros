@@ -292,9 +292,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
          if (!apiKey) throw new Error("VITE_GEMINI_API_KEY no está configurada");
 
-         // Switch to 'gemini-flash-latest' as 1.5 is not explicitly listed but this alias is available
+         // Use 'gemini-1.5-flash' for the most generous free tier coverage
          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             {
                method: "POST",
                headers: {

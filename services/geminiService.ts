@@ -3,7 +3,7 @@ import { AppState, Loan, Client, PaymentStatus, AppSettings } from "../types";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const MODEL = 'gemini-flash-latest';
+const MODEL = 'gemini-1.5-flash';
 
 const fetchGemini = async (prompt: string, isJson: boolean = false) => {
   if (!apiKey) {

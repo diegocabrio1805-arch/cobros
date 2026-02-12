@@ -48,7 +48,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.27-ULTRA-PATCH-2026-02-11';
+    const CURRENT_VERSION_ID = '6.1.35-ULTRA-PATCH-2026-02-12';
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-ULTRA-PURGE-V2-ARMAGEDON';
 
@@ -990,15 +990,20 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* ERROR BANNER - HIDDEN AS PER USER REQUEST 
-       * The user requested to hide the red "Sync Error" window to avoid stress.
-       * Errors are still logged to console but not shown in UI.
-       */}
-      {/* {syncError && !syncError.startsWith('Sincronizando') && (
+      {/* ERROR BANNER - ONLY VISIBLE FOR ADMIN AS PER USER REQUEST */}
+      {isAdmin && syncError && !syncError.startsWith('Sincronizando') && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[95%] max-w-md">
-           ... (HIDDEN) ...
+          <div className="bg-red-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-4 animate-scaleIn border-b-4 border-red-700">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
+              <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
+            </div>
+            <div>
+              <h3 className="font-black uppercase text-sm tracking-widest">Error de Conexión</h3>
+              <p className="text-[10px] font-bold opacity-90 leading-tight">{syncError}</p>
+            </div>
+          </div>
         </div>
-      )} */}
+      )}
 
       <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
         <div className="flex justify-between items-center">
@@ -1013,7 +1018,7 @@ const App: React.FC = () => {
               </button>
             )}
             <div>
-              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.27 ULTRA</span></h1>
+              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.35 ULTRA</span></h1>
               <div className="flex items-center gap-2 mt-1">
                 <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
