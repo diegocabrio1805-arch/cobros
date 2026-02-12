@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          globPatterns: mode === 'development' ? [] : ['**/*.{js,css,html,ico,png,svg,woff2}'],
           maximumFileSizeToCacheInBytes: 5000000, // 5MB limit provided we have big chunks
           navigateFallback: '/index.html', // <--- IMPORTANT FOR SPA OFFLINE
           runtimeCaching: [
