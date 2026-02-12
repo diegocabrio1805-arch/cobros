@@ -9,11 +9,11 @@ const config: CapacitorConfig = {
     captureInput: true,
     webContentsDebuggingEnabled: false
   },
-  // server: {
-  //   androidScheme: 'https',
-  //   url: 'https://cobros-anexo-2026.netlify.app/',
-  //   cleartext: true
-  // },
+  server: {
+    androidScheme: 'https',
+    url: 'https://cobros-anexo-2026.netlify.app/',
+    cleartext: true
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,

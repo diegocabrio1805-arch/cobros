@@ -396,7 +396,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const paginatedClients = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredClients.slice(start, start + ITEMS_PER_PAGE);
+    return (filteredClients || []).slice(start, start + ITEMS_PER_PAGE);
   }, [filteredClients, currentPage]);
 
   const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
@@ -1074,7 +1074,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
               >
                 <option value="all">TODOS</option>
-                {collectors.map(c => (
+                {Array.isArray(collectors) && collectors.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -1116,7 +1116,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
               </div>
             )}
-            {(paginatedClients || []).map((client) => {
+            {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
               const m = getClientMetrics(client);
               return (
                 <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
@@ -1183,7 +1183,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                  {(nuevosExcelData || []).map(client => (
+                  {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).map(client => (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 uppercase text-slate-500">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                       <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
@@ -1403,7 +1403,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
                             >
                               <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
-                              {collectors?.map(c => (
+                              {Array.isArray(collectors) && collectors.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
@@ -1557,7 +1557,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 <tr><th className="px-4 py-3 text-left">Fecha / Hora</th><th className="px-4 py-3 text-left">Concepto</th><th className="px-4 py-3 text-right">Monto</th><th className="px-4 py-3 text-center">Acciones</th></tr>
                               </thead>
                               <tbody className="divide-y divide-slate-800 font-bold">
-                                {(clientHistory || []).map((log) => (
+                                {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => (
                                   <tr key={log.id} className="hover:bg-slate-800 transition-colors">
                                     <td className="px-4 py-3"><p className="text-slate-100 font-black">{new Date(log.date.split('T')[0] + 'T00:00:00').toLocaleDateString()}</p></td>
                                     <td className="px-4 py-3"><p className={`uppercase font-black text-[9px] ${log.isOpening ? 'text-emerald-400' : log.type === CollectionLogType.PAYMENT ? 'text-slate-300' : 'text-red-400'}`}>{log.isOpening ? 'Crédito Habilitado' : log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' : 'Visita sin Pago'}</p></td>
@@ -1591,7 +1591,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 const m = getClientMetrics(clientInLegajo);
                                 let remainingToAllocate = m.totalPaid;
 
-                                return (activeLoanInLegajo.installments || []).map((inst, idx) => {
+                                return (Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
                                   const installmentAmount = inst.amount;
                                   let amountPaidForThisOne = 0;
 
@@ -1960,7 +1960,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   const m = getClientMetrics(clientInLegajo!);
                   let remainingToAllocate = m.totalPaid;
 
-                  return (activeLoanInLegajo?.installments || []).map((inst, idx) => {
+                  return (Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
 
                     const installmentAmount = inst.amount;
                     let amountPaidForThisOne = 0;
