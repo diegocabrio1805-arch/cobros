@@ -140,8 +140,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             clearTimeout(reconnectTimeout);
                             reconnectTimeout = null;
                         }
-                        // HEURISTIC: Always pull full data on fresh connection to ensure no gaps
-                        pullData(true).then(newData => {
+                        // HEURISTIC: Use INCREMENTAL pull instead of Full Sync to save mobile data
+                        // FullSync is only for serious errors. Normal reconnects use delta.
+                        pullData(false).then(newData => {
                             if (newData && onDataUpdated) onDataUpdated(newData);
                         });
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {

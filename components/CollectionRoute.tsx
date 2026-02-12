@@ -75,16 +75,29 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     const endLimit = parseLocal(endDate);
     endLimit.setHours(23, 59, 59, 999);
 
+    // OPTIMIZATION: Index logs by loanId once to avoid O(n^2) behavior
+    const logsByLoan = useMemo(() => {
+      const map: Record<string, CollectionLog[]> = {};
+      state.collectionLogs.forEach(log => {
+        if (!log.deletedAt) {
+          if (!map[log.loanId]) map[log.loanId] = [];
+          map[log.loanId].push(log);
+        }
+      });
+      return map;
+    }, [state.collectionLogs]);
+
     return routeLoans.map(loan => {
       const client = state.clients.find(c => c.id === loan.clientId);
+      const loanLogs = logsByLoan[loan.id] || [];
 
       // Regla de Oro: Histórico total para determinar si está adelantado o en mora
-      const allPayments = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+      const allPayments = loanLogs.filter(log => log.type === CollectionLogType.PAYMENT && !log.isOpening);
       const totalPaidAllTime = allPayments.reduce((acc, log) => acc + (log.amount || 0), 0);
 
-      const rangeLogs = state.collectionLogs.filter(log => {
+      const rangeLogs = loanLogs.filter(log => {
         const logDate = new Date(log.date);
-        return log.loanId === loan.id && logDate >= startLimit && logDate <= endLimit && !log.deletedAt;
+        return logDate >= startLimit && logDate <= endLimit;
       });
 
       const totalPaidInRange = rangeLogs
