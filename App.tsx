@@ -2,6 +2,7 @@
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
 import Sidebar from './components/Sidebar';
@@ -48,7 +49,8 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.38-ULTRA-HOTFIX-AP';
+    // --- CONSTANTS ---
+    const CURRENT_VERSION_ID = 'v6.1.39-ULTRA-PWA'; // <--- UPDATED VERSION
     const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
     const RESET_ID = '2026-02-10-ULTRA-PURGE-V2-ARMAGEDON';
 
@@ -216,7 +218,21 @@ const App: React.FC = () => {
     else await processQueue(true);
   };
 
-  // 5. EFFECTS
+  // PWA UPDATE HANDLING
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered:', r);
+    },
+    onRegisterError(error) {
+      console.log('SW Registration Error:', error);
+    },
+  });
+
+
+  // --- 4. EFFECTS ---
   const forceSyncRef = React.useRef(handleForceSync);
   useEffect(() => { forceSyncRef.current = handleForceSync; }, [handleForceSync]);
 
@@ -1018,7 +1034,7 @@ const App: React.FC = () => {
               </button>
             )}
             <div>
-              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.38 ULTRA</span></h1>
+              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.39 PWA</span></h1>
               <div className="flex items-center gap-2 mt-1">
                 <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>

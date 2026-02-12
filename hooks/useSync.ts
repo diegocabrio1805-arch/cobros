@@ -24,13 +24,23 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     // Checks for internet connection
     // OPTIMIZATION: Trust Network.getStatus() immediately.
     // The previous ping logic caused false "Offline" states on slow connections.
+    // Checks for internet connection
+    // OPTIMIZATION: Combine Native Network Plugin + Navigator for robust PWA/Native support
     const checkConnection = async (): Promise<boolean> => {
         try {
+            // Priority 1: Capacitor Network Plugin
             const status = await Network.getStatus();
-            return status.connected;
-        } catch (error) {
-            // If the plugin fails, assume we are online to allow attempts
+            if (status.connected === false) return false;
+
+            // Priority 2: Navigator (Web PWA standard)
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                return false;
+            }
+
             return true;
+        } catch (error) {
+            // Fallback: Assume online if plugin fails (rare)
+            return typeof navigator !== 'undefined' ? navigator.onLine : true;
         }
     };
 

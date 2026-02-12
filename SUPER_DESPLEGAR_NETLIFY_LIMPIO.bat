@@ -4,6 +4,8 @@ echo   DESPLIEGUE LIMPIO A NETLIFY (DESDE CERO)
 echo =========================================
 echo.
 
+cd /d %~dp0
+
 REM 1. Limpieza de directorios
 echo [1/5] Eliminando carpeta dist y node_modules...
 if exist "dist" rd /s /q "dist"
