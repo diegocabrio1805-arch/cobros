@@ -24,40 +24,13 @@
   </div>
   <script>
     (function () {
-      const BUILD_ID = 'VERSION_V6_1_42_ULTRA_PURGE_FINAL_V3';
-      console.log("%c >>> SYSTEM " + BUILD_ID + " <<< ", "background: #f43f5e; color: white; font-size: 20px; font-weight: bold; padding: 10px;");
-      const lastId = localStorage.getItem('LAST_DEPLOY_ID');
-
-      if (lastId !== BUILD_ID) {
-        console.warn("Update Detected. Force Clearing Cache and Service Workers...");
-
-        // Prevent infinite loop if clearing storage fails
-        const reloadCount = parseInt(sessionStorage.getItem('version_reload_count') || '0');
-        if (reloadCount >= 3) {
-          console.error("Too many reloads for version update. Stopping.");
-          localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID); // Try to force it
-          return;
-        }
-        sessionStorage.setItem('version_reload_count', (reloadCount + 1).toString());
-
-        // Purga Masiva
-        localStorage.clear();
-        // sessionStorage.clear(); // Don't clear session storage here as we use it for loop prevention
-        localStorage.setItem('LAST_DEPLOY_ID', BUILD_ID);
-
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(regs => {
-            for (let r of regs) {
-              console.log("Unregistering old SW:", r);
-              r.unregister();
-            }
-            window.location.reload(true);
-          });
-          return;
-        }
-        window.location.reload(true);
-      } else {
-        sessionStorage.removeItem('version_reload_count'); // Clear counter on success
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          for (let registration of registrations) {
+            console.log("Unregistering Service Worker:", registration);
+            registration.unregister();
+          }
+        });
       }
     })();
 
