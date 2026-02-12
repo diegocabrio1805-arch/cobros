@@ -280,22 +280,32 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Background Sync for Everyone: 30 second interval (Silent)
-    // Optimized for Low-End Devices: Prevent contention with Bluetooth printer
-    const intervalTime = 30000;
+    // Dynamic Background Sync
+    // High Data Usage (Pending Queue): Sync every 10s
+    // Low Data Usage (Idle): Sync every 60s
+    const intervalTime = queueLength > 0 ? 10000 : 60000;
 
     const syncInterval = setInterval(() => {
       // Skip sync if already syncing, offline, or PRINTING
       if (!isSyncing && isOnline && !isPrintingNow()) {
-        // Silent sync (true)
-        console.log("[Background Sync] Periodic pulse started");
-        handleForceSync(true);
-      } else if (isPrintingNow()) {
-        console.log("[Background Sync] Skipped: Printing in progress");
+        const isSilent = true;
+        // console.log(`[Background Sync] Pulse (Interval: ${intervalTime}ms)`); 
+        handleForceSync(isSilent);
       }
     }, intervalTime);
-    return () => clearInterval(syncInterval);
-  }, [isSyncing, isOnline]);
+
+    // Immediate sync when coming online
+    const handleOnline = () => {
+      console.log("[Network] Back Online - Forcing Sync");
+      handleForceSync(true);
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [isSyncing, isOnline, queueLength]);
 
   useEffect(() => {
     let syncHangingTimeout: any;
@@ -980,46 +990,15 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* ERROR BANNER - Red for Real Errors */}
-      {syncError && !syncError.startsWith('Sincronizando') && (
+      {/* ERROR BANNER - HIDDEN AS PER USER REQUEST 
+       * The user requested to hide the red "Sync Error" window to avoid stress.
+       * Errors are still logged to console but not shown in UI.
+       */}
+      {/* {syncError && !syncError.startsWith('Sincronizando') && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[95%] max-w-md">
-          <div
-            onClick={() => setShowErrorModal(true)}
-            className="p-5 bg-red-600 text-white rounded-[2rem] shadow-[0_20px_50px_rgba(220,38,38,0.3)] border-2 border-white/20 animate-bounce group relative overflow-hidden cursor-pointer active:scale-95 transition-all"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <i className="fa-solid fa-cloud-bolt text-6xl -mr-4 -mt-4"></i>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-black uppercase text-xs tracking-[0.2em] mb-1">Error de Sincronización</h3>
-                <div className="bg-black/20 p-3 rounded-xl">
-                  <p className="text-[10px] font-bold opacity-95 leading-relaxed break-words font-mono">
-                    {syncError}. <span className="underline font-black uppercase tracking-tighter">Tocar para Detalles</span>
-                  </p>
-                </div>
-                <p className="text-[8px] font-black uppercase tracking-widest mt-2 opacity-60">
-                  <i className="fa-solid fa-info-circle mr-1"></i>
-                  Revise su conexión o contacte a soporte técnico
-                </p>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const errorDiv = document.querySelector('.bg-red-600');
-                  if (errorDiv) errorDiv.parentElement?.classList.add('hidden');
-                }}
-                className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all shrink-0"
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          </div>
+           ... (HIDDEN) ...
         </div>
-      )}
+      )} */}
 
       <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
         <div className="flex justify-between items-center">
