@@ -322,7 +322,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const isCollector = state.currentUser?.role === Role.COLLECTOR;
   const currentUserId = state.currentUser?.id;
 
-  const collectors = useMemo(() => state.users.filter(u => u.role === Role.COLLECTOR), [state.users]);
+  const collectors = useMemo(() => (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR), [state.users]);
 
   const clientInLegajo = useMemo(() => state.clients.find(c => c.id === showLegajo), [showLegajo, state.clients]);
 
@@ -368,7 +368,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const filteredClients = useMemo(() => {
-    let clients = state.clients.filter(c => !c.isHidden) || [];
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden);
     if (globalSearch) {
       const s = globalSearch.toLowerCase();
       clients = clients.filter(c => (c.name || '').toLowerCase().includes(s) || (c.documentId || '').includes(s));
@@ -407,7 +407,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
-    return state.clients.filter(client => {
+    return (Array.isArray(state.clients) ? state.clients : []).filter(client => {
       if (!client.createdAt || client.isHidden) return false;
       const cDate = new Date(client.createdAt);
       const inRange = cDate >= start && cDate <= end;
@@ -493,7 +493,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
     if (viewMode !== 'cartera') return [];
-    return state.clients.filter(c => {
+    return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden) return false;
       if (selectedCollector !== 'all') {
         const activeLoan = state.loans.find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
@@ -1116,7 +1116,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
               </div>
             )}
-            {paginatedClients.map((client) => {
+            {(paginatedClients || []).map((client) => {
               const m = getClientMetrics(client);
               return (
                 <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
@@ -1183,7 +1183,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                  {nuevosExcelData.map(client => (
+                  {(nuevosExcelData || []).map(client => (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 uppercase text-slate-500">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                       <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
@@ -1228,7 +1228,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                  {(renovacionesExcelData || []).map(item => (
+                  {(Array.isArray(renovacionesExcelData) ? renovacionesExcelData : []).map(item => (
                     <tr key={item._loan!.id} className="hover:bg-orange-50 transition-colors">
                       <td className="px-6 py-4 uppercase text-slate-500">{new Date(item._loan!.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4 uppercase text-slate-900">{item.name}</td>
@@ -1273,7 +1273,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                  {(carteraExcelData || []).map(client => (
+                  {(Array.isArray(carteraExcelData) ? carteraExcelData : []).map(client => (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                       <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">DOC: {client.documentId}</span></td>
@@ -1403,7 +1403,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
                             >
                               <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
-                              {collectors.map(c => (
+                              {collectors?.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
