@@ -90,15 +90,15 @@ const App: React.FC = () => {
     const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({ ...u, role: u.role === 'admin' ? Role.ADMIN : u.role }));
 
     return {
-      clients: rawData?.clients || [],
-      loans: rawData?.loans || [],
-      payments: rawData?.payments || [],
-      expenses: rawData?.expenses || [],
-      collectionLogs: rawData?.collectionLogs || [],
+      clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
+      loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
+      payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
+      expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
+      collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
       users: users,
       currentUser: rawData?.currentUser || null,
       commissionPercentage: rawData?.commissionPercentage ?? 10,
-      commissionBrackets: rawData?.commissionBrackets || [],
+      commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
       settings: rawData?.settings || defaultSettings,
       branchSettings: rawData?.branchSettings || {}
     };
@@ -116,6 +116,8 @@ const App: React.FC = () => {
     pendingDeleteIds: Set<string> = new Set(),
     isFullSync: boolean = false
   ): T[] => {
+    if (!Array.isArray(local)) local = [];
+    if (!Array.isArray(remote)) remote = [];
     if (isFullSync) {
       const result = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
       const remoteIds = new Set(result.map(r => r.id));
