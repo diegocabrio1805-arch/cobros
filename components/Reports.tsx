@@ -28,6 +28,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [aiReport, setAiReport] = useState<any>(null);
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
+   const [lastThrottledUpdate, setLastThrottledUpdate] = useState<number>(Date.now());
+   const [throttledLogs, setThrottledLogs] = useState<CollectionLog[]>(state.collectionLogs);
 
    const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
 
@@ -43,8 +45,28 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       return R * c;
    };
 
+   // --- THROTTLING LOGIC (30-50s) ---
+   useEffect(() => {
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastThrottledUpdate;
+      const THROTTLE_MS = 40000; // 40 seconds (midpoint of 30-50s)
+
+      if (timeSinceLastUpdate >= THROTTLE_MS) {
+         setThrottledLogs(state.collectionLogs);
+         setLastThrottledUpdate(now);
+      } else {
+         const timer = setTimeout(() => {
+            setThrottledLogs(state.collectionLogs);
+            setLastThrottledUpdate(Date.now());
+         }, THROTTLE_MS - timeSinceLastUpdate);
+         return () => clearTimeout(timer);
+      }
+   }, [state.collectionLogs]);
+
    const routeData = useMemo(() => {
-      let logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      // Use throttledLogs for automatic background updates to prevent flickering,
+      // but developers/admin manual actions are still context-aware through selectedDate/selectedCollector
+      let logs = (Array.isArray(throttledLogs) ? throttledLogs : []).filter(log => {
          const logDate = new Date(log.date).toISOString().split('T')[0];
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
@@ -68,7 +90,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
 
       return logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-   }, [state.collectionLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
+   }, [throttledLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
 
    useEffect(() => {
       if (mapRef.current && !leafletMap.current) {
