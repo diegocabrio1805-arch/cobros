@@ -15,12 +15,12 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
 
   const alerts = useMemo(() => {
     const pendingAlerts: any[] = [];
-    state.loans.filter(l => l.status === LoanStatus.ACTIVE).forEach(loan => {
-      const client = state.clients.find(c => c.id === loan.clientId);
+    (Array.isArray(state.loans) ? state.loans : []).filter(l => l.status === LoanStatus.ACTIVE).forEach(loan => {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
       if (!client) return;
       const mDays = getDaysOverdue(loan, state.settings);
 
-      loan.installments.forEach(inst => {
+      (Array.isArray(loan.installments) ? loan.installments : []).forEach(inst => {
         const dueDate = new Date(inst.dueDate + 'T00:00:00');
         dueDate.setHours(0, 0, 0, 0);
         if (inst.status !== PaymentStatus.PAID && (dueDate <= today || mDays > 0)) {
@@ -43,12 +43,13 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
     const cleanPhone = client.phone.replace(/\D/g, '');
     const phoneWithCode = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
 
-    const paidBefore = loan.installments.reduce((acc: number, inst: any) => acc + (inst.paidAmount || 0), 0);
-    const paidCount = loan.installments.filter((i: any) => i.status === PaymentStatus.PAID).length;
+    const paidBefore = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, inst: any) => acc + (inst.paidAmount || 0), 0);
+    const paidCount = (Array.isArray(loan.installments) ? loan.installments : []).filter((i: any) => i.status === PaymentStatus.PAID).length;
 
     const data: ReceiptData = {
       clientName: client.name,
       amountPaid: 0,
+      previousBalance: loan.totalAmount - paidBefore,
       loanId: loan.id,
       startDate: loan.createdAt,
       expiryDate: loan.installments[loan.installments.length - 1].dueDate,

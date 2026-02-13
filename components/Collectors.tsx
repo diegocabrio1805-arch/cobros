@@ -77,8 +77,8 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
     e.preventDefault();
 
     // Check for duplicate username
-    const usernameExists = state.users.some(u =>
-      u.username.toLowerCase() === (isManager && editingUserId ? (state.users.find(x => x.id === editingUserId)?.username || '').toLowerCase() : formData.username.toLowerCase()) &&
+    const usernameExists = (Array.isArray(state.users) ? state.users : []).some(u =>
+      u.username.toLowerCase() === (isManager && editingUserId ? ((Array.isArray(state.users) ? state.users : []).find(x => x.id === editingUserId)?.username || '').toLowerCase() : formData.username.toLowerCase()) &&
       u.id !== editingUserId
     );
 
@@ -88,7 +88,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
     }
 
     if (editingUserId) {
-      const oldUser = state.users.find(u => u.id === editingUserId);
+      const oldUser = (Array.isArray(state.users) ? state.users : []).find(u => u.id === editingUserId);
       const updatedUser: User = {
         id: editingUserId,
         name: formData.name,
@@ -172,7 +172,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const collectors = (state.users || []).filter(u => u.role === Role.COLLECTOR && u.managedBy === currentUserId);
+  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && u.managedBy === currentUserId);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24">

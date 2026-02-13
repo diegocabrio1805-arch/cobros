@@ -47,7 +47,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     e.preventDefault();
 
     // Check for duplicate username
-    const usernameExists = state.users.some(u =>
+    const usernameExists = (Array.isArray(state.users) ? state.users : []).some(u =>
       u.username.toLowerCase() === formData.username.toLowerCase() &&
       u.id !== editingUserId
     );
@@ -126,7 +126,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     if (!showCollectorManagerModal) return;
 
     // Check for duplicate username
-    const usernameExists = state.users.some(u =>
+    const usernameExists = (Array.isArray(state.users) ? state.users : []).some(u =>
       u.username.toLowerCase() === collectorForm.username.toLowerCase() &&
       u.id !== isEditingCollector
     );
@@ -195,9 +195,9 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     return diffDays <= 5;
   };
 
-  const managers = (state.users || []).filter(u => u.role === Role.MANAGER);
-  const selectedManager = (state.users || []).find(u => u.id === showCollectorManagerModal);
-  const currentCollectors = (state.users || []).filter(u => u.role === Role.COLLECTOR && u.managedBy === showCollectorManagerModal);
+  const managers = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.MANAGER);
+  const selectedManager = (Array.isArray(state.users) ? state.users : []).find(u => u.id === showCollectorManagerModal);
+  const currentCollectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && u.managedBy === showCollectorManagerModal);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24 px-1">

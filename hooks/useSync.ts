@@ -408,7 +408,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             localStorage.setItem('last_sync_timestamp_v6', new Date().toISOString());
 
             const result = {
-                clients: (clientsResult.data || []).map((c: any) => ({
+                clients: (Array.isArray(clientsResult.data) ? clientsResult.data : []).map((c: any) => ({
                     ...c,
                     documentId: c.document_id,
                     secondaryPhone: c.secondary_phone,
@@ -427,7 +427,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     createdAt: c.created_at,
                     deletedAt: c.deleted_at
                 })) as Client[],
-                loans: (loansResult.data || []).map((l: any) => ({
+                loans: (Array.isArray(loansResult.data) ? loansResult.data : []).map((l: any) => ({
                     ...l,
                     clientId: l.client_id,
                     collectorId: l.collector_id,
@@ -442,7 +442,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     installments: l.installments,
                     frequency: l.frequency
                 })) as Loan[],
-                payments: (paymentsResult.data || []).map((p: any) => ({
+                payments: (Array.isArray(paymentsResult.data) ? paymentsResult.data : []).map((p: any) => ({
                     ...p,
                     loanId: p.loan_id,
                     clientId: p.client_id,
@@ -452,7 +452,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     isRenewal: p.is_renewal,
                     deletedAt: p.deleted_at
                 })) as PaymentRecord[],
-                collectionLogs: (logsResult.data || []).map((cl: any) => ({
+                collectionLogs: (Array.isArray(logsResult.data) ? logsResult.data : []).map((cl: any) => ({
                     ...cl,
                     loanId: cl.loan_id,
                     clientId: cl.client_id,
@@ -463,22 +463,22 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     recordedBy: cl.recorded_by,
                     deletedAt: cl.deleted_at
                 })) as CollectionLog[],
-                expenses: (expensesResult.data || []).map((e: any) => ({
+                expenses: (Array.isArray(expensesResult.data) ? expensesResult.data : []).map((e: any) => ({
                     ...e,
                     branchId: e.branch_id,
                     addedBy: e.added_by
                 })) as Expense[],
-                users: (profilesResult.data || []).map((u: any) => ({
+                users: (Array.isArray(profilesResult.data) ? profilesResult.data : []).map((u: any) => ({
                     ...u,
                     expiryDate: u.expiry_date,
                     managedBy: u.managed_by,
                     requiresLocation: u.requires_location
                 })) as unknown as User[],
-                branchSettings: (settingsResult.data || []).reduce((acc: any, s: any) => {
+                branchSettings: (Array.isArray(settingsResult.data) ? settingsResult.data : []).reduce((acc: any, s: any) => {
                     acc[s.id] = s.settings;
                     return acc;
                 }, {} as Record<string, AppSettings>),
-                deletedItems: (deletedResult.data || []).map((d: any) => ({
+                deletedItems: (Array.isArray(deletedResult.data) ? deletedResult.data : []).map((d: any) => ({
                     id: d.id,
                     tableName: d.table_name,
                     recordId: d.record_id,

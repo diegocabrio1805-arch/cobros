@@ -36,36 +36,36 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
 
   // 1. Dinero físico entregado (Préstamos nuevos, no renovaciones)
   const lentCash = useMemo(() => {
-    return (state.loans || [])
+    return (Array.isArray(state.loans) ? state.loans : [])
       .filter(l => !l.isRenewal)
       .reduce((acc, l) => acc + l.principal, 0);
   }, [state.loans]);
 
   // 2. Cobros recibidos en efectivo real (No transferencias, no renovaciones/liquidaciones)
   const collectedCash = useMemo(() => {
-    return (state.collectionLogs || [])
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(l => l.type === CollectionLogType.PAYMENT && !l.isVirtual && !l.isRenewal && !l.isOpening)
       .reduce((acc, l) => acc + (l.amount || 0), 0);
   }, [state.collectionLogs]);
 
   // 3. Gastos operativos totales
   const totalOperatingExpenses = useMemo(() => {
-    return (state.expenses || []).reduce((acc, curr) => acc + curr.amount, 0);
+    return (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, curr) => acc + curr.amount, 0);
   }, [state.expenses]);
 
   // 4. Caja Actual (Efectivo disponible)
   const currentCashInHand = state.initialCapital + collectedCash - lentCash - totalOperatingExpenses;
 
   // 5. Créditos Otorgados (Conteo y Utilidad Total Proyectada)
-  const totalLoansCount = state.loans.length;
-  const projectedTotalProfit = state.loans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalLoansCount = (Array.isArray(state.loans) ? state.loans : []).length;
+  const projectedTotalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
 
   // 6. Mora Crítica (Saldos de créditos con > 40 días de atraso)
   const criticalMoraBalance = useMemo(() => {
-    return (state.loans || [])
+    return (Array.isArray(state.loans) ? state.loans : [])
       .filter(l => l.status !== LoanStatus.PAID && getDaysOverdue(l, state.settings) > 40)
       .reduce((acc, loan) => {
-        const paid = (loan.installments || []).reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+        const paid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
         return acc + (loan.totalAmount - paid);
       }, 0);
   }, [state.loans]);
@@ -203,7 +203,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {state.expenses.length === 0 ? (
+              {(Array.isArray(state.expenses) ? state.expenses : []).length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center">
@@ -213,7 +213,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   </td>
                 </tr>
               ) : (
-                state.expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
+                (Array.isArray(state.expenses) ? [...state.expenses] : []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors text-[11px] font-bold">
                     <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]">{exp.description}</td>
                     <td className="px-5 py-4">
