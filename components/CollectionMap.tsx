@@ -18,15 +18,15 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
   const [collectorFilter, setCollectorFilter] = useState<string>('ALL');
 
   const collectors = useMemo(() => {
-    return state.users.filter(u => u.role === Role.COLLECTOR);
+    return (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
   }, [state.users]);
 
   // Enriquecer logs con información de cobrador y cliente
   const enrichedLogs = useMemo(() => {
-    return (state.collectionLogs || []).map(log => {
-      const loan = (state.loans || []).find(l => l.id === log.loanId);
-      const collector = (state.users || []).find(u => u.id === loan?.collectorId);
-      const client = (state.clients || []).find(c => c.id === log.clientId);
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).map(log => {
+      const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
+      const collector = (Array.isArray(state.users) ? state.users : []).find(u => u.id === loan?.collectorId);
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
       return {
         ...log,
         collectorName: collector?.name || 'Admin/Otro',
@@ -161,7 +161,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
               </div>
             </div>
             <h4 style="margin: 0; font-weight: 900; color: #0f172a; font-size: 14px; text-transform: uppercase;">${log.clientName}</h4>
-            ${log.amount ? `<p style="margin: 5px 0 0; font-weight: 900; color: #10b981; font-size: 16px;">${formatCurrency(log.amount)}</p>` : ''}
+            ${log.amount ? `<p style="margin: 5px 0 0; font-weight: 900; color: #10b981; font-size: 16px;">${formatCurrency(log.amount, state.settings)}</p>` : ''}
             <div style="margin-top: 12px; display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 9px; font-weight: 700; text-transform: uppercase;">
               <i class="fa-solid fa-clock"></i>
               <span>${new Date(log.date).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</span>
@@ -230,7 +230,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
                 className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase tracking-widest w-full cursor-pointer"
               >
                 <option value="ALL">TODOS LOS COBRADORES</option>
-                {collectors.map(c => (
+                {(Array.isArray(collectors) ? collectors : []).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -285,11 +285,11 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
         {collectorFilter !== 'ALL' && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideDown">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-black">
-              {state.users.find(u => u.id === collectorFilter)?.name.charAt(0)}
+              {(Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorFilter)?.name.charAt(0)}
             </div>
             <div>
               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Viendo Ruta Individual</p>
-              <p className="text-[10px] font-black uppercase">{state.users.find(u => u.id === collectorFilter)?.name}</p>
+              <p className="text-[10px] font-black uppercase">{(Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorFilter)?.name}</p>
             </div>
           </div>
         )}

@@ -9,7 +9,7 @@ interface CollectorPerformanceProps {
 }
 
 const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) => {
-  const collectors = state.users.filter(u => u.role === Role.COLLECTOR);
+  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
   const t = getTranslation(state.settings.language);
 
   const currentMonth = new Date().getMonth();
@@ -17,14 +17,15 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
   const getMonthlyStats = (collectorId: string) => {
     // 1. Préstamos activos asignados a este cobrador
-    const collectorLoans = (state.loans || []).filter(l => l.collectorId === collectorId);
-    const assignedClientIds = new Set(collectorLoans.filter(l => l.status === LoanStatus.ACTIVE).map(l => l.clientId));
+    const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === collectorId);
+    const assignedLoans = (Array.isArray(collectorLoans) ? collectorLoans : []).filter(l => l.status === LoanStatus.ACTIVE);
+    const assignedClientIds = new Set(assignedLoans.map(l => l.clientId));
     const totalActiveClients = assignedClientIds.size;
 
     // 2. Logs de gestión de este mes
-    const monthlyLogs = (state.collectionLogs || []).filter(log => {
+    const monthlyLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       const logDate = new Date(log.date);
-      const isCollector = collectorLoans.some(l => l.id === log.loanId);
+      const isCollector = (Array.isArray(collectorLoans) ? collectorLoans : []).some(l => l.id === log.loanId);
       return isCollector &&
         logDate.getMonth() === currentMonth &&
         logDate.getFullYear() === currentYear;
@@ -42,8 +43,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     // 5. Dinero No Recaudado (Cartera vencida o pendiente de este mes)
     // Calculamos la suma de las cuotas que vencían este mes y no se han pagado
     let moneyNotCollected = 0;
-    collectorLoans.filter(l => l.status !== LoanStatus.PAID).forEach(loan => {
-      (loan.installments || []).forEach(inst => {
+    (Array.isArray(collectorLoans) ? collectorLoans : []).filter(l => l.status !== LoanStatus.PAID).forEach(loan => {
+      (Array.isArray(loan.installments) ? loan.installments : []).forEach(inst => {
         const dueDate = new Date(inst.dueDate + 'T00:00:00');
         if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
           if (inst.status !== PaymentStatus.PAID) {
@@ -90,13 +91,13 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {collectors.length === 0 ? (
+        {(Array.isArray(collectors) ? collectors : []).length === 0 ? (
           <div className="py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400">
             <i className="fa-solid fa-user-tag text-5xl mb-4 opacity-20"></i>
             <p className="text-lg font-bold">No hay cobradores para auditar.</p>
           </div>
         ) : (
-          collectors.map(collector => {
+          (Array.isArray(collectors) ? collectors : []).map(collector => {
             const stats = getMonthlyStats(collector.id);
 
             return (

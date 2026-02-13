@@ -32,7 +32,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'cash' | 'virtual' | 'renewal' | 'nopay'>('all');
 
   const [localCommissionPercent, setLocalCommissionPercent] = useState<number>(state.commissionPercentage);
-  const [editingBrackets, setEditingBrackets] = useState<CommissionBracket[]>([...state.commissionBrackets]);
+  const [editingBrackets, setEditingBrackets] = useState<CommissionBracket[]>([...(Array.isArray(state.commissionBrackets) ? state.commissionBrackets : [])]);
 
   const receiptImageRef = useRef<HTMLDivElement>(null);
   const auditTableRef = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   // LOGICA DE CALCULO DE MULTIPLICADOR POR DESEMPEÑO
   const getPayoutFactor = (moraRate: number) => {
-    const sorted = [...state.commissionBrackets].sort((a, b) => a.maxMora - b.maxMora);
+    const sorted = [...(Array.isArray(state.commissionBrackets) ? state.commissionBrackets : [])].sort((a, b) => a.maxMora - b.maxMora);
     const bracket = sorted.find(b => moraRate <= b.maxMora);
     return bracket ? bracket.payoutPercent / 100 : (sorted[sorted.length - 1]?.payoutPercent / 100 || 0);
   };
@@ -64,7 +64,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       currentDay.setDate(monday.getDate() + i);
       if (currentDay > new Date()) continue;
 
-      const dailyLogs = state.collectionLogs.filter(log => {
+      const dailyLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
         const logDate = new Date(log.date);
         const isSameDay = logDate.toDateString() === currentDay.toDateString();
         const matchesUser = targetUserId === 'all' ? true : (log.recordedBy === targetUserId);
@@ -88,7 +88,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       });
     }
 
-    const logsHoy = state.collectionLogs.filter(log => {
+    const logsHoy = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       const matchesUser = targetUserId === 'all' ? true : (log.recordedBy === targetUserId);
       return matchesUser && new Date(log.date).toDateString() === new Date().toDateString() && !log.isOpening;
     });
@@ -111,7 +111,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const currentViewStats = useMemo(() => calculateStatsForCollector(selectedHistoricalRoute), [state.collectionLogs, state.loans, state.commissionBrackets, selectedHistoricalRoute]);
 
   const allCollectorsSummary = useMemo(() => {
-    const eligibleUsers = state.users.filter(u =>
+    const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
       u.id === currentUserId || (u.role === Role.COLLECTOR && u.managedBy === currentUserId)
     );
     return eligibleUsers.map(user => ({
@@ -126,7 +126,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     const [eYear, eMonth, eDay] = excelEndDate.split('-').map(Number);
     const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
 
-    return state.collectionLogs.filter(log => {
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       // 1. Basic Validity Checks (Clean up "---" rows)
       if (log.isOpening || log.deletedAt) return false;
       if (!log.clientId) return false; // Exclude logs with no associated client
@@ -223,7 +223,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   };
 
   const handleShareLogImage = async (log: CollectionLog) => {
-    const client = state.clients.find(c => c.id === log.clientId);
+    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
     if (!client) return;
     setSharingLog(log);
     setIsGeneratingImage(true);
@@ -312,10 +312,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="relative z-10 flex flex-col gap-6">
             <h3 className="text-white text-[10px] font-black uppercase tracking-tighter flex items-center gap-2 border-b border-white/10 pb-2">
               <i className="fa-solid fa-chart-line text-emerald-400"></i>
-              Histórico de Mora Semanal: <span className="text-emerald-400">{selectedHistoricalRoute === 'all' ? 'CONSOLIDADO' : state.users.find(u => u.id === selectedHistoricalRoute)?.name.toUpperCase()}</span>
+              Histórico de Mora Semanal: <span className="text-emerald-400">{selectedHistoricalRoute === 'all' ? 'CONSOLIDADO' : (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedHistoricalRoute)?.name.toUpperCase()}</span>
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {currentViewStats.days.map((stat, idx) => (
+              {(Array.isArray(currentViewStats.days) ? currentViewStats.days : []).map((stat, idx) => (
                 <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1">{stat.name}</p>
                   <p className={`text-sm font-black ${stat.rate < 20 ? 'text-emerald-400' : stat.rate < 35 ? 'text-yellow-400' : 'text-red-500'}`}>{Math.round(stat.rate)}%</p>
@@ -426,7 +426,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 Ajusta los porcentajes de cobro según la morosidad registrada en la ruta.
               </p>
               <div className="space-y-4">
-                {editingBrackets.map((bracket, idx) => (
+                {(Array.isArray(editingBrackets) ? editingBrackets : []).map((bracket, idx) => (
                   <div key={idx} className="flex items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative group overflow-hidden">
                     <div className="flex-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase mb-1.5">Si la Mora es hasta:</label>
@@ -513,8 +513,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {excelLogs.map((log) => {
-                    const client = state.clients.find(c => c.id === log.clientId);
+                  {(Array.isArray(excelLogs) ? excelLogs : []).map((log) => {
+                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
                     const isNoPay = log.type === CollectionLogType.NO_PAGO;
                     const comm = (log.amount || 0) * (localCommissionPercent / 100);
                     return (
@@ -576,15 +576,16 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       {/* TEMPLATE OCULTO PARA CAPTURA DE IMAGEN (NOTIFICACION/RECIBO) */}
       <div className="fixed -left-[4000px] top-0 pointer-events-none z-[-1]">
         {sharingLog && (() => {
-          const client = state.clients.find(c => c.id === sharingLog.clientId);
-          const loan = state.loans.find(l => l.id === sharingLog.loanId);
+          const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === sharingLog.clientId);
+          const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === sharingLog.loanId);
           if (!client || !loan) return null;
 
           const isNoPay = sharingLog.type === CollectionLogType.NO_PAGO;
-          const totalPaid = loan.installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+          const installments = Array.isArray(loan.installments) ? loan.installments : [];
+          const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
           const balance = loan.totalAmount - totalPaid;
           const daysOverdue = getDaysOverdue(loan, state.settings);
-          const paidInstallments = loan.installments.filter(i => i.status === PaymentStatus.PAID).length;
+          const paidInstallments = installments.filter(i => i.status === PaymentStatus.PAID).length;
 
           return (
             <div ref={receiptImageRef} className="w-[600px] bg-white border-[12px] border-red-600 rounded-[3rem] p-10 font-sans overflow-hidden shadow-2xl">
@@ -669,7 +670,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <button onClick={() => setShowGlobalSummary(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50">
-              {allCollectorsSummary.map(({ user, stats }) => (
+              {(Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).map(({ user, stats }) => (
                 <div key={user.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-lg space-y-4 hover:shadow-2xl transition-all">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-xl text-black">{user.name.charAt(0)}</div>

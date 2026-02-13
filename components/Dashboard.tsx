@@ -112,7 +112,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v6.1.2</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[10px] text-emerald-500 font-bold ml-2">v6.1.42-ULTRA</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Panel de Control Principal
@@ -306,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-indigo-100 leading-none">Consultoría IA</h3>
-                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v6.1.2</p>
+                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v6.1.42-FLASH</p>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[7px] font-black uppercase text-indigo-500">
-            <span>Powered by Gemini 3.0</span>
+            <span>Powered by Gemini 1.5 Flash</span>
             <i className="fa-solid fa-sparkles animate-pulse"></i>
           </div>
         </div>

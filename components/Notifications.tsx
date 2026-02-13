@@ -43,8 +43,10 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
     const cleanPhone = client.phone.replace(/\D/g, '');
     const phoneWithCode = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
 
-    const paidBefore = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, inst: any) => acc + (inst.paidAmount || 0), 0);
-    const paidCount = (Array.isArray(loan.installments) ? loan.installments : []).filter((i: any) => i.status === PaymentStatus.PAID).length;
+    const installments = Array.isArray(loan.installments) ? loan.installments : [];
+    const lastInst = installments[installments.length - 1];
+    const paidBefore = installments.reduce((acc: number, inst: any) => acc + (inst.paidAmount || 0), 0);
+    const paidCount = installments.filter((i: any) => i.status === PaymentStatus.PAID).length;
 
     const data: ReceiptData = {
       clientName: client.name,
@@ -52,7 +54,7 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
       previousBalance: loan.totalAmount - paidBefore,
       loanId: loan.id,
       startDate: loan.createdAt,
-      expiryDate: loan.installments[loan.installments.length - 1].dueDate,
+      expiryDate: lastInst ? lastInst.dueDate : loan.createdAt,
       daysOverdue: daysDiff,
       remainingBalance: loan.totalAmount - paidBefore,
       paidInstallments: paidCount,

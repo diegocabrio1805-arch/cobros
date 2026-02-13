@@ -324,11 +324,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const collectors = useMemo(() => (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR), [state.users]);
 
-  const clientInLegajo = useMemo(() => state.clients.find(c => c.id === showLegajo), [showLegajo, state.clients]);
+  const clientInLegajo = useMemo(() => (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === showLegajo), [showLegajo, state.clients]);
 
   const activeLoanInLegajo = useMemo(() => {
     if (!showLegajo) return null;
-    return (state.loans || []).find(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    return (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
   }, [showLegajo, state.loans]);
 
   const clientHistory = useMemo(() => {
@@ -344,11 +344,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '';
 
     if (activeLoan) {
-      const installments = activeLoan.installments || [];
+      const installments = Array.isArray(activeLoan.installments) ? activeLoan.installments : [];
 
       // Regla de Oro: El Abonado debe coincidir exactamente con el historial reciente (logs)
-      const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
-      totalPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+      totalPaid = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
 
       // Saldo Pendiente: Total Crédito - Suma de Abonos en Historial
       balance = Math.max(0, activeLoan.totalAmount - totalPaid);
@@ -375,7 +375,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
     if (selectedCollector !== 'all') {
       clients = clients.filter(c => {
-        const activeLoan = state.loans.find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
         return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
       });
     }
@@ -414,7 +414,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (!inRange) return false;
 
       if (selectedCollector !== 'all') {
-        const activeLoan = state.loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
         return activeLoan?.collectorId === selectedCollector || client.addedBy === selectedCollector;
       }
       return true;
@@ -433,8 +433,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const results: any[] = [];
 
     // 1. Préstamos creados explícitamente como renovación (handleRenewLoan)
-    (state.loans || []).forEach(loan => {
-      const client = (state.clients || []).find(c => c.id === loan.clientId);
+    (Array.isArray(state.loans) ? state.loans : []).forEach(loan => {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return;
 
       const lDate = new Date(loan.createdAt);
@@ -454,13 +454,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     // 2. Registros de cobro marcados como renovación (handleDossierAction - "Renovar")
     // Estos son pagos que cierran un crédito para renovar, el usuario quiere verlos también
-    (state.collectionLogs || []).forEach(log => {
+    (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).forEach(log => {
       if (log.type === CollectionLogType.PAYMENT && log.isRenewal && !log.deletedAt) {
         const logDate = new Date(log.date);
         if (logDate >= start && logDate <= end) {
-          const loan = (state.loans || []).find(l => l.id === log.loanId);
+          const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
           if (loan) {
-            const client = (state.clients || []).find(c => c.id === loan.clientId);
+            const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
             if (client && !client.isHidden) {
               if (selectedCollector === 'all' || loan.collectorId === selectedCollector || client.addedBy === selectedCollector) {
                 // Construimos un objeto visual que representa esta transacción
@@ -496,7 +496,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden) return false;
       if (selectedCollector !== 'all') {
-        const activeLoan = state.loans.find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
         return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
       }
       return true;
@@ -521,7 +521,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const handleToggleHideClient = (clientId: string) => {
     if (!isAdminOrManager) return;
-    const client = state.clients.find(c => c.id === clientId);
+    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
     if (client && updateClient) {
       if (confirm(`¿DESEA OCULTAR AL CLIENTE ${client.name.toUpperCase()}? NO APARECERÁ EN LAS RUTAS DE COBRO ACTIVAS.`)) {
         updateClient({ ...client, isHidden: true });
@@ -680,8 +680,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const isDefaultValue = activeLoanInLegajo && (currentAmount === activeLoanInLegajo.installmentValue.toString() || currentAmount === '');
 
     if (method === 'renewal' && activeLoanInLegajo) {
-      const installments = activeLoanInLegajo.installments || [];
-      const tPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+      const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+      const tPaid = (Array.isArray(installments) ? installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
       setDossierPaymentAmount(Math.max(0, activeLoanInLegajo.totalAmount - tPaid).toString());
     } else if (activeLoanInLegajo && isDefaultValue) {
       setDossierPaymentAmount(activeLoanInLegajo.installmentValue.toString());
@@ -730,11 +730,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
 
       if (type === CollectionLogType.PAYMENT) {
-        const installments = activeLoanInLegajo.installments || [];
+        const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
 
         // REGLA DE ORO: Recalcular histórico para el recibo
-        const loanLogs = state.collectionLogs.filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
-        const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
+        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+        const totalPaidHistory = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (activeLoanInLegajo.installmentValue || 1);
         const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
@@ -903,14 +903,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const handleSaveEditedLog = () => {
     const amt = Number(newLogAmount);
     if (editingLogId && updateCollectionLog && clientInLegajo && activeLoanInLegajo) {
-      const logToEdit = state.collectionLogs.find(l => l.id === editingLogId);
+      const logToEdit = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).find(l => l.id === editingLogId);
       if (!logToEdit) return;
 
       const oldAmount = logToEdit.amount || 0;
       updateCollectionLog(editingLogId, amt);
 
-      const installments = activeLoanInLegajo.installments || [];
-      const currentTotalPaid = installments.reduce((acc, inst) => acc + (inst.paidAmount || 0), 0);
+      const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+      const currentTotalPaid = (Array.isArray(installments) ? installments : []).reduce((acc, inst) => acc + (inst.paidAmount || 0), 0);
       const newTotalPaid = currentTotalPaid - oldAmount + amt;
 
       const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
@@ -962,10 +962,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     if (!clientInLegajo || !activeLoanInLegajo) return;
 
     // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN IMPORTAR FECHA)
-    const allPaymentLogs = state.collectionLogs
+    const allPaymentLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(l => l.loanId === activeLoanInLegajo.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
 
-    const lastPaymentLog = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const lastPaymentLog = [...(Array.isArray(allPaymentLogs) ? allPaymentLogs : [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");
@@ -974,7 +974,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     // 2. Recalcular el estado HISTÓRICO al momento de ese pago exacto
     // Sumamos todos los pagos HASTA ese log inclusive (por fecha)
-    const historicLogs = state.collectionLogs.filter(l =>
+    const historicLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l =>
       l.loanId === activeLoanInLegajo.id &&
       l.type === CollectionLogType.PAYMENT &&
       !l.isOpening &&
@@ -985,11 +985,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     // (Ya está incluido por la lógica <=, pero si hay duplicados de timestamp, el ordenamiento previo asegura cual es cual. 
     // Aquí asumimos idempotencia simple: sumamos todo lo que tenga fecha <= al log target).
 
-    const totalPaidAtThatMoment = historicLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
+    const totalPaidAtThatMoment = (Array.isArray(historicLogs) ? historicLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
     const amountPaidInLastLog = lastPaymentLog.amount || 0;
 
-    const installments = activeLoanInLegajo.installments || [];
-    const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
+    const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+    const lastDueDate = (Array.isArray(installments) && installments.length > 0) ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
 
     const progress = totalPaidAtThatMoment / (activeLoanInLegajo.installmentValue || 1);
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
@@ -1584,7 +1584,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden animate-fadeIn">
                             <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                               <h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Cronograma de Pagos</h4>
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">{activeLoanInLegajo.installments.length} CUOTAS</span>
+                              <span className="text-[8px] font-bold text-slate-400 uppercase">{(Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</span>
                             </div>
                             <div className="max-h-[600px] overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 mobile-scroll-container bg-slate-50/30">
                               {(() => {
@@ -1639,7 +1639,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div key={item.key} className="flex flex-col items-center">
                                 <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
                                   {clientInLegajo[item.key as keyof Client] ? (
-                                    <img src={clientInLegajo[item.key as keyof Client] as string} className="w-full h-full object-cover cursor-zoom-in" onClick={() => window.open(clientInLegajo[item.key as keyof Client] as string)} />
+                                    <img src={clientInLegajo[item.key as keyof Client] as string} className="w-full h-full object-cover cursor-zoom-in" onClick={() => window.open(clientInLegajo[item.key as keyof Client] as string)} alt={item.label} />
                                   ) : (
                                     <i className="fa-solid fa-image text-slate-400 text-xl"></i>
                                   )}

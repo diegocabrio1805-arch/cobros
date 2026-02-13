@@ -38,8 +38,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
   // Filtrado de préstamos general
   const filteredLoans = useMemo(() => {
-    return state.loans.filter((loan) => {
-      const client = state.clients.find(c => c.id === loan.clientId);
+    return (Array.isArray(state.loans) ? state.loans : []).filter((loan) => {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return false;
       const searchLower = searchTerm.toLowerCase();
 
@@ -56,7 +56,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         return matchesSearch && loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
       }
 
-      const totalPaidOnLoan = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+      const totalPaidOnLoan = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
       const isActuallyPaid = loan.status === LoanStatus.PAID || (loan.totalAmount - totalPaidOnLoan) <= 0.01;
       return matchesSearch && !isActuallyPaid;
     }).sort((a, b) => {
@@ -87,11 +87,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   // Filtrado de clientes ocultos
   const hiddenClientsData = useMemo(() => {
     if (viewMode !== 'ocultos') return [];
-    return state.clients.filter(c => c.isHidden).map(client => {
-      const activeLoan = state.loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    return (Array.isArray(state.clients) ? state.clients : []).filter(c => c.isHidden).map(client => {
+      const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       let balance = 0;
       if (activeLoan) {
-        const totalPaid = (activeLoan.installments || []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+        const totalPaid = (Array.isArray(activeLoan.installments) ? activeLoan.installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
         balance = activeLoan.totalAmount - totalPaid;
       }
       return { ...client, balance };
@@ -145,10 +145,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const printWin = window.open('', '_blank');
     if (!printWin) return;
 
-    const tableRows = filteredLoans.map(loan => {
-      const client = state.clients.find(c => c.id === loan.clientId);
+    const tableRows = (Array.isArray(filteredLoans) ? filteredLoans : []).map(loan => {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
       const mora = getDaysOverdue(loan, state.settings);
-      const totalPaid = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+      const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
       const balance = loan.totalAmount - totalPaid;
       return `
         <tr>
@@ -210,13 +210,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     setIsRenewalPayment(method === 'renewal');
 
     if (method === 'renewal' && selectedLoanId) {
-      const loan = state.loans.find(l => l.id === selectedLoanId);
+      const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === selectedLoanId);
       if (loan) {
-        const totalPaid = (loan.installments || []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+        const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
         setPaymentAmount(Math.max(0, loan.totalAmount - totalPaid));
       }
     } else {
-      const loan = state.loans.find(l => l.id === selectedLoanId);
+      const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === selectedLoanId);
       if (loan) setPaymentAmount(loan.installmentValue);
     }
   };
@@ -228,13 +228,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     setIsProcessingPayment(true);
     try {
-      const client = state.clients.find(c => c.id === loan.clientId);
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
       const amountToPay = customAmount || loan.installmentValue;
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
 
       // VALIDACIÓN DE SALDO: No permitir pagos mayores al saldo
-      const loanLogs = state.collectionLogs.filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
       const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
       const remainingBalance = loan.totalAmount - currentTotalPaid;
 
@@ -279,7 +279,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       setLastLogId(logId);
 
       if (client && type === CollectionLogType.PAYMENT) {
-        const loanLogs = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
 
         const progress = totalPaidHistory / (loan.installmentValue || 1);
@@ -293,7 +293,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: loan.id,
           startDate: loan.createdAt,
-          expiryDate: loan.installments && loan.installments.length > 0
+          expiryDate: (Array.isArray(loan.installments) && loan.installments.length > 0)
             ? loan.installments[loan.installments.length - 1].dueDate
             : new Date().toISOString(),
           daysOverdue: overdueDays,
@@ -345,11 +345,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     if (!client) return;
 
     // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN importar la fecha)
-    const allPaymentLogs = state.collectionLogs
+    const allPaymentLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
 
     // Ordenar por fecha descendente para obtener el más reciente
-    const lastPaymentLog = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const lastPaymentLog = [...(Array.isArray(allPaymentLogs) ? allPaymentLogs : [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");
@@ -357,7 +357,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     }
 
     // 2. Recalcular el estado HISTÓRICO
-    const historicLogs = state.collectionLogs.filter(l =>
+    const historicLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l =>
       l.loanId === loan.id &&
       l.type === CollectionLogType.PAYMENT &&
       !l.isOpening &&
@@ -368,7 +368,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const totalPaidAtThatMoment = historicLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
     const amountPaidInLastLog = lastPaymentLog.amount || 0;
 
-    const installments = loan.installments || [];
+    const installments = Array.isArray(loan.installments) ? loan.installments : [];
     const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : loan.createdAt;
 
     const progress = totalPaidAtThatMoment / (loan.installmentValue || 1);
@@ -481,9 +481,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 </p>
               </div>
             ) : (
-              paginatedLoans.map((loan) => {
-                const client = state.clients.find(c => c.id === loan.clientId);
-                const totalPaid = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+              (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
+                const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
+                const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
                 const balance = loan.totalAmount - totalPaid;
                 const progress = (totalPaid / loan.totalAmount) * 100;
                 const daysOverdue = getDaysOverdue(loan, state.settings);
@@ -599,15 +599,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {paginatedLoans.length === 0 ? (
+                {(paginatedLoans || []).length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-24 text-center text-slate-300 font-black uppercase tracking-[0.3em]">No hay créditos en mora actualmente en esta página</td>
                   </tr>
                 ) : (
-                  paginatedLoans.map((loan) => {
-                    const client = state.clients.find(c => c.id === loan.clientId);
+                  (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
+                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
                     const mora = getDaysOverdue(loan, state.settings);
-                    const totalPaid = (loan.installments || []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+                    const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
                     const balance = loan.totalAmount - totalPaid;
 
                     return (
@@ -681,12 +681,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                {hiddenClientsData.length === 0 ? (
+                {(hiddenClientsData || []).length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-24 text-center text-slate-300 font-black uppercase tracking-[0.3em]">No hay clientes ocultos actualmente</td>
                   </tr>
                 ) : (
-                  hiddenClientsData.map(client => (
+                  (Array.isArray(hiddenClientsData) ? hiddenClientsData : []).map(client => (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 uppercase text-slate-500 border-r border-slate-100">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                       <td className="px-6 py-4 uppercase text-slate-900 border-r border-slate-100">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>

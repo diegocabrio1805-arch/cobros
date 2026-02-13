@@ -29,7 +29,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
 
-   const collectors = state.users.filter(u => u.role === Role.COLLECTOR);
+   const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
 
    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const R = 6371;
@@ -44,7 +44,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    };
 
    const routeData = useMemo(() => {
-      let logs = state.collectionLogs.filter(log => {
+      let logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
          const logDate = new Date(log.date).toISOString().split('T')[0];
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
@@ -53,7 +53,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       if (selectedCollector !== 'all') {
          logs = logs.filter(log => {
-            const loan = state.loans.find(l => l.id === log.loanId);
+            const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
             return loan?.collectorId === selectedCollector;
          });
       }
@@ -142,8 +142,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             points.push([openingLog.location.lat, openingLog.location.lng]);
          }
 
-         routeData.forEach((log, index) => {
-            const client = state.clients.find(c => c.id === log.clientId);
+         (Array.isArray(routeData) ? routeData : []).forEach((log, index) => {
+            const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
             // Ignorar logs de apertura (ya tienen bandera propia) y coordenadas invalidas
             if (log.type === CollectionLogType.OPENING || !client || !log.location || (log.location.lat === 0 && log.location.lng === 0)) return;
 
@@ -272,8 +272,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   leafletMap.current.fitBounds(bounds, { padding: [50, 50], animate: false });
                }
             }, 300);
-         } else if (state.clients.length > 0) {
-            const clientWithLoc = state.clients.find(c => c.location && (Math.abs(c.location.lat) > 0.1));
+         } else if ((Array.isArray(state.clients) ? state.clients : []).length > 0) {
+            const clientWithLoc = (Array.isArray(state.clients) ? state.clients : []).find(c => c.location && (Math.abs(c.location.lat) > 0.1));
             if (clientWithLoc && leafletMap.current) {
                leafletMap.current.setView([clientWithLoc.location.lat, clientWithLoc.location.lng], 14);
             }
@@ -347,7 +347,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Desconocido';
 
       // --- ENHANCED: Calculate days since last visit for each client ---
-      const assignedLoans = state.loans.filter(l =>
+      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
       );
       const today = new Date();
@@ -357,9 +357,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const moraReal = getDaysOverdue(loan, state.settings);
 
          // Calculate days since last visit (any log type)
-         const allClientLogs = state.collectionLogs.filter(log => log.clientId === loan.clientId && !log.deletedAt);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt);
          const lastVisit = allClientLogs.length > 0
-            ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
+            ? new Date(Math.max(...(Array.isArray(allClientLogs) ? allClientLogs : []).map(l => new Date(l.date).getTime())))
             : null;
 
          const daysSinceVisit = lastVisit
@@ -378,12 +378,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             dias_sin_visita: daysSinceVisit,
             dias_mora_real: moraReal,
             alerta_critica: daysSinceVisit >= 6 || moraReal > 1, // Flag if overdue or unvisited
-            cuotas: relevantInstallments.map(i => ({
+            cuotas: (Array.isArray(relevantInstallments) ? relevantInstallments : []).map(i => ({
                vencimiento: i.dueDate.split('T')[0],
                estado: i.status,
                valor: i.amount
             })),
-            gestiones: clientLogs.map(log => ({
+            gestiones: (Array.isArray(clientLogs) ? clientLogs : []).map(log => ({
                tipo: log.type,
                fecha: new Date(log.date).toISOString().split('T')[0],
                hora: new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -398,8 +398,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const coverage = totalAssigned > 0 ? (visitedCount / totalAssigned) * 100 : 0;
 
       // Identify unvisited clients and critical alerts
-      const unvisitedClients = clientContexts.filter(c => c.gestiones.length === 0);
-      const criticalAlerts = clientContexts.filter(c => c.alerta_critica);
+      const unvisitedClients = clientContexts.filter(c => c.alerta_critica);
 
       const prompt = `
       Actúa como un Auditor Senior de Cobranza. Tu objetivo es evaluar el CRITERIO y CUMPLIMIENTO del cobrador "${collectorName}".
@@ -416,10 +415,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       - Total Clientes Asignados: ${totalAssigned}
       - Visitados en el Periodo: ${visitedCount} (${coverage.toFixed(1)}%)
       - NO Visitados en el Periodo: ${missingCount}
-      - **ALERTAS CRÍTICAS (6+ días sin visita)**: ${criticalAlerts.length} clientes
+      - **ALERTAS CRÍTICAS (6+ días sin visita)**: ${unvisitedClients.length} clientes
       
       CLIENTES NO VISITADOS EN ESTE PERIODO:
-      ${unvisitedClients.map(c => `- ${c.cliente} (${c.dias_sin_visita} días sin visita${c.alerta_critica ? ' ⚠️ CRÍTICO' : ''})`).join('\n')}
+      ${(Array.isArray(unvisitedClients) ? unvisitedClients : []).map(c => `- ${c.cliente} (${c.dias_sin_visita} días sin visita${c.alerta_critica ? ' ⚠️ CRÍTICO' : ''})`).join('\n')}
 
       - Detalle Contextual por Cliente:
       ${JSON.stringify(clientContexts, null, 2)}
@@ -557,7 +556,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                        </h4>
                                        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
                                           <ul className="space-y-2">
-                                             {aiReport.critical_clients.map((client: string, idx: number) => (
+                                             {(Array.isArray(aiReport.critical_clients) ? aiReport.critical_clients : []).map((client: string, idx: number) => (
                                                 <li key={idx} className="flex items-center gap-2 text-sm font-black text-red-700">
                                                    <i className="fa-solid fa-circle-exclamation text-red-500"></i>
                                                    {client}
@@ -635,7 +634,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         className="bg-transparent border-none outline-none text-xs font-black text-slate-700 uppercase cursor-pointer"
                      >
                         <option value="all">Todos</option>
-                        {collectors.map(c => (
+                        {(Array.isArray(collectors) ? collectors : []).map(c => (
                            <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                      </select>
@@ -736,8 +735,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
-                        {routeData.filter(l => l.type !== CollectionLogType.OPENING).map((log) => {
-                           const client = state.clients.find(c => c.id === log.clientId);
+                        {(Array.isArray(routeData) ? routeData : []).filter(l => l.type !== CollectionLogType.OPENING).map((log) => {
+                           const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
                            const time = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                            const getEmoji = () => {
                               if (log.isRenewal) return '😇';
