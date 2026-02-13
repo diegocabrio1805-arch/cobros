@@ -37,6 +37,8 @@ import { Device } from '@capacitor/device';
 
 
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -357,7 +359,8 @@ const App: React.FC = () => {
     myTeamIds.add(user.id);
 
     // Pass 1: Add Direct Reports
-    state.users.forEach(u => {
+    // Pass 1: Add Direct Reports
+    (Array.isArray(state.users) ? state.users : []).forEach(u => {
       if (u.managedBy?.toLowerCase() === user.id.toLowerCase()) {
         myTeamIds.add(u.id.toLowerCase());
         if (u.role === Role.COLLECTOR) {
@@ -389,19 +392,19 @@ const App: React.FC = () => {
     // SOFT DELETE FILTER: Only show active clients (unless specifically viewing archives, but standard view hides them)
     // Also Admin sees everything, but even Admin shouldn't see "Deleted" clients in the main list.
     // If we want an "Archive", we'd add a toggle. For now, User wants them GONE.
-    let clients = state.clients.filter(c => isOurBranch(c.branchId, c.addedBy, undefined) && c.isActive !== false && !c.deletedAt);
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => isOurBranch(c.branchId, c.addedBy, undefined) && c.isActive !== false && !c.deletedAt);
 
     // Performance optimization: Create a Set of visible/active client IDs
     const activeClientIds = new Set(clients.map(c => c.id));
 
     // Filter related data to only show what belongs to visible clients
     // This ensures that if a client is "Deleted" (Soft), their loans/payments also disappear from the UI.
-    let loans = state.loans.filter(l => activeClientIds.has(l.clientId) && !l.deletedAt);
-    let payments = state.payments.filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
-    let expenses = state.expenses.filter(e => isOurBranch(e.branchId, e.addedBy, undefined)); // Expenses don't have deletedAt yet or handle differently
-    let collectionLogs = state.collectionLogs.filter(log => activeClientIds.has(log.clientId) && !log.deletedAt);
+    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => activeClientIds.has(l.clientId) && !l.deletedAt);
+    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
+    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId, e.addedBy, undefined)); // Expenses don't have deletedAt yet or handle differently
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => activeClientIds.has(log.clientId) && !log.deletedAt);
 
-    let users = state.users.filter(u => {
+    let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.id === user.id) return true;
       if (myTeamIds.has(u.id)) return true;
       return false;
@@ -417,7 +420,7 @@ const App: React.FC = () => {
       // 2. I have an active loan assigned to me for them
 
       const myAssignedClientIds = new Set<string>();
-      state.loans.forEach(l => {
+      (Array.isArray(state.loans) ? state.loans : []).forEach(l => {
         if (l.collectorId === user.id) myAssignedClientIds.add(l.clientId);
       });
 
