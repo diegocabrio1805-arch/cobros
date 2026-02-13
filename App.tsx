@@ -912,234 +912,236 @@ const App: React.FC = () => {
   const isHomeTab = activeTab === 'dashboard' || activeTab === 'route';
 
   return (
-    <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
-      <FloatingBackButton onClick={handleBack} visible={!isHomeTab} />
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onLogout={handleLogout}
-        user={state.currentUser}
-        state={filteredState}
-        isSyncing={isSyncing}
-        isFullSyncing={isFullSyncing}
-      />
+    <ErrorBoundary>
+      <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
+        <FloatingBackButton onClick={handleBack} visible={!isHomeTab} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onLogout={handleLogout}
+          user={state.currentUser}
+          state={filteredState}
+          isSyncing={isSyncing}
+          isFullSyncing={isFullSyncing}
+        />
 
-      {showManagerExpiryModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-amber-400 w-full max-w-md rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border-4 border-amber-300">
-            <div className="p-8 text-center space-y-4">
-              <div className="w-16 h-16 bg-white/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                <i className="fa-solid fa-triangle-exclamation text-3xl text-amber-900"></i>
+        {showManagerExpiryModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-amber-400 w-full max-w-md rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border-4 border-amber-300">
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 bg-white/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                  <i className="fa-solid fa-triangle-exclamation text-3xl text-amber-900"></i>
+                </div>
+                <h3 className="text-2xl font-black text-amber-950 uppercase tracking-tighter">¡ATENCIÓN GERENTE!</h3>
+                <p className="text-amber-900 font-bold leading-tight">
+                  Su cuenta de administración está próxima a vencer. <br />
+                  <span className="text-3xl font-black block mt-2">FALTAN {daysToExpiry} DÍAS</span>
+                </p>
+                <button onClick={() => setShowManagerExpiryModal(false)} className="w-full py-4 bg-amber-950 text-amber-400 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">ENTENDIDO</button>
               </div>
-              <h3 className="text-2xl font-black text-amber-950 uppercase tracking-tighter">¡ATENCIÓN GERENTE!</h3>
-              <p className="text-amber-900 font-bold leading-tight">
-                Su cuenta de administración está próxima a vencer. <br />
-                <span className="text-3xl font-black block mt-2">FALTAN {daysToExpiry} DÍAS</span>
-              </p>
-              <button onClick={() => setShowManagerExpiryModal(false)} className="w-full py-4 bg-amber-950 text-amber-400 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">ENTENDIDO</button>
+              <button onClick={() => setShowManagerExpiryModal(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-amber-950/40 hover:text-amber-950 transition-colors"><i className="fa-solid fa-xmark text-2xl"></i></button>
             </div>
-            <button onClick={() => setShowManagerExpiryModal(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-amber-950/40 hover:text-amber-950 transition-colors"><i className="fa-solid fa-xmark text-2xl"></i></button>
           </div>
-        </div>
-      )}
+        )}
 
-      {showCollectorExpiryAlert && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-[3rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-hidden animate-scaleIn border-b-8 border-red-600">
-            <button onClick={() => setShowCollectorExpiryAlert(false)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-slate-500 hover:text-red-600 transition-colors z-20"><i className="fa-solid fa-circle-xmark text-2xl"></i></button>
+        {showCollectorExpiryAlert && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fadeIn">
+            <div className="bg-white w-full max-w-md rounded-[3rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-hidden animate-scaleIn border-b-8 border-red-600">
+              <button onClick={() => setShowCollectorExpiryAlert(false)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-slate-500 hover:text-red-600 transition-colors z-20"><i className="fa-solid fa-circle-xmark text-2xl"></i></button>
 
-            <div className="h-48 w-full overflow-hidden relative flex items-center justify-center bg-[#0f172a]">
-              <div className={`${isJumping ? 'jump-3s' : ''} transition-all duration-300`}>
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/963/963385.png"
-                  alt="Motorcycle Helmet Retro"
-                  className="w-32 h-32 object-contain filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]"
-                />
+              <div className="h-48 w-full overflow-hidden relative flex items-center justify-center bg-[#0f172a]">
+                <div className={`${isJumping ? 'jump-3s' : ''} transition-all duration-300`}>
+                  <img
+                    src="https://cdn-icons-png.flaticon.com/512/963/963385.png"
+                    alt="Motorcycle Helmet Retro"
+                    className="w-32 h-32 object-contain filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent"></div>
+                <div className="absolute bottom-4 left-6 text-white">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Alerta Urgente</p>
+                  <h3 className="text-xl font-black uppercase tracking-tighter">Vencimientos Próximos</h3>
+                </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent"></div>
-              <div className="absolute bottom-4 left-6 text-white">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Alerta Urgente</p>
-                <h3 className="text-xl font-black uppercase tracking-tighter">Vencimientos Próximos</h3>
-              </div>
-            </div>
 
-            <div className="p-8 space-y-4">
-              <p className="text-slate-700 font-black text-sm uppercase leading-relaxed">
-                Gerente, hay cobradores con menos de <span className="text-red-600 font-black underline">5 DÍAS</span> de vigencia:
-              </p>
-              <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-                {expiringCollectorsNames.map((name, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-4 bg-red-50 rounded-2xl border border-red-100 shadow-sm">
-                    <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white">
-                      <i className="fa-solid fa-motorcycle"></i>
+              <div className="p-8 space-y-4">
+                <p className="text-slate-700 font-black text-sm uppercase leading-relaxed">
+                  Gerente, hay cobradores con menos de <span className="text-red-600 font-black underline">5 DÍAS</span> de vigencia:
+                </p>
+                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                  {expiringCollectorsNames.map((name, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-4 bg-red-50 rounded-2xl border border-red-100 shadow-sm">
+                      <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white">
+                        <i className="fa-solid fa-motorcycle"></i>
+                      </div>
+                      <span className="text-xs font-black text-slate-950 uppercase">{name}</span>
                     </div>
-                    <span className="text-xs font-black text-slate-950 uppercase">{name}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="pt-4 border-t border-slate-100">
+                  <button onClick={() => setShowCollectorExpiryAlert(false)} className="w-full py-4 bg-[#0f172a] text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">GESTIONAR AHORA</button>
+                </div>
               </div>
-              <div className="pt-4 border-t border-slate-100">
-                <button onClick={() => setShowCollectorExpiryAlert(false)} className="w-full py-4 bg-[#0f172a] text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">GESTIONAR AHORA</button>
+            </div>
+          </div>
+        )}
+
+        {/* GREEN SUCCESS WINDOW */}
+        {/* GREEN SUCCESS WINDOW */}
+        {showSuccess && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[2000] w-[90%] max-w-sm">
+            <div className="bg-emerald-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-4 animate-scaleIn border-b-4 border-emerald-700">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
+                <i className="fa-solid fa-check text-2xl animate-pulse"></i>
+              </div>
+              <div>
+                <h3 className="font-black uppercase text-sm tracking-wider">{successMessage || "¡Sincronizado!"}</h3>
+                <p className="text-xs font-bold opacity-90">Datos actualizados en la nube.</p>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* GREEN SUCCESS WINDOW */}
-      {/* GREEN SUCCESS WINDOW */}
-      {showSuccess && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[2000] w-[90%] max-w-sm">
-          <div className="bg-emerald-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-4 animate-scaleIn border-b-4 border-emerald-700">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
-              <i className="fa-solid fa-check text-2xl animate-pulse"></i>
-            </div>
-            <div>
-              <h3 className="font-black uppercase text-sm tracking-wider">{successMessage || "¡Sincronizado!"}</h3>
-              <p className="text-xs font-bold opacity-90">Datos actualizados en la nube.</p>
+        {/* SYNC STATUS - Blue for Progress */}
+        {syncError && syncError.startsWith('Sincronizando') && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[90%] max-w-sm">
+            <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow-lg flex items-center gap-3 animate-slideDown">
+              <i className="fa-solid fa-rotate animate-spin"></i>
+              <span className="font-bold text-xs uppercase tracking-wider">{syncError}</span>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* SYNC STATUS - Blue for Progress */}
-      {syncError && syncError.startsWith('Sincronizando') && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[90%] max-w-sm">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow-lg flex items-center gap-3 animate-slideDown">
-            <i className="fa-solid fa-rotate animate-spin"></i>
-            <span className="font-bold text-xs uppercase tracking-wider">{syncError}</span>
-          </div>
-        </div>
-      )}
-
-      {/* ERROR BANNER - ONLY VISIBLE FOR ADMIN AS PER USER REQUEST */}
-      {isAdmin && syncError && !syncError.startsWith('Sincronizando') && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[95%] max-w-md">
-          <div className="bg-red-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-4 animate-scaleIn border-b-4 border-red-700">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
-              <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
-            </div>
-            <div>
-              <h3 className="font-black uppercase text-sm tracking-widest">Error de Conexión</h3>
-              <p className="text-[10px] font-bold opacity-90 leading-tight">{syncError}</p>
+        {/* ERROR BANNER - ONLY VISIBLE FOR ADMIN AS PER USER REQUEST */}
+        {isAdmin && syncError && !syncError.startsWith('Sincronizando') && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] w-[95%] max-w-md">
+            <div className="bg-red-500 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-4 animate-scaleIn border-b-4 border-red-700">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
+                <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
+              </div>
+              <div>
+                <h3 className="font-black uppercase text-sm tracking-widest">Error de Conexión</h3>
+                <p className="text-[10px] font-bold opacity-90 leading-tight">{syncError}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            {!isHomeTab ? (
-              <button onClick={handleBack} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center transition-all active:scale-90">
-                <i className="fa-solid fa-chevron-left"></i>
-              </button>
-            ) : (
+        <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              {!isHomeTab ? (
+                <button onClick={handleBack} className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center transition-all active:scale-90">
+                  <i className="fa-solid fa-chevron-left"></i>
+                </button>
+              ) : (
+                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
+                  <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
+                </button>
+              )}
+              <div>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.39 PWA</span></h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {isOnline ? 'Conectado' : 'Sin Internet'}
+                  </span>
+                  {queueLength > 0 && (
+                    <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md animate-bounce border border-amber-200">
+                      {queueLength} pendientes
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {!isHomeTab && (
               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
             )}
-            <div>
-              <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.39 PWA</span></h1>
-              <div className="flex items-center gap-2 mt-1">
-                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-                <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {isOnline ? 'Conectado' : 'Sin Internet'}
-                </span>
-                {queueLength > 0 && (
-                  <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md animate-bounce border border-amber-200">
-                    {queueLength} pendientes
-                  </span>
-                )}
-              </div>
+          </div>
+
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-white/95 backdrop-blur-md border-b border-slate-200 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
+              {[
+                { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
+                { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
+                { id: 'loans', icon: 'fa-money-bill-wave', label: t.loans, powerOnly: false },
+                { id: 'route', icon: 'fa-route', label: t.route, powerOnly: false },
+                { id: 'notifications', icon: 'fa-bell', label: t.notifications, powerOnly: false },
+                { id: 'collectors', icon: 'fa-user-gear', label: t.collectors, powerOnly: true },
+                { id: 'performance', icon: 'fa-chart-column', label: t.performance, powerOnly: true },
+                { id: 'expenses', icon: 'fa-wallet', label: t.expenses, powerOnly: true },
+                { id: 'simulator', icon: 'fa-calculator', label: t.simulator, powerOnly: false },
+                { id: 'reports', icon: 'fa-file-invoice-dollar', label: t.reports, powerOnly: true },
+                { id: 'commission', icon: 'fa-percent', label: t.commission, powerOnly: false },
+                { id: 'profile', icon: 'fa-user-circle', label: t.profile, powerOnly: false },
+                { id: 'settings', icon: 'fa-gear', label: t.settings, powerOnly: false },
+                { id: 'managers', icon: 'fa-user-tie', label: t.managers, adminOnly: true },
+              ].filter(item => {
+                if (item.adminOnly) return isAdmin;
+                if (item.powerOnly) return isPowerUser;
+                return true;
+              }).map((item) => (
+                <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 p-3 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-sm`}></i></div>
+                  <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                </button>
+              ))}
+              {isAdmin && (
+                <button onClick={() => { handleForceSync(false, "¡Sincronización Total Completa!", true); setIsMobileMenuOpen(false); }} className="col-span-2 flex flex-col items-center justify-center gap-1 p-4 bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-900/40 border-b-4 border-emerald-900 active:scale-95 transition-all">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-bolt-lightning text-amber-400"></i> ACTIVADOR: SINCRONIZACIÓN TOTAL
+                  </div>
+                  {queueLength > 0 && <span className="bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full text-[8px] animate-pulse">{queueLength} PENDIENTES DE SUBIR</span>}
+                </button>
+              )}
+              <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
             </div>
-          </div>
-
-          {!isHomeTab && (
-            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
-              <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
-            </button>
           )}
-        </div>
+        </header>
 
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-white/95 backdrop-blur-md border-b border-slate-200 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
-            {[
-              { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
-              { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
-              { id: 'loans', icon: 'fa-money-bill-wave', label: t.loans, powerOnly: false },
-              { id: 'route', icon: 'fa-route', label: t.route, powerOnly: false },
-              { id: 'notifications', icon: 'fa-bell', label: t.notifications, powerOnly: false },
-              { id: 'collectors', icon: 'fa-user-gear', label: t.collectors, powerOnly: true },
-              { id: 'performance', icon: 'fa-chart-column', label: t.performance, powerOnly: true },
-              { id: 'expenses', icon: 'fa-wallet', label: t.expenses, powerOnly: true },
-              { id: 'simulator', icon: 'fa-calculator', label: t.simulator, powerOnly: false },
-              { id: 'reports', icon: 'fa-file-invoice-dollar', label: t.reports, powerOnly: true },
-              { id: 'commission', icon: 'fa-percent', label: t.commission, powerOnly: false },
-              { id: 'profile', icon: 'fa-user-circle', label: t.profile, powerOnly: false },
-              { id: 'settings', icon: 'fa-gear', label: t.settings, powerOnly: false },
-              { id: 'managers', icon: 'fa-user-tie', label: t.managers, adminOnly: true },
-            ].filter(item => {
-              if (item.adminOnly) return isAdmin;
-              if (item.powerOnly) return isPowerUser;
-              return true;
-            }).map((item) => (
-              <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 p-3 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-sm`}></i></div>
-                <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
-              </button>
-            ))}
-            {isAdmin && (
-              <button onClick={() => { handleForceSync(false, "¡Sincronización Total Completa!", true); setIsMobileMenuOpen(false); }} className="col-span-2 flex flex-col items-center justify-center gap-1 p-4 bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-900/40 border-b-4 border-emerald-900 active:scale-95 transition-all">
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-bolt-lightning text-amber-400"></i> ACTIVADOR: SINCRONIZACIÓN TOTAL
-                </div>
-                {queueLength > 0 && <span className="bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full text-[8px] animate-pulse">{queueLength} PENDIENTES DE SUBIR</span>}
-              </button>
-            )}
-            <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
+        <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
+          <div className="max-w-[1400px] mx-auto pb-20">
+            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
+            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} setActiveTab={setActiveTab} />}
+            {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
+            {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={deleteClient} onForceSync={handleForceSync} />}
+            {activeTab === 'notifications' && <Notifications state={filteredState} />}
+            {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
+            {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}
+            {activeTab === 'collectors' && isPowerUser && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} />}
+            {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} />}
+            {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
+            {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
+            {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
+            {activeTab === 'settings' && <Settings
+              state={filteredState}
+              updateSettings={updateSettings}
+              setActiveTab={setActiveTab}
+              onForceSync={() => handleForceSync(true)}
+              onClearQueue={clearQueue}
+              isOnline={isOnline}
+              isSyncing={isSyncing}
+              isFullSyncing={isFullSyncing}
+              onDeepReset={handleDeepReset}
+            />}
+            {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>
-        )}
-      </header>
+        </main>
 
-      <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
-        <div className="max-w-[1400px] mx-auto pb-20">
-          {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
-          {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} setActiveTab={setActiveTab} />}
-          {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
-          {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={deleteClient} onForceSync={handleForceSync} />}
-          {activeTab === 'notifications' && <Notifications state={filteredState} />}
-          {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
-          {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}
-          {activeTab === 'collectors' && isPowerUser && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} />}
-          {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} />}
-          {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
-          {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
-          {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
-          {activeTab === 'settings' && <Settings
-            state={filteredState}
-            updateSettings={updateSettings}
-            setActiveTab={setActiveTab}
-            onForceSync={() => handleForceSync(true)}
-            onClearQueue={clearQueue}
-            isOnline={isOnline}
-            isSyncing={isSyncing}
-            isFullSyncing={isFullSyncing}
-            onDeepReset={handleDeepReset}
-          />}
-          {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
-        </div>
-      </main>
+        {/* GPS ENFORCEMENT */}
+        <LocationEnforcer
+          isRequired={state.currentUser?.requiresLocation || false}
+          onLocationEnabled={() => {
+            console.log('Location enabled successfully');
+          }}
+        />
 
-      {/* GPS ENFORCEMENT */}
-      <LocationEnforcer
-        isRequired={state.currentUser?.requiresLocation || false}
-        onLocationEnabled={() => {
-          console.log('Location enabled successfully');
-        }}
-      />
-
-      {/* CLEAN PRODUCTION v5.3.0 */}
-    </div>
+        {/* CLEAN PRODUCTION v5.3.0 */}
+      </div>
+    </ErrorBoundary >
   );
 };
 
