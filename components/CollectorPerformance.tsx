@@ -19,7 +19,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     // 1. Préstamos activos asignados a este cobrador
     const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === collectorId);
     const assignedLoans = (Array.isArray(collectorLoans) ? collectorLoans : []).filter(l => l.status === LoanStatus.ACTIVE);
-    const assignedClientIds = new Set(assignedLoans.map(l => l.clientId));
+    const assignedClientIds = new Set((Array.isArray(assignedLoans) ? assignedLoans : []).map(l => l.clientId));
     const totalActiveClients = assignedClientIds.size;
 
     // 2. Logs de gestión de este mes
@@ -32,8 +32,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     });
 
     // 3. Clientes visitados este mes
-    const visitedClientIds = new Set(monthlyLogs.map(log => log.clientId));
-    const clientsVisited = Array.from(visitedClientIds).filter(id => assignedClientIds.has(id)).length;
+    const visitedClientIds = new Set((Array.isArray(monthlyLogs) ? monthlyLogs : []).map(log => log.clientId));
+    const clientsVisited = Array.from(visitedClientIds).filter(id => assignedClientIds.has(id as string)).length;
 
     // 4. Dinero Recaudado este mes
     const collectedThisMonth = monthlyLogs

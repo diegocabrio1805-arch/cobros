@@ -367,8 +367,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             : 999; // Large number if never visited
 
          // Get relevant installments (those due in the period or the latest one)
-         const relevantInstallments = loan.installments.filter(inst => {
-            const dueStr = inst.dueDate.split('T')[0];
+         const installments = Array.isArray(loan.installments) ? loan.installments : [];
+         const relevantInstallments = installments.filter(inst => {
+            const dueStr = inst.dueDate ? inst.dueDate.split('T')[0] : '';
             return (dueStr >= selectedDate && dueStr <= (endDate || selectedDate)) || inst.status !== PaymentStatus.PAID;
          }).slice(0, 3); // Take top 3 for tokens efficiency
 

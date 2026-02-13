@@ -34,53 +34,51 @@
       }
     })();
 
-    // Asset Loading Error Handler (Integrity Check)
-    window.addEventListener('error', function (event) {
-      const element = event.target || event.srcElement;
-      if (element.tagName === 'LINK' || element.tagName === 'SCRIPT') {
-        const src = element.src || element.href;
-        console.error('Falla crítica al cargar recurso:', src);
+    // --- PANIC RELOAD MECHANISM (Anti-WSOD) ---
+    (function () {
+      const BOOT_TIMEOUT = 5000; // 5 segundos críticos de arranque
+      let bootFinished = false;
 
-        // Si falla el CSS principal o el index.tsx, forzamos un reload sin caché
-        if (src && (src.includes('index.css') || src.includes('.js') || src.includes('.tsx'))) {
-          const reloadCount = parseInt(sessionStorage.getItem('asset_reload_count') || '0');
-          if (reloadCount < 5) {
-            console.log('Intentando recarga de emergencia...');
-            sessionStorage.setItem('asset_reload_count', (reloadCount + 1).toString());
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          bootFinished = true;
+          sessionStorage.removeItem('panic_reload_count');
+          console.log("Boot finished successfully.");
+        }, BOOT_TIMEOUT);
+      });
 
-            // Clean SW if possible before reload
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function (regs) {
-                for (let r of regs) r.unregister();
-                window.location.reload(true);
-              });
-            } else {
-              window.location.reload(true);
-            }
-          }
+      const handlePanic = (msg) => {
+        if (bootFinished) return;
+        console.error("Critical boot error detected:", msg);
+
+        var trap = document.getElementById('error-trap');
+        if (trap) {
+          trap.style.display = 'block';
+          trap.innerHTML = `
+            <div style="background:#0f172a; color:white; height:100vh; padding:20px; text-align:center; display:flex; flexDirection:column; alignItems:center; justifyContent:center; fontFamily:sans-serif;">
+              <h1 style="font-size:60px; margin:0;">🛠️</h1>
+              <h2 style="font-size:20px; font-weight:bold; margin:10px 0; color:#f1f5f9;">ERROR DE ARRANQUE DETECTADO</h2>
+              <p style="color:#94a3b8; margin-bottom:20px; font-size:14px; max-width:300px;">La app no pudo iniciar. Mira el detalle técnico abajo:</p>
+              
+              <div style="background:#1e293b; padding:15px; border-radius:12px; border:1px solid #334155; width:100%; max-width:400px; margin-bottom:20px; text-align:left;">
+                <p style="color:#ef4444; font-size:10px; font-weight:bold; text-transform:uppercase; margin:0 0 5px 0;">Detalle técnico:</p>
+                <pre style="font-size:10px; color:#cbd5e1; margin:0; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow:auto;">${msg}</pre>
+              </div>
+
+              <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload(true);" 
+                style="background:#3b82f6; color:white; padding:16px 32px; border-radius:16px; font-weight:bold; border:none; cursor:pointer; box-shadow:0 10px 15px -3px rgba(59,130,246,0.5); font-size:14px;">
+                REPARAR Y LIMPIAR DATOS
+              </button>
+              
+              <p style="color:#475569; font-size:10px; margin-top:20px;">(El auto-refresco ha sido desactivado para diagnóstico)</p>
+            </div>
+          `;
         }
-      }
-    }, true);
+      };
 
-    // WSOD Self-Repair removed to prevent infinite loops during debugging
-
-    window.onerror = function (msg, url, line, col, error) {
-      var trap = document.getElementById('error-trap');
-      if (trap) {
-        trap.style.display = 'block';
-        trap.innerHTML += '<h3>Fatal Error:</h3><p>' + msg + '</p><p>' + url + ':' + line + '</p><hr>';
-      }
-    };
-    window.addEventListener('unhandledrejection', function (event) {
-      var trap = document.getElementById('error-trap');
-      if (trap) {
-        trap.style.display = 'block';
-        trap.innerHTML += '<h3>Unhandled Promise Rejection:</h3><pre>' + JSON.stringify(event.reason?.message || event.reason, null, 2) + '</pre><hr>';
-      }
-    });
-
-    // Reset reload counter if everything loads fine after 10s
-    setTimeout(() => sessionStorage.removeItem('asset_reload_count'), 10000);
+      window.addEventListener('error', (e) => handlePanic(e.message));
+      window.addEventListener('unhandledrejection', (e) => handlePanic(e.reason?.message || "Promise Error"));
+    })();
   </script>
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>

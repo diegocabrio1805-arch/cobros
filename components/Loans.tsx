@@ -223,7 +223,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
   const handleQuickAction = async (loanId: string, type: CollectionLogType, customAmount?: number, isVirtual: boolean = false, isRenewal: boolean = false) => {
     if (isProcessingPayment) return;
-    const loan = state.loans.find(l => l.id === loanId);
+    const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === loanId);
     if (!loan) return;
 
     setIsProcessingPayment(true);
@@ -338,10 +338,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   };
 
   const handleReprintLastReceipt = async (loanId: string) => {
-    const loan = state.loans.find(l => l.id === loanId);
+    const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === loanId);
     if (!loan) return;
 
-    const client = state.clients.find(c => c.id === loan.clientId);
+    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
     if (!client) return;
 
     // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN importar la fecha)
@@ -999,7 +999,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   printText(finalReceipt).catch(() => { });
 
                   // WhatsApp
-                  const client = state.clients.find(c => c.name === editingReceipt.clientName);
+                  const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
                   if (client) {
                     const phone = client.phone.replace(/\D/g, '');
                     window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');

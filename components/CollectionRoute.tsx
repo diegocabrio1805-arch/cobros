@@ -63,6 +63,18 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     }
   };
 
+  // OPTIMIZATION: Index logs by loanId once to avoid O(n^2) behavior
+  const logsByLoan = useMemo(() => {
+    const map: Record<string, CollectionLog[]> = {};
+    (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).forEach(log => {
+      if (!log.deletedAt) {
+        if (!map[log.loanId]) map[log.loanId] = [];
+        map[log.loanId].push(log);
+      }
+    });
+    return map;
+  }, [state.collectionLogs]);
+
   const enrichedRoute = useMemo(() => {
     const parseLocal = (s: string) => {
       if (!s) return new Date();
@@ -74,18 +86,6 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     startLimit.setHours(0, 0, 0, 0);
     const endLimit = parseLocal(endDate);
     endLimit.setHours(23, 59, 59, 999);
-
-    // OPTIMIZATION: Index logs by loanId once to avoid O(n^2) behavior
-    const logsByLoan = useMemo(() => {
-      const map: Record<string, CollectionLog[]> = {};
-      (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).forEach(log => {
-        if (!log.deletedAt) {
-          if (!map[log.loanId]) map[log.loanId] = [];
-          map[log.loanId].push(log);
-        }
-      });
-      return map;
-    }, [state.collectionLogs]);
 
     return (Array.isArray(routeLoans) ? routeLoans : []).map(loan => {
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
@@ -145,25 +145,27 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       }
       return 0; // Mantener orden original en ruta activa
     });
-  }, [routeLoans, state.collectionLogs, state.clients, startDate, endDate, isViewingToday, state.users, viewMode]);
+  }, [routeLoans, logsByLoan, state.clients, startDate, endDate, isViewingToday, state.users, viewMode]);
 
   const filteredRoute = useMemo(() => {
-    if (!searchTerm) return enrichedRoute;
+    const validEnriched = Array.isArray(enrichedRoute) ? enrichedRoute : [];
+    if (!searchTerm) return validEnriched;
     const s = searchTerm.toLowerCase();
-    return enrichedRoute.filter(item =>
-      item.client?.name.toLowerCase().includes(s) ||
-      item.client?.address.toLowerCase().includes(s)
+    return validEnriched.filter(item =>
+      (item.client?.name || '').toLowerCase().includes(s) ||
+      (item.client?.address || '').toLowerCase().includes(s)
     );
   }, [enrichedRoute, searchTerm]);
 
   const totalCollectedInView = useMemo(() => {
-    return filteredRoute.reduce((acc, curr) => acc + curr.paidPeriod, 0);
+    return (Array.isArray(filteredRoute) ? filteredRoute : []).reduce((acc, curr) => acc + (curr.paidPeriod || 0), 0);
   }, [filteredRoute]);
 
-  const totalPages = Math.ceil(filteredRoute.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((Array.isArray(filteredRoute) ? filteredRoute.length : 0) / ITEMS_PER_PAGE);
   const paginatedRoute = useMemo(() => {
+    const validFiltered = Array.isArray(filteredRoute) ? filteredRoute : [];
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredRoute.slice(start, start + ITEMS_PER_PAGE);
+    return validFiltered.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredRoute, currentPage]);
 
   const resetUI = () => {
@@ -424,7 +426,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paginatedRoute.map((item) => (
+              {(Array.isArray(paginatedRoute) ? paginatedRoute : []).map((item) => (
                 <tr key={item.id} className={`hover:bg-slate-50/80 transition-all ${item.paidPeriod > 0 ? 'bg-emerald-50/10' : ''}`}>
                   <td className="px-3 md:px-4 py-4">
                     <p className="text-[10px] md:text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[150px]">{item.client?.name}</p>

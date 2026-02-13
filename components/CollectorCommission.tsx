@@ -114,7 +114,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
       u.id === currentUserId || (u.role === Role.COLLECTOR && u.managedBy === currentUserId)
     );
-    return eligibleUsers.map(user => ({
+    return (Array.isArray(eligibleUsers) ? eligibleUsers : []).map(user => ({
       user,
       stats: calculateStatsForCollector(user.id)
     }));

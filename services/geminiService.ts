@@ -38,16 +38,20 @@ const fetchGemini = async (prompt: string, isJson: boolean = false) => {
 export const getFinancialInsights = async (state: AppState) => {
   const { loans, clients, expenses } = state;
 
-  const totalLent = loans.reduce((acc, l) => acc + l.principal, 0);
-  const totalProfitProyected = loans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const validLoans = Array.isArray(loans) ? loans : [];
+  const validClients = Array.isArray(clients) ? clients : [];
+  const validExpenses = Array.isArray(expenses) ? expenses : [];
+
+  const totalLent = validLoans.reduce((acc, l) => acc + l.principal, 0);
+  const totalProfitProyected = validLoans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalExpenses = validExpenses.reduce((acc, e) => acc + e.amount, 0);
   const netUtility = totalProfitProyected - totalExpenses;
 
   const prompt = `
     Analiza la situación financiera de una empresa de préstamos. Responde en español y estrictamente en formato JSON.
     DATOS:
-    - Clientes: ${clients.length}
-    - Préstamos Activos: ${loans.filter(l => l.status === 'Activo').length}
+    - Clientes: ${validClients.length}
+    - Préstamos Activos: ${validLoans.filter(l => l.status === 'Activo').length}
     - Capital prestado: ${totalLent}
     - Intereses proyectados: ${totalProfitProyected}
     - Gastos: ${totalExpenses}
@@ -77,10 +81,11 @@ export const getFinancialInsights = async (state: AppState) => {
 };
 
 export const generateAIStatement = async (loan: Loan, client: Client, daysOverdue: number, state: AppState) => {
-  const totalPaid = loan.installments.reduce((acc, i) => acc + i.paidAmount, 0);
+  const installments = Array.isArray(loan.installments) ? loan.installments : [];
+  const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
   const balance = loan.totalAmount - totalPaid;
-  const paidInstallments = loan.installments.filter(i => i.status === PaymentStatus.PAID).length;
-  const lastInstallment = loan.installments[loan.installments.length - 1];
+  const paidInstallments = installments.filter(i => i.status === PaymentStatus.PAID).length;
+  const lastInstallment = installments.length > 0 ? installments[installments.length - 1] : { dueDate: new Date().toISOString() };
   const settings = state.settings;
 
   const prompt = `
@@ -117,7 +122,8 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
 };
 
 export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, daysOverdue: number, settings?: AppSettings) => {
-  const totalPaid = loan.installments.reduce((acc, i) => acc + i.paidAmount, 0);
+  const installments = Array.isArray(loan.installments) ? loan.installments : [];
+  const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
   const balance = loan.totalAmount - totalPaid;
   const companyName = settings?.companyName || 'ANEXO COBRO';
 

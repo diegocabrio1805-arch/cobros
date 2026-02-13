@@ -51,63 +51,76 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION (Moved to top)
   const [state, setState] = useState<AppState>(() => {
-    // --- CONSTANTS ---
-    const CURRENT_VERSION_ID = 'v6.1.42-ULTRA-PWA-REDUX'; // <--- UPDATED VERSION
-    const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
-    const RESET_ID = '2026-02-12-ULTRA-PURGE-V3-FINAL';
+    const CURRENT_VERSION_ID = 'v6.1.42-ULTRA-PWA-REDUX';
+    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
+    const defaultInitialState: AppState = {
+      clients: [],
+      loans: [],
+      payments: [],
+      expenses: [],
+      collectionLogs: [],
+      users: [initialAdmin],
+      currentUser: null,
+      commissionPercentage: 10,
+      commissionBrackets: [],
+      initialCapital: 0,
+      settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
+      branchSettings: {}
+    };
 
     try {
-      // FIX: Comparación estricta para asegurar que CUALQUIER cambio de versión limpie la cache vieja
+      const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
       if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
         console.log("App v6.1.42: Version mismatch detected. PURGING CACHE...");
         localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
         localStorage.removeItem('prestamaster_v2');
-        // Clear queue too to avoid garbage IDs
         localStorage.removeItem('syncQueue');
       }
+
+      const saved = localStorage.getItem('prestamaster_v2');
+      if (!saved) return defaultInitialState;
+
+      let rawData = JSON.parse(saved);
+      if (rawData) {
+        const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
+        rawData = JSON.parse(json);
+      }
+
+      const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
+        ...u,
+        role: u.role === 'admin' ? Role.ADMIN : u.role
+      }));
+
+      return {
+        clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
+        loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
+        payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
+        expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
+        collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
+        users: users,
+        currentUser: rawData?.currentUser || null,
+        commissionPercentage: rawData?.commissionPercentage ?? 10,
+        commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
+        settings: rawData?.settings || defaultInitialState.settings,
+        branchSettings: rawData?.branchSettings || {}
+      };
     } catch (e) {
-      console.error("Version Check Error:", e);
+      console.error("FATAL BOOT ERROR - Falling back to safe defaults:", e);
+      // Ensure we don't have circular references or huge logs
+      return defaultInitialState;
     }
-
-    const saved = localStorage.getItem('prestamaster_v2');
-    let parsed = null;
-    try {
-      if (saved) parsed = JSON.parse(saved);
-    } catch (e) {
-      localStorage.removeItem('prestamaster_v2');
-    }
-
-    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-    const defaultSettings: AppSettings = { language: 'es', country: 'CO', numberFormat: 'dot' };
-
-    let rawData = parsed;
-    if (rawData) {
-      const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-      rawData = JSON.parse(json);
-    }
-
-    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
-    const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({ ...u, role: u.role === 'admin' ? Role.ADMIN : u.role }));
-
-    return {
-      clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
-      loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
-      payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
-      expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
-      collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
-      users: users,
-      currentUser: rawData?.currentUser || null,
-      commissionPercentage: rawData?.commissionPercentage ?? 10,
-      commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
-      settings: rawData?.settings || defaultSettings,
-      branchSettings: rawData?.branchSettings || {}
-    };
   });
 
   const resolvedSettings = useMemo(() => {
-    return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, { language: 'es', country: 'CO', numberFormat: 'dot' });
+    try {
+      return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, { language: 'es', country: 'CO', numberFormat: 'dot' });
+    } catch (e) {
+      console.error("Settings resolution error:", e);
+      return { language: 'es', country: 'CO', numberFormat: 'dot' } as any;
+    }
   }, [state.currentUser, state.branchSettings, state.users]);
 
   // 2. HELPER FUNCTIONS
@@ -484,11 +497,17 @@ const App: React.FC = () => {
   }, [state.currentUser?.id, state.collectionLogs.length]);
 
   const handleLogin = (user: User) => {
-    // Normalizar rol 'admin' a Role.ADMIN ('Administrador') para compatibilidad con filtros
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
     const normalizedUser = { ...user, role: normalizedRole };
 
     setState(prev => ({ ...prev, currentUser: normalizedUser }));
+
+    // Auto-redirect to Route for Collectors, Dashboard for others
+    if (normalizedRole === Role.COLLECTOR) {
+      setActiveTab('route');
+    } else {
+      setActiveTab('dashboard');
+    }
     const branchId = getBranchId(normalizedUser);
     if (branchId && branchId !== 'none') {
       localStorage.setItem('LAST_VALID_BRANCH_ID', branchId);
@@ -1139,9 +1158,8 @@ const App: React.FC = () => {
           }}
         />
 
-        {/* CLEAN PRODUCTION v5.3.0 */}
       </div>
-    </ErrorBoundary >
+    </ErrorBoundary>
   );
 };
 
