@@ -28,8 +28,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [aiReport, setAiReport] = useState<any>(null);
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
+
+   // --- ESTADOS PARA EVITAR PARPADEO DEL MAPA ---
    const [mapData, setMapData] = useState<CollectionLog[]>([]);
    const lastMapUpdate = useRef<number>(0);
+   const lastManualAction = useRef<number>(0); // Para saber si el cambio fue por el usuario
 
    const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
 
@@ -72,29 +75,32 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       return logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
    }, [state.collectionLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
 
-   // --- MAP THROTTLING LOGIC ---
+   // --- LÓGICA DE ESTABILIZACIÓN DEL MAPA ---
    useEffect(() => {
-      // INSTANT update on manual filter changes
+      // 1. Actualización INSTANTÁNEA ante cambios manuales de filtros
       setMapData(routeData);
-      lastMapUpdate.current = Date.now();
+      const now = Date.now();
+      lastMapUpdate.current = now;
+      lastManualAction.current = now;
+      // console.log("[Reports] Filtro manual: Actualización instantánea");
    }, [selectedCollector, selectedDate, endDate, selectedFilter]);
 
    useEffect(() => {
-      // THROTTLED update for background sync
+      // 2. Actualización RETARDADA ante sincronización de fondo (30-50s)
       const now = Date.now();
+
+      // Si el último cambio fue manual hace menos de 5 segundos, ignoramos la sincronización de fondo
+      if (now - lastManualAction.current < 5000) return;
+
       const elapsed = now - lastMapUpdate.current;
-      const THROTTLE_MS = 40000;
+      const THROTTLE_MS = 45000; // 45 segundos de pausa entre refrescos automáticos
 
       if (elapsed >= THROTTLE_MS) {
          setMapData(routeData);
          lastMapUpdate.current = now;
-      } else {
-         const timer = setTimeout(() => {
-            setMapData(routeData);
-            lastMapUpdate.current = Date.now();
-         }, THROTTLE_MS - elapsed);
-         return () => clearTimeout(timer);
+         // console.log("[Reports] Sincronización fondo: Actualización aplicada (45s)");
       }
+      // Si han pasado menos de 45s, ignoramos. El mapa se refrescará en la próxima sincronización que ocurra.
    }, [routeData]);
 
    useEffect(() => {
@@ -306,7 +312,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             totalDistance: parseFloat(calculatedDist.toFixed(2))
          });
       }
-   }, [mapData, state.clients]);
+   }, [mapData]); // ELIMINADO state.clients para evitar parpadeos innecesarios en cada sincronización
 
    const fetchWithRetry = async (prompt: string, retries = 3, delay = 5000): Promise<any> => {
       try {
