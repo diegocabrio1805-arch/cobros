@@ -28,8 +28,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [aiReport, setAiReport] = useState<any>(null);
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
-   const [lastThrottledUpdate, setLastThrottledUpdate] = useState<number>(Date.now());
-   const [throttledLogs, setThrottledLogs] = useState<CollectionLog[]>(state.collectionLogs);
+   const [mapData, setMapData] = useState<CollectionLog[]>([]);
+   const lastMapUpdate = useRef<number>(0);
 
    const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
 
@@ -45,28 +45,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       return R * c;
    };
 
-   // --- THROTTLING LOGIC (30-50s) ---
-   useEffect(() => {
-      const now = Date.now();
-      const timeSinceLastUpdate = now - lastThrottledUpdate;
-      const THROTTLE_MS = 40000; // 40 seconds (midpoint of 30-50s)
-
-      if (timeSinceLastUpdate >= THROTTLE_MS) {
-         setThrottledLogs(state.collectionLogs);
-         setLastThrottledUpdate(now);
-      } else {
-         const timer = setTimeout(() => {
-            setThrottledLogs(state.collectionLogs);
-            setLastThrottledUpdate(Date.now());
-         }, THROTTLE_MS - timeSinceLastUpdate);
-         return () => clearTimeout(timer);
-      }
-   }, [state.collectionLogs]);
-
    const routeData = useMemo(() => {
-      // Use throttledLogs for automatic background updates to prevent flickering,
-      // but developers/admin manual actions are still context-aware through selectedDate/selectedCollector
-      let logs = (Array.isArray(throttledLogs) ? throttledLogs : []).filter(log => {
+      let logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
          const logDate = new Date(log.date).toISOString().split('T')[0];
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
@@ -90,7 +70,32 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
 
       return logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-   }, [throttledLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
+   }, [state.collectionLogs, state.loans, selectedCollector, selectedDate, endDate, selectedFilter]);
+
+   // --- MAP THROTTLING LOGIC ---
+   useEffect(() => {
+      // INSTANT update on manual filter changes
+      setMapData(routeData);
+      lastMapUpdate.current = Date.now();
+   }, [selectedCollector, selectedDate, endDate, selectedFilter]);
+
+   useEffect(() => {
+      // THROTTLED update for background sync
+      const now = Date.now();
+      const elapsed = now - lastMapUpdate.current;
+      const THROTTLE_MS = 40000;
+
+      if (elapsed >= THROTTLE_MS) {
+         setMapData(routeData);
+         lastMapUpdate.current = now;
+      } else {
+         const timer = setTimeout(() => {
+            setMapData(routeData);
+            lastMapUpdate.current = Date.now();
+         }, THROTTLE_MS - elapsed);
+         return () => clearTimeout(timer);
+      }
+   }, [routeData]);
 
    useEffect(() => {
       if (mapRef.current && !leafletMap.current) {
@@ -139,14 +144,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       if (layerGroup.current) {
          layerGroup.current.clearLayers();
 
-         if (routeData.length === 0) {
+         if (mapData.length === 0) {
             setStats({ totalStops: 0, devilStops: 0, totalDistance: 0 });
-
-            // If no data, ensure we are not at 0,0 (Blue Ocean)
-            // If we have default view already set, good. 
-            // If user has location permission, it might have panned?
-            // Let's reset view to default for safety if no points
-            // leafletMap.current.setView([4.5709, -74.2973], 13); 
             return;
          }
 
@@ -155,7 +154,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          let devils = 0;
 
          // Buscar el punto de inicio oficial (Apertura)
-         const openingLog = routeData.find(l => l.type === CollectionLogType.OPENING && l.location && l.location.lat !== 0);
+         const openingLog = mapData.find(l => l.type === CollectionLogType.OPENING && l.location && l.location.lat !== 0);
          const startIcon = L.divIcon({ className: 'custom-icon', html: '<div style="font-size: 24px;">🏁</div>', iconAnchor: [12, 12] });
          const endIcon = L.divIcon({ className: 'custom-icon', html: '<div style="font-size: 24px;">🏁</div>', iconAnchor: [12, 12] });
 
@@ -164,7 +163,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             points.push([openingLog.location.lat, openingLog.location.lng]);
          }
 
-         (Array.isArray(routeData) ? routeData : []).forEach((log, index) => {
+         (Array.isArray(mapData) ? mapData : []).forEach((log, index) => {
             const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
             // Ignorar logs de apertura (ya tienen bandera propia) y coordenadas invalidas
             if (log.type === CollectionLogType.OPENING || !client || !log.location || (log.location.lat === 0 && log.location.lng === 0)) return;
@@ -178,8 +177,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             let isDevil = false;
             let timeDiffText = '';
 
-            if (index < routeData.length - 1) {
-               const nextLog = routeData[index + 1];
+            if (index < mapData.length - 1) {
+               const nextLog = mapData[index + 1];
                const currTime = new Date(log.date).getTime();
                const nextTime = new Date(nextLog.date).getTime();
                const diffMinutes = (nextTime - currTime) / (1000 * 60);
@@ -271,7 +270,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             if (index === 0 && !openingLog) {
                L.marker([lat, lng], { icon: startIcon }).addTo(layerGroup.current);
             }
-            if (index === routeData.length - 1 && routeData.length > (openingLog ? 0 : 1)) {
+            if (index === mapData.length - 1 && mapData.length > (openingLog ? 0 : 1)) {
                L.marker([lat, lng], { icon: endIcon }).addTo(layerGroup.current);
             }
          });
@@ -302,12 +301,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          }
 
          setStats({
-            totalStops: routeData.length,
+            totalStops: mapData.length,
             devilStops: devils,
             totalDistance: parseFloat(calculatedDist.toFixed(2))
          });
       }
-   }, [routeData, state.clients]);
+   }, [mapData, state.clients]);
 
    const fetchWithRetry = async (prompt: string, retries = 3, delay = 5000): Promise<any> => {
       try {
