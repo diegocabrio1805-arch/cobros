@@ -129,8 +129,8 @@ const App: React.FC = () => {
       return result;
     }
 
-    const remoteMap = new Map(remote.map(i => [i.id, i]));
-    const result: T[] = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
+    const remoteMap = new Map((Array.isArray(remote) ? remote : []).map(i => [i.id, i]));
+    const result: T[] = [...(Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
     const resultMap = new Map(result.map(i => [i.id, i]));
 
     local.forEach(l => {

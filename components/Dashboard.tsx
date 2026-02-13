@@ -35,12 +35,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     }
   };
 
-  const totalPrincipal = (state.loans || []).reduce((acc, l) => acc + l.principal, 0);
-  const totalProfit = (state.loans || []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = (state.expenses || []).reduce((acc, e) => acc + e.amount, 0);
+  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
+  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalExpenses = (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, e) => acc + e.amount, 0);
   const netUtility = totalProfit - totalExpenses;
 
-  const collectedToday = (state.payments || [])
+  const collectedToday = (Array.isArray(state.payments) ? state.payments : [])
     .filter(p => {
       const pDateStr = new Date(p.date).toISOString().split('T')[0];
       return pDateStr === countryTodayStr;
@@ -54,12 +54,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
     // Filter users to show in stats.
     // Show only COLLECTORS (exclude managers and admins from route audit)
-    return (state.users || []).filter(u => {
+    return (Array.isArray(state.users) ? state.users : []).filter(u => {
       // Only show collectors, not managers or admins
       return u.role === Role.COLLECTOR;
     }).map(user => {
-      const logsToday = (state.collectionLogs || []).filter(log => {
-        const loan = (state.loans || []).find(l => l.id === log.loanId);
+      const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+        const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
         const logDateStr = new Date(log.date).toISOString().split('T')[0];
         return loan?.collectorId === user.id && logDateStr === countryTodayStr;
       });
@@ -69,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId)).size;
-      const assignedActiveLoans = state.loans.filter(l => l.collectorId === user.id && l.status === LoanStatus.ACTIVE);
+      const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === user.id && l.status === LoanStatus.ACTIVE);
       const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId)).size;
 
       const overdueLoansCount = assignedActiveLoans.filter(loan => {
