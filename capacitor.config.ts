@@ -10,15 +10,15 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   server: {
-    // androidScheme: 'https', // Comentado para evitar conflictos con server.url
-    url: 'https://cobros-anexo-2026.netlify.app/',
-    cleartext: true,
-    allowNavigation: ['*']
+    // URL de Puesta en Producción (GitHub Pages)
+    url: 'https://diegocabrio1805-arch.github.io/cobros/',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
-      backgroundColor: "#1e40af",
+      launchShowDuration: 0,
+      launchAutoHide: false, // Mantener Splash Screen hasta que cargue la web
+      backgroundColor: "#ffffffff",
       androidScaleType: "CENTER_CROP",
       showSpinner: false
     },
