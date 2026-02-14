@@ -367,7 +367,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[7px] font-black uppercase text-indigo-500">
-            <span>Powered by Gemini 1.5 Flash</span>
+            <span>AI Auditor - Gemini 1.5 Stable</span>
             <i className="fa-solid fa-sparkles animate-pulse"></i>
           </div>
         </div>

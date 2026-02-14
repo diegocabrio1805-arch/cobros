@@ -1300,10 +1300,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       </div>
 
       <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
-          <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : 'fa-briefcase text-slate-950'}`}></i>
-          {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : 'Cartera General'}
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+          <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
+            <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : 'fa-briefcase text-slate-950'}`}></i>
+            {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : 'Cartera General'}
+          </h2>
+
+          {viewMode === 'cartera' && (
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrintCartera}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-print text-xs text-indigo-500"></i> IMPRIMIR
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-file-pdf text-xs"></i> PDF
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           {isAdminOrManager && (
             <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
@@ -1322,22 +1341,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )}
           {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' ? (
             <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
-              {viewMode === 'cartera' && (
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={handlePrintCartera}
-                    className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <i className="fa-solid fa-print text-xs"></i> IMPRIMIR
-                  </button>
-                  <button
-                    onClick={handleExportPDF}
-                    className="flex-1 sm:flex-none px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <i className="fa-solid fa-file-pdf text-xs"></i> PDF
-                  </button>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
                 <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                 <span className="text-slate-500 font-bold">-</span>
