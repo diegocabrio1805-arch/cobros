@@ -458,13 +458,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       - Menciona casos específicos (nombres de clientes) donde se pasó de los días permitidos según la frecuencia.
       - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
 
-      FORMATO JSON:
+      FORMATO JSON (RESPONDE SOLO EL JSON, SIN TEXTO ADICIONAL NI COMILLAS DE FORMATO):
       {
-        "score": number (0-100),
+        "score": number,
         "verdict": "string",
-        "analysis": "string (Análisis de cumplimiento y tiempos según frecuencia)",
-        "missed_clients_analysis": "string (Detalle de clientes abandonados o gestiones tardías, INCLUYE nombres específicos y días sin visita)",
-        "critical_clients": ["lista de nombres de clientes con 6+ días sin visita que requieren auditoría física"],
+        "analysis": "string",
+        "missed_clients_analysis": "string",
+        "critical_clients": ["string"],
         "recommendation": "string"
       }
     `;
@@ -480,20 +480,31 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             throw new Error("La IA no devolvió un análisis válido.");
          }
 
+         // Removing potential markdown JSON blocks
+         jsonText = jsonText.replace(/```json\s?/g, "").replace(/```/g, "").trim();
+
          // Aggressive JSON cleaning: Extract only the outer {} object
          const firstBrace = jsonText.indexOf('{');
          const lastBrace = jsonText.lastIndexOf('}');
 
          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
             jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-         } else {
-            // Fallback: Remove common markdown wrappers if brace search fails
-            jsonText = jsonText.replace(/```json\s*/g, "").replace(/```\s*$/g, "").trim();
          }
 
-         console.log("AI Cleaned Response:", jsonText.substring(0, 100) + "...");
+         // Fix common JSON issues before parsing
+         // 1. Remove trailing commas in arrays and objects
+         const cleanedJson = jsonText
+            .replace(/,\s*\]/g, ']')
+            .replace(/,\s*\}/g, '}');
 
-         setAiReport(JSON.parse(jsonText));
+         try {
+            setAiReport(JSON.parse(cleanedJson));
+         } catch (e) {
+            console.error("Initial parse failed, attempting deep cleaning", e);
+            // Deep cleaning: try to handle unescaped quotes or newlines inside strings
+            // This is a last resort
+            setAiReport(JSON.parse(cleanedJson.replace(/\n/g, "\\n").replace(/\r/g, "\\r")));
+         }
 
       } catch (error: any) {
          console.error("AI Error", error);
