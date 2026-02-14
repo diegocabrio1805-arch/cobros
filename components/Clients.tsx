@@ -1049,6 +1049,246 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     alert("Cr\u00e9dito renovado exitosamente.");
   };
 
+  const handlePrintCartera = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const collectorName = selectedCollector === 'all'
+      ? 'TODOS'
+      : collectors.find(c => c.id === selectedCollector)?.name || selectedCollector;
+
+    const html = `
+      <html>
+        <head>
+          <title>Cartera General - ${state.settings.companyName}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; }
+            h1 { text-transform: uppercase; margin-bottom: 5px; font-size: 24px; color: #0f172a; }
+            h2 { text-transform: uppercase; font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 30px; letter-spacing: 1px; }
+            .header-info { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f1f5f9; }
+            .info-block { font-size: 12px; }
+            .info-label { font-weight: 800; color: #94a3b8; text-transform: uppercase; font-size: 10px; margin-bottom: 4px; }
+            .info-value { font-weight: 700; color: #1e293b; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #0f172a; color: white; text-align: left; padding: 12px 15px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .mora-high { color: #dc2626; font-weight: 900; }
+            .mora-none { color: #059669; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px; text-transform: uppercase; font-weight: 700; }
+            @media print {
+              @page { margin: 2cm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${state.settings.companyName}</h1>
+          <h2>Reporte de Cartera General</h2>
+          
+          <div class="header-info">
+            <div class="info-block">
+              <div class="info-label">Cobrador</div>
+              <div class="info-value">${collectorName}</div>
+            </div>
+            <div class="info-block">
+              <div class="info-label">Fecha del Reporte</div>
+              <div class="info-value">${new Date().toLocaleDateString()}</div>
+            </div>
+            <div class="info-block text-right">
+              <div class="info-label">Total Clientes</div>
+              <div class="info-value">${carteraExcelData.length}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Registro</th>
+                <th>Cliente / ID</th>
+                <th>Teléfono</th>
+                <th class="text-right">Saldo Actual</th>
+                <th class="text-center">Progreso</th>
+                <th class="text-center">Atraso</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${carteraExcelData.map(client => `
+                <tr>
+                  <td>${client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                  <td>${client.name.toUpperCase()}<br/><span style="font-size: 9px; color: #94a3b8;">ID: ${client.documentId}</span></td>
+                  <td>${client.phone}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.balance, state.settings)}</td>
+                  <td class="text-center">${client._metrics.installmentsStr}</td>
+                  <td class="text-center">
+                    <span class="${client._metrics.daysOverdue > 0 ? 'mora-high' : 'mora-none'}">
+                      ${client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} DÍAS` : 'AL DÍA'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Generado por Sistema de Cobros - ${new Date().toLocaleString()}
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Esperar a que las fuentes/estilos carguen si es necesario
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const collectorName = selectedCollector === 'all'
+        ? 'TODOS'
+        : collectors.find(c => c.id === selectedCollector)?.name || selectedCollector;
+
+      // CONFIGURACIÓN DE ESTILOS
+      const margin = 15;
+      let y = 20;
+
+      // ENCABEZADO
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(state.settings.companyName.toUpperCase(), margin, y);
+
+      y += 8;
+      doc.setFontSize(12);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text("REPORTE DE CARTERA GENERAL", margin, y);
+
+      y += 12;
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.line(margin, y, 210 - margin, y);
+
+      y += 10;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text("COBRADOR:", margin, y);
+      doc.setTextColor(30, 41, 59); // slate-800
+      doc.text(collectorName.toUpperCase(), margin + 25, y);
+
+      doc.setTextColor(148, 163, 184);
+      doc.text("FECHA:", 140, y);
+      doc.setTextColor(30, 41, 59);
+      doc.text(new Date().toLocaleDateString(), 155, y);
+
+      y += 12;
+
+      // TABLA HEADER
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y, 180, 8, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+      doc.text("TELÉFONO", margin + 65, y + 5.5);
+      doc.text("SALDO", margin + 110, y + 5.5, { align: 'right' });
+      doc.text("CUOTAS", margin + 135, y + 5.5, { align: 'center' });
+      doc.text("MORA", margin + 165, y + 5.5, { align: 'center' });
+
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 41, 59);
+
+      // CONTENIDO
+      carteraExcelData.forEach((client, idx) => {
+        // Salto de página
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+
+          // Re-dibujar header de tabla en nueva página
+          doc.setFillColor(15, 23, 42);
+          doc.rect(margin, y, 180, 8, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+          doc.text("TELÉFONO", margin + 65, y + 5.5);
+          doc.text("SALDO", margin + 110, y + 5.5, { align: 'right' });
+          doc.text("CUOTAS", margin + 135, y + 5.5, { align: 'center' });
+          doc.text("MORA", margin + 165, y + 5.5, { align: 'center' });
+          y += 8;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(30, 41, 59);
+        }
+
+        // Zebra striping
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, y, 180, 10, 'F');
+        }
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text(client.name.substring(0, 30).toUpperCase(), margin + 2, y + 4.5);
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(148, 163, 184);
+        doc.text(`ID: ${client.documentId}`, margin + 2, y + 7.5);
+
+        doc.setFontSize(8);
+        doc.setTextColor(30, 41, 59);
+        doc.text(client.phone, margin + 65, y + 6);
+
+        doc.setFont("helvetica", "bold");
+        doc.text(formatCurrency(client._metrics.balance, state.settings), margin + 110, y + 6, { align: 'right' });
+
+        doc.setFont("helvetica", "normal");
+        doc.text(client._metrics.installmentsStr, margin + 135, y + 6, { align: 'center' });
+
+        if (client._metrics.daysOverdue > 0) {
+          doc.setTextColor(220, 38, 38);
+          doc.setFont("helvetica", "bold");
+          doc.text(`${client._metrics.daysOverdue} D`, margin + 165, y + 6, { align: 'center' });
+        } else {
+          doc.setTextColor(5, 150, 105);
+          doc.text("OK", margin + 165, y + 6, { align: 'center' });
+        }
+
+        doc.setTextColor(30, 41, 59);
+        y += 10;
+        doc.setDrawColor(241, 245, 249);
+        doc.line(margin, y, 210 - margin, y);
+      });
+
+      // FOOTER
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`PÁGINA ${i} DE ${pageCount} | GENERADO EL ${new Date().toLocaleString()}`, 105, 290, { align: 'center' });
+      }
+
+      doc.save(`CARTERA_${collectorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      alert("PDF GENERADO CORRECTAMENTE");
+    } catch (err) {
+      console.error(err);
+      alert("ERROR AL GENERAR PDF");
+    }
+  };
+
 
   return (
     <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
@@ -1081,7 +1321,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           )}
           {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' ? (
-            <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
+              {viewMode === 'cartera' && (
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={handlePrintCartera}
+                    className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <i className="fa-solid fa-print text-xs"></i> IMPRIMIR
+                  </button>
+                  <button
+                    onClick={handleExportPDF}
+                    className="flex-1 sm:flex-none px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <i className="fa-solid fa-file-pdf text-xs"></i> PDF
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
                 <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                 <span className="text-slate-500 font-bold">-</span>
