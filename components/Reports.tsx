@@ -458,9 +458,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       - Menciona casos específicos (nombres de clientes) donde se pasó de los días permitidos según la frecuencia.
       - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
 
-      FORMATO JSON (RESPONDE SOLO EL JSON, SIN TEXTO ADICIONAL NI COMILLAS DE FORMATO):
+      IMPORTANTE: Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido, sin texto explicativo antes o después.
+      
+      FORMATO JSON:
       {
-        "score": number,
+        "score": number, 
         "verdict": "string",
         "analysis": "string",
         "missed_clients_analysis": "string",
@@ -480,30 +482,32 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             throw new Error("La IA no devolvió un análisis válido.");
          }
 
-         // Removing potential markdown JSON blocks
-         jsonText = jsonText.replace(/```json\s?/g, "").replace(/```/g, "").trim();
+         // Removing potential markdown JSON blocks or extraneous text
+         let cleanedJson = jsonText.trim();
 
-         // Aggressive JSON cleaning: Extract only the outer {} object
-         const firstBrace = jsonText.indexOf('{');
-         const lastBrace = jsonText.lastIndexOf('}');
-
-         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+         // Try to extract content between the first { and the last }
+         const match = cleanedJson.match(/\{[\s\S]*\}/);
+         if (match) {
+            cleanedJson = match[0];
          }
 
-         // Fix common JSON issues before parsing
-         // 1. Remove trailing commas in arrays and objects
-         const cleanedJson = jsonText
+         // Remove trailing commas that break JSON.parse
+         cleanedJson = cleanedJson
             .replace(/,\s*\]/g, ']')
             .replace(/,\s*\}/g, '}');
 
          try {
             setAiReport(JSON.parse(cleanedJson));
          } catch (e) {
-            console.error("Initial parse failed, attempting deep cleaning", e);
-            // Deep cleaning: try to handle unescaped quotes or newlines inside strings
-            // This is a last resort
-            setAiReport(JSON.parse(cleanedJson.replace(/\n/g, "\\n").replace(/\r/g, "\\r")));
+            console.error("Initial parse failed, attempting string repair", e);
+            // Replace raw newlines inside string values (rare but happens)
+            const repairedJson = cleanedJson.replace(/(?<=: \".*)\n(?=.*\"[,|\}])|(?<={.*)\n(?=.*:)/g, "\\n");
+            try {
+               setAiReport(JSON.parse(repairedJson));
+            } catch (e2) {
+               console.error("Critical parse failure", e2);
+               throw new Error("Formato de respuesta IA no procesable.");
+            }
          }
 
       } catch (error: any) {
