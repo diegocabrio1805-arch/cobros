@@ -40,10 +40,18 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Build Android APK (Debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
       - name: Decode Keystore
+        continue-on-error: true
         run: echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 --decode > android/app/my-release-key.jks
 
       - name: Build Android APK (Release)
+        continue-on-error: true
         run: |
           cd android
           chmod +x gradlew
@@ -53,8 +61,16 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
-      - name: Upload APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        continue-on-error: true
         with:
           name: app-release
           path: android/app/build/outputs/apk/release/app-release.apk
