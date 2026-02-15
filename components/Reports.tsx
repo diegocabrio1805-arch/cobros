@@ -4,6 +4,7 @@ import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettin
 import { formatCurrency, getDaysOverdue } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';
+import { jsPDF } from 'jspdf';
 
 interface ReportsProps {
    state: AppState;
@@ -314,6 +315,187 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       }
    }, [mapData]); // ELIMINADO state.clients para evitar parpadeos innecesarios en cada sincronización
 
+   // --- NEW PDF EXPORT FUNCTION ---
+   const handleExportPDF = (report: any, collectorId: string) => {
+      if (!report) return;
+
+      const doc = new jsPDF();
+      const collectorName = state.users.find(u => u.id === collectorId)?.name || 'Cobrador';
+      const dateStr = new Date().toLocaleDateString();
+
+      // Header
+      doc.setFillColor(30, 41, 59); // Slate 900
+      doc.rect(0, 0, 210, 40, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('REPORTE DE AUDITORÍA IA', 105, 20, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.text(`ANEXO COBRO - ${dateStr}`, 105, 30, { align: 'center' });
+
+      // Body Section
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(14);
+      doc.text(`Información del Cobrador: ${collectorName}`, 20, 55);
+      doc.text(`Periodo Auditado: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+
+      // Score area
+      doc.setDrawColor(226, 232, 240); // Slate 200
+      doc.setFillColor(report.score >= 80 ? 209 : report.score >= 50 ? 254 : 254, report.score >= 80 ? 250 : report.score >= 50 ? 243 : 226, report.score >= 80 ? 229 : report.score >= 50 ? 199 : 226);
+      doc.rect(20, 75, 170, 25, 'F');
+
+      doc.setFontSize(12);
+      doc.text(`PUNTUACIÓN DE RENDIMIENTO: ${report.score}`, 105, 87, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`VEREDICTO: ${report.verdict.toUpperCase()}`, 105, 94, { align: 'center' });
+
+      // Analysis
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Análisis General:', 20, 115);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const analysisLines = doc.splitTextToSize(report.analysis, 170);
+      doc.text(analysisLines, 20, 122);
+
+      let currentY = 122 + (analysisLines.length * 5) + 10;
+
+      // Missed clients
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Clientes Omitidos / Alertas:', 20, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const missedLines = doc.splitTextToSize(report.missed_clients_analysis, 170);
+      doc.text(missedLines, 20, currentY + 7);
+
+      currentY += (missedLines.length * 5) + 15;
+
+      // Recommendations
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Recomendación del Auditor:', 20, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const recLines = doc.splitTextToSize(report.recommendation, 170);
+      doc.text(recLines, 20, currentY + 7);
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text('Generado automáticamente por el Sistema de Inteligencia Artificial Anexo Cobro.', 105, 285, { align: 'center' });
+
+      doc.save(`AUDITORIA_${collectorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+   };
+
+   // --- NEW LOCAL AUDITOR PDF (OFFLINE) ---
+   const handleLocalAuditPDF = () => {
+      if (selectedCollector === 'all') {
+         alert("Por favor selecciona un cobrador específico.");
+         return;
+      }
+
+      const doc = new jsPDF();
+      const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Cobrador';
+      const dateStr = new Date().toLocaleDateString();
+
+      // Header
+      doc.setFillColor(15, 23, 42); // Slate 900
+      doc.rect(0, 0, 210, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`SISTEMA DE GESTIÓN DE CARTERA - ${dateStr}`, 105, 30, { align: 'center' });
+
+      // Info
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.text(`Cobrador: ${collectorName}`, 20, 55);
+      doc.text(`Periodo: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+
+      // Calculations
+      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
+         l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
+      );
+      const today = new Date();
+
+      const auditData = assignedLoans.map(loan => {
+         const client = state.clients.find(c => c.id === loan.clientId);
+         const gestionesPeriodo = routeData.filter(log => log.clientId === loan.clientId);
+
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt);
+         const lastVisit = allClientLogs.length > 0
+            ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
+            : null;
+
+         const daysSinceVisit = lastVisit
+            ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+
+         return {
+            cliente: client?.name || '---',
+            visitas: gestionesPeriodo.length,
+            diasInactivo: daysSinceVisit,
+            critico: daysSinceVisit > 5 && gestionesPeriodo.length === 0
+         };
+      });
+
+      const criticos = auditData.filter(d => d.critico);
+
+      // Summary Table
+      doc.setFillColor(241, 245, 249);
+      doc.rect(20, 75, 170, 20, 'F');
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Clientes Asignados: ${auditData.length}`, 30, 87);
+      doc.setTextColor(220, 38, 38); // Red
+      doc.text(`ALERTAS CRÍTICAS (>5 Días): ${criticos.length}`, 110, 87);
+
+      // Detail List
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.text('Lista de Control (Clientes No Visitados o con Atraso de Gestión):', 20, 110);
+
+      let currentY = 120;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Cliente', 25, currentY);
+      doc.text('Última Visita', 110, currentY);
+      doc.text('Visitas Periodo', 145, currentY);
+      doc.text('Estado', 175, currentY);
+
+      doc.line(20, currentY + 2, 190, currentY + 2);
+      currentY += 10;
+
+      doc.setFont('helvetica', 'normal');
+      auditData.sort((a, b) => b.diasInactivo - a.diasInactivo).slice(0, 25).forEach(item => {
+         if (currentY > 270) {
+            doc.addPage();
+            currentY = 20;
+         }
+
+         if (item.critico) doc.setTextColor(220, 38, 38);
+         else doc.setTextColor(30, 41, 59);
+
+         doc.text(item.cliente.substring(0, 40), 25, currentY);
+         doc.text(`${item.diasInactivo > 365 ? 'Nunca' : item.diasInactivo + ' días'}`, 110, currentY);
+         doc.text(`${item.visitas}`, 145, currentY);
+         doc.text(`${item.critico ? '⚠️ CRÍTICO' : 'Normal'}`, 175, currentY);
+
+         currentY += 8;
+      });
+
+      doc.setTextColor(150);
+      doc.setFontSize(8);
+      doc.text('Este reporte es un cálculo matemático local basado en registros de actividad.', 105, 285, { align: 'center' });
+
+      doc.save(`AUDITORIA_LOCAL_${collectorName.replace(/\s+/g, '_')}.pdf`);
+   };
+
    const fetchWithRetry = async (prompt: string, retries = 3, delay = 5000): Promise<any> => {
       try {
          const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -497,17 +679,55 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             .replace(/,\s*\}/g, '}');
 
          try {
-            setAiReport(JSON.parse(cleanedJson));
-         } catch (e) {
-            console.error("Initial parse failed, attempting string repair", e);
-            // Replace raw newlines inside string values (rare but happens)
-            const repairedJson = cleanedJson.replace(/(?<=: \".*)\n(?=.*\"[,|\}])|(?<={.*)\n(?=.*:)/g, "\\n");
-            try {
-               setAiReport(JSON.parse(repairedJson));
-            } catch (e2) {
-               console.error("Critical parse failure", e2);
-               throw new Error("Formato de respuesta IA no procesable.");
+            // ULTRA-ROBUST REPAIR
+            let startIndex = cleanedJson.indexOf('{');
+            let endIndex = cleanedJson.lastIndexOf('}');
+
+            if (startIndex !== -1 && endIndex !== -1) {
+               cleanedJson = cleanedJson.substring(startIndex, endIndex + 1);
             }
+
+            // Sanitización profunda
+            cleanedJson = cleanedJson
+               .replace(/\\n/g, " ")
+               .replace(/\n/g, " ")
+               .replace(/\r/g, "")
+               .replace(/\t/g, " ")
+               .replace(/,\s*([\}\]])/g, "$1")
+               .replace(/\"\"/g, "\"")
+               .replace(/\s+/g, " ");
+
+            let report;
+            try {
+               report = JSON.parse(cleanedJson);
+            } catch (jsonErr) {
+               console.warn("JSON.parse failed, attempting REGEX recovery...");
+               const scoreMatch = cleanedJson.match(/"score":\s*(\d+)/);
+               const verdictMatch = cleanedJson.match(/"verdict":\s*"([^"]+)"/);
+               const analysisMatch = cleanedJson.match(/"analysis":\s*"([^"]+)"/);
+
+               if (scoreMatch && verdictMatch) {
+                  report = {
+                     score: parseInt(scoreMatch[1]),
+                     verdict: verdictMatch[1],
+                     analysis: analysisMatch ? analysisMatch[1] : "Análisis recuperado parcialmente.",
+                     missed_clients_analysis: "Los datos fueron recuperados tras un error de formato.",
+                     recommendation: "Revisar logs manualmente."
+                  };
+               } else {
+                  throw new Error("Respuesta IA ilegible.");
+               }
+            }
+
+            if (!report.score || !report.verdict) {
+               throw new Error("Esquema de datos incompleto.");
+            }
+
+            setAiReport(report);
+            handleExportPDF(report, selectedCollector);
+         } catch (e) {
+            console.error("Critical parse failure:", e, "Content was:", cleanedJson);
+            throw new Error("Error procesando formato JSON de la IA.");
          }
 
       } catch (error: any) {
@@ -556,6 +776,17 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                               Periodo: {selectedDate} / {endDate || selectedDate}
                            </p>
+                        </div>
+                        <div className="ml-auto flex gap-2">
+                           {aiReport && (
+                              <button
+                                 onClick={() => handleExportPDF(aiReport, selectedCollector)}
+                                 className="px-4 py-2 bg-red-100 text-red-700 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-200 transition-all flex items-center gap-2 border border-red-200"
+                              >
+                                 <i className="fa-solid fa-file-pdf"></i>
+                                 PDF
+                              </button>
+                           )}
                         </div>
                      </div>
 
@@ -711,13 +942,24 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   😇 Renovar
                </button>
 
+               {/* 
                <button
                   onClick={handleRunAiAudit}
                   disabled={selectedCollector === 'all'}
                   className="ml-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                  <i className="fa-solid fa-microchip"></i>
+                  <i className="fa-solid fa-robot"></i>
                   {t.reports.runAudit}
+               </button>
+               */}
+
+               <button
+                  onClick={handleLocalAuditPDF}
+                  disabled={selectedCollector === 'all'}
+                  className="ml-auto px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600"
+               >
+                  <i className="fa-solid fa-clipboard-check"></i>
+                  Auditor
                </button>
             </div>
          </div>

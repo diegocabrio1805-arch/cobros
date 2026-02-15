@@ -358,13 +358,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
       installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
 
+      // Cuotas T/P (Total / Pagadas de forma entera)
+      const paidUnits = Math.floor(progress);
+      const cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
+
       daysOverdue = getDaysOverdue(activeLoan, state.settings, totalPaid);
       if (installments.length > 0) {
         lastExpiryDate = installments[installments.length - 1].dueDate;
       }
       createdAt = activeLoan.createdAt;
+
+      return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt };
     }
-    return { balance, installmentsStr, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt };
+    return { balance, installmentsStr, cuotasTP: '0/0', daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt };
   };
 
   const filteredClients = useMemo(() => {
@@ -1109,6 +1115,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <th>Registro</th>
                 <th>Cliente / ID</th>
                 <th>Teléfono</th>
+                <th class="text-right">Crédito</th>
+                <th class="text-center">Cuotas T/P</th>
                 <th class="text-right">Saldo Actual</th>
                 <th class="text-center">Progreso</th>
                 <th class="text-center">Atraso</th>
@@ -1120,6 +1128,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <td>${client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                   <td>${client.name.toUpperCase()}<br/><span style="font-size: 9px; color: #94a3b8;">ID: ${client.documentId}</span></td>
                   <td>${client.phone}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
+                  <td class="text-center">${client._metrics.cuotasTP}</td>
                   <td class="text-right">${formatCurrency(client._metrics.balance, state.settings)}</td>
                   <td class="text-center">${client._metrics.installmentsStr}</td>
                   <td class="text-center">
@@ -1200,12 +1210,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       doc.rect(margin, y, 180, 8, 'F');
 
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.text("CLIENTE / ID", margin + 2, y + 5.5);
-      doc.text("TELÉFONO", margin + 65, y + 5.5);
-      doc.text("SALDO", margin + 110, y + 5.5, { align: 'right' });
-      doc.text("CUOTAS", margin + 135, y + 5.5, { align: 'center' });
-      doc.text("MORA", margin + 165, y + 5.5, { align: 'center' });
+      doc.text("TELÉFONO", margin + 50, y + 5.5);
+      doc.text("CRÉDITO", margin + 85, y + 5.5, { align: 'right' });
+      doc.text("CUOTAS T/P", margin + 105, y + 5.5, { align: 'center' });
+      doc.text("SALDO", margin + 130, y + 5.5, { align: 'right' });
+      doc.text("PROGRESO", margin + 155, y + 5.5, { align: 'center' });
+      doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
 
       y += 8;
       doc.setFont("helvetica", "normal");
@@ -1223,11 +1235,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.rect(margin, y, 180, 8, 'F');
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
           doc.text("CLIENTE / ID", margin + 2, y + 5.5);
-          doc.text("TELÉFONO", margin + 65, y + 5.5);
-          doc.text("SALDO", margin + 110, y + 5.5, { align: 'right' });
-          doc.text("CUOTAS", margin + 135, y + 5.5, { align: 'center' });
-          doc.text("MORA", margin + 165, y + 5.5, { align: 'center' });
+          doc.text("TELÉFONO", margin + 50, y + 5.5);
+          doc.text("CRÉDITO", margin + 85, y + 5.5, { align: 'right' });
+          doc.text("CUOTAS T/P", margin + 105, y + 5.5, { align: 'center' });
+          doc.text("SALDO", margin + 130, y + 5.5, { align: 'right' });
+          doc.text("PROGRESO", margin + 155, y + 5.5, { align: 'center' });
+          doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
           y += 8;
           doc.setFont("helvetica", "normal");
           doc.setTextColor(30, 41, 59);
@@ -1239,31 +1254,37 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.rect(margin, y, 180, 10, 'F');
         }
 
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.text(client.name.substring(0, 30).toUpperCase(), margin + 2, y + 4.5);
-        doc.setFontSize(6);
+        doc.text(client.name.substring(0, 25).toUpperCase(), margin + 2, y + 4.5);
+        doc.setFontSize(5.5);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(148, 163, 184);
         doc.text(`ID: ${client.documentId}`, margin + 2, y + 7.5);
 
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setTextColor(30, 41, 59);
-        doc.text(client.phone, margin + 65, y + 6);
+        doc.text(client.phone, margin + 50, y + 6);
 
         doc.setFont("helvetica", "bold");
-        doc.text(formatCurrency(client._metrics.balance, state.settings), margin + 110, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings), margin + 85, y + 6, { align: 'right' });
 
         doc.setFont("helvetica", "normal");
-        doc.text(client._metrics.installmentsStr, margin + 135, y + 6, { align: 'center' });
+        doc.text(client._metrics.cuotasTP, margin + 105, y + 6, { align: 'center' });
+
+        doc.setFont("helvetica", "bold");
+        doc.text(formatCurrency(client._metrics.balance, state.settings), margin + 130, y + 6, { align: 'right' });
+
+        doc.setFont("helvetica", "normal");
+        doc.text(client._metrics.installmentsStr, margin + 155, y + 6, { align: 'center' });
 
         if (client._metrics.daysOverdue > 0) {
           doc.setTextColor(220, 38, 38);
           doc.setFont("helvetica", "bold");
-          doc.text(`${client._metrics.daysOverdue} D`, margin + 165, y + 6, { align: 'center' });
+          doc.text(`${client._metrics.daysOverdue} D`, margin + 175, y + 6, { align: 'center' });
         } else {
           doc.setTextColor(5, 150, 105);
-          doc.text("OK", margin + 165, y + 6, { align: 'center' });
+          doc.text("OK", margin + 175, y + 6, { align: 'center' });
         }
 
         doc.setTextColor(30, 41, 59);
@@ -1525,6 +1546,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <th className="px-6 py-4">Registro</th>
                     <th className="px-6 py-4">Cliente / ID</th>
                     <th className="px-6 py-4">Teléfono(s)</th>
+                    <th className="px-6 py-4 text-right">Crédito</th>
+                    <th className="px-6 py-4 text-center">Cuotas T/P</th>
                     <th className="px-6 py-4 text-right">Saldo Actual</th>
                     <th className="px-6 py-4 text-center">Progreso</th>
                     <th className="px-6 py-4 text-center">Atraso</th>
@@ -1539,6 +1562,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <td className="px-6 py-4">
                         <p className="text-blue-700">{client.phone}</p>
                         {client.secondaryPhone && <p className="text-slate-400 text-[10px]">{client.secondaryPhone}</p>}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-100">{client._metrics.cuotasTP}</span>
                       </td>
                       <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                       <td className="px-6 py-4 text-center">
