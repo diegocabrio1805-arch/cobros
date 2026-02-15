@@ -1,0 +1,33 @@
+export enum DocumentType {
+    PAGARE = 'Pagaré',
+    RECIBO = 'Recibo',
+    MANUAL = 'Manual'
+}
+
+export type PaperSize = 'A4' | 'Oficio' | 'Thermal58mm';
+
+export interface TextTemplate {
+    id: string;
+    name: string;
+    content: string;
+    type: DocumentType;
+}
+
+export interface DocumentData {
+    id: string;
+    type: DocumentType;
+    folio: string;
+    date: string;
+    amount: number;
+    currencySymbol: string;
+    currencyName: string;
+    amountInWords: string;
+    concept: string;
+    debtorName: string;
+    beneficiaryName: string;
+    phoneNumber?: string;
+    paymentMethod?: 'Efectivo' | 'Cheque' | 'Transferencia';
+    legalText: string;
+    documentIdNumber?: string;
+    createdAt: number;
+}

@@ -22,6 +22,7 @@ import Simulator from './components/Simulator';
 import Settings from './components/Settings';
 import Profile from './components/Profile';
 import Reports from './components/Reports';
+import Generator from './components/Generator/Generator';
 import { getTranslation } from './utils/translations';
 import { getLocalDateStringForCountry, generateUUID } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
