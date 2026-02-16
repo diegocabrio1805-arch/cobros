@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Anexo Cobro v6.1.25 ARMAGEDON</title>
+  <title>Anexo Cobro v6.1.45</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -24,6 +24,20 @@
   </div>
 
   <script>
+    // --- SW KILLER (Desinstalador de PWA Fantasma) ---
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (let registration of registrations) {
+          console.log('Desinstalando SW zombie:', registration);
+          registration.unregister();
+        }
+        if (registrations.length > 0) {
+          console.log("SW eliminados. Recargando...");
+          window.location.reload();
+        }
+      });
+    }
+
     // --- MECANISMO DE RECUPERACIÓN (Anti-Pantalla en Blanco) ---
     (function () {
       const BOOT_TIMEOUT = 10000; // 10 segundos para considerar arranque fallido

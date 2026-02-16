@@ -1,8 +1,10 @@
-export enum DocumentType {
-    PAGARE = 'Pagaré',
-    RECIBO = 'Recibo',
-    MANUAL = 'Manual'
-}
+export type DocumentType = 'Pagaré' | 'Recibo' | 'Manual';
+
+export const DocumentType = {
+    PAGARE: 'Pagaré' as DocumentType,
+    RECIBO: 'Recibo' as DocumentType,
+    MANUAL: 'Manual' as DocumentType
+};
 
 export type PaperSize = 'A4' | 'Oficio' | 'Thermal58mm';
 

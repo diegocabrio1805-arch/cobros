@@ -25,7 +25,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onClear }) => {
     };
 
     const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent scrolling on touch
         const { x, y } = getCoordinates(e);
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
@@ -37,7 +37,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onClear }) => {
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDrawing) return;
-        e.preventDefault();
+        e.preventDefault(); // Prevent scrolling on touch
         const { x, y } = getCoordinates(e);
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
@@ -84,7 +84,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onClear }) => {
                     ref={canvasRef}
                     width={600}
                     height={200}
-                    className="w-full h-40 cursor-crosshair"
+                    className="w-full h-40 cursor-crosshair touch-none"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={endDrawing}

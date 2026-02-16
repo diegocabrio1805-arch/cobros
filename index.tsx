@@ -1,3 +1,16 @@
+
+// --- CRITICAL ERROR TRAP ---
+window.addEventListener('error', (e) => {
+  const root = document.getElementById('root');
+  if (root && root.innerHTML === '') {
+    document.body.innerHTML = `<div style="color:red; padding:20px; font-family:monospace; font-size:12px; white-space:pre-wrap;">
+      <h1>CRITICAL STARTUP ERROR</h1>
+      <pre>${e.message}\n${e.filename}:${e.lineno}</pre>
+      <button onclick="localStorage.clear();window.location.reload()">HARD RESET</button>
+    </div>`;
+  }
+});
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

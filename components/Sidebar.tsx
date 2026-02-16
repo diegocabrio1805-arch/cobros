@@ -54,8 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
     { id: 'reports', icon: 'fa-file-invoice-dollar', label: t.reports, powerOnly: true },
     { id: 'commission', icon: 'fa-percent', label: t.commission, powerOnly: false },
     { id: 'profile', icon: 'fa-user-circle', label: t.profile, powerOnly: false },
-    { id: 'generator', icon: 'fa-file-signature', label: 'Pagarés', powerOnly: false },
     { id: 'settings', icon: 'fa-gear', label: t.settings, powerOnly: false },
+    // { id: 'generator', icon: 'fa-file-invoice-dollar', label: 'Pagarés', powerOnly: false },
     { id: 'managers', icon: 'fa-user-tie', label: t.managers, adminOnly: true },
   ];
 

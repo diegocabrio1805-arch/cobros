@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: './', // CRITICAL for GitHub Pages (subpath /cobros/) and relative asset loading
     server: {
-      port: 3000,
+      port: 3333,
       host: '0.0.0.0',
     },
     plugins: [
@@ -17,85 +17,16 @@ export default defineConfig(({ mode }) => {
       legacy({
         targets: ['defaults', 'android >= 5', 'chrome >= 64'],
         additionalLegacyPolyfills: ['regenerator-runtime/runtime']
-      }),
-      VitePWA({
-        registerType: 'prompt',
-        devOptions: {
-          enabled: false
-        },
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-        manifest: {
-          name: 'Anexo Cobro 2026',
-          short_name: 'Cobros',
-          description: 'Gestión de Cobranzas y Clientes',
-          theme_color: '#ffffff',
-          background_color: '#ffffff',
-          display: 'standalone',
-          orientation: 'portrait',
-          start_url: '/',
-          icons: [
-            {
-              src: 'pwa-192x192.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png'
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable'
-            }
-          ]
-        },
-        workbox: {
-          globPatterns: mode === 'development' ? [] : ['**/*.{js,css,html,ico,png,svg,woff2}'],
-          maximumFileSizeToCacheInBytes: 5000000, // 5MB limit provided we have big chunks
-          navigateFallback: '/index.html', // <--- IMPORTANT FOR SPA OFFLINE
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            }
-          ]
-        }
       })
+      // VitePWA REMOVED TEMPORARILY TO FIX BUILD
     ],
     build: {
       target: 'es2015',
-      minify: mode === 'production' ? 'terser' : false, // Minify only in production
-      sourcemap: mode !== 'production', // Sourcemaps only in dev
+      minify: mode === 'production' ? 'terser' : false,
+      sourcemap: mode !== 'production',
       terserOptions: {
         compress: {
-          drop_console: mode === 'production', // Remove console.logs in production
+          drop_console: mode === 'production',
           drop_debugger: true,
           pure_funcs: ['console.log', 'console.debug']
         }
@@ -111,8 +42,6 @@ export default defineConfig(({ mode }) => {
       },
       chunkSizeWarningLimit: 1000
     },
-    // Vite automatically exposes VITE_ prefixed env vars to import.meta.env
-    // No need to manually define them here
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

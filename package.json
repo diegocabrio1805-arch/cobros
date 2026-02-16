@@ -1,7 +1,7 @@
 {
   "name": "anexo-cobro",
   "private": true,
-  "version": "6.1.45",
+  "version": "6.1.44",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -30,7 +30,7 @@
     "dotenv": "^17.2.3",
     "html2canvas": "1.4.1",
     "jspdf": "2.5.1",
-    "lucide-react": "^0.475.0",
+    "lucide-react": "^0.564.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0",
