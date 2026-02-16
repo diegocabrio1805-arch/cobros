@@ -22,11 +22,11 @@ import { numberToWordsSpanish } from './utils/numberToWords';
 import { jsPDF } from 'jspdf';
 import SignaturePad from './SignaturePad';
 
-const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de[MONEDA_NOMBRE][MONTO_LETRAS].
+const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de[MONEDA_NOMBRE] [MONTO_LETRAS].
 
 Por el valor recibido en[CONCEPTO] A mi entera satisfacción.En caso de que este documento no fuese abonado en el día del vencimiento se constituirá(n) el(los) deudor(res) en mora y sin intimación judicial ni extrajudicial el pago; originando también una pena de ...% mensual con el pago de la pena no se entiende extinguida la obligación principal, además de los intereses y comisiones pactados, que continuarán devengándose hasta el reembolso total del crédito, sin que implique novación, prórroga o espera, a todos los efectos legales acepto(amos) la jurisdicción del juzgado de Paz de la ciudad de Villa Elisa.`;
 
-const DEFAULT_RECIBO_TEXT = `Recibí de[DEUDOR_NOMBRE] la cantidad de[MONEDA_NOMBRE][MONTO_LETRAS] por concepto de[CONCEPTO].`;
+const DEFAULT_RECIBO_TEXT = `Recibí de[DEUDOR_NOMBRE] la cantidad de[MONEDA_NOMBRE] [MONTO_LETRAS] por concepto de[CONCEPTO].`;
 
 const DEFAULT_MANUAL_TEXT = `Escriba aquí el contenido de su documento...`;
 

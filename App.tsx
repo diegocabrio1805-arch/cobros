@@ -548,7 +548,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.48 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.49 PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
