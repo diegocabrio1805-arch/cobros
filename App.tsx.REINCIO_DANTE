@@ -431,13 +431,107 @@ const App: React.FC = () => {
   };
 
   const deleteCollectionLog = async (logId: string) => {
-    if (state.currentUser?.role === Role.COLLECTOR) return;
+    if (state.currentUser?.role === Role.COLLECTOR) {
+      alert("ERROR: No tienes permisos para eliminar registros.");
+      return;
+    }
     await deleteRemoteLog(logId);
-    setState(prev => ({ ...prev, collectionLogs: prev.collectionLogs.filter(l => l.id !== logId) }));
+
+    const logToDelete = state.collectionLogs.find(l => l.id === logId);
+    if (!logToDelete) return;
+
+    let updatedLoans = [...state.loans];
+    const recordsToReverse = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
+    const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
+    const loansToSync: Loan[] = [];
+
+    if (logToDelete.type === CollectionLogType.PAYMENT) {
+      updatedLoans = updatedLoans.map(loan => {
+        if (loan.id === logToDelete.loanId) {
+          const newInst = (loan.installments || []).map(i => ({ ...i }));
+          recordsToReverse.forEach(rec => {
+            const idx = rec.installmentNumber - 1;
+            if (newInst[idx]) {
+              newInst[idx].paidAmount = Math.max(0, Number(((newInst[idx].paidAmount || 0) - rec.amount).toFixed(2)));
+              if (newInst[idx].paidAmount <= 0.01) newInst[idx].status = PaymentStatus.PENDING;
+              else if (newInst[idx].paidAmount < newInst[idx].amount - 0.01) newInst[idx].status = PaymentStatus.PARTIAL;
+              else newInst[idx].status = PaymentStatus.PAID;
+            }
+          });
+          const allPaid = newInst.every(inst => inst.status === PaymentStatus.PAID);
+          const updatedLoan = { ...loan, installments: newInst, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE };
+          loansToSync.push(updatedLoan);
+          return updatedLoan;
+        }
+        return loan;
+      });
+    }
+
+    setState(prev => ({
+      ...prev,
+      loans: updatedLoans,
+      payments: updatedPayments,
+      collectionLogs: prev.collectionLogs.filter(l => l.id !== logId)
+    }));
+
+    if (recordsToReverse.length > 0) {
+      for (const p of recordsToReverse) await deleteRemotePayment(p.id);
+    }
+    if (loansToSync.length > 0) {
+      for (const l of loansToSync) await pushLoan(l);
+    }
+
     await handleForceSync(true);
   };
 
-  if (!state.currentUser) return <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={() => { }} onForceSync={() => handleForceSync(true)} />;
+  const updateCollectionLog = (logId: string, newAmount: number) => {
+    const log = state.collectionLogs.find(l => l.id === logId);
+    if (!log) return;
+    deleteCollectionLog(logId);
+    setTimeout(() => {
+      const newLog: CollectionLog = { ...log, amount: newAmount, date: new Date().toISOString() };
+      addCollectionAttempt(newLog);
+    }, 10);
+  };
+
+  const updateCollectionLogNotes = (logId: string, notes: string) => {
+    setState(prev => ({
+      ...prev,
+      collectionLogs: prev.collectionLogs.map(l => l.id === logId ? { ...l, notes } : l)
+    }));
+  };
+
+  const addExpense = (expense: Expense) => {
+    const branchId = getBranchId(state.currentUser);
+    const newExpense = { ...expense, branchId, addedBy: state.currentUser?.id };
+    setState(prev => ({ ...prev, expenses: [newExpense, ...prev.expenses] }));
+    addToQueue('ADD_EXPENSE', newExpense);
+    handleForceSync(true);
+  };
+
+  const removeExpense = async (id: string) => {
+    setState(prev => ({ ...prev, expenses: prev.expenses.filter(x => x.id !== id) }));
+    await handleForceSync(false);
+  };
+
+  const updateInitialCapital = async (amount: number) => {
+    setState(prev => ({ ...prev, initialCapital: amount }));
+    await handleForceSync(false);
+  };
+
+  const updateCommissionBrackets = async (brackets: CommissionBracket[]) => {
+    setState(prev => ({ ...prev, commissionBrackets: brackets }));
+    await handleForceSync(false);
+  };
+
+  const handleSyncUser = (user: User) => {
+    setState(prev => {
+      if (prev.users.find(u => u.id === user.id)) return prev;
+      return { ...prev, users: [user, ...prev.users] };
+    });
+  };
+
+  if (!state.currentUser) return <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />;
 
   const isPowerUser = state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER;
   const isAdmin = state.currentUser.role === Role.ADMIN;
@@ -459,12 +553,12 @@ const App: React.FC = () => {
         <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
           <div className="max-w-[1400px] mx-auto pb-20">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
-            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={() => { }} updateCollectionLogNotes={() => { }} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} setActiveTab={setActiveTab} />}
+            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} setActiveTab={setActiveTab} />}
             {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
             {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={() => { }} onForceSync={handleForceSync} />}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
-            {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={() => { }} removeExpense={() => { }} updateInitialCapital={() => { }} />}
-            {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={() => { }} updateCommissionBrackets={() => { }} deleteCollectionLog={deleteCollectionLog} />}
+            {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
+            {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}
             {activeTab === 'collectors' && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} />}
             {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} />}
             {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
