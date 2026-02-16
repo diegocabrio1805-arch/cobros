@@ -158,6 +158,26 @@ const Profile: React.FC<ProfileProps> = ({ state, onUpdateUser }) => {
         </form>
       </div>
 
+      {(isAdmin || isManager) && state.settings.technicalSupportPhone && (
+        <div className="bg-blue-600 p-8 rounded-[2rem] text-white flex items-center justify-between shadow-xl relative overflow-hidden group border border-white/20">
+          <div className="relative z-10">
+            <h4 className="text-xl font-black uppercase tracking-tighter mb-1">Soporte Técnico</h4>
+            <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-3">Configuración Global para Gerentes</p>
+            <a
+              href={`tel:${state.settings.technicalSupportPhone}`}
+              className="flex items-center gap-3 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all border border-white/20 group/btn shadow-inner"
+            >
+              <i className="fa-solid fa-phone-volume text-blue-200 text-2xl animate-pulse"></i>
+              <span className="text-base md:text-xl font-black tracking-widest">{state.settings.technicalSupportPhone}</span>
+            </a>
+          </div>
+          <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center text-blue-100 text-3xl shadow-inner border border-white/10">
+            <i className="fa-solid fa-headset"></i>
+          </div>
+          <i className="fa-solid fa-signal absolute -right-4 -bottom-4 text-9xl text-white/5 group-hover:rotate-12 transition-transform"></i>
+        </div>
+      )}
+
       <div className="bg-slate-900 p-8 rounded-[2rem] text-white flex items-center justify-between shadow-xl relative overflow-hidden group">
         <div className="relative z-10">
           <h4 className="text-xl font-black uppercase tracking-tighter mb-1">Estado de Seguridad</h4>

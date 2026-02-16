@@ -106,9 +106,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
             {/* Soporte Técnico en Menú (Solo Managers) - Ajustes es visible para todos */}
             {item.id === 'settings' && isManager && technicalSupportPhone && (
               <div className="px-4 py-3 mt-1 bg-white/5 rounded-xl border border-white/5 animate-fadeIn">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Soporte Técnico</p>
-                <a href={`tel:${technicalSupportPhone}`} className="text-[10px] font-black text-emerald-400 flex items-center gap-2 hover:text-emerald-300 transition-colors">
-                  <i className="fa-solid fa-phone-volume text-xs"></i>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Soporte Técnico</p>
+                <a href={`tel:${technicalSupportPhone}`} className="text-base font-black text-emerald-400 flex items-center gap-2 hover:text-emerald-300 transition-colors">
+                  <i className="fa-solid fa-phone-volume text-sm"></i>
                   {technicalSupportPhone}
                 </a>
               </div>
