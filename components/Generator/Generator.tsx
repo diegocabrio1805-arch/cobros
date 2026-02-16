@@ -21,12 +21,13 @@ import { DocumentType } from './types';
 import { numberToWordsSpanish } from './utils/numberToWords';
 import { jsPDF } from 'jspdf';
 import SignaturePad from './SignaturePad';
+import { generateBluetoothTicket } from './utils/generateTicket';
 
-const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de[MONEDA_NOMBRE] [MONTO_LETRAS].
+const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de [MONEDA_NOMBRE] [MONTO_LETRAS].
 
 Por el valor recibido en[CONCEPTO] A mi entera satisfacción.En caso de que este documento no fuese abonado en el día del vencimiento se constituirá(n) el(los) deudor(res) en mora y sin intimación judicial ni extrajudicial el pago; originando también una pena de ...% mensual con el pago de la pena no se entiende extinguida la obligación principal, además de los intereses y comisiones pactados, que continuarán devengándose hasta el reembolso total del crédito, sin que implique novación, prórroga o espera, a todos los efectos legales acepto(amos) la jurisdicción del juzgado de Paz de la ciudad de Villa Elisa.`;
 
-const DEFAULT_RECIBO_TEXT = `Recibí de[DEUDOR_NOMBRE] la cantidad de[MONEDA_NOMBRE] [MONTO_LETRAS] por concepto de[CONCEPTO].`;
+const DEFAULT_RECIBO_TEXT = `Recibí de[DEUDOR_NOMBRE] la cantidad de [MONEDA_NOMBRE] [MONTO_LETRAS] por concepto de[CONCEPTO].`;
 
 const DEFAULT_MANUAL_TEXT = `Escriba aquí el contenido de su documento...`;
 
@@ -61,6 +62,12 @@ const Generator: React.FC = () => {
     const [isPaperMenuOpen, setIsPaperMenuOpen] = useState(false);
     const [paperSize, setPaperSize] = useState<PaperSize>('A4');
     const [signature, setSignature] = useState<string | null>(null);
+
+    // Bluetooth Printer State
+    const [showPrinterModal, setShowPrinterModal] = useState(false);
+    const [printerDevices, setPrinterDevices] = useState<any[]>([]);
+    const [scanningPrinters, setScanningPrinters] = useState(false);
+    const [connectedDevice, setConnectedDevice] = useState<string | null>(localStorage.getItem('printer_name'));
 
     const currencyMenuRef = useRef<HTMLDivElement>(null);
     const templateMenuRef = useRef<HTMLDivElement>(null);
@@ -134,21 +141,6 @@ const Generator: React.FC = () => {
         resetForm();
     };
 
-    const saveCurrentAsTemplate = () => {
-        const name = prompt("Nombre para esta plantilla:");
-        if (!name) return;
-        const newTemplate: TextTemplate = {
-            id: crypto.randomUUID(),
-            name,
-            content: formData.legalText || '',
-            type: formData.type || DocumentType.PAGARE
-        };
-        const updated = [...templates, newTemplate];
-        setTemplates(updated);
-        localStorage.setItem('text_templates', JSON.stringify(updated));
-        alert("Plantilla de texto guardada.");
-    };
-
     const resetForm = () => {
         setFormData({
             type: formData.type || DocumentType.PAGARE,
@@ -167,6 +159,90 @@ const Generator: React.FC = () => {
             legalText: formData.type === DocumentType.PAGARE ? DEFAULT_PAGARE_TEXT : (formData.type === DocumentType.RECIBO ? DEFAULT_RECIBO_TEXT : DEFAULT_MANUAL_TEXT),
         });
         setSignature(null);
+    };
+
+    const saveCurrentAsTemplate = () => {
+        const name = prompt("Nombre para esta plantilla:");
+        if (!name) return;
+        const newTemplate: TextTemplate = {
+            id: crypto.randomUUID(),
+            name,
+            content: formData.legalText || '',
+            type: formData.type || DocumentType.PAGARE
+        };
+        const updated = [...templates, newTemplate];
+        setTemplates(updated);
+        localStorage.setItem('text_templates', JSON.stringify(updated));
+        alert("Plantilla de texto guardada.");
+    };
+
+    const handleScanPrinters = async () => {
+        setScanningPrinters(true);
+        try {
+            const { listBondedDevices, checkBluetoothEnabled, enableBluetooth } = await import('../../services/bluetoothPrinterService');
+            const enabled = await checkBluetoothEnabled();
+            if (!enabled) {
+                const success = await enableBluetooth();
+                if (!success) {
+                    alert("Es necesario activar el Bluetooth.");
+                    setScanningPrinters(false);
+                    return;
+                }
+            }
+            const devices = await listBondedDevices();
+            setPrinterDevices(devices);
+        } catch (e: any) {
+            alert("Error buscando impresoras. Verifica los permisos.");
+        } finally {
+            setScanningPrinters(false);
+        }
+    };
+
+    const handleSelectPrinter = async (device: any) => {
+        try {
+            const { connectToPrinter } = await import('../../services/bluetoothPrinterService');
+            const connected = await connectToPrinter(device.id);
+            if (connected) {
+                alert(`Conectado a ${device.name}`);
+                setConnectedDevice(device.name);
+                localStorage.setItem('printer_name', device.name);
+                setShowPrinterModal(false);
+            } else {
+                alert("No se pudo conectar.");
+            }
+        } catch (e) {
+            alert("Error al conectar.");
+        }
+    };
+
+    const handleBluetoothPrint = async (doc: Partial<DocumentData>) => {
+        try {
+            const { printText, isPrinterConnected, connectToPrinter } = await import('../../services/bluetoothPrinterService');
+
+            const words = numberToWordsSpanish(doc.amount || 0);
+            const docWithWords = { ...doc, amountInWords: words };
+
+            const ticketText = generateBluetoothTicket(docWithWords);
+
+            if (!(await isPrinterConnected())) {
+                const connected = await connectToPrinter();
+                if (!connected) {
+                    alert("Impresora no conectada. Por favor vincúlala primero.");
+                    setShowPrinterModal(true);
+                    handleScanPrinters();
+                    return;
+                }
+            }
+
+            const success = await printText(ticketText);
+            if (success) {
+                alert("✅ Ticket enviado a la impresora");
+            } else {
+                alert("❌ Error al enviar el ticket");
+            }
+        } catch (e: any) {
+            alert("Error de impresión: " + e.message);
+        }
     };
 
     const generatePDF = (doc: Partial<DocumentData>, isPrint: boolean = false) => {
@@ -478,6 +554,17 @@ const Generator: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                setShowPrinterModal(true);
+                                handleScanPrinters();
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-[9px] font-black uppercase transition-all ${connectedDevice ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                            title={connectedDevice ? `Conectado a: ${connectedDevice}` : 'Vincular Impresora'}
+                        >
+                            <Printer className="w-3.5 h-3.5" />
+                            {connectedDevice ? 'Conectado' : 'Vincular'}
+                        </button>
                         <div className="relative" ref={paperMenuRef}>
                             <button onClick={() => setIsPaperMenuOpen(!isPaperMenuOpen)} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black uppercase text-slate-600 hover:bg-slate-100 transition-all">
                                 {paperSize === 'A4' ? <Maximize2 className="w-3.5 h-3.5" /> : paperSize === 'Oficio' ? <FileBox className="w-3.5 h-3.5" /> : <Printer className="w-3.5 h-3.5" />}
@@ -579,13 +666,75 @@ const Generator: React.FC = () => {
 
                                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
                                     <button type="button" onClick={() => generatePDF(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"><FileDown className="w-5 h-5" /> Generar PDF</button>
-                                    <button type="button" onClick={() => generatePDF(formData, true)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all"><Printer className="w-5 h-5" /> Imprimir Ticket</button>
+                                    <button type="button" onClick={() => handleBluetoothPrint(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all"><Printer className="w-5 h-5" /> Imprimir Ticket</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </main>
             </div>
+
+            {/* Printer Selection Modal */}
+            {showPrinterModal && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-4">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn">
+                        <div className="bg-slate-900 p-6 flex justify-between items-center">
+                            <h3 className="text-white font-black uppercase text-lg tracking-tighter">
+                                <Printer className="w-5 h-5 inline mr-2 text-indigo-400" />
+                                Vincular Impresora
+                            </h3>
+                            <button onClick={() => setShowPrinterModal(false)} className="text-white/50 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex justify-center mb-6">
+                                <button
+                                    onClick={handleScanPrinters}
+                                    disabled={scanningPrinters}
+                                    className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all ${scanningPrinters ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'}`}
+                                >
+                                    {scanningPrinters ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-indigo-400 border-t-white rounded-full animate-spin" /> BUSCANDO...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Search className="w-4 h-4" /> BUSCAR VINCULADOS
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                {printerDevices.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400">
+                                        <Printer className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                        <p className="text-[10px] font-bold uppercase">No se encontraron dispositivos</p>
+                                        <p className="text-[9px] mt-2">Asegúrate de haber vinculado tu impresora en los ajustes del sistema.</p>
+                                    </div>
+                                ) : (
+                                    printerDevices.map((dev, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleSelectPrinter(dev)}
+                                            className="w-full text-left p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all group"
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="font-black text-slate-700 uppercase text-xs">{dev.name || 'Desconocido'}</p>
+                                                    <p className="font-mono text-[9px] text-slate-400">{dev.address || dev.id}</p>
+                                                </div>
+                                                <ChevronDown className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transform -rotate-90" />
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
