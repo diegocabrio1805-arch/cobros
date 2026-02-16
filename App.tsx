@@ -206,7 +206,7 @@ const App: React.FC = () => {
     isSyncing, isFullSyncing, syncError, isOnline, processQueue, forceFullSync, pullData,
     pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, addToQueue,
     setSuccessMessage, showSuccess, successMessage, queueLength, clearQueue,
-    deleteRemoteLog, deleteRemotePayment, deleteRemoteClient
+    deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, fetchClientPhotos
   } = useSync(handleRealtimeData);
 
   const doPull = () => pullData();
@@ -235,15 +235,38 @@ const App: React.FC = () => {
     if (!state.currentUser) return;
     const isAndroid = Capacitor.getPlatform() === 'android';
     const syncInterval = setInterval(() => {
-      forceSyncRef.current(!isAndroid, isAndroid ? "¡Sincronizando!" : "", true);
-    }, 5000);
+      forceSyncRef.current(true, "", false);
+    }, 15000);
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
 
   useEffect(() => {
-    localStorage.setItem('prestamaster_v2', JSON.stringify(state));
-    if (state.currentUser) Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
-    else Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+    const timer = setTimeout(() => {
+      // PERFORMANCE OPTIMIZATION (Zonas de mala señal / Gama Baja):
+      // No guardamos las fotos en localStorage para evitar saturar los 5MB del navegador y crashear la APK.
+      // Las fotos se descargan bajo demanda cuando se abre el expediente.
+      const stateToPersist = {
+        ...state,
+        clients: (state.clients || []).map(c => ({
+          ...c,
+          profilePic: undefined,
+          housePic: undefined,
+          businessPic: undefined,
+          documentPic: undefined
+        }))
+      };
+
+      try {
+        localStorage.setItem('prestamaster_v2', JSON.stringify(stateToPersist));
+        if (state.currentUser) {
+          Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
+        }
+      } catch (e) {
+        console.error("Local Storage Save Error:", e);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [state]);
 
   useEffect(() => {
@@ -548,7 +571,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.50 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.61 PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -613,7 +636,11 @@ const App: React.FC = () => {
         <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
           <div className="max-w-[1400px] mx-auto pb-20">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
-            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} setActiveTab={setActiveTab} />}
+            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync}
+              setActiveTab={setActiveTab}
+              fetchClientPhotos={fetchClientPhotos}
+            />
+            }
             {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
             {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={() => { }} onForceSync={handleForceSync} />}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}

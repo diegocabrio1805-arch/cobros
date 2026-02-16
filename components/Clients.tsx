@@ -23,6 +23,7 @@ interface ClientsProps {
   globalState: AppState;
   onForceSync?: (silent?: boolean, message?: string) => Promise<void>;
   setActiveTab?: (tab: string) => void;
+  fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -151,7 +152,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, 
   </div>
 );
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera'>('gestion');
@@ -310,8 +311,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturingType, setCapturingType] = useState<'home' | 'domicilio' | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(globalSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
   const [isSharing, setIsSharing] = useState(false);
   const [receipt, setReceipt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showLegajo && fetchClientPhotos && updateClient) {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === showLegajo);
+      if (client && !client.profilePic && !client.housePic && !client.businessPic && !client.documentPic) {
+        fetchClientPhotos(showLegajo).then(photos => {
+          if (photos) {
+            updateClient({ ...client, ...photos });
+          }
+        });
+      }
+    }
+  }, [showLegajo, fetchClientPhotos, updateClient, state.clients]);
 
   const shareCardRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLDivElement>(null);
@@ -328,7 +350,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const activeLoanInLegajo = useMemo(() => {
     if (!showLegajo) return null;
-    return (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    return clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   }, [showLegajo, state.loans]);
 
   const clientHistory = useMemo(() => {
@@ -340,7 +363,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const getClientMetrics = (client: Client) => {
     if (!client) return { balance: 0, installmentsStr: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '' };
-    const activeLoan = state.loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    const activeLoan = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '';
 
     if (activeLoan) {
@@ -375,9 +399,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const filteredClients = useMemo(() => {
     let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden);
-    if (globalSearch) {
-      const s = globalSearch.toLowerCase();
-      clients = clients.filter(c => (c.name || '').toLowerCase().includes(s) || (c.documentId || '').includes(s));
+    if (debouncedSearch) {
+      const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      clients = clients.filter(c => {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return nameNorm.includes(s) || (c.documentId || '').includes(s);
+      });
     }
     if (selectedCollector !== 'all') {
       clients = clients.filter(c => {
@@ -398,7 +425,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   // RESETEAR PAGINA AL FILTRAR
   useEffect(() => {
     setCurrentPage(1);
-  }, [viewMode, globalSearch, selectedCollector]);
+  }, [viewMode, debouncedSearch, selectedCollector]);
 
   const paginatedClients = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -736,6 +763,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       addCollectionAttempt(log);
 
+
+
       if (type === CollectionLogType.PAYMENT || type === CollectionLogType.NO_PAGO) {
         if (onForceSync) onForceSync(false);
       }
@@ -746,6 +775,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         // REGLA DE ORO: Recalcular histórico para el recibo
         const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
         const totalPaidHistory = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
+
+        // AUTO-Cerrar crédito si el saldo llega a 0
+        if (activeLoanInLegajo.totalAmount - totalPaidHistory <= 0.01 && updateLoan) {
+          updateLoan({ ...activeLoanInLegajo, status: LoanStatus.PAID });
+        }
 
         const progress = totalPaidHistory / (activeLoanInLegajo.installmentValue || 1);
         const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
@@ -1055,9 +1089,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       isRenewal: true
     };
     addLoan(newLoan);
+
+    // Cerrar cualquier crédito activo previo (Liquidación por renovación)
+    const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    previousActiveLoans.forEach(ol => {
+      if (updateLoan) updateLoan({ ...ol, status: LoanStatus.PAID });
+    });
+
     setShowRenewModal(false);
     if (onForceSync) onForceSync(false);
-    alert("Cr\u00e9dito renovado exitosamente.");
+    alert("Crédito renovado exitosamente.");
   };
 
   const handlePrintCartera = () => {
@@ -1853,23 +1894,27 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 <tr><th className="px-4 py-3 text-left">Fecha / Hora</th><th className="px-4 py-3 text-left">Concepto</th><th className="px-4 py-3 text-right">Monto</th><th className="px-4 py-3 text-center">Acciones</th></tr>
                               </thead>
                               <tbody className="divide-y divide-slate-800 font-bold">
-                                {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => (
-                                  <tr key={log.id} className="hover:bg-slate-800 transition-colors">
-                                    <td className="px-4 py-3"><p className="text-slate-100 font-black">{new Date(log.date.split('T')[0] + 'T00:00:00').toLocaleDateString()}</p></td>
-                                    <td className="px-4 py-3"><p className={`uppercase font-black text-[9px] ${log.isOpening ? 'text-emerald-400' : log.type === CollectionLogType.PAYMENT ? 'text-slate-300' : 'text-red-400'}`}>{log.isOpening ? 'Crédito Habilitado' : log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' : 'Visita sin Pago'}</p></td>
-                                    <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">{log.amount ? formatCurrency(log.amount, state.settings) : '-'}</td>
-                                    <td className="px-4 py-3 text-center">
-                                      {isAdminOrManager && (
-                                        <div className="flex items-center justify-center gap-1">
-                                          {log.type === CollectionLogType.PAYMENT && (
-                                            <button onClick={() => handleEditLog(log)} className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-sm" title="Editar Pago"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                                          )}
-                                          <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
-                                        </div>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                                {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
+                                  const logDate = log.date ? new Date(log.date.split('T')[0] + 'T00:00:00') : null;
+                                  const formattedDate = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleDateString() : '---';
+                                  return (
+                                    <tr key={log.id} className="hover:bg-slate-800 transition-colors">
+                                      <td className="px-4 py-3"><p className="text-slate-100 font-black">{formattedDate}</p></td>
+                                      <td className="px-4 py-3"><p className={`uppercase font-black text-[9px] ${log.isOpening ? 'text-emerald-400' : log.type === CollectionLogType.PAYMENT ? 'text-slate-300' : 'text-red-400'}`}>{log.isOpening ? 'Crédito Habilitado' : log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' : 'Visita sin Pago'}</p></td>
+                                      <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">{log.amount ? formatCurrency(log.amount, state.settings) : '-'}</td>
+                                      <td className="px-4 py-3 text-center">
+                                        {isAdminOrManager && (
+                                          <div className="flex items-center justify-center gap-1">
+                                            {log.type === CollectionLogType.PAYMENT && (
+                                              <button onClick={() => handleEditLog(log)} className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-sm" title="Editar Pago"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                                            )}
+                                            <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
+                                          </div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -1910,7 +1955,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         </div>
                                         <div className="flex flex-col">
                                           <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-emerald-700' : 'text-slate-700'}`}>
-                                            {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
+                                            {(() => {
+                                              if (!inst.dueDate) return '---';
+                                              const d = new Date(inst.dueDate.split('T')[0] + 'T00:00:00');
+                                              return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase();
+                                            })()}
                                           </span>
                                           {isPartial && <span className="text-[7px] font-black text-emerald-600 uppercase">ABONO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>}
                                           {isPaid && <span className="text-[7px] font-black text-emerald-700 uppercase">PAGADO</span>}
@@ -1957,8 +2006,21 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
                             <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-2">
-                              <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
-                              <button onClick={handleOpenDossierPayment} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">Cobrar / Renovación</button>
+                              {(() => {
+                                const m = getClientMetrics(clientInLegajo!);
+                                const isFullyPaid = m.balance <= 0.01;
+                                return (
+                                  <>
+                                    <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
+                                    <button
+                                      onClick={isFullyPaid ? () => setShowRenewModal(true) : handleOpenDossierPayment}
+                                      className={`py-2.5 ${isFullyPaid ? 'bg-blue-600' : 'bg-emerald-600'} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
+                                    >
+                                      {isFullyPaid ? 'Renovar Crédito' : 'Cobrar / Renovación'}
+                                    </button>
+                                  </>
+                                );
+                              })()}
                             </div>
                             <div className="px-3 pb-3 bg-white">
                               <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">

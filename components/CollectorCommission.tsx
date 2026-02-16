@@ -112,7 +112,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
-      u.id === currentUserId || (u.role === Role.COLLECTOR && u.managedBy === currentUserId)
+      (u.role === Role.COLLECTOR) && (u.id === currentUserId || u.managedBy === currentUserId)
     );
     return (Array.isArray(eligibleUsers) ? eligibleUsers : []).map(user => ({
       user,
@@ -406,7 +406,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <i className="fa-solid fa-route text-blue-600 text-xs"></i>
           <select value={selectedHistoricalRoute} onChange={(e) => setSelectedHistoricalRoute(e.target.value)} className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase tracking-widest w-full">
             <option value="all">CONSOLIDADO SUCURSAL</option>
-            {state.users.filter(u => u.id === currentUserId || u.managedBy === currentUserId).map(u => (
+            {state.users.filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
               <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
             ))}
           </select>

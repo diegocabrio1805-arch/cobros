@@ -8,25 +8,25 @@ export const resolveSettings = (
 ): AppSettings => {
     if (!currentUser) return defaultSettings;
 
-    // If Admin or Manager, they use their own settings
-    if (currentUser.role === Role.ADMIN || currentUser.role === Role.MANAGER) {
-        return allSettings[currentUser.id] || defaultSettings;
+    // Base settings (from Admin/Manager)
+    let settings = allSettings[currentUser.id] || defaultSettings;
+
+    // If Collector, prioritize their Manager's settings
+    if (currentUser.role === Role.COLLECTOR && currentUser.managedBy) {
+        settings = allSettings[currentUser.managedBy] || settings;
     }
 
-    // If Collector, they inherit from their Manager
-    if (currentUser.role === Role.COLLECTOR) {
-        if (currentUser.managedBy) {
-            // Try to find manager's settings
-            const managersSettings = allSettings[currentUser.managedBy];
-            if (managersSettings) {
-                return managersSettings;
-            }
-            // If manager has no settings, maybe check if manager exists and fallback?
-            // Ideally we fallback to default if manager has no settings yet.
-            return defaultSettings;
-        }
+    // CRITICAL: Technical support phone should be GLOBAL from the System Admin if possible
+    // System Admin ID is b3716a78-fb4f-4918-8c0b-92004e3d63ec
+    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+    const adminSettings = allSettings[SYSTEM_ADMIN_ID];
+
+    if (adminSettings?.technicalSupportPhone) {
+        return {
+            ...settings,
+            technicalSupportPhone: adminSettings.technicalSupportPhone
+        };
     }
 
-    // Fallback for standalone collectors or edge cases
-    return allSettings[currentUser.id] || defaultSettings;
+    return settings;
 };

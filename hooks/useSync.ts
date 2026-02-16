@@ -123,11 +123,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
                         // Trigger sync (Instant for deletes, debounced for others)
                         const triggerSync = async () => {
-                            console.log(`[Realtime] Syncing data after remote change... FullSync needed: ${needsFullSync}`);
-                            const newData = await pullData(needsFullSync);
-                            if (newData && onDataUpdated) {
-                                // FIX: Pass the flag so mergeData actually PURGES orphans
-                                onDataUpdated(newData, needsFullSync);
+                            try {
+                                console.log(`[Realtime] Syncing data after remote change...`);
+                                const newData = await pullData(false); // ALWAYS INCREMENTAL
+                                if (newData && onDataUpdated) {
+                                    onDataUpdated(newData, false);
+                                }
+                            } catch (error) {
+                                console.error("[Realtime] Sync trigger failed:", error);
                             }
                         };
 
@@ -319,8 +322,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         };
 
         // Queries - Optimized for low-end devices: only fetch active data
-        let clientsQuery = supabase.from('clients').select('*'); // Removed is_active filter to allow soft-delete syncing
-        let loansQuery = supabase.from('loans').select('*'); // No is_active column in loans table
+        // EGRESS OPTIMIZATION: Exclude heavy photo columns from main sync
+        let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance');
+        let loansQuery = supabase.from('loans').select('*');
         let paymentsQuery = supabase.from('payments').select('*');
         let logsQuery = supabase.from('collection_logs').select('*');
         let profilesQuery = supabase.from('profiles').select('*');
@@ -500,6 +504,27 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         } finally {
             setIsSyncing(false);
             if (fullSync) setIsFullSyncing(false);
+        }
+    };
+
+    const fetchClientPhotos = async (clientId: string): Promise<Partial<Client> | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('clients')
+                .select('profile_pic, house_pic, business_pic, document_pic')
+                .eq('id', clientId)
+                .single();
+
+            if (error) throw error;
+            return {
+                profilePic: data.profile_pic,
+                housePic: data.house_pic,
+                businessPic: data.business_pic,
+                documentPic: data.document_pic
+            };
+        } catch (err) {
+            console.error('Failed to fetch photos:', err);
+            return null;
         }
     };
 
@@ -1262,6 +1287,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteLog,
         deleteRemotePayment,
         deleteRemoteClient,
+        fetchClientPhotos,
         supabase,
         queueLength,
         addToQueue,

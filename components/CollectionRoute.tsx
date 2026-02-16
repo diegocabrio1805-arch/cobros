@@ -24,6 +24,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const [receipt, setReceipt] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const isAdminOrManager = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
   const currentUserId = state.currentUser?.id;
@@ -38,6 +46,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const [currentPage, setCurrentPage] = useState(1);
 
   const t = getTranslation(state.settings.language);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, selectedCollectorFilter, viewMode]);
 
   const isViewingToday = useMemo(() => {
     return startDate === countryTodayStr && endDate === countryTodayStr;
@@ -149,13 +161,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
   const filteredRoute = useMemo(() => {
     const validEnriched = Array.isArray(enrichedRoute) ? enrichedRoute : [];
-    if (!searchTerm) return validEnriched;
-    const s = searchTerm.toLowerCase();
-    return validEnriched.filter(item =>
-      (item.client?.name || '').toLowerCase().includes(s) ||
-      (item.client?.address || '').toLowerCase().includes(s)
-    );
-  }, [enrichedRoute, searchTerm]);
+    if (!debouncedSearch) return validEnriched;
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return validEnriched.filter(item => {
+      const nameNorm = (item.client?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const addressNorm = (item.client?.address || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nameNorm.includes(s) || addressNorm.includes(s);
+    });
+  }, [enrichedRoute, debouncedSearch]);
 
   const totalCollectedInView = useMemo(() => {
     return (Array.isArray(filteredRoute) ? filteredRoute : []).reduce((acc, curr) => acc + (curr.paidPeriod || 0), 0);
@@ -372,7 +385,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                   className="bg-transparent border-none outline-none text-[9px] font-black text-black uppercase tracking-widest cursor-pointer w-full focus:ring-0"
                 >
                   {selectedCollectorFilter === 'all' ? <option value="all">TODAS LAS RUTAS</option> : null}
-                  {(Array.isArray(state.users) ? state.users : []).filter(u => u.id === currentUserId || u.managedBy === currentUserId).map(u => (
+                  {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
                     <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
                   ))}
                 </select>
@@ -383,6 +396,15 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               <span className="text-slate-400 font-bold">-</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
             </div>
+            {onForceSync && (
+              <button
+                onClick={() => onForceSync(false)}
+                className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl border border-emerald-200 flex items-center gap-2 hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
+              >
+                <i className="fa-solid fa-rotate text-[10px] animate-spin-slow"></i>
+                <span className="text-[9px] font-black uppercase tracking-widest">Sincronizar</span>
+              </button>
+            )}
           </div>
 
           <div className="flex gap-2 border-t border-slate-100 pt-3">

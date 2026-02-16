@@ -120,17 +120,19 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
   const handleSaveSupportPhone = (e: React.FormEvent) => {
     e.preventDefault();
+    // Support phone is ALWAYS global, so we update the main settings
     updateSettings({ ...state.settings, technicalSupportPhone: supportPhone });
     setShowSupportModal(false);
-    alert("Número de Soporte Técnico actualizado.");
+    alert("Número de Soporte Técnico actualizado globalmente.");
   };
 
-  const handleSaveAndExit = () => {
+  const handleSaveAndExit = async () => {
     // Save local form data before exiting
-    updateSettings({
+    await updateSettings({
       ...state.settings,
       ...localForm
     });
+    alert("✅ Configuración guardada correctamente.");
     setActiveTab(isPowerUser ? 'dashboard' : 'route');
   };
 
@@ -420,6 +422,19 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button
+              onClick={() => {
+                updateSettings({ ...state.settings, ...localForm });
+                alert("✅ Datos de la empresa guardados correctamente.");
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+            >
+              <i className="fa-solid fa-floppy-disk text-sm"></i>
+              GUARDAR DATOS DE EMPRESA
+            </button>
           </div>
         </div>
       )}
