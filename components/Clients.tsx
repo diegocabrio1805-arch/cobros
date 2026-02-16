@@ -1735,32 +1735,37 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         showLegajo && clientInLegajo && (
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[120] p-2 overflow-hidden">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
-              <div className="p-3 md:p-4 bg-[#0f172a] text-white shrink-0 flex justify-between items-center border-b border-white/10 sticky top-0 z-20">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border-2 border-white/10 overflow-hidden bg-white/5 shadow-xl">{clientInLegajo.profilePic && <img src={clientInLegajo.profilePic} className="w-full h-full object-cover" />}</div>
+              <div className="p-2 md:p-4 bg-[#0f172a] text-white shrink-0 flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/10 sticky top-0 z-20 gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border-2 border-white/10 overflow-hidden bg-white/5 shadow-xl shrink-0">{clientInLegajo.profilePic && <img src={clientInLegajo.profilePic} className="w-full h-full object-cover" />}</div>
                   <div className="min-w-0">
                     <h3 className="text-sm md:text-lg font-black uppercase tracking-tighter leading-tight truncate">{clientInLegajo.name}</h3>
                     <p className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 mt-0.5 truncate"><i className="fa-solid fa-location-dot"></i> {clientInLegajo.address}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {!isEditingClient && (
                     <>
                       <button
                         disabled={isSharing}
                         onClick={handleShareLegajo}
-                        className={`px-4 py-2 bg-emerald-500 text-white rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all ${isSharing ? 'opacity-50' : ''}`}
+                        className={`px-3 py-2 bg-emerald-500 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all ${isSharing ? 'opacity-50' : ''}`}
                       >
                         {isSharing ? <i className="fa-solid fa-spinner animate-spin text-xs"></i> : <i className="fa-brands fa-whatsapp text-xs"></i>}
-                        {isSharing ? 'GENERANDO...' : 'COMPARTIR'}
+                        <span className="hidden xs:inline">{isSharing ? 'GENERANDO...' : 'COMPARTIR'}</span>
+                        {!isSharing && <span className="xs:hidden">ENVIAR</span>}
                       </button>
                       {isAdminOrManager && (
                         <>
-                          <button onClick={() => setActiveTab?.('settings')} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
-                            <i className="fa-solid fa-building text-xs"></i> EDITAR EMPRESA
+                          <button onClick={() => setActiveTab?.('settings')} className="px-3 py-2 bg-blue-600 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                            <i className="fa-solid fa-building text-xs"></i>
+                            <span className="hidden sm:inline">EDITAR EMPRESA</span>
+                            <span className="sm:hidden text-[7px]">EMPRESA</span>
                           </button>
-                          <button onClick={handleOpenCustomNoPay} className="px-4 py-2 bg-amber-500 text-white rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
-                            <i className="fa-solid fa-comment-slash text-xs"></i> EDITAR NO PAGO
+                          <button onClick={handleOpenCustomNoPay} className="px-3 py-2 bg-amber-500 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                            <i className="fa-solid fa-comment-slash text-xs"></i>
+                            <span className="hidden sm:inline">EDITAR NO PAGO</span>
+                            <span className="sm:hidden text-[7px]">NO PAGO</span>
                           </button>
                         </>
                       )}
@@ -1769,12 +1774,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   {(isAdminOrManager || clientInLegajo.allowCollectorLocationUpdate) && (
                     <button
                       onClick={isEditingClient ? () => setIsEditingClient(false) : handleStartEdit}
-                      className={`px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${isEditingClient ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                      className={`px-3 py-2 rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest transition-all ${isEditingClient ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     >
                       {isEditingClient ? 'CANCELAR' : 'EDITAR'}
                     </button>
                   )}
-                  <button onClick={() => { setShowLegajo(null); setIsEditingClient(false); }} className="w-9 h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+                  <button onClick={() => { setShowLegajo(null); setIsEditingClient(false); }} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all shrink-0"><i className="fa-solid fa-xmark text-lg"></i></button>
                 </div>
               </div>
 

@@ -540,6 +540,66 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
+        {/* MOBILE HEADER */}
+        <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
+                <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
+              </button>
+              <div>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.46 PWA</span></h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {isOnline ? 'Conectado' : 'Sin Internet'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
+                {state.currentUser?.name.charAt(0)}
+              </div>
+            </div>
+          </div>
+
+          {/* MOBILE MENU OVERLAY */}
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-white/95 backdrop-blur-md border-b border-slate-200 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
+              {[
+                { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
+                { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
+                { id: 'loans', icon: 'fa-money-bill-wave', label: t.loans, powerOnly: false },
+                { id: 'route', icon: 'fa-route', label: t.route, powerOnly: false },
+                { id: 'notifications', icon: 'fa-bell', label: t.notifications, powerOnly: false },
+                { id: 'collectors', icon: 'fa-user-gear', label: t.collectors, powerOnly: true },
+                { id: 'performance', icon: 'fa-chart-column', label: t.performance, powerOnly: true },
+                { id: 'expenses', icon: 'fa-wallet', label: t.expenses, powerOnly: true },
+                { id: 'simulator', icon: 'fa-calculator', label: t.simulator, powerOnly: false },
+                { id: 'reports', icon: 'fa-file-invoice-dollar', label: t.reports, powerOnly: true },
+                { id: 'commission', icon: 'fa-percent', label: t.commission, powerOnly: false },
+                { id: 'generator', icon: 'fa-file-signature', label: 'Pagares', powerOnly: false },
+                { id: 'profile', icon: 'fa-user-circle', label: t.profile, powerOnly: false },
+                { id: 'settings', icon: 'fa-gear', label: t.settings, powerOnly: false },
+                { id: 'managers', icon: 'fa-user-tie', label: t.managers, adminOnly: true },
+              ].filter(item => {
+                if (item.adminOnly) return isAdmin;
+                if (item.powerOnly) return isPowerUser;
+                return true;
+              }).map((item) => (
+                <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 p-3 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-sm`}></i></div>
+                  <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                </button>
+              ))}
+              <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
+            </div>
+          )}
+        </header>
+
         <FloatingBackButton onClick={() => setActiveTab(isPowerUser ? 'dashboard' : 'route')} visible={activeTab !== 'dashboard' && activeTab !== 'route'} />
         <Sidebar
           activeTab={activeTab}
