@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     History,
     Save,
@@ -16,16 +16,17 @@ import {
     FileBox,
     Pencil
 } from 'lucide-react';
-import { DocumentData, DocumentType, TextTemplate, PaperSize } from './types';
+import type { DocumentData, TextTemplate, PaperSize } from './types';
+import { DocumentType } from './types';
 import { numberToWordsSpanish } from './utils/numberToWords';
 import { jsPDF } from 'jspdf';
 import SignaturePad from './SignaturePad';
 
-const DEFAULT_PAGARE_TEXT = `El día [FECHA] Pagaré (mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio [DOMICILIO] La cantidad de [MONEDA_NOMBRE] [MONTO_LETRAS].
+const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de[MONEDA_NOMBRE][MONTO_LETRAS].
 
-Por el valor recibido en [CONCEPTO] A mi entera satisfacción. En caso de que este documento no fuese abonado en el día del vencimiento se constituirá(n) el (los) deudor(res) en mora y sin intimación judicial ni extrajudicial el pago; originando también una pena de ...% mensual con el pago de la pena no se entiende extinguida la obligación principal, además de los intereses y comisiones pactados, que continuarán devengándose hasta el reembolso total del crédito, sin que implique novación, prórroga o espera, a todos los efectos legales acepto(amos) la jurisdicción del juzgado de Paz de la ciudad de Villa Elisa.`;
+Por el valor recibido en[CONCEPTO] A mi entera satisfacción.En caso de que este documento no fuese abonado en el día del vencimiento se constituirá(n) el(los) deudor(res) en mora y sin intimación judicial ni extrajudicial el pago; originando también una pena de ...% mensual con el pago de la pena no se entiende extinguida la obligación principal, además de los intereses y comisiones pactados, que continuarán devengándose hasta el reembolso total del crédito, sin que implique novación, prórroga o espera, a todos los efectos legales acepto(amos) la jurisdicción del juzgado de Paz de la ciudad de Villa Elisa.`;
 
-const DEFAULT_RECIBO_TEXT = `Recibí de [DEUDOR_NOMBRE] la cantidad de [MONEDA_NOMBRE] [MONTO_LETRAS] por concepto de [CONCEPTO].`;
+const DEFAULT_RECIBO_TEXT = `Recibí de[DEUDOR_NOMBRE] la cantidad de[MONEDA_NOMBRE][MONTO_LETRAS] por concepto de[CONCEPTO].`;
 
 const DEFAULT_MANUAL_TEXT = `Escriba aquí el contenido de su documento...`;
 
@@ -137,15 +138,6 @@ const Generator: React.FC = () => {
         alert("Plantilla de texto guardada.");
     };
 
-    const deleteTemplate = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (confirm("¿Eliminar plantilla?")) {
-            const updated = templates.filter(t => t.id !== id);
-            setTemplates(updated);
-            localStorage.setItem('text_templates', JSON.stringify(updated));
-        }
-    };
-
     const resetForm = () => {
         setFormData({
             type: formData.type || DocumentType.PAGARE,
@@ -209,9 +201,9 @@ const Generator: React.FC = () => {
                 y += 10;
                 pdf.setFontSize(thermalFontSize);
                 pdf.setFont('helvetica', 'normal');
-                pdf.text(`Fecha: ${doc.date || ''}`, 5, y);
+                pdf.text(`Fecha: ${doc.date || ''} `, 5, y);
                 y += 7;
-                pdf.text(`Folio: ${doc.folio || ''}`, 5, y);
+                pdf.text(`Folio: ${doc.folio || ''} `, 5, y);
                 y += 2;
                 pdf.line(5, y, 53, y);
 
@@ -224,11 +216,11 @@ const Generator: React.FC = () => {
 
                 y += 10;
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(`Monto: ${doc.currencySymbol} ${doc.amount?.toLocaleString()}`, 5, y);
+                pdf.text(`Monto: ${doc.currencySymbol} ${doc.amount?.toLocaleString()} `, 5, y);
 
                 y += 7;
                 pdf.setFont('helvetica', 'normal');
-                const splitWords = pdf.splitTextToSize(`${doc.amountInWords} ${doc.currencyName}`, 48);
+                const splitWords = pdf.splitTextToSize(`${doc.amountInWords} ${doc.currencyName} `, 48);
                 pdf.text(splitWords, 5, y, { lineHeightFactor: 1.2 });
                 y += (splitWords.length * 5.5);
 
@@ -242,7 +234,7 @@ const Generator: React.FC = () => {
                 y += (splitConcept.length * 5.5);
 
                 y += 5;
-                pdf.text(`Pago: ${doc.paymentMethod}`, 5, y);
+                pdf.text(`Pago: ${doc.paymentMethod} `, 5, y);
 
                 y += 6;
                 pdf.line(5, y, 53, y);
@@ -253,9 +245,9 @@ const Generator: React.FC = () => {
                 pdf.setFont('helvetica', 'normal');
                 pdf.text(doc.beneficiaryName || '', 5, y);
                 y += 6;
-                pdf.text(`CI: ${doc.documentIdNumber || ''}`, 5, y);
+                pdf.text(`CI: ${doc.documentIdNumber || ''} `, 5, y);
                 y += 6;
-                pdf.text(`Tel: ${doc.phoneNumber || ''}`, 5, y);
+                pdf.text(`Tel: ${doc.phoneNumber || ''} `, 5, y);
 
                 y += 25;
                 pdf.line(10, y, 48, y);
@@ -286,14 +278,14 @@ const Generator: React.FC = () => {
                 pdf.text(doc.debtorName || '', 70, 45);
 
                 pdf.rect(isOficio ? 270 : 240, 35, 45, 12);
-                pdf.text(`${doc.currencySymbol} ${doc.amount?.toLocaleString()}`, isOficio ? 273 : 243, 43);
+                pdf.text(`${doc.currencySymbol} ${doc.amount?.toLocaleString()} `, isOficio ? 273 : 243, 43);
 
                 pdf.text(`# ${doc.amountInWords} ${doc.currencyName} #`, 65, 58);
                 pdf.text(doc.concept || '', 65, 75);
 
-                pdf.text(`[Nombre]: ${doc.beneficiaryName || ''}`, 65, 113);
-                pdf.text(`[Documento]: ${doc.documentIdNumber || ''}`, 65, 120);
-                pdf.text(`[Teléfono]: ${doc.phoneNumber || ''}`, 65, 127);
+                pdf.text(`[Nombre]: ${doc.beneficiaryName || ''} `, 65, 113);
+                pdf.text(`[Documento]: ${doc.documentIdNumber || ''} `, 65, 120);
+                pdf.text(`[Teléfono]: ${doc.phoneNumber || ''} `, 65, 127);
 
                 if (signature) {
                     pdf.addImage(signature, 'PNG', 200, 100, 50, 30);
@@ -310,10 +302,10 @@ const Generator: React.FC = () => {
                 y += 10;
                 pdf.setFontSize(thermalFontSize);
                 pdf.setFont('helvetica', 'normal');
-                pdf.text(`Vencimiento: ${doc.date || ''}`, 5, y);
+                pdf.text(`Vencimiento: ${doc.date || ''} `, 5, y);
                 y += 7;
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(`Monto: ${doc.currencySymbol} ${doc.amount?.toLocaleString()}`, 5, y);
+                pdf.text(`Monto: ${doc.currencySymbol} ${doc.amount?.toLocaleString()} `, 5, y);
                 y += 2;
                 pdf.line(5, y, 53, y);
 
@@ -415,10 +407,6 @@ const Generator: React.FC = () => {
         }
     };
 
-    const filteredTemplates = useMemo(() => {
-        return templates.filter(t => t.type === formData.type);
-    }, [templates, formData.type]);
-
     const changePaperSize = (size: PaperSize) => {
         setPaperSize(size);
         localStorage.setItem('paper_size', size);
@@ -435,7 +423,7 @@ const Generator: React.FC = () => {
             <iframe ref={printFrameRef} className="hidden" title="Impresión" />
 
             {/* Sidebar Local para Historial (Solo Escritorio, en móvil oculto) */}
-            <aside className={`fixed inset-y-0 left-0 z-40 transition-transform duration-300 transform bg-white border-r border-slate-200 w-72 md:relative md:translate-x-0 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full hidden md:block'}`}>
+            <aside className={`fixed inset - y - 0 left - 0 z - 40 transition - transform duration - 300 transform bg - white border - r border - slate - 200 w - 72 md:relative md: translate - x - 0 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full hidden md:block'} `}>
                 <div className="flex flex-col h-full">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                         <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><History className="w-4 h-4 text-indigo-600" /> Historial</h2>
@@ -456,7 +444,7 @@ const Generator: React.FC = () => {
                                 </div>
                                 <h3 className="text-[10px] font-black text-slate-700 truncate uppercase">{doc.debtorName || doc.legalText?.substring(0, 20) || '(Sin título)'}</h3>
                                 <div className="flex items-center justify-between mt-2">
-                                    <span className="text-[9px] font-black text-slate-600">{doc.type !== DocumentType.MANUAL ? `${doc.currencySymbol} ${doc.amount?.toLocaleString() || 0}` : 'Manual'}</span>
+                                    <span className="text-[9px] font-black text-slate-600">{doc.type !== DocumentType.MANUAL ? `${doc.currencySymbol} ${doc.amount?.toLocaleString() || 0} ` : 'Manual'}</span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => { setFormData({ ...doc, id: undefined }); setIsHistoryOpen(false); }} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Copy className="w-3.5 h-3.5" /></button>
                                         <button onClick={() => generatePDF(doc, true)} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Printer className="w-3.5 h-3.5" /></button>
@@ -475,7 +463,7 @@ const Generator: React.FC = () => {
                         <button onClick={() => setIsHistoryOpen(true)} className="md:hidden p-2 text-slate-500 bg-slate-50 rounded-xl"><History className="w-5 h-5" /></button>
                         <div>
                             <h1 className="text-xs font-black text-slate-900 uppercase tracking-tighter">Generador de Pagarés</h1>
-                            <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">v1.0.0 Standalone</p>
+                            <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">v1.1.0 Pro Standalone</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -502,9 +490,9 @@ const Generator: React.FC = () => {
                         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                             <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex items-center justify-between">
                                 <div className="flex gap-1 bg-slate-200 p-1 rounded-xl">
-                                    <button onClick={() => handleTypeChange(DocumentType.PAGARE)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.PAGARE ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Pagaré</button>
-                                    <button onClick={() => handleTypeChange(DocumentType.RECIBO)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.RECIBO ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Recibo</button>
-                                    <button onClick={() => handleTypeChange(DocumentType.MANUAL)} className={`px-3 py-1.5 rounded-lg transition-all ${formData.type === DocumentType.MANUAL ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}><Pencil className="w-4 h-4" /></button>
+                                    <button onClick={() => handleTypeChange(DocumentType.PAGARE)} className={`px - 4 py - 1.5 text - [9px] font - black uppercase rounded - lg transition - all ${formData.type === DocumentType.PAGARE ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'} `}>Pagaré</button>
+                                    <button onClick={() => handleTypeChange(DocumentType.RECIBO)} className={`px - 4 py - 1.5 text - [9px] font - black uppercase rounded - lg transition - all ${formData.type === DocumentType.RECIBO ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'} `}>Recibo</button>
+                                    <button onClick={() => handleTypeChange(DocumentType.MANUAL)} className={`px - 3 py - 1.5 rounded - lg transition - all ${formData.type === DocumentType.MANUAL ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'} `}><Pencil className="w-4 h-4" /></button>
                                 </div>
                                 <div className="flex items-center gap-2 relative" ref={templateMenuRef}>
                                     <button type="button" onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)} className="text-[8px] font-black text-indigo-600 uppercase border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-white"><BookOpen className="w-3 h-3 inline mr-1" /> Plantillas</button>
