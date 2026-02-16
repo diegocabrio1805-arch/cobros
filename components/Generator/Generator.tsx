@@ -517,8 +517,7 @@ const Generator: React.FC = () => {
                                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Monto Principal</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">{formData.currencySymbol}</span>
-                                                    <input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-lg text-slate-900" />
+                                                    <input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-lg text-slate-900" />
                                                 </div>
                                                 <div className="relative" ref={currencyMenuRef}>
                                                     <button type="button" onClick={() => setIsCurrencyMenuOpen(!isCurrencyMenuOpen)} className="h-full px-4 bg-white border-2 border-slate-100 rounded-2xl text-[9px] font-black uppercase text-slate-600 flex items-center gap-2">{formData.currencySymbol} <ChevronDown className="w-3 h-3" /></button>
