@@ -356,10 +356,30 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const clientHistory = useMemo(() => {
     if (!showLegajo) return [];
-    return (state.collectionLogs || [])
+
+    // Get collection logs
+    const logs = (state.collectionLogs || [])
       .filter(log => log.clientId === showLegajo && !log.deletedAt)
+      .map(log => ({ ...log, itemType: 'log' as const }));
+
+    // Get loan grants (créditos otorgados)
+    const loanGrants = (state.loans || [])
+      .filter(loan => loan.clientId === showLegajo)
+      .map(loan => ({
+        id: `loan-${loan.id}`,
+        clientId: loan.clientId,
+        loanId: loan.id,
+        type: CollectionLogType.PAYMENT, // Dummy type for rendering
+        amount: loan.principal, // Show the granted amount
+        date: loan.createdAt,
+        itemType: 'loan' as const,
+        isRenewal: loan.isRenewal
+      }));
+
+    // Merge and sort by date (most recent first)
+    return [...logs, ...loanGrants]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [showLegajo, state.collectionLogs]);
+  }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
     if (!client) return { balance: 0, installmentsStr: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '' };
@@ -718,8 +738,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const isDefaultValue = activeLoanInLegajo && (currentAmount === activeLoanInLegajo.installmentValue.toString() || currentAmount === '');
 
     if (method === 'renewal' && activeLoanInLegajo) {
-      const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
-      const tPaid = (Array.isArray(installments) ? installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+      // Regla de Oro: Usar collection logs como fuente de verdad para el saldo
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+      const tPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
       setDossierPaymentAmount(Math.max(0, activeLoanInLegajo.totalAmount - tPaid).toString());
     } else if (activeLoanInLegajo && isDefaultValue) {
       setDossierPaymentAmount(activeLoanInLegajo.installmentValue.toString());
@@ -850,12 +871,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 4, // HD Resolution (Optimized from 8 to avoid memory issues while keeping sharpness)
+        scale: 6, // Full HD Resolution for crisp, non-pixelated images
         useCORS: true,
         logging: false,
         allowTaint: true,
-        windowWidth: 800,
-        width: 800,
+        windowWidth: 700,
+        width: 700,
         height: shareCardRef.current.scrollHeight,
       });
 
@@ -1897,13 +1918,34 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
                                   const logDate = log.date ? new Date(log.date.split('T')[0] + 'T00:00:00') : null;
                                   const formattedDate = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleDateString() : '---';
+                                  const formattedTime = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                                  // Determine if this is a loan grant entry
+                                  const isLoanGrant = log.itemType === 'loan';
+
                                   return (
                                     <tr key={log.id} className="hover:bg-slate-800 transition-colors">
-                                      <td className="px-4 py-3"><p className="text-slate-100 font-black">{formattedDate}</p></td>
-                                      <td className="px-4 py-3"><p className={`uppercase font-black text-[9px] ${log.isOpening ? 'text-emerald-400' : log.type === CollectionLogType.PAYMENT ? 'text-slate-300' : 'text-red-400'}`}>{log.isOpening ? 'Crédito Habilitado' : log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' : 'Visita sin Pago'}</p></td>
-                                      <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">{log.amount ? formatCurrency(log.amount, state.settings) : '-'}</td>
+                                      <td className="px-4 py-3">
+                                        <p className="text-slate-100 font-black">{formattedDate}</p>
+                                        {formattedTime && <p className="text-[8px] text-slate-400 font-bold">{formattedTime}</p>}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <p className={`uppercase font-black text-[9px] ${isLoanGrant ? 'text-blue-400' :
+                                          log.isOpening ? 'text-emerald-400' :
+                                            log.type === CollectionLogType.PAYMENT ? 'text-slate-300' :
+                                              'text-red-400'
+                                          }`}>
+                                          {isLoanGrant ? 'CRÉDITO' :
+                                            log.isOpening ? 'Crédito Habilitado' :
+                                              log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' :
+                                                'Visita sin Pago'}
+                                        </p>
+                                      </td>
+                                      <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">
+                                        {log.amount ? formatCurrency(log.amount, state.settings) : '-'}
+                                      </td>
                                       <td className="px-4 py-3 text-center">
-                                        {isAdminOrManager && (
+                                        {isAdminOrManager && !isLoanGrant && (
                                           <div className="flex items-center justify-center gap-1">
                                             {log.type === CollectionLogType.PAYMENT && (
                                               <button onClick={() => handleEditLog(log)} className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-sm" title="Editar Pago"><i className="fa-solid fa-pen text-[10px]"></i></button>
@@ -2192,6 +2234,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
                   <input type="text" autoFocus value={dossierPaymentAmount} onChange={(e) => setDossierPaymentAmount(e.target.value)} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-2xl md:rounded-[2.5rem] text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
+                  {dossierIsRenewal && (
+                    <div className="text-center mt-2">
+                      <span className="text-xs font-black text-amber-600 uppercase tracking-wider">
+                        💰 Saldo Pendiente para Cancelar Crédito
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => handleDossierAction(CollectionLogType.PAYMENT)} disabled={isProcessingDossierAction} className="w-full py-4 md:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl md:rounded-[2rem] font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all">
                   {isProcessingDossierAction ? <i className="fa-solid fa-spinner animate-spin"></i> : 'Confirmar Registro'}
@@ -2242,78 +2291,35 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       {/* TARJETA DE ESTADO DE CUENTA PROFESIONAL (OCULTA PARA CAPTURA) */}
       <div id="share-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1 }}>
-        <div ref={shareCardRef} className="w-[800px] bg-white text-slate-900 font-sans relative" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>
-          {/* HEADER */}
-          <div className="bg-[#1e293b] p-8 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-[#10b981] rounded-2xl flex items-center justify-center text-5xl text-white shadow-lg overflow-hidden">
+        <div ref={shareCardRef} className="w-[640px] bg-white text-slate-900 font-sans relative" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>
+          {/* COMPACT HEADER */}
+          <div className="bg-[#1e293b] px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center text-2xl text-white shadow-lg overflow-hidden">
                 <i className="fa-solid fa-sack-dollar"></i>
               </div>
               <div>
-                <h1 className="text-5xl font-black text-white tracking-tighter uppercase leading-none">{state.settings.companyAlias || state.settings.companyName || 'DANTE'}</h1>
-                <div className="flex flex-col">
-                  <p className="text-[#10b981] text-sm font-black uppercase tracking-[0.2em] mt-1">Estado de Cuenta Oficial</p>
-                  {state.settings.companyIdentifier && <p className="text-slate-400 text-[10px] font-bold tracking-widest">{state.settings.companyIdentifier}</p>}
-                </div>
+                <p className="text-sm font-black text-white uppercase tracking-widest mb-1">16 DE FEBRERO DE 2026</p>
+                <h1 className="text-2xl font-black text-white tracking-tight uppercase leading-none">{clientInLegajo?.name}</h1>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{clientInLegajo?.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">FECHA DE CORTE</p>
-              <p className="text-xl font-black text-white uppercase">{new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">ACTIVO</span>
+              <div className="text-right">
+                <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
+                <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">ABONADO: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
+                <p className="text-xs font-black text-red-500 uppercase tracking-widest">SALDO: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white p-10 space-y-10">
-            {/* CLIENT INFO AND ALIAS */}
-            <div className="flex justify-between items-start">
-              <div className="space-y-4 max-w-[450px]">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TITULAR DEL CRÉDITO</p>
-                  <h2 className="text-5xl font-black text-[#1e293b] uppercase leading-[1] tracking-tighter break-words">
-                    {clientInLegajo?.name}
-                  </h2>
-                  <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mt-2">REF: {clientInLegajo?.id.toUpperCase()}</p>
-                </div>
-                <div className="flex gap-4">
-                  <span className="px-4 py-1.5 bg-[#dcfce7] text-[#166534] text-[10px] font-black rounded-full uppercase tracking-widest border border-[#bbf7d0]">ESTADO: ACTIVO</span>
-                </div>
-              </div>
-
-              <div className="bg-[#1e293b] text-white px-8 py-8 rounded-[2.5rem] shadow-xl text-center min-w-[320px]">
-                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">{state.settings.shareLabel || 'ALIAS DE LA EMPRESA'}</p>
-                <p className="text-4xl font-black tracking-tight">{state.settings.shareValue || formatCurrency(activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
-              </div>
-            </div>
-
-            {/* METRICS CARDS */}
-            {activeLoanInLegajo && (() => {
-              const m = getClientMetrics(clientInLegajo!);
-              return (
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center gap-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TOTAL PRESTADO</p>
-                    <p className="text-3xl font-black text-[#1e293b]">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center gap-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ABONADO</p>
-                    <p className="text-3xl font-black text-[#10b981]">{formatCurrency(m.totalPaid, state.settings)}</p>
-                  </div>
-                  <div className="bg-[#1e293b] p-6 rounded-[2rem] shadow-xl flex flex-col items-center justify-center text-center gap-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SALDO ACTUAL</p>
-                    <p className="text-3xl font-black text-white">{formatCurrency(m.balance, state.settings)}</p>
-                  </div>
-                </div>
-              );
-            })()}
-
+          <div className="bg-white p-6 space-y-4">
             {/* INSTALLMENTS GRID */}
-            <div className="space-y-6">
-              <div className="flex justify-between items-end border-b-2 border-slate-100 pb-2">
-                <h3 className="text-lg font-black text-slate-400 uppercase tracking-widest font-sans">DETALLE DE CUOTAS</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FRECUENCIA: {activeLoanInLegajo?.frequency || '---'}</p>
-              </div>
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">CRONOGRAMA - {(Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-6 gap-2">
                 {(() => {
                   const m = getClientMetrics(clientInLegajo!);
                   let remainingToAllocate = m.totalPaid;
@@ -2336,33 +2342,28 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     const pendingAmount = installmentAmount - amountPaidForThisOne;
 
                     return (
-                      <div key={idx} className={`flex items-center justify-between p-4 rounded-[2rem] border-2 ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-100 shadow-sm'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${isPaid ? 'bg-[#22c55e] text-white shadow-md' : isPartial ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-300'}`}>
-                            {inst.number}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className={`text-[13px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
-                              {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase()}
-                            </span>
-                            {isPaid && <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest mt-0.5">PAGADO TOTAL</span>}
-                            {!isPaid && !isPartial && <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5">PENDIENTE</span>}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end">
-                          {isPartial && (
-                            <span className="text-[11px] font-black text-emerald-600 uppercase leading-none mb-1">ABONADO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>
-                          )}
-
-                          <span className={`font-black text-xl leading-none ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
-                            {formatCurrency(installmentAmount, state.settings)}
+                      <div key={idx} className={`flex flex-col p-2 rounded-lg border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
+                        <div className="flex justify-between items-center mb-0.5 leading-none">
+                          <span className={`text-[11px] font-black ${isPaid ? 'text-[#10b981]' : 'text-slate-800'}`}>#{inst.number}</span>
+                          <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
+                            {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' })}
                           </span>
-
-                          {isPartial && (
-                            <span className="text-[11px] font-black text-red-600 uppercase leading-none mt-1">FALTA: {formatCurrency(pendingAmount, state.settings)}</span>
-                          )}
                         </div>
+                        <p className={`text-lg font-black leading-none mt-0.5 mb-1 ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
+                          {formatCurrency(installmentAmount, state.settings)}
+                        </p>
+                        {isPartial && (
+                          <div className="flex flex-col gap-0.5">
+                            <p className="text-[8px] font-black text-emerald-600 uppercase leading-none whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                            <p className="text-[8px] font-black text-red-600 uppercase leading-none whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                          </div>
+                        )}
+                        {isPaid && (
+                          <p className="text-[8px] font-black text-[#10b981] uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                        )}
+                        {!isPaid && !isPartial && (
+                          <p className="text-[8px] font-black text-red-600 uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                        )}
                       </div>
                     );
                   });
@@ -2371,22 +2372,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           </div>
 
-          {/* FOOTER - PILL DESIGN */}
-          <div className="bg-white p-10 pt-4 flex justify-center">
-            <div className="w-full bg-[#f0fdf4] rounded-full py-6 px-12 flex justify-between items-center border border-[#dcfce7] shadow-sm">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-[#10b981] rounded-full flex items-center justify-center text-white text-3xl shadow-lg">
-                  <i className="fa-brands fa-whatsapp"></i>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
-                  <p className="text-4xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '0981874120'}</p>
-                </div>
+          {/* FOOTER */}
+          <div className="bg-[#d1fae5] px-6 py-3 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#10b981] rounded-full flex items-center justify-center text-white text-xl shadow-md">
+                <i className="fa-brands fa-whatsapp"></i>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-slate-300 uppercase leading-none mb-1">{state.settings.companyAlias || 'DANTE'}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">GENERADO AUTOMÁTICAMENTE</p>
+              <div>
+                <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
+                <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyName || 'ANEXO S.A'}</p>
+                <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
+                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
               </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
+              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.companyBank || 'BANCO FAMILIAR'}</p>
+              <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
+              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
             </div>
           </div>
         </div>

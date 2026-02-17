@@ -57,6 +57,7 @@ const Generator: React.FC = () => {
     const [templates, setTemplates] = useState<TextTemplate[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeSidebarTab, setActiveSidebarTab] = useState<'history' | 'templates'>('history');
     const [isCurrencyMenuOpen, setIsCurrencyMenuOpen] = useState(false);
     const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false);
     const [isPaperMenuOpen, setIsPaperMenuOpen] = useState(false);
@@ -77,6 +78,7 @@ const Generator: React.FC = () => {
     const [formData, setFormData] = useState<Partial<DocumentData>>({
         type: DocumentType.PAGARE,
         date: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
         amount: 0,
         currencySymbol: 'Gs.',
         currencyName: 'GUARANIES',
@@ -162,6 +164,12 @@ const Generator: React.FC = () => {
     };
 
     const saveCurrentAsTemplate = () => {
+        if (templates.length >= 8) {
+            alert("Máximo 8 plantillas permitidas. Elimine alguna para continuar.");
+            setActiveSidebarTab('templates');
+            setIsHistoryOpen(true);
+            return;
+        }
         const name = prompt("Nombre para esta plantilla:");
         if (!name) return;
         const newTemplate: TextTemplate = {
@@ -174,6 +182,8 @@ const Generator: React.FC = () => {
         setTemplates(updated);
         localStorage.setItem('text_templates', JSON.stringify(updated));
         alert("Plantilla de texto guardada.");
+        setActiveSidebarTab('templates');
+        setIsHistoryOpen(true);
     };
 
     const handleScanPrinters = async () => {
@@ -389,7 +399,7 @@ const Generator: React.FC = () => {
                 y += 10;
                 pdf.setFontSize(thermalFontSize);
                 pdf.setFont('helvetica', 'normal');
-                pdf.text(`Vencimiento: ${doc.date || ''} `, 5, y);
+                pdf.text(`Vencimiento: ${doc.dueDate || doc.date || ''} `, 5, y);
                 y += 7;
                 pdf.setFont('helvetica', 'bold');
                 pdf.text(`Monto: ${doc.currencySymbol} ${doc.amount?.toLocaleString()} `, 5, y);
@@ -441,6 +451,9 @@ const Generator: React.FC = () => {
                 pdf.setFontSize(14);
                 pdf.text('VENCIMIENTO:', 20, 55);
                 pdf.setFont('helvetica', 'normal');
+                pdf.text(`${doc.dueDate || doc.date || ''}`, 65, 55);
+
+                pdf.setFont('helvetica', 'bold');
                 const formattedAmount = doc.amount?.toLocaleString('es-PY', { minimumFractionDigits: doc.currencySymbol === 'Gs.' ? 0 : 2 }).replace(/,/g, '.') || '0';
                 pdf.text(`${doc.currencySymbol}  ${formattedAmount}.-`, 20, 68);
 
@@ -510,37 +523,77 @@ const Generator: React.FC = () => {
             <iframe ref={printFrameRef} className="hidden" title="Impresión" />
 
             {/* Sidebar Local para Historial */}
-            <aside className={`fixed inset-y-0 left-0 z-40 transition-transform duration-300 transform bg-white border-r border-slate-200 w-72 md:relative md:translate-x-0 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full hidden md:block'}`}>
+            <aside className={`fixed inset-y-0 left-0 z-40 transition-transform duration-300 transform bg-white border-r border-slate-200 w-80 md:relative md:translate-x-0 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full hidden md:block'}`}>
                 <div className="flex flex-col h-full">
-                    <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><History className="w-4 h-4 text-indigo-600" /> Historial</h2>
-                        <button onClick={() => setIsHistoryOpen(false)} className="md:hidden text-slate-400"><X className="w-5 h-5" /></button>
+                    <div className="flex border-b border-slate-100">
+                        <button
+                            onClick={() => setActiveSidebarTab('history')}
+                            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${activeSidebarTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <History className="w-3.5 h-3.5 inline mr-1" /> Historial
+                        </button>
+                        <button
+                            onClick={() => setActiveSidebarTab('templates')}
+                            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${activeSidebarTab === 'templates' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <BookOpen className="w-3.5 h-3.5 inline mr-1" /> Plantillas
+                        </button>
                     </div>
-                    <div className="p-3">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input type="text" placeholder="Buscar..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-800 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                        {documents.filter(d => (d.folio || '').includes(searchTerm) || (d.debtorName || '').toLowerCase().includes(searchTerm.toLowerCase())).map(doc => (
-                            <div key={doc.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm group">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-[8px] font-black text-indigo-600 uppercase">{doc.type}</span>
-                                    <span className="text-[8px] text-slate-400 font-bold">#{doc.folio || '---'}</span>
-                                </div>
-                                <h3 className="text-[10px] font-black text-slate-700 truncate uppercase">{doc.debtorName || doc.legalText?.substring(0, 20) || '(Sin título)'}</h3>
-                                <div className="flex items-center justify-between mt-2">
-                                    <span className="text-[9px] font-black text-slate-600">{doc.type !== DocumentType.MANUAL ? `${doc.currencySymbol} ${doc.amount?.toLocaleString() || 0}` : 'Manual'}</span>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setFormData({ ...doc, id: undefined }); setIsHistoryOpen(false); }} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Copy className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => generatePDF(doc, true)} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Printer className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => { if (confirm("¿Eliminar?")) { const updated = documents.filter(d => d.id !== doc.id); setDocuments(updated); localStorage.setItem('offline_docs', JSON.stringify(updated)); } }} className="p-1 hover:bg-red-50 text-red-500 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
-                                    </div>
+
+                    {activeSidebarTab === 'history' ? (
+                        <>
+                            <div className="p-3">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                    <input type="text" placeholder="Buscar..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-800 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                {documents.filter(d => (d.folio || '').includes(searchTerm) || (d.debtorName || '').toLowerCase().includes(searchTerm.toLowerCase())).map(doc => (
+                                    <div key={doc.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm group">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[8px] font-black text-indigo-600 uppercase">{doc.type}</span>
+                                            <span className="text-[8px] text-slate-400 font-bold">#{doc.folio || '---'}</span>
+                                        </div>
+                                        <h3 className="text-[10px] font-black text-slate-700 truncate uppercase">{doc.debtorName || doc.legalText?.substring(0, 20) || '(Sin título)'}</h3>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-[9px] font-black text-slate-600">{doc.type !== DocumentType.MANUAL ? `${doc.currencySymbol} ${doc.amount?.toLocaleString() || 0}` : 'Manual'}</span>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => { setFormData({ ...doc, id: undefined }); setIsHistoryOpen(false); }} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Copy className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => generatePDF(doc, true)} className="p-1 hover:bg-slate-100 text-slate-600 rounded-md"><Printer className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => { if (confirm("¿Eliminar?")) { const updated = documents.filter(d => d.id !== doc.id); setDocuments(updated); localStorage.setItem('offline_docs', JSON.stringify(updated)); } }} className="p-1 hover:bg-red-50 text-red-500 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                            {templates.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400">
+                                    <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                    <p className="text-[10px] font-bold uppercase">Sin plantillas</p>
+                                    <p className="text-[9px] mt-2">Guarda el texto actual como plantilla para verlo aquí.</p>
+                                </div>
+                            ) : (
+                                templates.map(temp => (
+                                    <div key={temp.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm group cursor-pointer" onClick={() => { setFormData({ ...formData, legalText: temp.content }); setIsHistoryOpen(false); }}>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[8px] font-black text-emerald-600 uppercase">{temp.type}</span>
+                                        </div>
+                                        <h3 className="text-[10px] font-black text-slate-700 truncate uppercase mb-2">{temp.name}</h3>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[8px] text-slate-400 font-bold truncate max-w-[120px]">{temp.content.substring(0, 30)}...</span>
+                                            <div className="flex gap-1">
+                                                <button onClick={(e) => { e.stopPropagation(); if (confirm("¿Eliminar plantilla?")) { const updated = templates.filter(t => t.id !== temp.id); setTemplates(updated); localStorage.setItem('text_templates', JSON.stringify(updated)); } }} className="p-1 hover:bg-red-50 text-red-500 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
                 </div>
             </aside>
 
@@ -604,7 +657,18 @@ const Generator: React.FC = () => {
                                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Monto Principal</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 relative">
-                                                    <input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-lg text-slate-900" />
+                                                    <input
+                                                        type="text"
+                                                        value={formData.amount?.toLocaleString('es-PY') || ''}
+                                                        onChange={(e) => {
+                                                            // Allow only numbers
+                                                            const rawValue = e.target.value.replace(/\D/g, '');
+                                                            const numericValue = rawValue ? parseInt(rawValue, 10) : 0;
+                                                            setFormData({ ...formData, amount: numericValue });
+                                                        }}
+                                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-lg text-slate-900"
+                                                        placeholder="0"
+                                                    />
                                                 </div>
                                                 <div className="relative" ref={currencyMenuRef}>
                                                     <button type="button" onClick={() => setIsCurrencyMenuOpen(!isCurrencyMenuOpen)} className="h-full px-4 bg-white border-2 border-slate-100 rounded-2xl text-[9px] font-black uppercase text-slate-600 flex items-center gap-2">{formData.currencySymbol} <ChevronDown className="w-3 h-3" /></button>
@@ -623,8 +687,19 @@ const Generator: React.FC = () => {
                                         </div>
 
                                         <div className="space-y-2 text-black">
-                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fecha y Documento</label>
-                                            <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-sm" />
+                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fechas del Documento</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[8px] font-black text-slate-500 uppercase block mb-1">Fecha Emisión</label>
+                                                    <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-xs" />
+                                                </div>
+                                                {formData.type === DocumentType.PAGARE && (
+                                                    <div>
+                                                        <label className="text-[8px] font-black text-red-500 uppercase block mb-1">Fecha Vencimiento</label>
+                                                        <input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="w-full p-3 bg-red-50 border-2 border-red-100 rounded-2xl focus:border-red-500 outline-none font-black text-xs text-red-900" />
+                                                    </div>
+                                                )}
+                                            </div>
                                             <input type="text" value={formData.folio} onChange={(e) => setFormData({ ...formData, folio: e.target.value })} placeholder="Número de Folio / Referencia" className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black text-xs" />
                                         </div>
 

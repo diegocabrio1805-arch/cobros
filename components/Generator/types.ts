@@ -31,5 +31,6 @@ export interface DocumentData {
     paymentMethod?: 'Efectivo' | 'Cheque' | 'Transferencia';
     legalText: string;
     documentIdNumber?: string;
+    dueDate?: string;
     createdAt: number;
 }

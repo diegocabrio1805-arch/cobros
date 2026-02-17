@@ -236,7 +236,7 @@ const App: React.FC = () => {
     const isAndroid = Capacitor.getPlatform() === 'android';
     const syncInterval = setInterval(() => {
       forceSyncRef.current(true, "", false);
-    }, 15000);
+    }, 30000); // Optimized: 30 seconds for better battery/data efficiency
     return () => clearInterval(syncInterval);
   }, [state.currentUser?.id]);
 
