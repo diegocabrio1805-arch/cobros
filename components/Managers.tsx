@@ -238,13 +238,13 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(user)}
-                        className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white/20 border-white/30 text-white hover:bg-white/40' : 'bg-white border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                        className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white border-red-200 text-red-600 hover:bg-red-50' : 'bg-white border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
                       >
                         <i className="fa-solid fa-pen-to-square text-xs"></i>
                       </button>
                       <button
                         onClick={() => onDeleteUser(user.id)}
-                        className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white/20 border-white/30 text-white hover:bg-white/40' : 'bg-white border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'}`}
+                        className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white border-red-200 text-red-600 hover:bg-red-50' : 'bg-white border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'}`}
                       >
                         <i className="fa-solid fa-trash-can text-xs"></i>
                       </button>
