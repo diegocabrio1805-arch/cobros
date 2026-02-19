@@ -71,7 +71,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     if (online) {
                         processQueue();
                     }
-                }, 1000); // Wait a sec for radio to settle
+                }, 200); // Speed up wake up from 1000ms to 200ms
             });
             return handler;
         };
@@ -167,6 +167,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             clearTimeout(reconnectTimeout);
                             reconnectTimeout = null;
                         }
+
+                        // HEARTBEAT: Keep socket alive every 45s
+                        if ((window as any)._rtHeartbeat) clearInterval((window as any)._rtHeartbeat);
+                        (window as any)._rtHeartbeat = setInterval(() => {
+                            if (channel && channel.state === 'joined') {
+                                channel.send({ type: 'broadcast', event: 'heartbeat', payload: { t: Date.now() } });
+                            }
+                        }, 45000);
+
                         // OPTIMIZATION: Only pull if last successful sync was >2 minutes ago
                         const lastSyncTime = localStorage.getItem('last_sync_timestamp_ms');
                         const shouldPull = !lastSyncTime || (Date.now() - parseInt(lastSyncTime)) > 120000;
@@ -180,6 +189,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         }
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                         console.warn(`[Realtime] Connection dropped: ${status}. Retrying in 5s...`);
+                        if ((window as any)._rtHeartbeat) clearInterval((window as any)._rtHeartbeat);
                         if (!reconnectTimeout) {
                             reconnectTimeout = setTimeout(() => {
                                 reconnectTimeout = null;

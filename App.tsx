@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.42-ULTRA-PWA-REDUX-FIXED-V2';
+    const CURRENT_VERSION_ID = 'v6.1.63-ULTRA-PWA-INSTANT-SYNC-V1';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -344,7 +344,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // OPTIMIZATION: Increased idle interval from 60s to 120s to reduce egress
-    const intervalTime = queueLength > 0 ? 10000 : 120000;
+    // OPTIMIZATION: Instant sync trigger (2s if busy, 30s if idle)
+    const intervalTime = queueLength > 0 ? 2000 : 30000;
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline && !isPrintingNow()) {
         handleForceSync(true);
@@ -686,7 +687,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.62 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.63 PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>

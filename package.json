@@ -1,7 +1,7 @@
 {
   "name": "anexo-cobro",
   "private": true,
-  "version": "6.1.62",
+  "version": "6.1.63",
   "type": "module",
   "scripts": {
     "dev": "vite",
