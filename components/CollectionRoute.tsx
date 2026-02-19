@@ -580,9 +580,33 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                 {receipt}
               </div>
-              <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                Cerrar y Continuar
-              </button>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
+                  Finalizar y Salir
+                </button>
+                <button
+                  onClick={async () => {
+                    const { printText } = await import('../services/bluetoothPrinterService');
+                    printText(receipt || '').catch(e => alert("Error impresión: " + e));
+                  }}
+                  className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                </button>
+                <button
+                  onClick={() => {
+                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
+                      receipt.includes(c.name.toUpperCase().substring(0, 10))
+                    );
+                    const phone = client?.phone.replace(/\D/g, '') || '';
+                    const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
+                    window.open(wpUrl, '_blank');
+                  }}
+                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
+                </button>
+              </div>
             </div>
           </div>
         </div>

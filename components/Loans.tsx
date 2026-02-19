@@ -315,9 +315,20 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           fullDateTimeManual: new Date().toLocaleString()
         };
 
-        // Open the editor instead of generating immediate text
-        setEditingReceipt(receiptData);
+        // Direct register and UI flow
+        const finalReceipt = generateReceiptText(receiptData, state.settings);
+        setReceipt(finalReceipt);
         setShowPaymentInput(false);
+
+        // Silent print
+        const { printText } = await import('../services/bluetoothPrinterService');
+        printText(finalReceipt).catch(() => { });
+
+        // WhatsApp
+        if (client) {
+          const phone = client.phone.replace(/\D/g, '');
+          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+        }
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
         if (client.customNoPayMessage) {
@@ -374,8 +385,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const progress = totalPaidAtThatMoment / (loan.installmentValue || 1);
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
-    // 3. Open editor
-    setEditingReceipt({
+    const receiptData: ReceiptData = {
       clientName: client.name,
       amountPaid: amountPaidInLastLog,
       previousBalance: Math.max(0, loan.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
@@ -387,7 +397,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       paidInstallments: paidInstCount,
       totalInstallments: loan.totalInstallments,
       isRenewal: lastPaymentLog.isRenewal,
-      // Pre-populate with settings
+      // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
       companyNameManual: state.settings.companyName || null,
       companyAliasManual: state.settings.companyAlias || null,
       contactLabelManual: "TEL. PUBLICO",
@@ -399,7 +409,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       supportLabelManual: "NUMERO CO",
       supportPhoneManual: state.settings.technicalSupportPhone || null,
       fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
-    });
+    };
+
+    // Direct register and UI flow
+    const finalReceipt = generateReceiptText(receiptData, state.settings);
+    setReceipt(finalReceipt);
+
+    // Silent print
+    const { printText } = await import('../services/bluetoothPrinterService');
+    printText(finalReceipt).catch(() => { });
+
+    // WhatsApp
+    if (client) {
+      const phone = client.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+    }
   };
 
   return (
@@ -992,7 +1016,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   if (!editingReceipt) return;
                   const finalReceipt = generateReceiptText(editingReceipt, state.settings);
                   setReceipt(finalReceipt);
-                  setEditingReceipt(null);
+                  setEditingReceipt(null); // This line removes the editor UI by setting editingReceipt to null
 
                   // Silent print
                   const { printText } = await import('../services/bluetoothPrinterService');
@@ -1036,18 +1060,31 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                 {receipt}
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2">
+                <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
+                  Finalizar y Salir
+                </button>
                 <button
                   onClick={async () => {
                     const { printText } = await import('../services/bluetoothPrinterService');
                     printText(receipt || '').catch(e => alert("Error impresión: " + e));
                   }}
-                  className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                 >
-                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir
+                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
                 </button>
-                <button onClick={resetUI} className="flex-1 py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all">
-                  Cerrar
+                <button
+                  onClick={() => {
+                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
+                      receipt.includes(c.name.toUpperCase().substring(0, 10))
+                    );
+                    const phone = client?.phone.replace(/\D/g, '') || '';
+                    const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
+                    window.open(wpUrl, '_blank');
+                  }}
+                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
                 </button>
               </div>
             </div>
