@@ -5,6 +5,7 @@ import { formatCurrency, getDaysOverdue } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
+import { saveAndOpenPDF } from '../utils/pdfHelper';
 
 interface ReportsProps {
    state: AppState;
@@ -387,7 +388,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.setTextColor(150);
       doc.text('Generado automáticamente por el Sistema de Inteligencia Artificial Anexo Cobro.', 105, 285, { align: 'center' });
 
-      doc.save(`AUDITORIA_${collectorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      saveAndOpenPDF(doc, `AUDITORIA_${collectorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
    };
 
    // --- NEW LOCAL AUDITOR PDF (OFFLINE) ---
@@ -493,7 +494,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.setFontSize(8);
       doc.text('Este reporte es un cálculo matemático local basado en registros de actividad.', 105, 285, { align: 'center' });
 
-      doc.save(`AUDITORIA_LOCAL_${collectorName.replace(/\s+/g, '_')}.pdf`);
+      saveAndOpenPDF(doc, `AUDITORIA_LOCAL_${collectorName.replace(/\s+/g, '_')}.pdf`);
    };
 
    const fetchWithRetry = async (prompt: string, retries = 3, delay = 5000): Promise<any> => {
