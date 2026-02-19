@@ -34,6 +34,8 @@ import { Geolocation } from '@capacitor/geolocation';
 
 
 import ErrorBoundary from './components/ErrorBoundary';
+import LicenseReminder from './components/LicenseReminder';
+
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -397,7 +399,7 @@ const App: React.FC = () => {
     let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
     let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId, e.addedBy, undefined));
     let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => activeClientIds.has(log.clientId) && !log.deletedAt);
-    let users = (Array.isArray(state.users) ? state.users : []).filter(u => u.id === user.id || myTeamIds.has(u.id.toLowerCase()));
+    let users = (Array.isArray(state.users) ? state.users : []).filter(u => user.role === Role.ADMIN || u.id === user.id || myTeamIds.has(u.id.toLowerCase()));
 
     if (user.role === Role.COLLECTOR) {
       const myAssignedClientIds = new Set<string>();
@@ -715,6 +717,7 @@ const App: React.FC = () => {
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>
         </main>
+        {isPowerUser && <LicenseReminder currentUser={state.currentUser} users={state.users} />}
       </div>
     </ErrorBoundary>
   );
