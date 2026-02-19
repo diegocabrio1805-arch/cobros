@@ -34,6 +34,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [localCommissionPercent, setLocalCommissionPercent] = useState<number>(state.commissionPercentage);
   const [editingBrackets, setEditingBrackets] = useState<CommissionBracket[]>([...(Array.isArray(state.commissionBrackets) ? state.commissionBrackets : [])]);
 
+  // Estado para override manual del incentivo (null = usar automático)
+  // Estado para override manual del incentivo (deseado: enteros)
+  const [manualIncentivePercent, setManualIncentivePercent] = useState<number | null>(null);
+
+  // Estado para override manual de Mora (deseado: default 0)
+  const [manualMoraPercent, setManualMoraPercent] = useState<number | null>(0);
+
   const receiptImageRef = useRef<HTMLDivElement>(null);
   const auditTableRef = useRef<HTMLDivElement>(null);
   const [sharingLog, setSharingLog] = useState<CollectionLog | null>(null);
@@ -168,9 +175,17 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     return totalCollectedInRange * (localCommissionPercent / 100);
   }, [totalCollectedInRange, localCommissionPercent]);
 
+
+  const effectiveIncentive = manualIncentivePercent !== null ? manualIncentivePercent : 0;
+  // User requested: Default Mora Penalty = 0.
+  const effectiveMora = manualMoraPercent !== null ? manualMoraPercent : 0;
+
   const finalCommissionValue = useMemo(() => {
-    return baseCommissionValue * currentViewStats.performanceFactor;
-  }, [baseCommissionValue, currentViewStats.performanceFactor]);
+    // Formula: Subtotal - (Subtotal * Mora) + (Subtotal * Incentive)
+    // Equivalent: Subtotal * (1 - Mora + Incentive)
+    const factor = 1 - effectiveMora + effectiveIncentive;
+    return Math.max(0, baseCommissionValue * factor);
+  }, [baseCommissionValue, effectiveMora, effectiveIncentive]);
 
   const handleSaveBrackets = () => {
     updateCommissionBrackets(editingBrackets);
@@ -203,7 +218,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Auditoría de Abonos - ANEXO COBRO',
+          title: `Auditoría de Abonos - ${state.settings.companyName || 'ANEXO COBRO'}`,
           text: `Reporte de auditoría del ${excelStartDate} al ${excelEndDate}`
         });
       } else {
@@ -247,7 +262,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
               await navigator.share({
                 files: [file],
-                title: 'Comprobante de Gestión - ANEXO COBRO',
+                title: `Comprobante de Gestión - ${state.settings.companyName || 'ANEXO COBRO'}`,
                 text: `Hola ${client.name}, adjunto el soporte de la gestión realizada hoy.`
               });
             } else {
@@ -327,21 +342,52 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         {/* INDICADORES DE DESCUENTO (IZQUIERDA) */}
         <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex-1 flex flex-col justify-center items-center text-center">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Mora Promedio</p>
-            <p className={`text-4xl font-black ${currentViewStats.averageDelinquency < 20 ? 'text-emerald-500' : 'text-red-500'}`}>
-              {Math.round(currentViewStats.averageDelinquency)}%
-            </p>
-            <div className="mt-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100">
-              <span className="text-[7px] font-black text-slate-500 uppercase">CALIFICACIÓN OPERATIVA</span>
+          <div className="bg-white p-3 rounded-[1.5rem] border border-slate-100 shadow-sm flex-1 flex flex-col justify-between items-center text-center relative group min-h-[140px]">
+            {/* TOP: REAL MORA STATISTIC */}
+            <div className="w-full border-b border-slate-100 pb-2 mb-2">
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Mora Real Registrada</p>
+              <p className={`text-4xl font-black ${currentViewStats.averageDelinquency > 20 ? 'text-red-500' : 'text-emerald-500'}`}>{Math.round(currentViewStats.averageDelinquency)}%</p>
+            </div>
+
+            {/* BOTTOM: EDITABLE DISCOUNT */}
+            <div className="flex-1 flex flex-col justify-center w-full">
+              <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">Descuento a Aplicar</p>
+              <div className="flex items-center gap-1 justify-center">
+                <input
+                  type="number"
+                  value={Math.round(effectiveMora * 100)}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setManualMoraPercent(val / 100);
+                  }}
+                  className={`no-spinner bg-transparent !text-6xl font-black text-center w-32 outline-none border-b-2 transition-colors p-0 leading-none ${effectiveMora > 0 ? 'text-red-600 border-red-200 focus:border-red-500' : 'text-slate-300 border-slate-200 focus:border-slate-500'}`}
+                />
+                <span className={`text-3xl font-black ${effectiveMora > 0 ? 'text-red-600' : 'text-slate-300'}`}>%</span>
+              </div>
+              <div className="mt-1 inline-block">
+                <span className="text-[6px] font-black text-slate-300 uppercase px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">EDITABLE</span>
+              </div>
             </div>
           </div>
-          <div className="bg-blue-600 p-5 rounded-[2rem] shadow-xl flex-1 flex flex-col justify-center items-center text-center text-white">
-            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">Incentivo de Pago</p>
-            <p className="text-4xl font-black text-white">
-              {Math.round(currentViewStats.performanceFactor * 100)}%
-            </p>
-            <p className="text-[7px] font-bold text-blue-300 uppercase mt-1">S/ la Comisión Base</p>
+          <div className="bg-blue-600 p-3 rounded-[1.5rem] shadow-xl flex-1 flex flex-col justify-center items-center text-center text-white relative group min-h-[140px]">
+            <div className="flex-1 flex flex-col justify-center w-full">
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">Incentivo Extra</p>
+
+              <div className="flex items-center gap-1 justify-center">
+                <input
+                  type="number"
+                  value={Math.round(effectiveIncentive * 100)}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setManualIncentivePercent(val / 100);
+                  }}
+                  className="no-spinner bg-transparent !text-6xl font-black text-white text-center w-32 outline-none border-b-2 border-white/20 focus:border-white transition-colors p-0 leading-none"
+                />
+                <span className="text-3xl font-black text-white/80">%</span>
+              </div>
+
+              <p className="text-[7px] font-bold text-blue-300 uppercase mt-4">SE SUMARÁ AL PAGO</p>
+            </div>
           </div>
         </div>
       </div>
@@ -378,12 +424,20 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <p className="text-lg font-black text-blue-600 font-mono">{formatCurrency(baseCommissionValue, state.settings)}</p>
           </div>
 
-          <i className="fa-solid fa-xmark text-slate-300 text-xs"></i>
+          <i className="fa-solid fa-minus text-red-300 text-xs"></i>
 
-          {/* Factor 3: Multiplicador Mora */}
+          {/* Factor 3: Resta Mora */}
           <div className="flex-1 text-center space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">3. Ajuste x Mora</p>
-            <p className="text-xl font-black text-emerald-600">{Math.round(currentViewStats.performanceFactor * 100)}%</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">3. Descuento Mora</p>
+            <p className="text-xl font-black text-red-500">-{Math.round(effectiveMora * 100)}%</p>
+          </div>
+
+          <i className="fa-solid fa-plus text-emerald-300 text-xs"></i>
+
+          {/* Factor 4: Suma Incentivo */}
+          <div className="flex-1 text-center space-y-1">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">4. Incentivo</p>
+            <p className="text-xl font-black text-emerald-500">+{Math.round(effectiveIncentive * 100)}%</p>
           </div>
 
           <i className="fa-solid fa-equals text-slate-900 text-lg"></i>
@@ -553,7 +607,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div className="p-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex flex-wrap gap-6 text-center md:text-left">
                 <div><p className="text-[8px] font-black text-slate-500 uppercase">Recaudo Bruto</p><p className="text-xl font-black font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p></div>
-                <div className="border-x border-white/10 px-6"><p className="text-[8px] font-black text-slate-500 uppercase">Eficiencia Ruta</p><p className="text-xl font-black text-emerald-400">{Math.round(currentViewStats.performanceFactor * 100)}%</p></div>
+                <div className="border-x border-white/10 px-6"><p className="text-[8px] font-black text-slate-500 uppercase">Eficiencia Ruta</p><p className="text-xl font-black text-emerald-400">{Math.round(effectiveIncentive * 100)}%</p></div>
                 <div><p className="text-[8px] font-black text-slate-500 uppercase">Total a Renovar</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
@@ -591,7 +645,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div ref={receiptImageRef} className="w-[600px] bg-white border-[12px] border-red-600 rounded-[3rem] p-10 font-sans overflow-hidden shadow-2xl">
               {/* Header Card */}
               <div className="bg-red-600 rounded-[2rem] p-8 text-center text-white mb-10 shadow-lg">
-                <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">ANEXO COBRO</h1>
+                <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{state.settings.companyName || 'ANEXO COBRO'}</h1>
                 <p className="text-lg font-bold opacity-90 uppercase tracking-widest">
                   {isNoPay ? 'NOTIFICACIÓN DE VISITA (MORA)' : 'COMPROBANTE OFICIAL DE PAGO'}
                 </p>

@@ -132,6 +132,9 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       ...state.settings,
       ...localForm
     });
+    // Explicitly save printer margin for the service to pick up
+    localStorage.setItem('printer_margin_bottom', localForm.receiptPrintMargin.toString());
+
     alert("✅ Configuración guardada correctamente.");
     setActiveTab(isPowerUser ? 'dashboard' : 'route');
   };
@@ -227,12 +230,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Legal</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre de la Empresa (Título App)</label>
                 <input
                   type="text"
                   value={localForm.companyName}
                   onChange={(e) => setLocalForm({ ...localForm, companyName: e.target.value })}
-                  placeholder="Ej: INVERSIONES DANTE"
+                  placeholder="Ej: MI COBRANZA EXPRESS"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -428,6 +431,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <button
               onClick={() => {
                 updateSettings({ ...state.settings, ...localForm });
+                // Explicitly save printer margin for the service to pick up
+                localStorage.setItem('printer_margin_bottom', localForm.receiptPrintMargin.toString());
                 alert("✅ Datos de la empresa guardados correctamente.");
               }}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"

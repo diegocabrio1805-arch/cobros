@@ -79,11 +79,25 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         const setupAppListener = async () => {
             return await App.addListener('appStateChange', async ({ isActive }) => {
                 if (isActive) {
-                    console.log('App resumed, triggering sync...');
                     const online = await checkConnection();
                     setIsOnline(online);
+
                     if (online) {
-                        processQueue(true);
+                        const queueStr = localStorage.getItem('syncQueue');
+                        const hasPending = queueStr && JSON.parse(queueStr).length > 0;
+
+                        const lastSyncTime = localStorage.getItem('last_sync_timestamp_ms');
+                        const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
+
+                        if (hasPending) {
+                            console.log('App resumed: Uploading pending items...');
+                            processQueue(false);
+                        } else if (timeSinceLastSync > 120000) {
+                            console.log('App resumed: Syncing (Stale data > 2min)');
+                            processQueue(true);
+                        } else {
+                            console.log('App resumed: Skipping sync (Data is fresh < 2min)');
+                        }
                     }
                 }
             });
@@ -153,11 +167,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             clearTimeout(reconnectTimeout);
                             reconnectTimeout = null;
                         }
-                        // HEURISTIC: Use INCREMENTAL pull instead of Full Sync to save mobile data
-                        // FullSync is only for serious errors. Normal reconnects use delta.
-                        pullData(false).then(newData => {
-                            if (newData && onDataUpdated) onDataUpdated(newData);
-                        });
+                        // OPTIMIZATION: Only pull if last successful sync was >2 minutes ago
+                        const lastSyncTime = localStorage.getItem('last_sync_timestamp_ms');
+                        const shouldPull = !lastSyncTime || (Date.now() - parseInt(lastSyncTime)) > 120000;
+                        if (shouldPull) {
+                            console.log('[Realtime] Pulling data after reconnect (last sync was >2min ago)');
+                            pullData(false).then(newData => {
+                                if (newData && onDataUpdated) onDataUpdated(newData);
+                            });
+                        } else {
+                            console.log('[Realtime] Skipping pull - recent sync detected (egress optimization)');
+                        }
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                         console.warn(`[Realtime] Connection dropped: ${status}. Retrying in 5s...`);
                         if (!reconnectTimeout) {
@@ -499,7 +519,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
         } catch (err: any) {
             console.error('Pull failed:', err);
-            setSyncError(`Error Descarga: ${err.message || err}`);
+            const msg = err.message || JSON.stringify(err);
+            if (msg.includes('exceed_egress_quota')) {
+                setSyncError("⚠️ Límite de datos excedido. La app funcionará OFFLINE hasta que se reinicie el ciclo.");
+                setIsOnline(false); // Force offline mode to stop retries
+            } else {
+                setSyncError(`Error Descarga: ${msg}`);
+            }
             return null;
         } finally {
             setIsSyncing(false);

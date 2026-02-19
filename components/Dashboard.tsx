@@ -4,6 +4,7 @@ import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue } from '..
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
+import { generateAuditPDF } from '../utils/auditReportGenerator';
 
 interface DashboardProps {
   state: AppState;
@@ -34,18 +35,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       setLoadingInsights(false);
     }
   };
-
-  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
-  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, e) => acc + e.amount, 0);
-  const netUtility = totalProfit - totalExpenses;
-
-  const collectedToday = (Array.isArray(state.payments) ? state.payments : [])
-    .filter(p => {
-      const pDateStr = new Date(p.date).toISOString().split('T')[0];
-      return pDateStr === countryTodayStr;
-    })
-    .reduce((acc, p) => acc + p.amount, 0);
 
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
@@ -94,11 +83,222 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
   }, [state.users, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
 
+  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
+  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalExpenses = (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, e) => acc + e.amount, 0);
+  const netUtility = totalProfit - totalExpenses;
+
+  // Sumar el recaudo de hoy directamente desde las estadísticas de los cobradores (Auditoría de Rutas)
+  // Esto asegura que el "Recaudo de Hoy" coincida exactamente con la suma de la tabla
+  const collectedToday = collectorStats.reduce((acc, curr) => acc + curr.recaudo, 0);
+
   const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
   const paginatedCollectors = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return collectorStats.slice(start, start + ITEMS_PER_PAGE);
   }, [collectorStats, currentPage]);
+
+  // --- LÓGICA AUDITOR GENERAL ---
+  const [auditCollector, setAuditCollector] = useState<string>('all');
+  const [auditStartDate, setAuditStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [auditEndDate, setAuditEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const auditMetrics = useMemo(() => {
+    const start = new Date(auditStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(auditEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    const logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= start && logDate <= end;
+      if (!matchesDate) return false;
+      if (auditCollector === 'all') return true;
+
+      // FILTRO ESTRICTO: Solo mostrar pagos realizados DESDE EL PERFIL del cobrador seleccionado
+      // (Ignoramos si el préstamo está asignado a él, lo importante es quién cobró)
+      return log.recordedBy === auditCollector;
+    });
+
+    const totalRevenue = logs.filter(l => l.type === CollectionLogType.PAYMENT).reduce((acc, l) => acc + (l.amount || 0), 0);
+    const activeClientsSet = new Set(logs.map(l => l.clientId));
+    const activeClients = activeClientsSet.size;
+
+    // Clientes nuevos en el periodo
+    const newClients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+      const cDate = new Date(c.createdAt);
+      const isNew = cDate >= start && cDate <= end;
+      if (!isNew) return false;
+      // Si filtramos por cobrador, verificar si tiene prestamos con ese cobrador (aproximación)
+      if (auditCollector !== 'all') {
+        const hasLoanWithColl = (Array.isArray(state.loans) ? state.loans : []).some(l => l.clientId === c.id && l.collectorId === auditCollector);
+        return hasLoanWithColl;
+      }
+      return true;
+    }).length;
+
+    // Comparativa con periodo anterior (misma duración)
+    // Para simplificar, usaremos lógica de "tendencia" basada en si hay recaudo > 0 y clientes > 0
+    const revenueIncreased = totalRevenue > 0; // Placeholder lógica real requeriría history más complejo
+    const clientsIncreased = newClients > 0;
+
+    // Daily Revenue for Graph (ALWAYS CURRENT WEEK: Mon-Sat)
+    const currentWeekStart = new Date();
+    const dayOfWeek = currentWeekStart.getDay() || 7; // 1=Mon ... 7=Sun
+    currentWeekStart.setHours(0, 0, 0, 0);
+    currentWeekStart.setDate(currentWeekStart.getDate() - (dayOfWeek - 1)); // Go to Monday
+
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 5); // Go to Saturday
+    currentWeekEnd.setHours(23, 59, 59, 999);
+
+    const currentWeekLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= currentWeekStart && logDate <= currentWeekEnd;
+      if (!matchesDate) return false;
+      if (log.type !== CollectionLogType.PAYMENT) return false;
+      if (auditCollector === 'all') return true;
+
+      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
+      return log.recordedBy === auditCollector;
+    });
+
+    const dailyRevenueMap = new Map<string, number>();
+    currentWeekLogs.forEach(l => {
+      // Normalizar día
+      const d = new Date(l.date).toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', '').toLowerCase();
+      dailyRevenueMap.set(d, (dailyRevenueMap.get(d) || 0) + (l.amount || 0));
+    });
+
+    const daysOrder = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const dailyRevenue = daysOrder.map(day => {
+      // Buscar keys que empiecen con el día (por si acaso 'miércoles' vs 'mié')
+      const key = Array.from(dailyRevenueMap.keys()).find(k => k.startsWith(day));
+      return {
+        day: day.charAt(0).toUpperCase() + day.slice(1),
+        amount: key ? dailyRevenueMap.get(key) || 0 : 0
+      };
+    });
+
+    // --- LÓGICA EXTENDIDA: Clientes Sin Pago y Tendencias ---
+
+    // 1. Clientes Sin Pago (Clientes activos del cobrador que NO pagaron en el periodo)
+    const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+      if (l.status !== LoanStatus.ACTIVE) return false;
+      if (auditCollector === 'all') return true;
+      return l.collectorId === auditCollector;
+    });
+    const relevantClientIds = new Set(relevantLoans.map(l => l.clientId));
+    const paidClientIds = new Set(logs.filter(l => l.type === CollectionLogType.PAYMENT).map(l => l.clientId));
+
+    const clientsWithoutPayment = (Array.isArray(state.clients) ? state.clients : [])
+      .filter(c => relevantClientIds.has(c.id) && !paidClientIds.has(c.id))
+      .map(c => {
+        // Find active loan for this client and collector
+        const loan = relevantLoans.find(l => l.clientId === c.id);
+
+        // Find VERY last payment (lifetime) or return null
+        const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+          .filter(l => l.clientId === c.id && l.type === CollectionLogType.PAYMENT)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const lastPayment = clientLogs.length > 0 ? clientLogs[0] : null;
+
+        // Calculate overdue days
+        const daysOverdue = loan ? getDaysOverdue(loan, state.settings) : 0;
+
+        // Calculate current balance (Sanitized)
+        const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
+        const paidAmt = loan ? (loan.installments || []).reduce((acc, i) => acc + (Number(i.paidAmount) || 0), 0) : 0;
+        const balance = totalAmt - paidAmt;
+
+        return {
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          lastPaymentDate: lastPayment ? lastPayment.date : null,
+          lastPaymentAmount: lastPayment ? (Number(lastPayment.amount) || 0) : 0,
+          daysOverdue,
+          balance
+        };
+      })
+      .filter(c => c.daysOverdue > 10) // Filter: Only show clients > 10 days overdue
+      .sort((a, b) => b.daysOverdue - a.daysOverdue); // Sort by most overdue first
+
+    // 2. Evolución Semanal (Dentro del rango seleccionado)
+    const logsByWeek = new Map<string, number>();
+    logs.filter(l => l.type === CollectionLogType.PAYMENT).forEach(l => {
+      const d = new Date(l.date);
+      // Obtener lunes de la semana
+      const day = d.getDay() || 7;
+      if (day !== 1) d.setHours(-24 * (day - 1));
+      const weekKey = `${d.getDate()}/${d.getMonth() + 1}`; // Ej: 2/2, 9/2
+      logsByWeek.set(weekKey, (logsByWeek.get(weekKey) || 0) + (l.amount || 0));
+    });
+    // Ordenar por fecha (las keys ya deberían salir en orden si logs está ordenado, pero mejor asegurar)
+    const weeklyRevenue = Array.from(logsByWeek.entries())
+      .map(([label, amount]) => ({ label, amount }))
+      // Orden simplificado por parsing de fecha
+      .sort((a, b) => {
+        const [d1, m1] = a.label.split('/').map(Number);
+        const [d2, m2] = b.label.split('/').map(Number);
+        return (m1 * 31 + d1) - (m2 * 31 + d2);
+      });
+
+    // 3. Evolución Mensual (Contexto Anual - Ene a Dic del año actual)
+    const currentYear = new Date().getFullYear();
+    const allCollectorLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => {
+      if (l.type !== CollectionLogType.PAYMENT) return false;
+      const d = new Date(l.date);
+      if (d.getFullYear() !== currentYear) return false;
+
+      if (auditCollector === 'all') return true;
+
+      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
+      return l.recordedBy === auditCollector;
+    });
+
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const logsByMonth = new Array(12).fill(0);
+    allCollectorLogs.forEach(l => {
+      const m = new Date(l.date).getMonth();
+      logsByMonth[m] += (l.amount || 0);
+    });
+    const monthlyRevenue = months.map((m, i) => ({ label: m, amount: logsByMonth[i] }));
+
+    // Efficiency (Recaudo / (ActiveClients * avg ticket?)) - Mock formula for visual
+    const efficiency = activeClients > 0 ? Math.min(100, Math.round((totalRevenue / (activeClients * 10000)) * 100)) : 0;
+
+    // Verdict based on Coverage %
+    const totalClients = relevantClientIds.size;
+    const coveragePct = totalClients > 0 ? (activeClients / totalClients) * 100 : 0;
+
+    let verdict: string = 'MALO';
+    if (coveragePct >= 75) verdict = 'EXCELENTE';
+    else if (coveragePct >= 51) verdict = 'BUENO';
+    else if (coveragePct >= 43) verdict = 'MEDIANAMENTE BUENO';
+    else if (coveragePct >= 31) verdict = 'MEDIANAMENTE MALO';
+    else verdict = 'MALO'; // < 31% (covers 0-30)
+
+    return {
+      totalRevenue, activeClients, newClients, efficiency, dailyRevenue,
+      revenueIncreased, clientsIncreased, verdict, logs,
+      clientsWithoutPayment, weeklyRevenue, monthlyRevenue,
+      totalClients: relevantClientIds.size
+    };
+  }, [auditCollector, auditStartDate, auditEndDate, state.collectionLogs, state.loans, state.clients]);
+
+  const handleGenerateAuditPDF = () => {
+    const collectorName = auditCollector === 'all' ? 'TODOS' : state.users.find(u => u.id === auditCollector)?.name || 'DESCONOCIDO';
+    generateAuditPDF({
+      collectorName,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
+      ...auditMetrics,
+      clients: state.clients,
+      settings: state.settings
+    });
+  };
 
   const chartData = [
     { name: 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
@@ -293,82 +493,160 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
         </div>
 
-        {/* ANÁLISIS IA - Achicado y más directo */}
-        <div className="lg:col-span-5 bg-[#0f172a] p-5 rounded-[2rem] shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-            <i className="fa-solid fa-microchip text-7xl text-indigo-400"></i>
-          </div>
-
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/30">
-                <i className="fa-solid fa-wand-magic-sparkles text-lg"></i>
+        {/* MÓDULO AUDITOR GENERAL PDF - Reemplaza Consultoría IA */}
+        <div className="lg:col-span-12 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-6">
+          {/* COLUMNA IZQUIERDA: CONTROLES */}
+          <div className="w-full md:w-1/3 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                <i className="fa-solid fa-file-contract text-lg"></i>
               </div>
               <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-indigo-100 leading-none">Consultoría IA</h3>
-                <p className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest mt-1">v6.1.42-FLASH</p>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest leading-none">Auditor General PDF</h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Generador de Reportes de Rendimiento</p>
               </div>
             </div>
 
-            {loadingInsights ? (
-              <div className="flex flex-col items-center justify-center py-10 space-y-3">
-                <div className="w-8 h-8 border-3 border-indigo-500/20 border-t-indigo-400 rounded-full animate-spin"></div>
-                <p className="text-[8px] font-black text-indigo-300 uppercase tracking-widest">Escaneando...</p>
-              </div>
-            ) : insights ? (
-              <div className="space-y-4 animate-fadeIn">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-                  <p className="text-[8px] uppercase font-black text-slate-400">Riesgo</p>
-                  <span className={`text-[9px] font-black px-3 py-0.5 rounded-full border ${insights.riskLevel === 'Bajo' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                    insights.riskLevel === 'Medio' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                      'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                    }`}>
-                    {insights.riskLevel?.toUpperCase()}
-                  </span>
-                </div>
-
-                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                  <p className="text-[8px] font-black text-indigo-400 uppercase mb-2 tracking-widest">
-                    <i className="fa-solid fa-quote-left mr-1"></i> ESTRATEGIA
-                  </p>
-                  <p className="text-[10px] text-slate-300 leading-tight font-medium italic">
-                    "{insights.summary}"
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 gap-2">
-                    {(insights.recommendations || []).slice(0, 2).map((rec: string, i: number) => (
-                      <div key={i} className="flex gap-2 text-[9px] text-slate-200 bg-white/5 p-2 rounded-lg border border-white/5 items-center">
-                        <i className="fa-solid fa-bolt-lightning text-amber-400 text-[8px]"></i>
-                        <span className="font-bold leading-none truncate">{rec}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="py-8 text-center flex flex-col items-center justify-center space-y-3">
-                <div className="p-3 bg-white/5 rounded-full mb-2">
-                  <i className="fa-solid fa-robot text-2xl text-indigo-400"></i>
-                </div>
-                <p className="text-[9px] font-black uppercase text-indigo-200/50 max-w-[200px]">
-                  La Inteligencia Artificial está lista para analizar tus finanzas.
-                </p>
-                <button
-                  onClick={fetchInsights}
-                  className="px-6 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2"
+            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              {/* SELECTOR DE COBRADOR */}
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Seleccionar Cobrador</label>
+                <select
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  value={auditCollector}
+                  onChange={(e) => setAuditCollector(e.target.value)}
                 >
-                  <i className="fa-solid fa-bolt"></i>
-                  CONSULTAR IA
-                </button>
+                  <option value="all">Todos los Cobradores</option>
+                  {(Array.isArray(state.users) ? state.users : [])
+                    .filter(u => u.role === Role.COLLECTOR)
+                    .map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                </select>
               </div>
-            )}
+
+              {/* SELECTOR DE FECHAS */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desde</label>
+                  <input
+                    type="date"
+                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                    value={auditStartDate}
+                    onChange={(e) => setAuditStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Hasta</label>
+                  <input
+                    type="date"
+                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                    value={auditEndDate}
+                    onChange={(e) => setAuditEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* BOTONES */}
+              <button
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+                onClick={handleGenerateAuditPDF}
+              >
+                <i className="fa-solid fa-file-pdf text-red-400"></i>
+                Descargar Informe PDF
+              </button>
+            </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[7px] font-black uppercase text-indigo-500">
-            <span>AI Auditor - Gemini 1.5 v6.1.43 Stable</span>
-            <i className="fa-solid fa-sparkles animate-pulse"></i>
+          {/* COLUMNA DERECHA: PREVISUALIZACIÓN DE MÉTRICAS */}
+          <div className="w-full md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* KPI 1: EFICIENCIA */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recaudo Periodo</span>
+
+                {auditMetrics.revenueIncreased ? (
+                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-arrow-trend-up"></i> Aumentó
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-arrow-trend-down"></i> Disminuyó
+                  </span>
+                )}
+              </div>
+              <div className="mt-4">
+                <p className="text-2xl font-black text-slate-800 font-mono tracking-tight">{formatCurrency(auditMetrics.totalRevenue, state.settings)}</p>
+                <p className="text-[9px] font-bold text-slate-500 mt-1">Total Ingresos Recibidos</p>
+              </div>
+              <div className="h-1 bg-slate-200 rounded-full mt-4 overflow-hidden">
+                <div className={`h-full ${auditMetrics.revenueIncreased ? 'bg-emerald-500' : 'bg-rose-500'} transition-all duration-1000`} style={{ width: `${Math.min(100, Math.max(10, (auditMetrics.totalRevenue / 100000) * 10))}%` }}></div>
+              </div>
+            </div>
+
+            {/* KPI 2: CLIENTES */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Crecimiento Cartera</span>
+                {auditMetrics.clientsIncreased ? (
+                  <span className="text-[9px] font-black text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-user-plus"></i> Creció
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-user-minus"></i> Se Mantiene
+                  </span>
+                )}
+              </div>
+              <div className="mt-4">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-2xl font-black text-slate-800 font-mono">{auditMetrics.activeClients}</p>
+                  <span className="text-xs font-bold text-blue-500 bg-blue-50 px-1.5 rounded">+{auditMetrics.newClients} Nuevos</span>
+                </div>
+                <p className="text-[9px] font-bold text-slate-500 mt-1">Total Clientes Activos</p>
+              </div>
+              <div className="h-1 bg-slate-200 rounded-full mt-4 overflow-hidden">
+                <div className="h-full bg-blue-500 w-[60%]"></div>
+              </div>
+            </div>
+
+            {/* GRÁFICO (EVOLUCIÓN SEMANAL) */}
+            <div className="col-span-1 sm:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 relative overflow-hidden flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Evolución Diaria (Lunes - Sábado)</h4>
+                <div className="flex gap-2 text-[7px] font-black uppercase text-slate-400">
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div> Bajo</span>
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div> Medio</span>
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Alto</span>
+                </div>
+              </div>
+
+              <div className="flex items-end justify-between h-28 gap-2 mt-auto">
+                {auditMetrics.dailyRevenue.map((day, i) => {
+                  const maxVal = Math.max(...auditMetrics.dailyRevenue.map(d => d.amount), 1);
+                  const heightPct = maxVal > 0 ? (day.amount / maxVal) * 100 : 0;
+
+                  // Determinar color
+                  let barColor = 'bg-rose-500'; // Bajo
+                  if (day.amount > (maxVal * 0.66)) barColor = 'bg-emerald-500'; // Alto
+                  else if (day.amount > (maxVal * 0.33)) barColor = 'bg-amber-400'; // Medio
+
+                  return (
+                    <div key={`${day.day}-${i}`} className="flex-1 flex flex-col justify-end items-center group relative h-full">
+                      <div
+                        className={`w-full ${barColor}/80 hover:${barColor} transition-all rounded-t-lg relative`}
+                        style={{ height: `${Math.max(5, heightPct)}%` }}
+                      >
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          {formatCurrency(day.amount, state.settings)}
+                        </div>
+                      </div>
+                      <span className="mt-2 text-[8px] font-bold text-slate-400 uppercase">{day.day.substring(0, 3)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>

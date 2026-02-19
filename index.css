@@ -70,11 +70,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @keyframes border-blink {
+
   0%,
   100% {
     border-color: #ef4444;
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
   }
+
   50% {
     border-color: #fca5a5;
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
@@ -87,6 +89,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @keyframes jump-animation {
+
   0%,
   20%,
   50%,
@@ -94,9 +97,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   100% {
     transform: translateY(0);
   }
+
   40% {
     transform: translateY(-50px);
   }
+
   60% {
     transform: translateY(-25px);
   }
@@ -110,4 +115,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   overflow-y: auto;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Hide number input spinners */
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.no-spinner {
+  -moz-appearance: textfield;
 }

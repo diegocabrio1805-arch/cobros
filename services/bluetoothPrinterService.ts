@@ -203,8 +203,20 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
     const CMD_SIZE_MEDIUM = GS + '!' + '\x01'; // Doble alto, ancho normal
     const CMD_SIZE_NORMAL = GS + '!' + '\x00';
 
+    // --- MARGIN LOGIC ---
+    const getPrintMargin = (): number => {
+        const saved = localStorage.getItem('printer_margin_bottom');
+        const val = saved ? parseInt(saved, 10) : 2; // Default to 2 lines if not set (matches Settings default)
+        return isNaN(val) ? 2 : val;
+    };
+    const marginLines = getPrintMargin();
+    const marginText = '\n'.repeat(marginLines);
+
+    // Append margin to the raw text (Feed paper)
+    const finalText = rawText + marginText;
+
     // Normalizar texto y parsear etiquetas
-    const parts = rawText.split(/(<B[01]>|<GS[012]>)/);
+    const parts = finalText.split(/(<B[01]>|<GS[012]>)/);
 
     const sendChunk = async (chunk: string): Promise<void> => {
         if (chunk === '<B1>') return bs ? bs.write(CMD_BOLD_ON) : printerCharacteristic.writeValue(new Uint8Array([0x1B, 0x45, 0x01]));

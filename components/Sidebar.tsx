@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-black text-emerald-500 flex items-center gap-3 uppercase tracking-tighter">
             <i className="fa-solid fa-sack-dollar text-2xl"></i>
-            <span className="text-xs">Anexo Cobro</span>
+            <span className="text-xs">{state.settings.companyName || 'Anexo Cobro'}</span>
           </h1>
         </div>
 

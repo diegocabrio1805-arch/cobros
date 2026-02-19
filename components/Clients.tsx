@@ -2380,7 +2380,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               <div>
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
-                <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyName || 'ANEXO S.A'}</p>
+                <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyAlias || state.settings.companyName || 'ANEXO S.A'}</p>
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
                 <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
               </div>

@@ -68,11 +68,31 @@ const App: React.FC = () => {
     try {
       const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
       if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
+        // IMPORTANTE: Preservar la configuración de la empresa antes de limpiar
+        let savedSettings = null;
+        let savedBranchSettings = null;
+        try {
+          const oldSaved = localStorage.getItem('prestamaster_v2');
+          if (oldSaved) {
+            const oldData = JSON.parse(oldSaved);
+            if (oldData?.settings) savedSettings = oldData.settings;
+            if (oldData?.branchSettings) savedBranchSettings = oldData.branchSettings;
+          }
+        } catch (e) { /* ignorar */ }
+
         localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
         localStorage.removeItem('prestamaster_v2');
         localStorage.removeItem('syncQueue');
+
+        // Restaurar la configuración después de la limpieza
+        if (savedSettings || savedBranchSettings) {
+          const restoredData: any = {};
+          if (savedSettings) restoredData.settings = savedSettings;
+          if (savedBranchSettings) restoredData.branchSettings = savedBranchSettings;
+          localStorage.setItem('prestamaster_v2', JSON.stringify(restoredData));
+        }
       }
 
       const saved = localStorage.getItem('prestamaster_v2');
@@ -144,11 +164,22 @@ const App: React.FC = () => {
     local.forEach(l => {
       if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
       const r = remoteMap.get(l.id);
+
+      // PROTECTION: If local item is very recent (< 5 mins), keep it even if not in remote/result
+      // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
+      const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 300000);
+
       if (!r) {
-        if (pendingAddIds.has(l.id) && !resultMap.has(l.id)) result.push(l);
+        if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
+          result.push(l);
+          resultMap.set(l.id, l);
+        }
       } else if (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()) {
         const idx = result.findIndex(item => item.id === l.id);
-        if (idx !== -1) result[idx] = l;
+        if (idx !== -1) {
+          result[idx] = l;
+          resultMap.set(l.id, l);
+        }
       }
     });
 
@@ -156,6 +187,7 @@ const App: React.FC = () => {
       local.forEach(l => {
         if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
           result.push(l);
+          resultMap.set(l.id, l);
         }
       });
     }
@@ -231,14 +263,7 @@ const App: React.FC = () => {
   const forceSyncRef = React.useRef(handleForceSync);
   useEffect(() => { forceSyncRef.current = handleForceSync; }, [handleForceSync]);
 
-  useEffect(() => {
-    if (!state.currentUser) return;
-    const isAndroid = Capacitor.getPlatform() === 'android';
-    const syncInterval = setInterval(() => {
-      forceSyncRef.current(true, "", false);
-    }, 30000); // Optimized: 30 seconds for better battery/data efficiency
-    return () => clearInterval(syncInterval);
-  }, [state.currentUser?.id]);
+  // REMOVED: Duplicate sync interval - already handled by the main sync effect below (line 309)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -297,17 +322,27 @@ const App: React.FC = () => {
       doPull();
     }, 5000);
 
-    window.addEventListener('focus', doPull);
+    // OPTIMIZATION: Cooldown on focus to prevent sync storm when switching tabs
+    let lastFocusSync = 0;
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusSync > 120000) { // Only sync if last focus sync was >2 minutes ago
+        lastFocusSync = now;
+        doPull();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('focus', doPull);
+      window.removeEventListener('focus', handleFocus);
       resumeListener.then(handle => handle.remove());
     };
   }, []);
 
   useEffect(() => {
-    const intervalTime = queueLength > 0 ? 10000 : 60000;
+    // OPTIMIZATION: Increased idle interval from 60s to 120s to reduce egress
+    const intervalTime = queueLength > 0 ? 10000 : 120000;
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline && !isPrintingNow()) {
         handleForceSync(true);
@@ -399,9 +434,10 @@ const App: React.FC = () => {
   };
 
   const updateUser = async (updatedUser: User) => {
-    await pushUser(updatedUser);
-    setState(prev => ({ ...prev, users: prev.users.map(u => u.id === updatedUser.id ? updatedUser : u), currentUser: state.currentUser?.id === updatedUser.id ? updatedUser : state.currentUser }));
-    await handleForceSync(false);
+    const userWithStamp = { ...updatedUser, updated_at: new Date().toISOString() };
+    setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userWithStamp.id ? userWithStamp : u), currentUser: state.currentUser?.id === userWithStamp.id ? userWithStamp : state.currentUser }));
+    pushUser(userWithStamp);
+    handleForceSync(false);
   };
 
   const deleteUser = async (userId: string) => {
@@ -412,45 +448,59 @@ const App: React.FC = () => {
   const updateSettings = async (newSettings: AppSettings) => {
     const branchId = getBranchId(state.currentUser);
     setState(prev => ({ ...prev, settings: newSettings, branchSettings: { ...(prev.branchSettings || {}), [branchId]: newSettings } }));
-    await pushSettings(branchId, newSettings);
-    await handleForceSync(false);
+    pushSettings(branchId, newSettings);
+    handleForceSync(false);
   };
 
   const addClient = async (client: Client, loan?: Loan) => {
     const branchId = getBranchId(state.currentUser);
-    const newClient = { ...client, branchId, isActive: true, createdAt: new Date().toISOString() };
-    await pushClient(newClient);
+    const newClient = { ...client, branchId, isActive: true, createdAt: new Date().toISOString(), updated_at: new Date().toISOString() };
+
+    // Optimistic Update
     setState(prev => ({ ...prev, clients: [...prev.clients, newClient] }));
-    if (loan) await addLoan(loan);
-    await handleForceSync(true);
+
+    // Background Push
+    pushClient(newClient);
+    if (loan) addLoan(loan);
+    handleForceSync(true);
   };
 
   const addLoan = async (loan: Loan) => {
     const branchId = getBranchId(state.currentUser);
-    const newLoan = { ...loan, branchId };
-    await pushLoan(newLoan);
+    const newLoan = { ...loan, branchId, updated_at: new Date().toISOString() };
+
+    // Optimistic Update
     setState(prev => ({ ...prev, loans: [newLoan, ...prev.loans] }));
-    await handleForceSync(true);
+
+    // Background Push
+    pushLoan(newLoan);
+    handleForceSync(true);
   };
 
   const updateClient = async (updatedClient: Client) => {
-    await pushClient(updatedClient);
-    setState(prev => ({ ...prev, clients: prev.clients.map(c => c.id === updatedClient.id ? updatedClient : c) }));
-    await handleForceSync(false);
+    const clientWithStamp = { ...updatedClient, updated_at: new Date().toISOString() };
+    setState(prev => ({ ...prev, clients: prev.clients.map(c => c.id === clientWithStamp.id ? clientWithStamp : c) }));
+    pushClient(clientWithStamp);
+    handleForceSync(false);
   };
 
   const updateLoan = async (updatedLoan: Loan) => {
-    await pushLoan(updatedLoan);
-    setState(prev => ({ ...prev, loans: prev.loans.map(l => l.id === updatedLoan.id ? updatedLoan : l) }));
-    await handleForceSync(false);
+    const loanWithStamp = { ...updatedLoan, updated_at: new Date().toISOString() };
+    setState(prev => ({ ...prev, loans: prev.loans.map(l => l.id === loanWithStamp.id ? loanWithStamp : l) }));
+    pushLoan(loanWithStamp);
+    handleForceSync(false);
   };
 
   const addCollectionAttempt = async (log: CollectionLog) => {
     const branchId = getBranchId(state.currentUser);
-    const newLog = { ...log, branchId, recordedBy: state.currentUser?.id };
-    await pushLog(newLog);
+    const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
+
+    // Optimistic Update
     setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
-    await handleForceSync(true);
+
+    // Background Push
+    pushLog(newLog);
+    handleForceSync(true);
   };
 
   const deleteCollectionLog = async (logId: string) => {
@@ -571,7 +621,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">Anexo Cobro <span className="text-[10px] opacity-50 ml-1">v6.1.61 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.61 PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -642,7 +692,16 @@ const App: React.FC = () => {
             />
             }
             {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
-            {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={() => { }} onForceSync={handleForceSync} />}
+            {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={async (clientId: string) => {
+              setState(prev => ({
+                ...prev,
+                clients: prev.clients.filter(c => c.id !== clientId),
+                loans: prev.loans.filter(l => l.clientId !== clientId),
+                collectionLogs: prev.collectionLogs.filter(l => l.clientId !== clientId),
+              }));
+              await deleteRemoteClient(clientId);
+              await handleForceSync(true);
+            }} onForceSync={handleForceSync} />}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
             {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}

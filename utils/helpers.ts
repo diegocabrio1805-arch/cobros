@@ -95,8 +95,8 @@ export const isHoliday = (date: Date | null | undefined, country: string, custom
 };
 
 export const formatCurrency = (value: number | undefined, settings: AppSettings | undefined): string => {
-  if (value === undefined) return '$0';
   const currencySymbol = settings?.currencySymbol || '$';
+  if (value === undefined || isNaN(value)) return `${currencySymbol}0`;
   return `${currencySymbol}${Math.round(value).toLocaleString('es-CO')}`;
 };
 
