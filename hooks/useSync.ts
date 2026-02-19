@@ -617,14 +617,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const isBadId = (id: any) => {
                     if (!id || typeof id !== 'string') return false;
                     // Check for the specific rogue ID or general non-UUID junk
-                    if (id === 'wzzegxk3a') return true;
-                    // Valid Supabase UUID is 36 chars. If it's short, it's garbage.
-                    // Allow temp IDs like "init-..." or "pay-..." because our App.tsx handles them/regenerates them?
-                    // Actually, if we send "pay-..." to a UUID column, it fails.
-                    // BUT: Checks above in App.tsx might rename them. 
-                    // CRITICAL: We only DROP items that are clearly garbage and causing the crash.
-                    // If the ID is < 30 chars and doesn't look like a UUID, drop it.
-                    if (id.length < 30 && !id.includes('-')) return true;
+                    if (id === 'wzzegxk3a' || id === 'admin-1') return true;
+                    // Supabase UUIDs are 36 chars. Our prefixed IDs are longer.
+                    // We only drop items that are very short and don't look like IDs at all.
+                    // If it has a hyphen, it's likely a legitimate generated ID (UUID or prefixed).
+                    if (id.length < 15 && !id.includes('-')) return true;
                     return false;
                 };
 

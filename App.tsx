@@ -497,11 +497,74 @@ const App: React.FC = () => {
     const branchId = getBranchId(state.currentUser);
     const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
 
-    // Optimistic Update
-    setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
-
-    // Background Push
+    // 1. ASYNC FIRST: Ensure the log is pushed/queued
     pushLog(newLog);
+
+    // 2. CALCULATE UPDATES (Synchronous logic based on current state)
+    let updatedLoans = [...state.loans];
+    let updatedPayments = [...state.payments];
+    const newPaymentsForSync: PaymentRecord[] = [];
+    const loansToSync: Loan[] = [];
+
+    // Si es un log de apertura, no procesamos abonos ni cuotas
+    if (newLog.type === CollectionLogType.OPENING) {
+      setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
+      handleForceSync(true);
+      return;
+    }
+
+    if (newLog.type === CollectionLogType.PAYMENT && newLog.amount) {
+      let totalToApply = Math.round(newLog.amount * 100) / 100;
+      updatedLoans = updatedLoans.map(loan => {
+        if (loan.id === newLog.loanId) {
+          const newInstallments = (loan.installments || []).map(i => ({ ...i }));
+
+          for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
+            const inst = newInstallments[i];
+            if (inst.status === PaymentStatus.PAID) continue;
+
+            const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
+            const appliedToInst = Math.min(totalToApply, remainingInInst);
+            inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
+            totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
+            inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
+
+            const pRec: PaymentRecord = {
+              id: `pay-${newLog.id}-${inst.number}`,
+              loanId: newLog.loanId,
+              clientId: newLog.clientId,
+              collectorId: state.currentUser?.id,
+              branchId: loan.branchId || branchId,
+              amount: appliedToInst,
+              date: newLog.date,
+              installmentNumber: inst.number,
+              isVirtual: newLog.isVirtual || false,
+              isRenewal: newLog.isRenewal || false,
+              created_at: new Date().toISOString()
+            };
+
+            newPaymentsForSync.push(pRec);
+            updatedPayments.push(pRec);
+          }
+
+          const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
+          const updatedLoan = { ...loan, installments: newInstallments, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
+          loansToSync.push(updatedLoan);
+          return updatedLoan;
+        }
+        return loan;
+      });
+    }
+
+    // 3. UPDATE UI (Optimistic)
+    setState(prev => ({ ...prev, loans: updatedLoans, payments: updatedPayments, collectionLogs: [newLog, ...prev.collectionLogs] }));
+
+    // 4. EXECUTE SIDE EFFECTS (Outside setState)
+    if (newPaymentsForSync.length > 0 || loansToSync.length > 0) {
+      for (const p of newPaymentsForSync) pushPayment(p);
+      for (const l of loansToSync) pushLoan(l);
+    }
+
     handleForceSync(true);
   };
 
@@ -623,7 +686,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.61 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.62 PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
