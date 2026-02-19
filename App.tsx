@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.67-UI-MANAGER-CARDS';
+    const CURRENT_VERSION_ID = 'v6.1.68-FIX-NO-AUTO-RESTORE';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -111,29 +111,7 @@ const App: React.FC = () => {
         role: u.role === 'admin' ? Role.ADMIN : u.role
       }));
 
-      // --- RECOVERY LOGIC FOR DELETED MANAGER "LETICIAJAVI" ---
-      // Find collectors whose manager does not exist in the user list
-      const existingManagerIds = new Set(users.filter((u: any) => u.role === Role.ADMIN || u.role === Role.MANAGER).map((u: any) => u.id));
-      const orphanedCollectors = users.filter((u: any) => u.role === Role.COLLECTOR && u.managedBy && !existingManagerIds.has(u.managedBy));
 
-      if (orphanedCollectors.length > 0) {
-        orphanedCollectors.forEach((col: any) => {
-          // Check if we already restored this manager in this loop to avoid duplicates
-          if (!users.find((u: any) => u.id === col.managedBy)) {
-            users.push({
-              id: col.managedBy, // Critical: Restore the original ID to link the collector
-              name: 'LETICIAJAVI',
-              username: 'leticiajavi',
-              password: '123456',
-              role: Role.MANAGER,
-              blocked: false,
-              createdAt: Date.now(),
-              updated_at: new Date().toISOString()
-            });
-          }
-        });
-      }
-      // -------------------------------------------------------
 
       return {
         clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
@@ -723,7 +701,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.67 PWA</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.68 PWA</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
