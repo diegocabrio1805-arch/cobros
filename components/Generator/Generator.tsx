@@ -22,6 +22,11 @@ import { numberToWordsSpanish } from './utils/numberToWords';
 import { jsPDF } from 'jspdf';
 import SignaturePad from './SignaturePad';
 import { generateBluetoothTicket } from './utils/generateTicket';
+import { AppSettings } from '../../types';
+
+interface GeneratorProps {
+    settings?: AppSettings;
+}
 
 const DEFAULT_PAGARE_TEXT = `El día[FECHA] Pagaré(mos) solidariamente libre de gastos y sin Presto a su orden, en el domicilio[DOMICILIO] La cantidad de [MONEDA_NOMBRE] [MONTO_LETRAS].
 
@@ -52,7 +57,7 @@ const CURRENCIES = [
     { symbol: 'C$', name: 'CORDOBAS' },
 ];
 
-const Generator: React.FC = () => {
+const Generator: React.FC<GeneratorProps> = ({ settings }) => {
     const [documents, setDocuments] = useState<DocumentData[]>([]);
     const [templates, setTemplates] = useState<TextTemplate[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -230,7 +235,18 @@ const Generator: React.FC = () => {
             const { printText, isPrinterConnected, connectToPrinter } = await import('../../services/bluetoothPrinterService');
 
             const words = numberToWordsSpanish(doc.amount || 0);
-            const docWithWords = { ...doc, amountInWords: words };
+            const docWithWords: Partial<DocumentData> = {
+                ...doc,
+                amountInWords: words,
+                // Inject Company Settings
+                companyName: settings?.companyName,
+                companyIdentifier: settings?.companyIdentifier,
+                contactPhone: settings?.contactPhone,
+                companyAlias: settings?.companyAlias,
+                shareLabel: settings?.shareLabel,
+                shareValue: settings?.shareValue,
+                receiptPrintMargin: settings?.receiptPrintMargin
+            };
 
             const ticketText = generateBluetoothTicket(docWithWords);
 
@@ -292,6 +308,49 @@ const Generator: React.FC = () => {
                 let y = 10;
                 pdf.setFontSize(12);
                 pdf.setTextColor(0);
+                pdf.setFont('helvetica', 'bold');
+
+                // --- COMPANY HEADER (Thermal PDF) ---
+                if (doc.companyName) {
+                    pdf.setFontSize(10);
+                    pdf.text(doc.companyName.toUpperCase(), 29, y, { align: 'center' });
+                    y += 5;
+                }
+                if (doc.companyAlias) {
+                    pdf.setFontSize(8);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(doc.companyAlias.toUpperCase(), 29, y, { align: 'center' });
+                    y += 4;
+                }
+                if (doc.companyIdentifier) {
+                    pdf.setFontSize(8);
+                    pdf.text(`RUC/ID: ${doc.companyIdentifier}`, 29, y, { align: 'center' });
+                    y += 4;
+                }
+                if (doc.contactPhone) {
+                    pdf.setFontSize(8);
+                    pdf.text(`Tel: ${doc.contactPhone}`, 29, y, { align: 'center' });
+                    y += 4;
+                }
+
+                // Bank Info
+                if (doc.shareLabel || doc.shareValue) {
+                    y += 2;
+                    pdf.line(5, y, 53, y);
+                    y += 4;
+                    if (doc.shareLabel) {
+                        pdf.text(doc.shareLabel, 29, y, { align: 'center' });
+                        y += 4;
+                    }
+                    if (doc.shareValue) {
+                        pdf.text(doc.shareValue, 29, y, { align: 'center' });
+                        y += 4;
+                    }
+                    pdf.line(5, y, 53, y);
+                    y += 4;
+                }
+
+                pdf.setFontSize(12);
                 pdf.setFont('helvetica', 'bold');
                 pdf.text('RECIBO DE PAGO', 29, y, { align: 'center' });
 
@@ -740,7 +799,15 @@ const Generator: React.FC = () => {
                                 {/* <SignaturePad onSave={setSignature} onClear={() => setSignature(null)} /> */}
 
                                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                                    <button type="button" onClick={() => generatePDF(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"><FileDown className="w-5 h-5" /> Generar PDF</button>
+                                    <button type="button" onClick={() => generatePDF({
+                                        ...formData,
+                                        companyName: settings?.companyName,
+                                        companyIdentifier: settings?.companyIdentifier,
+                                        contactPhone: settings?.contactPhone,
+                                        companyAlias: settings?.companyAlias,
+                                        shareLabel: settings?.shareLabel,
+                                        shareValue: settings?.shareValue
+                                    })} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"><FileDown className="w-5 h-5" /> Generar PDF</button>
                                     <button type="button" onClick={() => handleBluetoothPrint(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all"><Printer className="w-5 h-5" /> Imprimir Ticket</button>
                                 </div>
                             </div>

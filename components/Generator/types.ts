@@ -33,4 +33,12 @@ export interface DocumentData {
     documentIdNumber?: string;
     dueDate?: string;
     createdAt: number;
+    // Company / Settings Data
+    companyName?: string;
+    companyIdentifier?: string;
+    companyAlias?: string; // Brand
+    contactPhone?: string;
+    shareLabel?: string; // Bank Name
+    shareValue?: string; // Account Number
+    receiptPrintMargin?: number;
 }

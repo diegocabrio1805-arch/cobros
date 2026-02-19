@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.64-ULTRA-PWA-INSTANT-SYNC-V1';
+    const CURRENT_VERSION_ID = 'v6.1.65-ULTRA-PWA-RECEIPT-FIX';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -699,7 +699,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.64 PWA</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.65 PWA</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -778,7 +778,7 @@ const App: React.FC = () => {
             {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
             {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
             {activeTab === 'settings' && <Settings state={filteredState} updateSettings={updateSettings} setActiveTab={setActiveTab} onForceSync={() => handleForceSync(true)} onClearQueue={clearQueue} isOnline={isOnline} isSyncing={isSyncing} isFullSyncing={isFullSyncing} onDeepReset={handleDeepReset} />}
-            {activeTab === 'generator' && <Generator />}
+            {activeTab === 'generator' && <Generator settings={filteredState.settings} />}
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>
         </main>
