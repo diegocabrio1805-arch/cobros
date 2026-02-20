@@ -9,6 +9,8 @@ import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
+import { jsPDF } from 'jspdf';
+import { saveAndOpenPDF } from '../utils/pdfHelper';
 
 interface ClientsProps {
   state: AppState;
@@ -154,6 +156,37 @@ const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, 
 
 const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
+
+  const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Title
+      doc.setFontSize(16);
+      doc.text(`Expediente: ${client.name} - ${title}`, 10, 15);
+
+      // Add image
+      const imgProps = doc.getImageProperties(imageSrc);
+      const ratio = imgProps.width / imgProps.height;
+      let imgWidth = pageWidth - 20; // 10px margin each side
+      let imgHeight = imgWidth / ratio;
+
+      if (imgHeight > pageHeight - 30) {
+        imgHeight = pageHeight - 30;
+        imgWidth = imgHeight * ratio;
+      }
+
+      doc.addImage(imageSrc, 'JPEG', 10, 25, imgWidth, imgHeight);
+
+      const fileName = `${client.name.replace(/\s+/g, '_')}_${title}_${state.currentUser?.name || 'user'}.pdf`;
+      await saveAndOpenPDF(doc, fileName);
+    } catch (e) {
+      console.error("Error generating PDF", e);
+      alert("Error al abrir la imagen en PDF.");
+    }
+  };
 
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera'>('gestion');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
@@ -2026,7 +2059,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div key={item.key} className="flex flex-col items-center">
                                 <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
                                   {clientInLegajo[item.key as keyof Client] ? (
-                                    <img src={clientInLegajo[item.key as keyof Client] as string} className="w-full h-full object-cover cursor-zoom-in" onClick={() => window.open(clientInLegajo[item.key as keyof Client] as string)} alt={item.label} />
+                                    <img src={clientInLegajo[item.key as keyof Client] as string} className="w-full h-full object-cover cursor-zoom-in" onClick={() => handleViewPhotoAsPDF(clientInLegajo[item.key as keyof Client] as string, item.label, clientInLegajo)} alt={item.label} />
                                   ) : (
                                     <i className="fa-solid fa-image text-slate-400 text-xl"></i>
                                   )}
