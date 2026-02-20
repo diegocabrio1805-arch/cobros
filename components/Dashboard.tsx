@@ -582,38 +582,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           {/* COLUMNA DERECHA: PREVISUALIZACIÓN DE MÉTRICAS */}
-          <div className="w-full md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* KPI 1: EFICIENCIA */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recaudo Periodo</span>
+          <div className="w-full md:w-2/3 grid grid-cols-1 gap-4">
 
-                {auditMetrics.revenueTrend === 'up' && (
-                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <i className="fa-solid fa-arrow-trend-up"></i> Aumentó
-                  </span>
-                )}
-                {auditMetrics.revenueTrend === 'down' && (
-                  <span className="text-[9px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <i className="fa-solid fa-arrow-trend-down"></i> Disminuyó
-                  </span>
-                )}
-                {auditMetrics.revenueTrend === 'equal' && (
-                  <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <i className="fa-solid fa-minus"></i> Se Mantiene
-                  </span>
-                )}
-              </div>
-              <div className="mt-4">
-                <p className="text-2xl font-black text-slate-800 font-mono tracking-tight">{formatCurrency(auditMetrics.totalRevenue, state.settings)}</p>
-                <p className="text-[9px] font-bold text-slate-500 mt-1">Total Ingresos Recibidos</p>
-              </div>
-              <div className="h-1 bg-slate-200 rounded-full mt-4 overflow-hidden">
-                <div className={`h-full ${auditMetrics.revenueIncreased ? 'bg-emerald-500' : 'bg-rose-500'} transition-all duration-1000`} style={{ width: `${Math.min(100, Math.max(10, (auditMetrics.totalRevenue / 100000) * 10))}%` }}></div>
-              </div>
-            </div>
-
-            {/* KPI 2: CLIENTES */}
+            {/* KPI 2: CLIENTES (Ahora único en fila superior) */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Crecimiento Cartera</span>
