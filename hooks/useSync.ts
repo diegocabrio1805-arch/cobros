@@ -755,7 +755,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 document_pic: d.documentPic, domicilio_location: d.domicilioLocation, location: d.location,
                 credit_limit: d.creditLimit, allow_collector_location_update: d.allowCollectorLocationUpdate,
                 custom_no_pay_message: d.customNoPayMessage, is_active: d.isActive, is_hidden: d.isHidden,
-                added_by: d.addedBy, branch_id: d.branchId, created_at: d.createdAt
+                added_by: d.addedBy, branch_id: d.branchId, created_at: d.createdAt,
+                deleted_at: d.deletedAt || null
             }));
 
             // 2. Loans - Only if their client is NOT in the current failed/pending queue
@@ -770,7 +771,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 principal: d.principal, interest_rate: d.interestRate, total_installments: d.totalInstallments,
                 installment_value: d.installmentValue, total_amount: d.totalAmount, status: d.status,
                 created_at: d.createdAt, custom_holidays: d.customHolidays, is_renewal: d.isRenewal || false,
-                installments: d.installments, frequency: d.frequency
+                installments: d.installments, frequency: d.frequency,
+                deleted_at: d.deletedAt || null
             }));
 
             // 3. Payments & Logs - Only if their loan is NOT pending
@@ -785,7 +787,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             await batchUpsert('payments', paymentsToUpsert, (d) => ({
                 id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
                 amount: d.amount, date: d.date, installment_number: d.installmentNumber,
-                is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false, created_at: d.created_at || d.date
+                is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false, created_at: d.created_at || d.date,
+                deleted_at: d.deletedAt || null
             }));
 
             const logsToUpsert = groups['ADD_LOG'].filter(x => !pendingLoanIds.has(x.item.data.loanId));
@@ -793,7 +796,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
                 amount: d.amount, type: d.type, date: d.date, location: d.location,
                 is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
-                notes: d.notes, recorded_by: d.recordedBy
+                notes: d.notes, recorded_by: d.recordedBy,
+                deleted_at: d.deletedAt || null
             }));
 
             // Sometimes logs also update profiles (legacy code?), reusing same data?
@@ -830,7 +834,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 if (itemsWithIndex.length === 0) return;
                 const ids = itemsWithIndex.map(x => x.item.data.id);
                 try {
-                    const { error } = await supabase.from(table).delete().in('id', ids);
+                    const { error } = await supabase.from(table).update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in('id', ids);
                     if (error) throw error;
                     itemsWithIndex.forEach(x => processedIndices.add(x.index));
 
@@ -846,7 +850,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     // Fallback one by one
                     for (const x of itemsWithIndex) {
                         try {
-                            await supabase.from(table).delete().eq('id', x.item.data.id);
+                            await supabase.from(table).update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', x.item.data.id);
                             processedIndices.add(x.index);
                             await trackDeletion(table, x.item.data.id, x.item.data.branchId);
                         } catch (e) { console.error(e); }
@@ -966,6 +970,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 status: loan.status,
                 created_at: loan.createdAt, custom_holidays: loan.customHolidays, is_renewal: loan.isRenewal || false,
                 installments: loan.installments, frequency: loan.frequency,
+                deleted_at: loan.deletedAt || null,
                 updated_at: new Date().toISOString()
             };
             const controller = new AbortController();
@@ -1015,6 +1020,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 amount: Number(payment.amount) || 0,
                 date: payment.date, installment_number: payment.installmentNumber,
                 is_virtual: payment.isVirtual, is_renewal: payment.isRenewal, created_at: payment.created_at || new Date().toISOString(),
+                deleted_at: payment.deletedAt || null,
                 updated_at: new Date().toISOString()
             };
             const controller = new AbortController();
@@ -1064,6 +1070,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 location: log.location, recorded_by: sanitizedRecordedBy, notes: log.notes,
                 is_virtual: log.isVirtual || false, is_renewal: log.isRenewal || false,
                 is_opening: log.isOpening || false,
+                deleted_at: log.deletedAt || null,
                 updated_at: new Date().toISOString()
             };
             const controller = new AbortController();
@@ -1317,6 +1324,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         pushUser,
         pushSettings,
         clearQueue,
+        deleteRemoteLoan,
         deleteRemoteLog,
         deleteRemotePayment,
         deleteRemoteClient,

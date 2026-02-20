@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.78-AUDIT';
+    const CURRENT_VERSION_ID = 'v6.1.79-FIX-SYNC-DELETE';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -242,7 +242,7 @@ const App: React.FC = () => {
     isSyncing, isFullSyncing, syncError, isOnline, processQueue, forceFullSync, pullData,
     pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, addToQueue,
     setSuccessMessage, showSuccess, successMessage, queueLength, clearQueue,
-    deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, fetchClientPhotos
+    deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, fetchClientPhotos
   } = useSync(handleRealtimeData);
 
   const doPull = () => pullData();
@@ -497,12 +497,16 @@ const App: React.FC = () => {
   };
 
   const deleteLoan = async (loanId: string) => {
-    const deletedAt = new Date().toISOString();
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
-    const softDeleted = { ...loan, deletedAt, updated_at: deletedAt };
+
+    // 1. Optimistic Update (Immediate UI response)
     setState(prev => ({ ...prev, loans: prev.loans.filter(l => l.id !== loanId) }));
-    pushLoan(softDeleted);
+
+    // 2. Specialized Deletion Sync (handles deleted_at + tracking)
+    deleteRemoteLoan(loanId);
+
+    // 3. Optional: Extra sync trigger
     handleForceSync(false);
   };
 
@@ -711,7 +715,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.78 PWA</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.79 PWA</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

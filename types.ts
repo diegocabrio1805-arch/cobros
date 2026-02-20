@@ -141,6 +141,8 @@ export interface Loan {
   installments: Installment[];
   isRenewal?: boolean;
   customHolidays?: string[]; // Fechas YYYY-MM-DD omitidas en el cobro
+  deletedAt?: string;
+  updated_at?: string;
 }
 
 export interface PaymentRecord {
@@ -156,6 +158,8 @@ export interface PaymentRecord {
   isVirtual?: boolean;
   isRenewal?: boolean;
   created_at?: string;
+  deletedAt?: string;
+  updated_at?: string;
 }
 
 export interface CollectionLog {
@@ -172,6 +176,8 @@ export interface CollectionLog {
   isOpening?: boolean;
   recordedBy?: string; // ID del usuario que marcó el abono
   notes?: string; // Nota opcional para el motivo de No Pago
+  deletedAt?: string;
+  updated_at?: string;
 }
 
 export interface Expense {
