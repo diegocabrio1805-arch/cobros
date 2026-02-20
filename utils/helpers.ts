@@ -337,8 +337,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRO';
   const company = format(companyRaw.toUpperCase(), settings.companyNameBold, settings.companyNameSize);
 
-  const aliasLabel = "MARCA";
-  const alias = (data.companyAliasManual || settings.companyAlias || '---').toUpperCase();
+  const alias = (data.companyAliasManual || settings.companyAlias || '').toUpperCase();
 
   const contactLabel = data.contactLabelManual || "TEL. PUBLICO";
   let phone = data.contactPhoneManual || settings.contactPhone || '---';
@@ -352,14 +351,14 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const idValue = format(idVal, settings.companyIdentifierBold);
 
   const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
-  let bankVal = data.shareValueManual || settings.shareValue || '---';
-  if (bankVal === '---' && settings.shareValue) bankVal = settings.shareValue;
+  let bankVal = data.shareValueManual || settings.shareValue || '';
+  if ((!bankVal || bankVal === '---') && settings.shareValue) bankVal = settings.shareValue;
   const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
-  const supportLabel = (data.supportLabelManual || "TEL. PUBLICO").toUpperCase(); // Changed label to TEL. PUBLICO as requested in example
-  let supportVal = data.supportPhoneManual || settings.technicalSupportPhone || '---';
-  if (supportVal === '---' && settings.contactPhone) supportVal = settings.contactPhone; // Fallback to contact phone if support is empty
-  const supportValue = format(supportVal, false);
+  const supportLabel = "TEL. PUBLICO";
+  let supportVal = data.supportPhoneManual || settings.contactPhone || '';
+  if ((!supportVal || supportVal === '---') && settings.contactPhone) supportVal = settings.contactPhone;
+  const supportValue = format(supportVal, settings.contactPhoneBold);
 
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
   const [datePart, timePart] = dateTime.split(',');
@@ -367,11 +366,11 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
   return `
+${company}
+${alias ? alias : ''}
 ===============================
 ${bankLabel}
-${idLabel.includes('CUENTA') || bankLabel.includes('CUENTA') ? 'NUMERO DE CUENTA' : 'CUENTA'}: ${bankValue}
-===============================
-${company}
+${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}
 ===============================
 CLIENTE: ${data.clientName.toUpperCase()}
 FECHA: ${datePart ? datePart.trim() : dateTime}
@@ -392,7 +391,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.74-FIX-DATA
+VER: v6.1.82-FINAL-AUDIT
 `;
 };
 

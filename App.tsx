@@ -795,7 +795,7 @@ const App: React.FC = () => {
             {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
             {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
             {activeTab === 'settings' && <Settings state={filteredState} updateSettings={updateSettings} setActiveTab={setActiveTab} onForceSync={() => handleForceSync(true)} onClearQueue={clearQueue} isOnline={isOnline} isSyncing={isSyncing} isFullSyncing={isFullSyncing} onDeepReset={handleDeepReset} />}
-            {activeTab === 'generator' && <Generator settings={filteredState.settings} />}
+            {activeTab === 'generator' && <Generator settings={resolvedSettings} />}
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>
         </main>

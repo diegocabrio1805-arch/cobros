@@ -239,13 +239,13 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                 ...doc,
                 amountInWords: words,
                 // Inject Company Settings
-                companyName: settings?.companyName,
-                companyIdentifier: settings?.companyIdentifier,
-                contactPhone: settings?.contactPhone,
-                companyAlias: settings?.companyAlias,
-                shareLabel: settings?.shareLabel,
-                shareValue: settings?.shareValue,
-                receiptPrintMargin: settings?.receiptPrintMargin
+                companyName: settings?.companyName || doc.companyName,
+                companyIdentifier: settings?.companyIdentifier || doc.companyIdentifier,
+                contactPhone: settings?.contactPhone || doc.contactPhone,
+                companyAlias: settings?.companyAlias || doc.companyAlias,
+                shareLabel: settings?.shareLabel || doc.shareLabel,
+                shareValue: settings?.shareValue || doc.shareValue,
+                receiptPrintMargin: settings?.receiptPrintMargin ?? doc.receiptPrintMargin
             };
 
             const ticketText = generateBluetoothTicket(docWithWords);
