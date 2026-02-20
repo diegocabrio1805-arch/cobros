@@ -20,6 +20,7 @@ export const resolveSettings = (
         : currentUser.id;
 
     const branchSettings = allSettings[managerOrSelfId];
+    const isValid = (val: any) => val && val !== '---' && val !== 'undefined' && String(val).trim() !== '';
 
     if (branchSettings) {
         settings = {
