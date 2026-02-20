@@ -36,17 +36,24 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     }
   };
 
+  // 1. Determine VISIBLE COLLECTORS based on strict rules
+  const visibleCollectors = useMemo(() => {
+    return (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (u.role !== Role.COLLECTOR) return false;
+      if (state.currentUser?.role === Role.COLLECTOR) {
+        return u.id === state.currentUser.id;
+      }
+      // Admin/Manager sees only their direct reports
+      return u.managedBy === state.currentUser?.id;
+    });
+  }, [state.users, state.currentUser]);
+
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
-    // Filter users to show in stats.
-    // Show only COLLECTORS (exclude managers and admins from route audit)
-    return (Array.isArray(state.users) ? state.users : []).filter(u => {
-      // Only show collectors, not managers or admins
-      return u.role === Role.COLLECTOR;
-    }).map(user => {
+    return visibleCollectors.map(user => {
       const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
         const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
         const logDateStr = new Date(log.date).toISOString().split('T')[0];
@@ -56,7 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const recaudoHoy = logsToday
         .filter(l => l.type === CollectionLogType.PAYMENT)
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
-
+      // ... existing stats calculation ...
       const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId)).size;
       const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === user.id && l.status === LoanStatus.ACTIVE);
       const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId)).size;
@@ -68,7 +75,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;
       const routeCompletionRate = totalClientsCount > 0 ? (uniqueClientsVisitedToday / totalClientsCount) * 100 : 0;
       const isRouteCompleted = totalClientsCount > 0 && uniqueClientsVisitedToday >= totalClientsCount;
-
       return {
         id: user.id,
         name: user.name,
@@ -81,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         overdueCount: overdueLoansCount
       };
     });
-  }, [state.users, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
+  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
 
   const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
@@ -113,10 +119,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const logDate = new Date(log.date);
       const matchesDate = logDate >= start && logDate <= end;
       if (!matchesDate) return false;
-      if (auditCollector === 'all') return true;
+
+      if (auditCollector === 'all') {
+        // STRICT FILTER: Even for 'all', only match visible collectors
+        return visibleCollectors.some(c => c.id === log.recordedBy);
+        // Note: logs.recordedBy is who COLLECTED the money. 
+      }
 
       // FILTRO ESTRICTO: Solo mostrar pagos realizados DESDE EL PERFIL del cobrador seleccionado
-      // (Ignoramos si el préstamo está asignado a él, lo importante es quién cobró)
       return log.recordedBy === auditCollector;
     });
 
@@ -541,7 +551,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 >
                   <option value="all">Todos los Cobradores</option>
                   {(Array.isArray(state.users) ? state.users : [])
-                    .filter(u => u.role === Role.COLLECTOR)
+                    .filter(u => {
+                      if (u.role !== Role.COLLECTOR) return false;
+                      if (state.currentUser?.role === Role.COLLECTOR) return u.id === state.currentUser.id;
+                      return u.managedBy === state.currentUser?.id;
+                    })
                     .map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
