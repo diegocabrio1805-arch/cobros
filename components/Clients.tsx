@@ -947,7 +947,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         await Share.share({
           title: `Estado de Cuenta - ${clientInLegajo.name}`,
-          text: `DANTE: Estado de Cuenta de ${clientInLegajo.name}`,
+          text: `Estado de Cuenta de ${clientInLegajo.name}`,
           files: [savedFile.uri],
           dialogTitle: 'Enviar Estado de Cuenta'
         });
