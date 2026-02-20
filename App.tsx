@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.76-FIX-SETTINGS';
+    const CURRENT_VERSION_ID = 'v6.1.77-DEL-CREDITO';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -496,6 +496,16 @@ const App: React.FC = () => {
     handleForceSync(false);
   };
 
+  const deleteLoan = async (loanId: string) => {
+    const deletedAt = new Date().toISOString();
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+    const softDeleted = { ...loan, deletedAt, updated_at: deletedAt };
+    setState(prev => ({ ...prev, loans: prev.loans.filter(l => l.id !== loanId) }));
+    pushLoan(softDeleted);
+    handleForceSync(false);
+  };
+
   const addCollectionAttempt = async (log: CollectionLog) => {
     const branchId = getBranchId(state.currentUser);
     const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
@@ -701,7 +711,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.76 PWA</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.77 PWA</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -755,7 +765,7 @@ const App: React.FC = () => {
         <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
           <div className="max-w-[1400px] mx-auto pb-20">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
-            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync}
+            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} deleteLoan={deleteLoan}
               setActiveTab={setActiveTab}
               fetchClientPhotos={fetchClientPhotos}
             />

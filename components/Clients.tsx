@@ -21,6 +21,7 @@ interface ClientsProps {
   deleteCollectionLog?: (logId: string) => void;
   updateCollectionLog?: (logId: string, newAmount: number) => void;
   updateCollectionLogNotes?: (logId: string, notes: string) => void;
+  deleteLoan?: (loanId: string) => void;
   addCollectionAttempt: (log: CollectionLog) => void;
   globalState: AppState;
   onForceSync?: (silent?: boolean, message?: string) => Promise<void>;
@@ -154,7 +155,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, 
   </div>
 );
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
@@ -1985,6 +1986,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                             )}
                                             <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                                           </div>
+                                        )}
+                                        {isAdminOrManager && isLoanGrant && log.loanId && (
+                                          <button
+                                            onClick={() => { if (confirm('⚠️ ¿ELIMINAR ESTE CRÉDITO? Esta acción eliminará el crédito completo y no se puede deshacer.')) deleteLoan?.(log.loanId!); }}
+                                            className="w-7 h-7 rounded-lg bg-red-600/30 text-red-400 flex items-center justify-center border border-red-500/40 shadow-sm"
+                                            title="Eliminar Crédito"
+                                          >
+                                            <i className="fa-solid fa-trash-can text-[10px]"></i>
+                                          </button>
                                         )}
                                       </td>
                                     </tr>
