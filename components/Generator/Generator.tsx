@@ -271,7 +271,19 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
         }
     };
 
-    const generatePDF = (doc: Partial<DocumentData>, isPrint: boolean = false) => {
+    const generatePDF = (sourceDoc: Partial<DocumentData>, isPrint: boolean = false) => {
+        // INJECT SETTINGS (FIX: Ensure company data is present even for history items)
+        const doc: Partial<DocumentData> = {
+            ...sourceDoc,
+            companyName: settings?.companyName || sourceDoc.companyName,
+            companyIdentifier: settings?.companyIdentifier || sourceDoc.companyIdentifier,
+            contactPhone: settings?.contactPhone || sourceDoc.contactPhone,
+            companyAlias: settings?.companyAlias || sourceDoc.companyAlias,
+            shareLabel: settings?.shareLabel || sourceDoc.shareLabel,
+            shareValue: settings?.shareValue || sourceDoc.shareValue,
+            receiptPrintMargin: settings?.receiptPrintMargin ?? sourceDoc.receiptPrintMargin
+        };
+
         const isThermal = paperSize === 'Thermal58mm';
         const isOficio = paperSize === 'Oficio';
 
