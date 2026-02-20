@@ -56,8 +56,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         return matchesSearch && loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
       }
 
-      const totalPaidOnLoan = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
-      const isActuallyPaid = loan.status === LoanStatus.PAID || (loan.totalAmount - totalPaidOnLoan) <= 0.01;
+      // Balance usando logs (consistente con getClientMetrics y el panel de saldo)
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+        .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
+      const totalPaidFromLogs = loanLogs.reduce((acc: number, l: any) => acc + (l.amount || 0), 0);
+      const balanceFromLogs = loan.totalAmount - totalPaidFromLogs;
+      const isActuallyPaid = loan.status === LoanStatus.PAID || balanceFromLogs <= 0.01;
       return matchesSearch && !isActuallyPaid;
     }).sort((a, b) => {
       if (viewMode === 'vencidos') {
@@ -69,7 +73,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       }
       return 0;
     });
-  }, [state.loans, state.clients, searchTerm, state.currentUser, isAdminOrManager, viewMode]);
+  }, [state.loans, state.clients, state.collectionLogs, searchTerm, state.currentUser, isAdminOrManager, viewMode]);
 
   // RESET PAGE ON FILTER CHANGE
   useEffect(() => {
@@ -256,11 +260,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         console.warn("Falla en captura GPS:", geoErr);
       }
 
-      // Validación de Geoposicionamiento (Crítico para el Mapa)
+      // GPS fallback: solo advertir, NO bloquear el pago
       if (currentLocation.lat === 0 && currentLocation.lng === 0) {
-        alert("ERROR CRÍTICO: No se pudo capturar su ubicación exacta. Asegúrese de tener el GPS activo y estar a cielo abierto.");
-        setIsProcessingPayment(false);
-        return;
+        console.warn("GPS no disponible. El pago se registrará sin ubicación exacta.");
       }
 
       const log: CollectionLog = {
@@ -507,10 +509,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             ) : (
               (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
                 const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-                const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
-                const balance = loan.totalAmount - totalPaid;
-                const progress = (totalPaid / loan.totalAmount) * 100;
-                const daysOverdue = getDaysOverdue(loan, state.settings);
+                // Usar logs para balance (consistente con getClientMetrics)
+                const cardLoanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+                  .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
+                const totalPaid = cardLoanLogs.reduce((acc: number, l: any) => acc + (l.amount || 0), 0);
+                const balance = Math.max(0, loan.totalAmount - totalPaid);
+                const progress = Math.min(100, (totalPaid / loan.totalAmount) * 100);
+                const daysOverdue = getDaysOverdue(loan, state.settings, totalPaid);
+                // Último pago para poder borrarlo
+                const lastPayLog = [...cardLoanLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
                 return (
                   <div key={loan.id} className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden flex flex-col">
@@ -555,14 +562,23 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       </div>
                     </div>
 
-                    <div className="p-3 md:p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-[auto_1fr_1fr] gap-2 md:gap-3">
+                    <div className="p-3 md:p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-[auto_auto_1fr_1fr] gap-2 md:gap-3">
                       <button
                         onClick={() => handleReprintLastReceipt(loan.id)}
-                        className="w-12 md:w-14 rounded-lg md:rounded-xl bg-slate-200 text-slate-500 hover:bg-slate-800 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95"
+                        className="w-10 md:w-12 rounded-lg md:rounded-xl bg-slate-200 text-slate-500 hover:bg-slate-800 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95"
                         title="Reimprimir Último Pago"
                       >
                         <i className="fa-solid fa-print text-sm"></i>
                       </button>
+                      {isAdminOrManager && lastPayLog && (
+                        <button
+                          onClick={() => { if (confirm('¿BORRAR ÚLTIMO PAGO? Se revertirá el saldo.')) deleteCollectionLog?.(lastPayLog.id); }}
+                          className="w-10 md:w-12 rounded-lg md:rounded-xl bg-red-100 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95"
+                          title="Borrar Último Pago"
+                        >
+                          <i className="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
                         className="py-2.5 md:py-3 bg-white border border-slate-200 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-500 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95"
