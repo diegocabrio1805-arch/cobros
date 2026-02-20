@@ -754,9 +754,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 address: d.address, profile_pic: d.profilePic, house_pic: d.housePic, business_pic: d.businessPic,
                 document_pic: d.documentPic, domicilio_location: d.domicilioLocation, location: d.location,
                 credit_limit: d.creditLimit, allow_collector_location_update: d.allowCollectorLocationUpdate,
-                custom_no_pay_message: d.customNoPayMessage, is_active: d.isActive, is_hidden: d.isHidden,
+                custom_no_pay_message: d.customNoPayMessage, is_active: d.isActive !== false, is_hidden: d.isHidden || false,
                 added_by: d.addedBy, branch_id: d.branchId, created_at: d.createdAt,
-                deleted_at: d.deletedAt || null
+                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
             }));
 
             // 2. Loans - Only if their client is NOT in the current failed/pending queue
@@ -772,7 +772,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 installment_value: d.installmentValue, total_amount: d.totalAmount, status: d.status,
                 created_at: d.createdAt, custom_holidays: d.customHolidays, is_renewal: d.isRenewal || false,
                 installments: d.installments, frequency: d.frequency,
-                deleted_at: d.deletedAt || null
+                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
             }));
 
             // 3. Payments & Logs - Only if their loan is NOT pending
@@ -788,7 +788,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
                 amount: d.amount, date: d.date, installment_number: d.installmentNumber,
                 is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false, created_at: d.created_at || d.date,
-                deleted_at: d.deletedAt || null
+                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
             }));
 
             const logsToUpsert = groups['ADD_LOG'].filter(x => !pendingLoanIds.has(x.item.data.loanId));
@@ -797,7 +797,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 amount: d.amount, type: d.type, date: d.date, location: d.location,
                 is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
                 notes: d.notes, recorded_by: d.recordedBy,
-                deleted_at: d.deletedAt || null
+                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
             }));
 
             // Sometimes logs also update profiles (legacy code?), reusing same data?
@@ -919,7 +919,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 address: client.address, profile_pic: client.profilePic, house_pic: client.housePic, business_pic: client.businessPic,
                 document_pic: client.documentPic, domicilio_location: client.domicilioLocation, location: client.location,
                 credit_limit: client.creditLimit, allow_collector_location_update: client.allowCollectorLocationUpdate,
-                custom_no_pay_message: client.customNoPayMessage, is_active: client.isActive, is_hidden: client.isHidden,
+                custom_no_pay_message: client.customNoPayMessage,
+                is_active: client.isActive !== false,
+                is_hidden: client.isHidden || false,
                 added_by: (client.addedBy === 'admin-1' || client.addedBy === '00000000-0000-0000-0000-000000000001') ? client.branchId : client.addedBy,
                 branch_id: client.branchId || client.addedBy, // FIX: Trust the App.tsx branch assignment (which handles managedBy). Only fallback if missing.
                 created_at: client.createdAt,
