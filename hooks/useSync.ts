@@ -474,6 +474,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     deletedAt: l.deleted_at,
                     customHolidays: l.custom_holidays,
                     installments: l.installments,
+                    isRenewal: l.is_renewal || false,
                     frequency: l.frequency
                 })) as Loan[],
                 payments: (Array.isArray(paymentsResult.data) ? paymentsResult.data : []).map((p: any) => ({
