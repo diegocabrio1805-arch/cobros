@@ -100,8 +100,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   // --- LÓGICA AUDITOR GENERAL ---
   const [auditCollector, setAuditCollector] = useState<string>('all');
-  const [auditStartDate, setAuditStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [auditEndDate, setAuditEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [auditStartDate, setAuditStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [auditEndDate, setAuditEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
 
   const auditMetrics = useMemo(() => {
     const start = new Date(auditStartDate);
@@ -137,9 +137,32 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       return true;
     }).length;
 
-    // Comparativa con periodo anterior (misma duración)
-    // Para simplificar, usaremos lógica de "tendencia" basada en si hay recaudo > 0 y clientes > 0
-    const revenueIncreased = totalRevenue > 0; // Placeholder lógica real requeriría history más complejo
+    // Comparativa con periodo anterior (Lógica de Tendencia DIARIA/PERIODICA)
+    // Calculamos el rango del periodo anterior con la misma duración
+    const duration = end.getTime() - start.getTime();
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - duration);
+
+    const previousLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= prevStart && logDate <= prevEnd;
+      if (!matchesDate) return false;
+      if (log.type !== CollectionLogType.PAYMENT) return false;
+      if (auditCollector === 'all') return true;
+      return log.recordedBy === auditCollector;
+    });
+
+    const previousRevenue = previousLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
+
+    // TENDENCIA: Solo "Aumentó" si supera estrictamente al periodo anterior.
+    // Si es igual o menor -> Disminuyó o Se Mantiene.
+    // User Request: "solo cuando el monto pase lo cobrado lo del dia anterior este diga aumento"
+    let revenueTrend: 'up' | 'down' | 'equal' = 'equal';
+    if (totalRevenue > previousRevenue) revenueTrend = 'up';
+    else if (totalRevenue < previousRevenue) revenueTrend = 'down';
+    else revenueTrend = 'equal'; // 0 vs 0, or exact match
+
+    const revenueIncreased = totalRevenue > previousRevenue; // Deprecated but kept for compatibility if needed internally
     const clientsIncreased = newClients > 0;
 
     // Daily Revenue for Graph (ALWAYS CURRENT WEEK: Mon-Sat)
@@ -282,7 +305,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
     return {
       totalRevenue, activeClients, newClients, efficiency, dailyRevenue,
-      revenueIncreased, clientsIncreased, verdict, logs,
+      revenueIncreased, revenueTrend, clientsIncreased, verdict, logs,
       clientsWithoutPayment, weeklyRevenue, monthlyRevenue,
       totalClients: relevantClientIds.size
     };
@@ -565,13 +588,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <div className="flex justify-between items-start">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recaudo Periodo</span>
 
-                {auditMetrics.revenueIncreased ? (
+                {auditMetrics.revenueTrend === 'up' && (
                   <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                     <i className="fa-solid fa-arrow-trend-up"></i> Aumentó
                   </span>
-                ) : (
+                )}
+                {auditMetrics.revenueTrend === 'down' && (
                   <span className="text-[9px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                     <i className="fa-solid fa-arrow-trend-down"></i> Disminuyó
+                  </span>
+                )}
+                {auditMetrics.revenueTrend === 'equal' && (
+                  <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-minus"></i> Se Mantiene
                   </span>
                 )}
               </div>
