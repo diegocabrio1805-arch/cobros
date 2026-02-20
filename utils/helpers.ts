@@ -347,19 +347,22 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const formattedPhone = format(phone, settings.contactPhoneBold);
 
   const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
-  const idValue = format(data.companyIdentifierManual || settings.companyIdentifier || '---', settings.companyIdentifierBold);
+  let idVal = data.companyIdentifierManual || settings.companyIdentifier || '---';
+  if (idVal === '---' && settings.companyIdentifier) idVal = settings.companyIdentifier;
+  const idValue = format(idVal, settings.companyIdentifierBold);
 
   const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
   let bankVal = data.shareValueManual || settings.shareValue || '---';
-  // Fallback extra robust
   if (bankVal === '---' && settings.shareValue) bankVal = settings.shareValue;
   const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
-  const supportLabel = (data.supportLabelManual || "NUMERO CO").toUpperCase();
-  const supportValue = format(data.supportPhoneManual || settings.technicalSupportPhone || '---', false);
+  const supportLabel = (data.supportLabelManual || "TEL. PUBLICO").toUpperCase(); // Changed label to TEL. PUBLICO as requested in example
+  let supportVal = data.supportPhoneManual || settings.technicalSupportPhone || '---';
+  if (supportVal === '---' && settings.contactPhone) supportVal = settings.contactPhone; // Fallback to contact phone if support is empty
+  const supportValue = format(supportVal, false);
 
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
-  const [datePart, timePart] = dateTime.split(','); // Assuming format like "DD/MM/YYYY, HH:MM:SS AM/PM" or similar
+  const [datePart, timePart] = dateTime.split(',');
 
   const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
@@ -389,7 +392,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.36-ULTRA
+VER: v6.1.74-FIX-DATA
 `;
 };
 
