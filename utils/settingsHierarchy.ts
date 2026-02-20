@@ -8,25 +8,33 @@ export const resolveSettings = (
 ): AppSettings => {
     if (!currentUser) return defaultSettings;
 
-    // Base settings (from Admin/Manager)
-    let settings = allSettings[currentUser.id] || defaultSettings;
-
-    // If Collector, prioritize their Manager's settings
-    if (currentUser.role === Role.COLLECTOR && currentUser.managedBy) {
-        settings = allSettings[currentUser.managedBy] || settings;
-    }
-
-    // CRITICAL: Technical support phone should be GLOBAL from the System Admin if possible
-    // System Admin ID is b3716a78-fb4f-4918-8c0b-92004e3d63ec
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-    const adminSettings = allSettings[SYSTEM_ADMIN_ID];
+    const adminSettings = allSettings[SYSTEM_ADMIN_ID] || defaultSettings;
 
-    if (adminSettings?.technicalSupportPhone) {
-        return {
+    // Base settings: start with global admin settings so all fields are populated
+    let settings: AppSettings = { ...adminSettings };
+
+    // Override with manager/branch settings if the current user has a branch
+    const managerOrSelfId = (currentUser.role === Role.COLLECTOR && currentUser.managedBy)
+        ? currentUser.managedBy
+        : currentUser.id;
+
+    const branchSettings = allSettings[managerOrSelfId];
+    if (branchSettings) {
+        // Merge: use branch settings but keep admin values for any field that is empty/undefined in branch
+        settings = {
             ...settings,
-            technicalSupportPhone: adminSettings.technicalSupportPhone
+            ...branchSettings,
+            // CRITICAL: For receipt fields, never let branch settings overwrite with empty values
+            shareValue: branchSettings.shareValue || adminSettings.shareValue || settings.shareValue,
+            shareLabel: branchSettings.shareLabel || adminSettings.shareLabel || settings.shareLabel,
+            contactPhone: branchSettings.contactPhone || adminSettings.contactPhone || settings.contactPhone,
+            technicalSupportPhone: branchSettings.technicalSupportPhone || adminSettings.technicalSupportPhone || settings.technicalSupportPhone,
+            companyIdentifier: branchSettings.companyIdentifier || adminSettings.companyIdentifier || settings.companyIdentifier,
+            companyName: branchSettings.companyName || adminSettings.companyName || settings.companyName,
         };
     }
 
     return settings;
 };
+
