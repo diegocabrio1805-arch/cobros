@@ -383,7 +383,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.86-SYNC-ZIP
+VER: v6.1.87-SYNC-GPS
 `;
 };
 

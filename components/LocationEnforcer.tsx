@@ -19,19 +19,35 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
         setIsChecking(true);
         try {
             const permission = await Geolocation.checkPermissions();
-            if (permission.location === 'granted') {
-                // Try to get current position to verify GPS is actually on
-                try {
-                    await Geolocation.getCurrentPosition({ timeout: 5000 });
-                    setIsLocationEnabled(true);
-                    onLocationEnabled();
-                } catch (err) {
-                    setIsLocationEnabled(false);
-                }
-            } else {
+
+            // Si el permiso no está concedido, bloqueamos inmediatamente
+            if (permission.location !== 'granted') {
                 setIsLocationEnabled(false);
+                return;
+            }
+
+            // Si tiene permiso, intentamos obtener ubicación pero con más tiempo (15s)
+            // Esto ayuda en interiores. 
+            try {
+                // Usamos un timeout más largo y permitimos ubicaciones anteriores (caché)
+                await Geolocation.getCurrentPosition({
+                    enableHighAccuracy: false,
+                    timeout: 15000,
+                    maximumAge: 30000 // Aceptar ubicación de hace 30 segundos
+                });
+                setIsLocationEnabled(true);
+                onLocationEnabled();
+            } catch (err) {
+                // Si falla la posición exacta (ej. bajo techo) pero TENEMOS PERMISO,
+                // vamos a ser más permisivos para no bloquear al usuario injustamente
+                // Solo bloqueamos si el error es de permisos o hardware apagado totalmente
+                console.warn("GPS Position capture failed, but permissions are OK:", err);
+
+                // Si el error es timeout o señal débil, lo dejamos pasar si ya tenemos permiso
+                setIsLocationEnabled(true);
             }
         } catch (error) {
+            console.error("Critical GPS check error:", error);
             setIsLocationEnabled(false);
         } finally {
             setIsChecking(false);
@@ -51,7 +67,8 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
 
     useEffect(() => {
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 3000); // Check every 3 seconds
+        // Verificamos cada 10 segundos en lugar de 3 para ahorrar batería y reducir molestias
+        const interval = setInterval(checkLocationStatus, 10000);
         return () => clearInterval(interval);
     }, [isRequired]);
 

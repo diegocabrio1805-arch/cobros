@@ -7,7 +7,7 @@ android {
         applicationId "com.anexocobro.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6186
+        versionCode 6187
         versionName "6.1.86"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
