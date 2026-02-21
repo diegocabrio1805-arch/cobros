@@ -49,7 +49,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.82-FINAL-AUDIT';
+    const CURRENT_VERSION_ID = 'v6.1.83-GPS-FIX';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
