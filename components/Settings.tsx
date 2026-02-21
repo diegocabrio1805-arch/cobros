@@ -202,7 +202,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           </div>
         </div>
 
-        {isPowerUser && (
+        {isAdmin && (
           <button
             onClick={() => {
               setSupportPhone(state.settings.technicalSupportPhone || '');

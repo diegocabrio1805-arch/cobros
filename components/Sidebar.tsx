@@ -103,8 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
               <i className={`fa-solid ${item.icon} w-5 text-lg ${activeTab === item.id ? 'text-white' : 'text-slate-50'}`}></i>
               {item.label}
             </button>
-            {/* Soporte Técnico en Menú (Solo Managers) - Ajustes es visible para todos */}
-            {item.id === 'settings' && isManager && technicalSupportPhone && (
+            {/* Soporte Técnico en Menú (Solo Administradores y Gerentes) */}
+            {item.id === 'settings' && isPowerUser && technicalSupportPhone && (
               <div className="px-4 py-3 mt-1 bg-white/5 rounded-xl border border-white/5 animate-fadeIn">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Soporte Técnico</p>
                 <a href={`tel:${technicalSupportPhone}`} className="text-base font-black text-emerald-400 flex items-center gap-2 hover:text-emerald-300 transition-colors">

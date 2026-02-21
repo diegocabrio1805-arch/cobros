@@ -2398,14 +2398,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
                 <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyAlias || state.settings.companyName || 'ANEXO S.A'}</p>
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
-                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
+                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || 'SOPORTE'}</p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
-              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.companyBank || 'BANCO FAMILIAR'}</p>
+              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareLabel || 'BANCO'}</p>
               <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
-              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
+              <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || 'CUENTA'}</p>
             </div>
           </div>
         </div>
