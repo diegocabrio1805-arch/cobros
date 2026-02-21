@@ -513,15 +513,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const renovacionesExcelData = useMemo(() => {
     if (viewMode !== 'renovaciones') return [];
-    // REVERSION TO STABLE LOGIC (Simplified)
+
+    // FIX: Solo mostrar préstamos con isRenewal=true.
+    // Antes se combinaban con logs de pago (isRenewal), causando duplicados.
+    // Un cliente renovado genera UN log de pago (saldo anterior) Y UN nuevo loan.
+    // Solo el nuevo loan debe mostrarse como renovación.
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
     const loans = Array.isArray(state.loans) ? state.loans : [];
     const clients = Array.isArray(state.clients) ? state.clients : [];
-    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
 
-    // 1. Get explicit renewal loans
+    // ÚNICA FUENTE DE VERDAD: préstamos marcados como renovación dentro del rango de fecha
     const renewalLoans = loans.filter(l =>
       l.isRenewal &&
       new Date(l.createdAt) >= start &&
@@ -534,53 +537,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         ...client,
         _loan: loan,
         _metrics: getClientMetrics(client),
-        _type: 'loan_creation'
+        _type: 'loan_creation',
+        _dedupeKey: `${client.id}_${loan.id}` // GUARD: prevenir duplicados
       };
     }).filter(Boolean);
 
-    // 2. Get renewal payments that HAVE a subsequent loan (Validation for "Wilma")
-    const renewalPayments = logs.filter(log =>
-      log.type === CollectionLogType.PAYMENT &&
-      log.isRenewal &&
-      !log.deletedAt &&
-      new Date(log.date) >= start &&
-      new Date(log.date) <= end
-    ).map(log => {
-      const loan = loans.find(l => l.id === log.loanId);
-      if (!loan) return null;
+    // DEDUPLICACIÓN: si por algún motivo existe el mismo loanId duplicado, solo conservar uno
+    const seen = new Set<string>();
+    const deduplicated = renewalLoans.filter((item: any) => {
+      if (seen.has(item._dedupeKey)) return false;
+      seen.add(item._dedupeKey);
+      return true;
+    });
 
-      const client = clients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return null;
-
-      if (selectedCollector !== 'all' && loan.collectorId !== selectedCollector && client.addedBy !== selectedCollector) return null;
-
-      // CRITICAL FIX: Ensure a NEW loan exists after this payment (approx 24h)
-      // This includes manual loans created by users like Fredy
-      const hasNewLoan = loans.some(l =>
-        l.clientId === client.id &&
-        new Date(l.createdAt).getTime() >= new Date(log.date).getTime() - 86400000
-      );
-
-      if (!hasNewLoan) return null;
-
-      return {
-        ...client,
-        _loan: {
-          ...loan,
-          createdAt: log.date,
-          principal: log.amount || 0,
-          totalInstallments: loan.totalInstallments,
-          totalAmount: loan.totalAmount
-        },
-        _metrics: getClientMetrics(client),
-        _type: 'renewal_payment'
-      };
-    }).filter(Boolean);
-
-    return [...renewalLoans, ...renewalPayments].sort((a: any, b: any) =>
+    return deduplicated.sort((a: any, b: any) =>
       new Date(b._loan.createdAt).getTime() - new Date(a._loan.createdAt).getTime()
     );
-  }, [state.loans, state.collectionLogs, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector]);
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {

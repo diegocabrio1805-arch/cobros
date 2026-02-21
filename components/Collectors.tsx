@@ -89,17 +89,19 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
 
     if (editingUserId) {
       const oldUser = (Array.isArray(state.users) ? state.users : []).find(u => u.id === editingUserId);
+      if (!oldUser) return;
+
       const updatedUser: User = {
-        id: editingUserId,
+        ...oldUser,
         name: formData.name,
-        username: isManager ? oldUser?.username || formData.username : formData.username,
+        username: isManager ? oldUser.username : formData.username,
         password: formData.password,
         role: formData.role,
-        managedBy: oldUser?.managedBy,
-        expiryDate: isManager ? oldUser?.expiryDate || formData.expiryDate : formData.expiryDate,
+        expiryDate: isManager ? oldUser.expiryDate || '' : formData.expiryDate,
         profilePic: formData.profilePic,
         homePic: formData.homePic,
-        homeLocation: formData.homeLocation
+        homeLocation: formData.homeLocation,
+        updated_at: new Date().toISOString()
       };
       onUpdateUser(updatedUser);
     } else {

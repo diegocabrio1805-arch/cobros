@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, Role } from '../types';
 import { getTranslation } from '../utils/translations';
 import { supabase } from '../utils/supabaseClient';
-import { generateUUID } from '../utils/helpers';
+import { generateUUID, isUserExpired } from '../utils/helpers';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -54,6 +54,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
     }
 
     if (user) {
+      // REGLA DE ORO: Bloqueo Automático por Vencimiento de Licencia
+      if (isUserExpired(user) && !user.blocked) {
+        console.log(`[License] User ${user.username} has expired (Date: ${user.expiryDate}). Blocking access.`);
+        user.blocked = true;
+
+        // Sincronizamos el cambio de estado con Supabase
+        if (onSyncUser) onSyncUser(user);
+
+        setError("SU LICENCIA HA VENCIDO. CONTACTE AL ADMINISTRADOR PARA DESBLOQUEAR SU ACCESO.");
+        return;
+      }
+
       if (user.blocked) {
         setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
         return;

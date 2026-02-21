@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Comercial – Anexo Cobro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --green: #22c55e;
+            --green-dark: #16a34a;
+            --green-light: #dcfce7;
+            --blue: #3b82f6;
+            --orange: #f97316;
+            --dark: #0f172a;
+            --dark2: #1e293b;
+            --dark3: #334155;
+            --gray: #64748b;
+            --light: #f8fafc;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        /* ───── PORTADA ───── */
+        .cover {
+            width: 100%;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f2d1a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cover::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 20% 50%, rgba(34, 197, 94, 0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+        }
+
+        .cover-logo {
+            width: 90px;
+            height: 90px;
+            background: var(--green);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px;
+            margin-bottom: 24px;
+            box-shadow: 0 20px 60px rgba(34, 197, 94, 0.4);
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-title {
+            font-size: 64px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: -2px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-title span {
+            color: var(--green);
+        }
+
+        .cover-sub {
+            font-size: 13px;
+            letter-spacing: 6px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-top: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-divider {
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--orange), var(--green));
+            margin: 28px auto;
+            border-radius: 2px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-tagline {
+            font-size: 18px;
+            color: #cbd5e1;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 40px;
+        }
+
+        .cover-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 24px 40px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+
+        .cover-card-label {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .cover-card-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .cover-card-role {
+            font-size: 13px;
+            color: var(--green);
+            margin-top: 4px;
+        }
+
+        .cover-date {
+            font-size: 12px;
+            color: #475569;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-badge {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--green);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        /* ───── SECCIONES ───── */
+        .section {
+            padding: 70px 60px;
+            page-break-inside: avoid;
+        }
+
+        .section-alt {
+            background: var(--white);
+        }
+
+        .section-dark {
+            background: var(--dark);
+            color: white;
+        }
+
+        .section-green {
+            background: linear-gradient(135deg, var(--dark) 0%, #0a3d1f 100%);
+            color: white;
+        }
+
+        .section-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--green);
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            padding: 5px 16px;
+            margin-bottom: 16px;
+        }
+
+        .section-tag.orange {
+            color: var(--orange);
+            background: rgba(249, 115, 22, 0.1);
+            border-color: rgba(249, 115, 22, 0.3);
+        }
+
+        .section-tag.blue {
+            color: var(--blue);
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .section-tag.white {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        h2 {
+            font-size: 42px;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+
+        h2 span {
+            color: var(--green);
+        }
+
+        .section-dark h2 span,
+        .section-green h2 span {
+            color: var(--green);
+        }
+
+        .section-subtitle {
+            font-size: 17px;
+            color: var(--gray);
+            line-height: 1.6;
+            max-width: 600px;
+            margin-bottom: 50px;
+        }
+
+        .section-dark .section-subtitle {
+            color: #94a3b8;
+        }
+
+        .section-green .section-subtitle {
+            color: #94a3b8;
+        }
+
+        /* ───── PROBLEMA ───── */
+        .problem-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+        }
+
+        .problem-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid #e2e8f0;
+            border-top: 4px solid var(--orange);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .problem-icon {
+            font-size: 36px;
+            margin-bottom: 14px;
+        }
+
+        .problem-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        .problem-card p {
+            font-size: 13px;
+            color: var(--gray);
+            line-height: 1.6;
+        }
+
+        /* ───── SOLUCIÓN ───── */
+        .solution-row {
+            display: flex;
+            gap: 50px;
+            align-items: center;
+            margin-bottom: 50px;
+        }
+
+        .solution-text {
+            flex: 1;
+        }
+
+        .solution-img {
+            flex: 1.4;
+        }
+
+        .solution-img img {
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .solution-feature {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+
+        .solution-feature-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .solution-feature-text h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .solution-feature-text p {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        /* ───── SCREENSHOTS GALERÍA ───── */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .gallery-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            display: block;
+            transition: transform 0.3s;
+        }
+
+        .gallery-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.95) 60%);
+            padding: 32px 18px 18px;
+        }
+
+        .gallery-caption h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 4px;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .gallery-caption p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.92);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .gallery-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: var(--green);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .gallery-badge.orange {
+            background: var(--orange);
+        }
+
+        .gallery-badge.blue {
+            background: var(--blue);
+        }
+
+        .gallery-badge.purple {
+            background: #8b5cf6;
+        }
+
+        .screenshot-full {
+            margin-bottom: 30px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        .screenshot-full img {
+            width: 100%;
+            display: block;
+        }
+
+        .screenshot-full .gallery-caption {
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.97) 55%);
+        }
+
+        /* ───── FUNCIONALIDADES ───── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: var(--dark2);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: transform 0.2s;
+        }
+
+        .feature-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .feature-card h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 6px;
+        }
+
+        .feature-card p {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        /* ───── BENEFICIOS ───── */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .benefit-item {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .benefit-num {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+        }
+
+        .benefit-text h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 6px;
+        }
+
+        .benefit-text p {
+            font-size: 13px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+
+        /* ───── PLANES ───── */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .plan-card {
+            background: var(--dark2);
+            border-radius: 20px;
+            padding: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .plan-card.featured {
+            background: linear-gradient(135deg, #0f3d1f, #0f2a5a);
+            border: 2px solid var(--green);
+            box-shadow: 0 20px 60px rgba(34, 197, 94, 0.25);
+            position: relative;
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--green);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 20px;
+            border-radius: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .plan-name {
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--green);
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .plan-price {
+            font-size: 48px;
+            font-weight: 900;
+            color: white;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .plan-price span {
+            font-size: 18px;
+            font-weight: 400;
+            color: #64748b;
+        }
+
+        .plan-desc {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+
+        .plan-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .plan-feature {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .plan-feature .check {
+            color: var(--green);
+            font-size: 16px;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .plan-cta {
+            display: block;
+            text-align: center;
+            margin-top: 28px;
+            background: var(--green);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 14px;
+            border-radius: 12px;
+            text-decoration: none;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .plan-card:not(.featured) .plan-cta {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* ───── CTA FINAL ───── */
+        .cta-section {
+            background: linear-gradient(135deg, #0f172a, #0a3d1f);
+            padding: 80px 60px;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            color: white;
+            font-size: 44px;
+            font-weight: 900;
+            margin-bottom: 16px;
+        }
+
+        .cta-section h2 span {
+            color: var(--green);
+        }
+
+        .cta-section p {
+            color: #94a3b8;
+            font-size: 17px;
+            margin-bottom: 40px;
+        }
+
+        .cta-contacts {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        .cta-contact {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 16px 28px;
+            text-align: center;
+            min-width: 180px;
+        }
+
+        .cta-contact .label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .cta-contact .value {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .cta-contact .icon {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            background: var(--green);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 16px 40px;
+            border-radius: 14px;
+            text-decoration: none;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+        }
+
+        .footer {
+            background: #020617;
+            padding: 24px 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            font-size: 16px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .footer-logo span {
+            color: var(--green);
+        }
+
+        .footer-copy {
+            font-size: 11px;
+            color: #334155;
+        }
+
+        /* ───── STATS BAR ───── */
+        .stats-bar {
+            background: linear-gradient(90deg, var(--green-dark), var(--blue));
+            padding: 30px 60px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-num {
+            font-size: 36px;
+            font-weight: 900;
+            color: white;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            letter-spacing: 1px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .stat-divider {
+            width: 1px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ───── PAGE BREAKS ───── */
+        @media print {
+            .cover {
+                page-break-after: always;
+                height: 100vh;
+            }
+
+            .section,
+            .stats-bar,
+            .cta-section {
+                page-break-inside: avoid;
+            }
+
+            @page {
+                margin: 0;
+            }
+
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        /* ───── QUOTE LINE ───── */
+        .quote-line {
+            border-left: 4px solid var(--green);
+            padding: 12px 20px;
+            margin: 24px 0;
+            background: rgba(34, 197, 94, 0.05);
+            border-radius: 0 8px 8px 0;
+            font-size: 15px;
+            font-style: italic;
+            color: #475569;
+        }
+
+        /* ───── ESTILOS DE IMPRESIÓN ───── */
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+
+            /* Reset de alturas que causan espacios vacíos */
+            .cover {
+                height: auto !important;
+                min-height: initial !important;
+                padding: 100px 20px !important;
+                page-break-after: avoid !important;
+            }
+
+            /* Permitir que las secciones se dividan entre páginas para evitar huecos */
+            .section,
+            .section-alt,
+            .section-dark,
+            .section-green,
+            .cta-section,
+            .footer {
+                break-inside: auto !important;
+                page-break-inside: auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding-top: 30px !important;
+                padding-bottom: 30px !important;
+            }
+
+            /* MANTENER unidos los elementos pequeños (tarjetas, fotos con texto) */
+            .gallery-item,
+            .screenshot-full,
+            .feature-card,
+            .benefit-item,
+            .plan-card,
+            .cover-card,
+            .cta-contacts {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin-bottom: 20px !important;
+            }
+
+            /* Ocultar img que no cargaron */
+            img[src=""],
+            img:not([src]) {
+                display: none !important;
+            }
+
+            /* Controlar tamaño de imágenes para que no empujen contenido al siguiente folio innecesariamente */
+            .gallery-item img,
+            .screenshot-full img {
+                max-height: 300px !important;
+                object-fit: contain !important;
+                background: #000;
+            }
+
+            /* Reducir padding general al imprimir para compactar */
+            .section,
+            .section-alt,
+            .section-dark,
+            .section-green {
+                padding: 20px 30px !important;
+            }
+
+            /* Forzar que las grillas permitan saltos entre items */
+            .gallery-grid,
+            .features-grid,
+            .benefits-grid {
+                display: block !important;
+                gap: 0 !important;
+            }
+
+            .gallery-item,
+            .feature-card,
+            .benefit-item {
+                width: 100% !important;
+                margin-bottom: 15px !important;
+            }
+
+            /* Ajuste específico para que el plan no salga cortado */
+            #seccion-planes {
+                page-break-before: always !important;
+                break-before: page !important;
+                padding-top: 60px !important;
+            }
+
+            /* Títulos más pequeños para impresión */
+            h2 {
+                font-size: 28px !important;
+                margin-bottom: 15px !important;
+            }
+
+            .cover-title {
+                font-size: 44px !important;
+            }
+
+            .section-subtitle {
+                margin-bottom: 20px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ========== PORTADA ========== -->
+    <div class="cover">
+        <div class="cover-badge">PROPUESTA COMERCIAL 2026</div>
+        <div class="cover-logo">💰</div>
+        <div class="cover-title">ANEXO <span>COBRO</span></div>
+        <div class="cover-sub">Sistema de Gestión de Cartera</div>
+        <div class="cover-divider"></div>
+        <div class="cover-tagline">Control total de su operación de cobranza, en tiempo real, desde cualquier lugar.
+        </div>
+        <div class="cover-card">
+            <div class="cover-card-label">Presentado por</div>
+            <div class="cover-card-name">Diego Villalba</div>
+            <div class="cover-card-role">Desarrollador de Software Independiente</div>
+        </div>
+        <div class="cover-date">Febrero 2026 — Documento Confidencial</div>
+    </div>
+
+    <!-- ========== STATS BAR ========== -->
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-num">160+</div>
+            <div class="stat-label">Clientes Gestionados</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <div class="stat-num">100%</div>
+            <div class="stat-label">Web + Android</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <div class="stat-num">GPS</div>
+            <div class="stat-label">Rastreo Satelital</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <div class="stat-num">IA</div>
+            <div class="stat-label">Auditoria Inteligente</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <div class="stat-num">24/7</div>
+            <div class="stat-label">Disponibilidad</div>
+        </div>
+    </div>
+
+    <!-- ========== PROBLEMA ========== -->
+    <div class="section section-alt">
+        <div class="section-tag orange">El Problema</div>
+        <h2>Administrar cobros <span>sin sistema</span><br>es perder dinero</h2>
+        <p class="section-subtitle">Las financieras y prestamistas informales pierden tiempo, dinero y control
+            trabajando de forma manual. Estos son los problemas más comunes:</p>
+        <div class="problem-grid">
+            <div class="problem-card">
+                <div class="problem-icon">📄</div>
+                <h3>Registros en papel o Excel</h3>
+                <p>Difíciles de actualizar, propensos a errores, imposibles de compartir en tiempo real entre cobradores
+                    y gerentes.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">🔍</div>
+                <h3>Sin trazabilidad</h3>
+                <p>No sabe qué cobrador cobró, cuánto cobró, a qué hora, ni si realmente visitó al cliente. El fraude
+                    pasa desapercibido.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">⏰</div>
+                <h3>Información con demora</h3>
+                <p>Los reportes de cobranza llegan al día siguiente o fin de semana. Mientras tanto, la mora crece y no
+                    puede actuar.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">📱</div>
+                <h3>Sin app propia para cobradores</h3>
+                <p>Sus cobradores trabajan en campo sin herramientas digitales. Cada uno maneja su propia libreta o
+                    celular personal.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">💸</div>
+                <h3>Comisiones sin control</h3>
+                <p>Calcular comisiones manualmente lleva horas y genera discusiones. Sin transparencia, los cobradores
+                    desconfían del pago.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">📊</div>
+                <h3>Sin métricas de rendimiento</h3>
+                <p>No puede comparar el rendimiento entre rutas, detectar mora por cobrador, ni proyectar sus ingresos
+                    del mes.</p>
+            </div>
+        </div>
+        <div class="quote-line">"Si no puedes medirlo, no puedes mejorarlo." — La gestión de cartera necesita datos en
+            tiempo real.</div>
+    </div>
+
+    <!-- ========== SOLUCIÓN ========== -->
+    <div class="section section-dark">
+        <div class="section-tag white">La Solución</div>
+        <h2>Presentamos <span>Anexo Cobro</span></h2>
+        <p class="section-subtitle">Un sistema completo de gestión de cartera diseñado específicamente para
+            prestamistas, con panel web para gerentes y app Android para cobradores.</p>
+
+        <div class="solution-row">
+            <div class="solution-text">
+                <div class="solution-feature">
+                    <div class="solution-feature-icon">📊</div>
+                    <div class="solution-feature-text">
+                        <h4>Dashboard en Tiempo Real</h4>
+                        <p>Vea el recaudo del día, la mora por ruta, y las métricas de su empresa en una sola pantalla
+                            actualizada al instante.</p>
+                    </div>
+                </div>
+                <div class="solution-feature">
+                    <div class="solution-feature-icon">👥</div>
+                    <div class="solution-feature-text">
+                        <h4>Gestión Completa de Clientes</h4>
+                        <p>Registre créditos, vea expedientes con fotos, cronogramas de pago y todo el historial del
+                            cliente.</p>
+                    </div>
+                </div>
+                <div class="solution-feature">
+                    <div class="solution-feature-icon">📡</div>
+                    <div class="solution-feature-text">
+                        <h4>Rastreo GPS Satelital</h4>
+                        <p>Cada cobro queda geolocalizado. Audite recorridos, paradas largas y la distancia real de cada
+                            cobrador.</p>
+                    </div>
+                </div>
+                <div class="solution-feature">
+                    <div class="solution-feature-icon">🤖</div>
+                    <div class="solution-feature-text">
+                        <h4>Auditoría con Inteligencia Artificial</h4>
+                        <p>El sistema detecta automáticamente anomalías en los cobros y genera veredictos inteligentes
+                            de rendimiento.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="solution-img">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192519.jpg"
+                    alt="Dashboard Anexo Cobro">
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SCREENSHOTS: GESTIÓN DE CLIENTES ========== -->
+    <div class="section section-alt">
+        <div class="section-tag">Módulo de Clientes</div>
+        <h2>Toda la <span>información del cliente</span><br>en un solo lugar</h2>
+        <p class="section-subtitle">Desde el registro hasta el expediente completo, con cronograma de pagos y gestión de
+            cobros integrada.</p>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192548.jpg"
+                    alt="Lista de Clientes">
+                <div class="gallery-caption">
+                    <h4>Vista de Todos los Clientes</h4>
+                    <p>Busque, filtre y acceda al expediente de cada cliente</p>
+                </div>
+                <div class="gallery-badge">Clientes</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192605.jpg" alt="Registros">
+                <div class="gallery-caption">
+                    <h4>Registros de Clientes</h4>
+                    <p>Historial de altas con capital, interés y cuota asignada</p>
+                </div>
+                <div class="gallery-badge blue">Registros</div>
+            </div>
+        </div>
+
+        <div class="screenshot-full">
+            <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192706.jpg"
+                alt="Expediente de Cliente">
+            <div class="gallery-caption">
+                <h4>Expediente Completo del Cliente — Resumen de cuenta, historial, cronograma de pagos y fotos adjuntas
+                </h4>
+                <p>Un cobrador puede cobrar, renovar o registrar no-pago directamente desde el expediente</p>
+            </div>
+            <div class="gallery-badge">Expediente</div>
+        </div>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192621.jpg" alt="Renovaciones">
+                <div class="gallery-caption">
+                    <h4>Cartera Renovada</h4>
+                    <p>Registro automático de créditos renovados con nuevo saldo y cuotas</p>
+                </div>
+                <div class="gallery-badge orange">Renovaciones</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192639.jpg"
+                    alt="Cartera General">
+                <div class="gallery-caption">
+                    <h4>Cartera General</h4>
+                    <p>Vista completa de todos los créditos activos con exportación a PDF</p>
+                </div>
+                <div class="gallery-badge blue">Cartera</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== RECIBO DIGITAL ========== -->
+    <div class="section section-dark">
+        <div class="section-tag white">Comprobantes Digitales</div>
+        <h2>Recibos <span>profesionales</span><br>impresos al instante</h2>
+        <p class="section-subtitle">Cada cobro genera un recibo con el cronograma completo de pagos, datos de la empresa
+            y pie de firma. Impresión vía Bluetooth desde celular.</p>
+
+        <div class="screenshot-full">
+            <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192731.jpg" alt="Recibo Digital">
+            <div class="gallery-caption">
+                <h4>Recibo Profesional — Incluye logo, nombre del cliente, cronograma de 44 cuotas, datos bancarios y
+                    totales</h4>
+                <p>Compatible con impresoras térmicas Bluetooth para impresión inmediata en campo</p>
+            </div>
+            <div class="gallery-badge">Recibo Digital</div>
+        </div>
+    </div>
+
+    <!-- ========== GPS RASTREO ========== -->
+    <div class="section section-alt">
+        <div class="section-tag blue">Rastreo GPS</div>
+        <h2><span>Auditoría satelital</span><br>de sus cobradores</h2>
+        <p class="section-subtitle">El sistema registra en tiempo real la ubicación GPS de cada cobro. Vea el recorrido
+            completo del día, paradas largas y distancia total.</p>
+
+        <div class="screenshot-full">
+            <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192832.jpg" alt="Rastreo GPS">
+            <div class="gallery-caption">
+                <h4>Mapa Satelital en Tiempo Real — 51 puntos visitados, 255.9 km recorridos, 3 paradas largas
+                    detectadas</h4>
+                <p>Cada marcador indica el tipo de cobro: pagó (verde), no pagó (rojo), renovó (naranja)</p>
+            </div>
+            <div class="gallery-badge blue">GPS Satelital</div>
+        </div>
+
+        <div class="benefits-grid" style="margin-top:30px;">
+            <div class="benefit-item">
+                <div class="benefit-num">📍</div>
+                <div class="benefit-text">
+                    <h4>Verificación de visitas</h4>
+                    <p>Confirme que el cobrador realmente visitó al cliente en campo y no registró cobros falsos.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">⏱️</div>
+                <div class="benefit-text">
+                    <h4>Detección de paradas largas</h4>
+                    <p>El sistema alerta automáticamente cuando un cobrador permanece más de 1 hora en el mismo lugar.
+                    </p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">🗺️</div>
+                <div class="benefit-text">
+                    <h4>Historial de recorridos</h4>
+                    <p>Consulte el mapa de cualquier día pasado y el detalle de cada cobro con hora y cliente.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">📏</div>
+                <div class="benefit-text">
+                    <h4>Distancia y eficiencia</h4>
+                    <p>Optimice las rutas de cobro conociendo los kilómetros reales recorridos por cada cobrador.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== COMISIONES ========== -->
+    <div class="section section-dark">
+        <div class="section-tag white">Comisiones & Auditoria</div>
+        <h2>Comisiones <span>transparentes</span><br>para sus cobradores</h2>
+        <p class="section-subtitle">Calcule automáticamente las comisiones de cada cobrador según su rendimiento de
+            mora. Sistema de incentivos y descuentos configurable.</p>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192848.jpg"
+                    alt="Libro de Comisiones">
+                <div class="gallery-caption">
+                    <h4>Libro de Comisiones</h4>
+                    <p>Histórico semanal de mora + cálculo automático de liquidación final</p>
+                </div>
+                <div class="gallery-badge purple">Comisiones</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192911.jpg"
+                    alt="Auditoria de Abonos">
+                <div class="gallery-caption">
+                    <h4>Auditoría Histórica de Abonos</h4>
+                    <p>Todos los cobros del día con medio de pago, monto, comisión y gestor</p>
+                </div>
+                <div class="gallery-badge orange">Auditoría</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PAGARÉS & MENSAJES ========== -->
+    <div class="section section-alt">
+        <div class="section-tag">Herramientas Extras</div>
+        <h2>Todo lo que necesita<br>para <span>operar profesionalmente</span></h2>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192931.jpg"
+                    alt="Generador de Pagarés">
+                <div class="gallery-caption">
+                    <h4>Generador de Pagarés Legales</h4>
+                    <p>Cree y vincule pagarés a créditos directamente desde la plataforma</p>
+                </div>
+                <div class="gallery-badge purple">Pagarés</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 192753.jpg"
+                    alt="Mensajes de Mora">
+                <div class="gallery-caption">
+                    <h4>Recordatorios de Mora por WhatsApp</h4>
+                    <p>Mensajes personalizados enviados directamente al cliente en mora</p>
+                </div>
+                <div class="gallery-badge orange">WhatsApp</div>
+            </div>
+        </div>
+
+        <div class="gallery-grid" style="margin-top:0;">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 193034.jpg"
+                    alt="Configuración empresa">
+                <div class="gallery-caption">
+                    <h4>Configuración de Empresa</h4>
+                    <p>Datos de empresa, banco, formato de recibos y estilos de impresión</p>
+                </div>
+                <div class="gallery-badge blue">Configuración</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Captura de pantalla 2026-02-20 193113.jpg" alt="Multi-idioma">
+                <div class="gallery-caption">
+                    <h4>Multi-idioma y Multi-país</h4>
+                    <p>Soporte para Argentina, Paraguay, Bolivia y 15+ países. Español, inglés y más.</p>
+                </div>
+                <div class="gallery-badge">Global</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== COBRADORES EN CAMPO ========== -->
+    <div class="section section-dark">
+        <div class="section-tag white">Cobradores en Campo</div>
+        <h2>La <span>jornada diaria</span><br>de un cobrador profesional</h2>
+        <p class="section-subtitle">Nuestros cobradores recorren la ciudad en moto, equipados con la app
+            Anexo Cobro en su celular. Visitan despensas, puestos de mercado, copetines y todo tipo de comercios.</p>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\cobrador_despensa_1771637064851.jpg"
+                    alt="Cobrador en Despensa La Abuela">
+                <div class="gallery-caption">
+                    <h4>Cobro en Despensa</h4>
+                    <p>Cobrador con casco y manga larga mostrando la app Anexo Cobro a la dueña del comercio</p>
+                </div>
+                <div class="gallery-badge">En Campo</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\cobrador_mercado_1771637079840.jpg"
+                    alt="Cobrador en Mercado">
+                <div class="gallery-caption">
+                    <h4>Cobro en Mercado</h4>
+                    <p>Registro de pago en pleno mercado con la app y recepción de efectivo</p>
+                </div>
+                <div class="gallery-badge orange">Mercado</div>
+            </div>
+        </div>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\cobrador_despensa_kenton_1771637195909.jpg"
+                    alt="Cobrador Kenton GTR 150">
+                <div class="gallery-caption">
+                    <h4>Motocicleta — Herramienta de Trabajo</h4>
+                    <p>Equipamiento oficial del cobrador: moto, casco, celular con Anexo Cobro</p>
+                </div>
+                <div class="gallery-badge blue">En Ruta</div>
+            </div>
+            <div class="gallery-item">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\cobrador_closeup_celular_1771637117911.jpg"
+                    alt="Closeup App en Celular">
+                <div class="gallery-caption">
+                    <h4>App Anexo Cobro en Acción</h4>
+                    <p>Vista del celular con la app abierta: cliente, saldo y botón de cobro</p>
+                </div>
+                <div class="gallery-badge purple">App Android</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== COMPROBANTES: FÍSICO Y VIRTUAL ========== -->
+    <div class="section section-alt">
+        <div class="section-tag orange">Comprobantes de Pago</div>
+        <h2>Recibo <span>físico</span> y <span>virtual</span><br>para cada cobro</h2>
+        <p class="section-subtitle">Cada pago genera un comprobante profesional que puede imprimirse al instante con
+            impresora térmica Bluetooth o enviarse por WhatsApp al cliente.</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; align-items: start;">
+            <div class="gallery-item" style="border-radius: 16px; overflow: hidden;">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\WhatsApp Image 2026-02-20 at 22.36.46.jpeg"
+                    alt="Recibo Físico Impreso" style="width:100%; display:block;">
+                <div class="gallery-caption">
+                    <h4>Ticket Físico — Impresora FTX</h4>
+                    <p>Recibo térmico impreso con todos los datos: cliente, saldo, cuotas y empresa</p>
+                </div>
+                <div class="gallery-badge">Ticket Físico</div>
+            </div>
+            <div class="gallery-item" style="border-radius: 16px; overflow: hidden;">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\WhatsApp Image 2026-02-20 at 22.36.52.jpeg"
+                    alt="Celular + Impresora" style="width:100%; display:block;">
+                <div class="gallery-caption">
+                    <h4>Celular + Impresora Bluetooth</h4>
+                    <p>Kit portátil del cobrador: smartphone con la app y mini impresora FTX</p>
+                </div>
+                <div class="gallery-badge blue">Kit Portátil</div>
+            </div>
+            <div class="gallery-item" style="border-radius: 16px; overflow: hidden;">
+                <img src="D:\ESTADO DE WHATSAPP\PROPUESTA\Nueva carpeta\Captura de pantalla 2026-02-20 224106.jpg"
+                    alt="Recibo por WhatsApp" style="width:100%; display:block;">
+                <div class="gallery-caption">
+                    <h4>Recibo Virtual por WhatsApp</h4>
+                    <p>El cliente recibe su comprobante digital directo en su chat de WhatsApp</p>
+                </div>
+                <div class="gallery-badge orange">WhatsApp</div>
+            </div>
+        </div>
+
+        <div class="quote-line" style="margin-top: 30px;">
+            "Cada cobro queda respaldado con doble comprobante: ticket impreso en el acto + recibo digital por WhatsApp.
+            Transparencia total para el cliente y para usted."
+        </div>
+    </div>
+
+    <!-- ========== FUNCIONALIDADES ========== -->
+    <div class="section section-green">
+        <div class="section-tag white">Todo Incluido</div>
+        <h2>Funcionalidades <span>completas</span></h2>
+        <p class="section-subtitle">Una plataforma que cubre el 100% de su operación de cobranza, desde el crédito hasta
+            el recibo.</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <span class="feature-icon">📡</span>
+                <h3>GPS Satelital</h3>
+                <p>Rastreo de cobradores con mapa en tiempo real y auditoría de rutas</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">📊</span>
+                <h3>Dashboard Central</h3>
+                <p>Métricas del día, semana y mes en un panel ejecutivo</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">📱</span>
+                <h3>App Android</h3>
+                <p>App nativa para cobradores en campo, sincronizada en tiempo real</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🔄</span>
+                <h3>Renovaciones</h3>
+                <p>Gestión de créditos renovados con historial y nuevo cronograma automático</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🧾</span>
+                <h3>Recibos Digitales</h3>
+                <p>Impresión Bluetooth térmica desde el celular del cobrador</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🤖</span>
+                <h3>IA Auditora</h3>
+                <p>Análisis inteligente de cobros con veredictos de cumplimiento</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🔔</span>
+                <h3>Alertas WhatsApp</h3>
+                <p>Mensajes automáticos de mora enviados a clientes desde la app</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">👥</span>
+                <h3>Roles y Accesos</h3>
+                <p>Administrador, gerente y cobrador con permisos diferenciados</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">💰</span>
+                <h3>Comisiones Auto</h3>
+                <p>Cálculo automático de liquidaciones por desempeño de mora</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">📜</span>
+                <h3>Generador Pagarés</h3>
+                <p>Documentos legales listos para firmar, vinculados a cada crédito</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">💼</span>
+                <h3>Expediente Digital</h3>
+                <p>Fotos, cédula, domicilio y cronograma del cliente en un solo lugar</p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">📤</span>
+                <h3>Exportar PDF/Excel</h3>
+                <p>Cartera general, registros y reportes descargables en cualquier momento</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== BENEFICIOS ========== -->
+    <div class="section section-alt">
+        <div class="section-tag">Por qué elegir Anexo Cobro</div>
+        <h2>Los <span>beneficios</span><br>que nota desde el primer día</h2>
+        <p class="section-subtitle">Empresas que usan Anexo Cobro reportan mejoras inmediatas en control, eficiencia y
+            recuperación de cartera.</p>
+
+        <div class="benefits-grid">
+            <div class="benefit-item">
+                <div class="benefit-num">1</div>
+                <div class="benefit-text">
+                    <h4>Visibilidad total de su negocio</h4>
+                    <p>El dashboard centraliza toda la información: recaudo, mora, rendimiento por ruta y proyecciones
+                        mensuales en tiempo real.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">2</div>
+                <div class="benefit-text">
+                    <h4>Reducción drástica de errores</h4>
+                    <p>Elimina los registros manuales. El sistema calcula automáticamente saldos, cuotas, intereses y
+                        comisiones sin errores humanos.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">3</div>
+                <div class="benefit-text">
+                    <h4>Control de cobradores en campo</h4>
+                    <p>El GPS y la auditoría IA garantizan que cada cobro sea legítimo, evitando fraudes y cobros no
+                        registrados.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">4</div>
+                <div class="benefit-text">
+                    <h4>Imagen profesional ante clientes</h4>
+                    <p>Recibos impresos al instante, pagarés digitales y mensajes de WhatsApp automáticos elevan la
+                        imagen de su empresa.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">5</div>
+                <div class="benefit-text">
+                    <h4>Recuperación acelerada de cartera en mora</h4>
+                    <p>Las alertas automáticas de mora y los recordatorios de WhatsApp aumentan la tasa de recuperación
+                        sin esfuerzo adicional.</p>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-num">6</div>
+                <div class="benefit-text">
+                    <h4>Escalable a cualquier tamaño</h4>
+                    <p>Desde 1 cobrador hasta 20 rutas. El sistema crece con su empresa sin necesidad de cambiar de
+                        plataforma.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PLANES ========== -->
+    <div class="section section-dark" id="seccion-planes">
+
+        <div class="section-tag white">Plan y Precios</div>
+        <h2>Inversión <span>clara</span><br>sin sorpresas</h2>
+        <p class="section-subtitle">Un solo plan completo con precio transparente por usuario. Pago mensual, sin
+            contrato fijo ni permanencia obligatoria.</p>
+
+        <div style="max-width: 620px; margin: 0 auto;">
+            <div class="plan-card featured" style="position: relative;">
+                <div class="plan-badge">⭐ PLAN EMPRESARIAL COMPLETO</div>
+                <div class="plan-name">Plan Empresarial</div>
+
+                <div style="margin-bottom: 6px;">
+                    <div
+                        style="font-size:11px; letter-spacing:2px; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">
+                        Usuario Gerencial</div>
+                    <div style="font-size:44px; font-weight:900; color:white; line-height:1;">Gs. 150.000 <span
+                            style="font-size:16px; font-weight:400; color:#64748b;">/ mes</span></div>
+                </div>
+
+                <div
+                    style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 12px; padding: 14px 20px; margin: 16px 0;">
+                    <div
+                        style="font-size:11px; letter-spacing:2px; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">
+                        Por Cobrador / Zona</div>
+                    <div style="font-size:36px; font-weight:900; color:#22c55e; line-height:1;">Gs. 100.000 <span
+                            style="font-size:14px; font-weight:400; color:#64748b;">/ mes c/u</span></div>
+                </div>
+
+                <div class="plan-desc" style="margin-bottom:20px;">Para operaciones de cualquier tamaño — desde 1
+                    cobrador hasta rutas ilimitadas</div>
+                <div class="plan-divider"></div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px;">
+                    <div class="plan-feature"><span class="check">✓</span> Cobradores ilimitados</div>
+                    <div class="plan-feature"><span class="check">✓</span> GPS satelital + auditoría</div>
+                    <div class="plan-feature"><span class="check">✓</span> Dashboard ejecutivo</div>
+                    <div class="plan-feature"><span class="check">✓</span> IA de auditoría de rutas</div>
+                    <div class="plan-feature"><span class="check">✓</span> App Android incluida</div>
+                    <div class="plan-feature"><span class="check">✓</span> Pagarés digitales</div>
+                    <div class="plan-feature"><span class="check">✓</span> Comisiones automáticas</div>
+                    <div class="plan-feature"><span class="check">✓</span> Recibos térmicos Bluetooth</div>
+                    <div class="plan-feature"><span class="check">✓</span> Exportación PDF / Excel</div>
+                    <div class="plan-feature"><span class="check">✓</span> Multi-gerente y roles</div>
+                    <div class="plan-feature"><span class="check">✓</span> Recordatorios WhatsApp</div>
+                    <div class="plan-feature"><span class="check">✓</span> Soporte prioritario</div>
+                </div>
+
+                <a href="#contacto" class="plan-cta" style="margin-top:28px; display:block; text-align:center;">💬
+                    Consultar y Contratar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== CTA FINAL ========== -->
+    <div class="cta-section" id="contacto">
+        <div class="section-tag white" style="margin-bottom:20px;">¿Listo para empezar?</div>
+        <h2>Solicite su <span>demo gratuita</span><br>hoy mismo</h2>
+        <p>Le mostramos el sistema en funcionamiento con sus propios datos.<br>Sin compromiso, sin tarjeta de crédito.
+        </p>
+        <div class="cta-contacts">
+            <div class="cta-contact">
+                <div class="icon">📱</div>
+                <div class="label">WhatsApp / Teléfono</div>
+                <div class="value">+595 981 874 120</div>
+            </div>
+            <div class="cta-contact">
+                <div class="icon">🌐</div>
+                <div class="label">Panel Web Demo</div>
+                <div class="value">diegocabrio1805-arch.github.io/cobros</div>
+            </div>
+            <div class="cta-contact">
+                <div class="icon">👤</div>
+                <div class="label">Contacto</div>
+                <div class="value">Diego Villalba</div>
+            </div>
+        </div>
+        <a href="https://wa.me/595981874120" class="cta-btn">💬 Contactar por WhatsApp</a>
+    </div>
+
+    <!-- ========== FOOTER ========== -->
+    <div class="footer">
+        <div class="footer-logo">ANEXO <span>COBRO</span></div>
+        <div class="footer-copy">© 2026 Diego Villalba · Software de Gestión de Cartera · Todos los derechos reservados
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -419,3 +419,16 @@ export const formatDate = (dateString: string): string => {
   const date = new Date(cleanDate + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+
+export const isUserExpired = (user: any): boolean => {
+  if (!user || user.role === 'Administrador' || !user.expiryDate) return false;
+
+  const todayStr = getLocalDateStringForCountry('CO'); // Defaulting to CO or using a logic to pass country
+  const today = new Date(todayStr + 'T00:00:00');
+
+  const cleanExpiryStr = user.expiryDate.split('T')[0];
+  const expiry = new Date(cleanExpiryStr + 'T00:00:00');
+
+  // Si hoy > fecha de expiración, el acceso se bloquea (1 día de gracia implícito si se considera que el día de expiración es el último día válido)
+  return today > expiry;
+};

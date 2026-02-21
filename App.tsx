@@ -24,7 +24,7 @@ import Profile from './components/Profile';
 import Reports from './components/Reports';
 import Generator from './components/Generator/Generator';
 import { getTranslation } from './utils/translations';
-import { getLocalDateStringForCountry, generateUUID } from './utils/helpers';
+import { getLocalDateStringForCountry, generateUUID, isUserExpired } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
 import { useSync } from './hooks/useSync';
 import { isPrintingNow, startConnectionKeeper } from './services/bluetoothPrinterService';
@@ -343,6 +343,14 @@ const App: React.FC = () => {
       resumeListener.then(handle => handle.remove());
     };
   }, []);
+
+  // Monitor de Sesión: Bloqueo inmediato si la licencia vence durante el uso
+  useEffect(() => {
+    if (state.currentUser && isUserExpired(state.currentUser)) {
+      console.warn("Sesión expirada detectada. Cerrando sesión...");
+      handleLogout();
+    }
+  }, [state.currentUser]);
 
   useEffect(() => {
     // OPTIMIZATION: Increased idle interval from 60s to 120s to reduce egress
@@ -682,8 +690,19 @@ const App: React.FC = () => {
 
   const handleSyncUser = (user: User) => {
     setState(prev => {
-      if (prev.users.find(u => u.id === user.id)) return prev;
-      return { ...prev, users: [user, ...prev.users] };
+      const exists = prev.users.find(u => u.id === user.id);
+      if (exists && JSON.stringify(exists) === JSON.stringify(user)) return prev;
+
+      const updatedUsers = exists
+        ? prev.users.map(u => u.id === user.id ? user : u)
+        : [user, ...prev.users];
+
+      // Si el usuario ya existía y cambió (ej. se bloqueó), lo subimos a Supabase
+      if (exists) {
+        pushUser(user);
+      }
+
+      return { ...prev, users: updatedUsers };
     });
   };
 
@@ -695,6 +714,10 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
+      <LocationEnforcer
+        isRequired={!!state.currentUser?.requiresLocation}
+        onLocationEnabled={() => handleForceSync(true)}
+      />
       <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
         {/* MOBILE HEADER */}
         <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
