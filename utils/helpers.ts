@@ -334,40 +334,32 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   };
 
   const currencySymbol = settings.currencySymbol || '$';
-  const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRO';
+
+  // DATOS DE EMPRESA PRIORITARIOS
+  const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRANZA';
   const company = format(companyRaw.toUpperCase(), settings.companyNameBold, settings.companyNameSize);
 
-  const alias = (data.companyAliasManual || settings.companyAlias || '').toUpperCase();
-
-  const contactLabel = data.contactLabelManual || "TEL. PUBLICO";
-  let phone = data.contactPhoneManual || settings.contactPhone || '---';
-  // Fallback extra robust if it's still empty but we have it in settings
-  if (phone === '---' && settings.contactPhone) phone = settings.contactPhone;
-  const formattedPhone = format(phone, settings.contactPhoneBold);
-
-  const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
-  let idVal = data.companyIdentifierManual || settings.companyIdentifier || '---';
-  if (idVal === '---' && settings.companyIdentifier) idVal = settings.companyIdentifier;
-  const idValue = format(idVal, settings.companyIdentifierBold);
+  const alias = (data.companyAliasManual || settings.companyAlias || 'ANEXO SA').toUpperCase();
+  const aliasFormatted = format(alias, false);
 
   const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
-  let bankVal = data.shareValueManual || settings.shareValue || '';
-  if ((!bankVal || bankVal === '---') && settings.shareValue) bankVal = settings.shareValue;
+  let bankVal = data.shareValueManual || settings.shareValue || '---';
   const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
-  const supportLabel = "TEL. PUBLICO";
-  let supportVal = data.supportPhoneManual || settings.contactPhone || '';
-  if ((!supportVal || supportVal === '---') && settings.contactPhone) supportVal = settings.contactPhone;
-  const supportValue = format(supportVal, settings.contactPhoneBold);
+  const idLabel = (data.companyIdentifierLabelManual || "ID EMPRESA").toUpperCase();
+  let idVal = data.companyIdentifierManual || settings.companyIdentifier || 'ESTADO DE CUENTA';
+  const idValue = format(idVal, settings.companyIdentifierBold);
+
+  const contactLabel = (data.contactLabelManual || "TEL. PUBLICO").toUpperCase();
+  let phone = data.contactPhoneManual || settings.contactPhone || '---';
+  const formattedPhone = format(phone, settings.contactPhoneBold);
 
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
   const [datePart, timePart] = dateTime.split(',');
 
-  const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
-
   return `
 ${company}
-${alias ? alias : ''}
+${aliasFormatted}
 ===============================
 ${bankLabel}
 ${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}
@@ -391,9 +383,10 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.82-FINAL-AUDIT
+VER: v6.1.84-GPS-RESTRICT
 `;
 };
+
 
 export const generateNoPaymentReceiptText = (data: ReceiptData, settings: AppSettings) => {
   const company = settings.companyName || 'ANEXO COBRO';
