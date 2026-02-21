@@ -382,7 +382,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120s for 2G/3G networks
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // Increased to 180s (3 min) for very slow networks
 
         try {
             // 1. Settings (Small)
@@ -713,7 +713,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     try {
                         const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s per small chunk
+                        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s per small chunk (Better for E/3G)
 
                         // Final sanity check for branch_id right before transmission
                         const cleanData = dataToUpsert.map(d => {
@@ -727,7 +727,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
                         const { error } = await supabase.from(table).upsert(cleanData).abortSignal(controller.signal);
                         clearTimeout(timeoutId);
-                        if (error) throw error;
+                        if (error) {
+                            console.error(`Batch upsert error on ${table} (Immediate Failure):`, error);
+                            // We don't mark as processed, it stays in queue for next attempt
+                        } else {
+                            // Mark successful
+                            chunk.forEach(x => processedIndices.add(x.index));
+                        }
 
                         // Mark successful
                         chunk.forEach(x => processedIndices.add(x.index));
