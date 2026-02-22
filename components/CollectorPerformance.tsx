@@ -9,7 +9,22 @@ interface CollectorPerformanceProps {
 }
 
 const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) => {
-  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
+  const currentUserId = state.currentUser?.id;
+  const isAdmin = state.currentUser?.role === Role.ADMIN;
+
+  const collectors = useMemo(() => {
+    const allUsers = Array.isArray(state.users) ? state.users : [];
+    return allUsers.filter(u => {
+      if (u.role !== Role.COLLECTOR) return false;
+
+      // Si el usuario actual es ADMIN, solo ve a sus cobradores directos (cada sucursal la suya)
+      // Si el usuario actual es MANAGER, ve a sus cobradores directos
+      // Nota: state.users ya viene filtrado desde App.tsx para managers, 
+      // pero para ADMIN viene completo, así que forzamos el filtro por managedBy.
+      return u.managedBy === currentUserId;
+    });
+  }, [state.users, currentUserId]);
+
   const t = getTranslation(state.settings.language);
 
   const currentMonth = new Date().getMonth();

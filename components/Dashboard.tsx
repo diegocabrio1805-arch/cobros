@@ -89,9 +89,26 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
   }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
 
-  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
-  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, e) => acc + e.amount, 0);
+
+  // KPIs FILTRADOS POR SUCURSAL
+  const currentBranchId = state.currentUser?.id;
+
+  const branchLoans = useMemo(() => {
+    return (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+      // Si es Admin, por ahora mostramos todo en el dashboard global, 
+      // PERO el usuario pidió no mezclar, así que filtramos por sucursal siempre.
+      // Si el Admin quiere ver todo, debería usar la Cartera General.
+      return l.branchId === currentBranchId || l.collectorId === currentBranchId;
+    });
+  }, [state.loans, currentBranchId]);
+
+  const branchExpenses = useMemo(() => {
+    return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.branchId === currentBranchId);
+  }, [state.expenses, currentBranchId]);
+
+  const totalPrincipal = branchLoans.reduce((acc, l) => acc + l.principal, 0);
+  const totalProfit = branchLoans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalExpenses = branchExpenses.reduce((acc, e) => acc + e.amount, 0);
   const netUtility = totalProfit - totalExpenses;
 
   // Sumar el recaudo de hoy directamente desde las estadísticas de los cobradores (Auditoría de Rutas)

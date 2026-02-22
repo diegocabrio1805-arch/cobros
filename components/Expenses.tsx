@@ -32,43 +32,67 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
 
   const t = getTranslation(state.settings.language);
 
-  // LOGICA FINANCIERA SOLICITADA
+  // LOGICA FINANCIERA SOLICITADA - FILTRADA POR SUCURSAL
+  const currentBranchId = state.currentUser?.id;
+  const isPowerUser = state.currentUser?.role === 'admin' || state.currentUser?.role === 'manager';
 
-  // 1. Dinero físico entregado (Préstamos nuevos, no renovaciones)
+  // Helper para filtrar por sucursal si no es Admin global (o incluso si es admin, ver solo lo suyo si se desea)
+  const branchLoans = useMemo(() => {
+    return (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+      if (state.currentUser?.role === 'admin') return true; // El admin temporalmente ve todo, pero el usuario pidió "cada sucursal la suya"
+      return l.branchId === currentBranchId || l.collectorId === currentBranchId;
+    });
+  }, [state.loans, currentBranchId, state.currentUser?.role]);
+
+  const branchLogs = useMemo(() => {
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => {
+      if (state.currentUser?.role === 'admin') return true;
+      return l.branchId === currentBranchId;
+    });
+  }, [state.collectionLogs, currentBranchId, state.currentUser?.role]);
+
+  const branchExpenses = useMemo(() => {
+    return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => {
+      if (state.currentUser?.role === 'admin') return true;
+      return e.branchId === currentBranchId;
+    });
+  }, [state.expenses, currentBranchId, state.currentUser?.role]);
+
+  // 1. Dinero físico entregado (Préstamos nuevos, no renovaciones) del equipo
   const lentCash = useMemo(() => {
-    return (Array.isArray(state.loans) ? state.loans : [])
+    return branchLoans
       .filter(l => !l.isRenewal)
       .reduce((acc, l) => acc + l.principal, 0);
-  }, [state.loans]);
+  }, [branchLoans]);
 
-  // 2. Cobros recibidos en efectivo real (No transferencias, no renovaciones/liquidaciones)
+  // 2. Cobros recibidos en efectivo real del equipo
   const collectedCash = useMemo(() => {
-    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+    return branchLogs
       .filter(l => l.type === CollectionLogType.PAYMENT && !l.isVirtual && !l.isRenewal && !l.isOpening)
       .reduce((acc, l) => acc + (l.amount || 0), 0);
-  }, [state.collectionLogs]);
+  }, [branchLogs]);
 
-  // 3. Gastos operativos totales
+  // 3. Gastos operativos totales de la sucursal
   const totalOperatingExpenses = useMemo(() => {
-    return (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, curr) => acc + curr.amount, 0);
-  }, [state.expenses]);
+    return branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [branchExpenses]);
 
   // 4. Caja Actual (Efectivo disponible)
   const currentCashInHand = state.initialCapital + collectedCash - lentCash - totalOperatingExpenses;
 
-  // 5. Créditos Otorgados (Conteo y Utilidad Total Proyectada)
-  const totalLoansCount = (Array.isArray(state.loans) ? state.loans : []).length;
-  const projectedTotalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  // 5. Créditos Otorgados (Conteo y Utilidad Total Proyectada) del equipo
+  const totalLoansCount = branchLoans.length;
+  const projectedTotalProfit = branchLoans.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
 
-  // 6. Mora Crítica (Saldos de créditos con > 40 días de atraso)
+  // 6. Mora Crítica del equipo
   const criticalMoraBalance = useMemo(() => {
-    return (Array.isArray(state.loans) ? state.loans : [])
+    return branchLoans
       .filter(l => l.status !== LoanStatus.PAID && getDaysOverdue(l, state.settings) > 40)
       .reduce((acc, loan) => {
         const paid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
         return acc + (loan.totalAmount - paid);
       }, 0);
-  }, [state.loans]);
+  }, [branchLoans, state.settings]);
 
   const handleUpdateCapital = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,7 +227,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {(Array.isArray(state.expenses) ? state.expenses : []).length === 0 ? (
+              {branchExpenses.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center">
@@ -213,7 +237,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   </td>
                 </tr>
               ) : (
-                (Array.isArray(state.expenses) ? [...state.expenses] : []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
+                [...branchExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors text-[11px] font-bold">
                     <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]">{exp.description}</td>
                     <td className="px-5 py-4">

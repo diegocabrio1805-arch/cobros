@@ -510,7 +510,28 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     requiresLocation: u.requires_location
                 })) as unknown as User[],
                 branchSettings: (Array.isArray(settingsResult.data) ? settingsResult.data : []).reduce((acc: any, s: any) => {
-                    acc[s.id] = s.settings;
+                    const existingSettingsRaw = localStorage.getItem('prestamaster_v2');
+                    let existingBranchSettings: any = {};
+                    try {
+                        if (existingSettingsRaw) {
+                            existingBranchSettings = JSON.parse(existingSettingsRaw).branchSettings || {};
+                        }
+                    } catch (e) { }
+
+                    const remoteSettings = s.settings || {};
+                    const localSettings = existingBranchSettings[s.id] || {};
+
+                    // TRIPLE PROTECT: Si el remoto está vacío pero el local tiene nombre de empresa, PRESERVAR local
+                    const isRemoteEmpty = !remoteSettings.companyName || remoteSettings.companyName === '---';
+                    const hasLocalData = localSettings.companyName && localSettings.companyName !== '---';
+
+                    if (isRemoteEmpty && hasLocalData) {
+                        console.warn(`[Sync] Protegiendo ajustes de sucursal ${s.id} contra sobrescritura vacía.`);
+                        acc[s.id] = localSettings;
+                    } else {
+                        acc[s.id] = remoteSettings;
+                    }
+
                     return acc;
                 }, {} as Record<string, AppSettings>),
                 deletedItems: (Array.isArray(deletedResult.data) ? deletedResult.data : []).map((d: any) => ({
@@ -613,7 +634,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'DELETE_PAYMENT': [],
                 'DELETE_LOAN': [],
                 'DELETE_CLIENT': [],
-                'DELETE_EXPENSE': []
+                'DELETE_EXPENSE': [],
+                'DELETE_PROFILE': []
             };
 
             const failedItems: any[] = [];
@@ -870,6 +892,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             await batchDelete('loans', groups['DELETE_LOAN']);
             await batchDelete('clients', groups['DELETE_CLIENT']);
             await batchDelete('expenses', groups['DELETE_EXPENSE']);
+            await batchDelete('profiles', groups['DELETE_PROFILE']);
 
             // Reconstruct queue with unprocessed items
             const newQueue = queue.filter((_: any, index: number) => !processedIndices.has(index));
@@ -1278,6 +1301,31 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             addToQueue('DELETE_CLIENT', { id: clientId });
         }
     };
+
+    const deleteRemoteUser = async (userId: string) => {
+        if (!isOnline) {
+            addToQueue('DELETE_PROFILE', { id: userId });
+            return;
+        }
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            // SOFT DELETE para perfiles
+            const { error } = await supabase.from('profiles')
+                .update({ blocked: true, updated_at: new Date().toISOString() }) // O usar un campo deleted_at si existe
+                .eq('id', userId)
+                .abortSignal(controller.signal);
+
+            clearTimeout(timeoutId);
+            if (error) throw error;
+
+            await trackDeletion('profiles', userId);
+        } catch (err) {
+            console.error('Error deleting remote user:', err);
+            addToQueue('DELETE_PROFILE', { id: userId });
+        }
+    };
     const pushSettings = async (branchId: string, settings: AppSettings): Promise<boolean> => {
         if (!branchId || branchId === 'none') return false;
         if (!isOnline) {
@@ -1337,6 +1385,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteLog,
         deleteRemotePayment,
         deleteRemoteClient,
+        deleteRemoteUser,
         fetchClientPhotos,
         supabase,
         queueLength,

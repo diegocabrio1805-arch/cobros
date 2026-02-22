@@ -68,9 +68,30 @@ const App: React.FC = () => {
     };
 
     try {
+      const CURRENT_VERSION_ID = 'v6.1.87-GPS-REFINE';
       const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
+
+      // Triple Protección - Paso 1: Escudo de Datos (Backup Blindado)
+      const saveToShield = (settings: any, branchSettings: any) => {
+        if (settings || branchSettings) {
+          const shield = {
+            settings: settings || {},
+            branchSettings: branchSettings || {},
+            timestamp: Date.now()
+          };
+          localStorage.setItem('COMPANY_DATA_SHIELD', JSON.stringify(shield));
+        }
+      };
+
+      const getFromShield = () => {
+        try {
+          const shieldRaw = localStorage.getItem('COMPANY_DATA_SHIELD');
+          return shieldRaw ? JSON.parse(shieldRaw) : null;
+        } catch (e) { return null; }
+      };
+
       if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-        // IMPORTANTE: Preservar la configuración de la empresa antes de limpiar
+        // IMPORTANTE: Preservar la configuración ANTES de limpiar
         let savedSettings = null;
         let savedBranchSettings = null;
         try {
@@ -79,32 +100,49 @@ const App: React.FC = () => {
             const oldData = JSON.parse(oldSaved);
             if (oldData?.settings) savedSettings = oldData.settings;
             if (oldData?.branchSettings) savedBranchSettings = oldData.branchSettings;
+            // Guardar en el escudo como medida de ultra-seguridad
+            saveToShield(savedSettings, savedBranchSettings);
           }
         } catch (e) { /* ignorar */ }
 
         localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
         localStorage.removeItem('last_sync_timestamp');
         localStorage.removeItem('last_sync_timestamp_v6');
-        localStorage.removeItem('prestamaster_v2');
+        localStorage.removeItem('prestamaster_v2'); // Aquí se borraba la clave
         localStorage.removeItem('syncQueue');
 
         // Restaurar la configuración después de la limpieza
         if (savedSettings || savedBranchSettings) {
-          const restoredData: any = {};
-          if (savedSettings) restoredData.settings = savedSettings;
-          if (savedBranchSettings) restoredData.branchSettings = savedBranchSettings;
+          const restoredData: any = {
+            ...defaultInitialState,
+            settings: savedSettings ? { ...defaultInitialState.settings, ...savedSettings } : defaultInitialState.settings,
+            branchSettings: savedBranchSettings || {}
+          };
           localStorage.setItem('prestamaster_v2', JSON.stringify(restoredData));
         }
       }
 
       const saved = localStorage.getItem('prestamaster_v2');
-      if (!saved) return defaultInitialState;
+      let rawData = saved ? JSON.parse(saved) : null;
 
-      let rawData = JSON.parse(saved);
-      if (rawData) {
-        const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-        rawData = JSON.parse(json);
+      // Triple Protección - Paso 2: Recuperación desde el Escudo si los datos vienen vacíos
+      if (!rawData?.settings?.companyName || rawData.settings.companyName === '---') {
+        const shieldData = getFromShield();
+        if (shieldData && shieldData.settings?.companyName && shieldData.settings.companyName !== '---') {
+          console.log("🛡️ Recuperando datos desde el Escudo de Protección...");
+          rawData = {
+            ...(rawData || defaultInitialState),
+            settings: { ...(rawData?.settings || {}), ...shieldData.settings },
+            branchSettings: { ...(rawData?.branchSettings || {}), ...shieldData.branchSettings }
+          };
+          localStorage.setItem('prestamaster_v2', JSON.stringify(rawData));
+        }
       }
+
+      if (!rawData) return defaultInitialState;
+
+      const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
 
       const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
         ...u,
@@ -242,7 +280,7 @@ const App: React.FC = () => {
     isSyncing, isFullSyncing, syncError, isOnline, processQueue, forceFullSync, pullData,
     pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, addToQueue,
     setSuccessMessage, showSuccess, successMessage, queueLength, clearQueue,
-    deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, fetchClientPhotos
+    deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, deleteRemoteUser, fetchClientPhotos
   } = useSync(handleRealtimeData);
 
   const doPull = () => pullData();
@@ -456,6 +494,7 @@ const App: React.FC = () => {
 
   const deleteUser = async (userId: string) => {
     setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId && u.managedBy !== userId) }));
+    await deleteRemoteUser(userId);
     await handleForceSync(false);
   };
 
