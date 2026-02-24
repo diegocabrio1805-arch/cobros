@@ -12,16 +12,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables');
 }
 
-import { nativeSupabaseStorage } from './nativeStorage';
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storage: nativeSupabaseStorage,
-        storageKey: 'anexo-cobro-session-v2'
-    },
     global: {
         headers: { 'x-application-name': 'anexo-cobro-mobile' },
         fetch: async (url, options) => {

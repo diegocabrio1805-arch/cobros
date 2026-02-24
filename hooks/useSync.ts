@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
+import { StorageService } from '../utils/localforageStorage';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 
@@ -768,7 +769,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             const loansToUpsert = groups['ADD_LOAN'].filter(x => !pendingClientIds.has(x.item.data.clientId));
             await batchUpsert('loans', loansToUpsert, (d) => ({
-                id: d.id, client_id: d.clientId, collector_id: d.collectorId, branch_id: d.branchId,
+                id: d.id, client_id: d.clientId, branch_id: d.branchId,
                 principal: d.principal, interest_rate: d.interestRate, total_installments: d.totalInstallments,
                 installment_value: d.installmentValue, total_amount: d.totalAmount, status: d.status,
                 created_at: d.createdAt, custom_holidays: d.customHolidays, is_renewal: d.isRenewal || false,
@@ -963,8 +964,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const finalBranchId = safeBranchId || safeCollectorId;
 
             const payload = {
-                id: loan.id, client_id: loan.clientId, collector_id: safeCollectorId,
-                branch_id: finalBranchId,
+                id: loan.id, client_id: loan.clientId, branch_id: finalBranchId,
                 principal: Number(loan.principal) || 0,
                 interest_rate: Number(loan.interestRate) || 0,
                 total_installments: Number(loan.totalInstallments) || 0,
@@ -986,8 +986,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             clearTimeout(timeoutId);
             if (upsertError) {
                 if (upsertError.code === '23503' && upsertError.details?.includes('clients')) {
-                    const localData = JSON.parse(localStorage.getItem('prestamaster_v2') || '{}');
-                    const parentClient = localData.clients?.find((c: any) => c.id === loan.clientId);
+                    const localData: AppState | null = await StorageService.getItem<AppState>('prestamaster_v2');
+                    const parentClient = localData?.clients?.find((c: any) => c.id === loan.clientId);
                     if (parentClient) {
                         const success = await pushClient(parentClient);
                         if (success) {
@@ -1018,7 +1018,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const safeCollectorId = isValidUuid(payment.collectorId) ? payment.collectorId : null;
             const payload = {
                 id: payment.id, loan_id: payment.loanId, client_id: payment.clientId,
-                collector_id: safeCollectorId,
                 branch_id: safeBranchId,
                 amount: Number(payment.amount) || 0,
                 date: payment.date, installment_number: payment.installmentNumber,
@@ -1036,8 +1035,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             clearTimeout(timeoutId);
             if (error) {
                 if (error.code === '23503' && error.details?.includes('loans')) {
-                    const localData = JSON.parse(localStorage.getItem('prestamaster_v2') || '{}');
-                    const parentLoan = localData.loans?.find((l: any) => l.id === payment.loanId);
+                    const localData: AppState | null = await StorageService.getItem<AppState>('prestamaster_v2');
+                    const parentLoan = localData?.loans?.find((l: any) => l.id === payment.loanId);
                     if (parentLoan) {
                         const success = await pushLoan(parentLoan);
                         if (success) {
@@ -1086,8 +1085,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             clearTimeout(timeoutId);
             if (error) {
                 if (error.code === '23503') {
-                    const localData = JSON.parse(localStorage.getItem('prestamaster_v2') || '{}');
-                    const parentLoan = localData.loans?.find((l: any) => l.id === log.loanId);
+                    const localData: AppState | null = await StorageService.getItem<AppState>('prestamaster_v2');
+                    const parentLoan = localData?.loans?.find((l: any) => l.id === log.loanId);
                     if (parentLoan) {
                         const success = await pushLoan(parentLoan);
                         if (success) {

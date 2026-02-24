@@ -35,6 +35,7 @@ import { Geolocation } from '@capacitor/geolocation';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
+import { StorageService } from './utils/localforageStorage';
 
 
 const App: React.FC = () => {
@@ -49,7 +50,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.82-FINAL-AUDIT';
+    const CURRENT_VERSION_ID = 'v6.1.132-FIX';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -66,70 +67,120 @@ const App: React.FC = () => {
       settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
       branchSettings: {}
     };
+    return defaultInitialState; // Inicialmente vacío mientras IndexedDB carga
+  });
 
-    try {
-      const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
-      if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-        // IMPORTANTE: Preservar la configuración de la empresa antes de limpiar
-        let savedSettings = null;
-        let savedBranchSettings = null;
-        try {
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
+  useEffect(() => {
+    const loadData = async () => {
+      const CURRENT_VERSION_ID = 'v6.1.132-FIX';
+      const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
+
+      const defaultInitialState: AppState = {
+        clients: [], loans: [], payments: [], expenses: [], collectionLogs: [],
+        users: [initialAdmin], currentUser: null, commissionPercentage: 10, commissionBrackets: [],
+        initialCapital: 0, settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
+        branchSettings: {}
+      };
+
+      try {
+        const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
+        if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
+          // Migración forzada / Clean
+          let savedSettings = null; let savedBranchSettings = null;
+
           const oldSaved = localStorage.getItem('prestamaster_v2');
           if (oldSaved) {
-            const oldData = JSON.parse(oldSaved);
-            if (oldData?.settings) savedSettings = oldData.settings;
-            if (oldData?.branchSettings) savedBranchSettings = oldData.branchSettings;
+            try {
+              const oldData = JSON.parse(oldSaved);
+              if (oldData?.settings) savedSettings = oldData.settings;
+              if (oldData?.branchSettings) savedBranchSettings = oldData.branchSettings;
+            } catch (e) { }
+          } else {
+            const idbSaved = await StorageService.getItem<AppState>('prestamaster_v2');
+            if (idbSaved && idbSaved.settings) savedSettings = idbSaved.settings;
+            if (idbSaved && idbSaved.branchSettings) savedBranchSettings = idbSaved.branchSettings;
           }
-        } catch (e) { /* ignorar */ }
 
-        localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-        localStorage.removeItem('last_sync_timestamp');
-        localStorage.removeItem('last_sync_timestamp_v6');
-        localStorage.removeItem('prestamaster_v2');
-        localStorage.removeItem('syncQueue');
+          localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
+          localStorage.removeItem('prestamaster_v2'); // Destruir de LocalStorage normal (pesada)
 
-        // Restaurar la configuración después de la limpieza
-        if (savedSettings || savedBranchSettings) {
-          const restoredData: any = {};
-          if (savedSettings) restoredData.settings = savedSettings;
-          if (savedBranchSettings) restoredData.branchSettings = savedBranchSettings;
-          localStorage.setItem('prestamaster_v2', JSON.stringify(restoredData));
+          if (savedSettings || savedBranchSettings) {
+            await StorageService.setItem('prestamaster_v2', { settings: savedSettings || defaultInitialState.settings, branchSettings: savedBranchSettings || {} });
+          }
         }
-      }
 
-      const saved = localStorage.getItem('prestamaster_v2');
-      if (!saved) return defaultInitialState;
+        // Leer datos actuales de IndexedDB (antes LocalStorage)
+        let rawData: any = await StorageService.getItem<AppState>('prestamaster_v2');
+        if (!rawData) {
+          // Fallback temporal si estaban en localStorage y no migramos versión
+          const lsData = localStorage.getItem('prestamaster_v2');
+          if (lsData) {
+            rawData = JSON.parse(lsData);
+            localStorage.removeItem('prestamaster_v2'); // Mudar
+            await StorageService.setItem('prestamaster_v2', rawData);
+          }
+        }
 
-      let rawData = JSON.parse(saved);
-      if (rawData) {
+        if (!rawData) {
+          setState(defaultInitialState);
+          setIsInitializing(false);
+          return;
+        }
+
+        // Reconstrucción del Estado
         const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
         rawData = JSON.parse(json);
+
+        const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
+          ...u,
+          role: u.role as Role
+        }));
+
+        let validatedCurrentUser = null;
+        if (rawData?.currentUser && rawData.currentUser.id) {
+          validatedCurrentUser = users.find((u: User) => u.id === rawData.currentUser.id) || null;
+        } else {
+          try {
+            const res = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+            if (res.value) {
+              const parsedNative = JSON.parse(res.value);
+              validatedCurrentUser = users.find((u: User) => u.id === parsedNative.id) || null;
+            }
+          } catch (e) { }
+        }
+
+        setState({
+          clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
+          loans: (Array.isArray(rawData?.loans) ? rawData.loans : []).map((l: any) => ({ ...l, isRenewal: l.isRenewal || false })),
+          payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
+          expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
+          collectionLogs: (Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : []).map((l: any) => ({
+            ...l, isRenewal: l.isRenewal || false, isOpening: l.isOpening || false,
+            type: l.type as CollectionLogType
+          })),
+          users,
+          currentUser: validatedCurrentUser,
+          commissionPercentage: typeof rawData?.commissionPercentage === 'number' ? rawData.commissionPercentage : 10,
+          commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
+          initialCapital: typeof rawData?.initialCapital === 'number' ? rawData.initialCapital : 0,
+          settings: rawData?.settings || defaultInitialState.settings,
+          branchSettings: rawData?.branchSettings || defaultInitialState.branchSettings
+        });
+
+      } catch (err) {
+        console.error("Error loading IDB DB", err);
+        setState(defaultInitialState);
+      } finally {
+        setIsInitializing(false);
       }
+    };
+    loadData();
+  }, []);
 
-      const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
-        ...u,
-        role: u.role === 'admin' ? Role.ADMIN : u.role
-      }));
-
-
-
-      return {
-        clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
-        loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
-        payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
-        expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
-        collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
-        users: users,
-        currentUser: rawData?.currentUser || null,
-        commissionPercentage: rawData?.commissionPercentage ?? 10,
-        commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
-        settings: rawData?.settings || defaultInitialState.settings,
-        branchSettings: rawData?.branchSettings || {}
-      };
-    } catch (e) {
-      return defaultInitialState;
-    }
-  });
 
   const resolvedSettings = useMemo(() => {
     try {
@@ -249,10 +300,10 @@ const App: React.FC = () => {
 
   const handleDeepReset = () => {
     if (confirm("¿Estás seguro? Esto borrará todos los datos locales y forzará una descarga total.")) {
-      localStorage.removeItem('prestamaster_v2');
-      localStorage.removeItem('last_sync_timestamp');
-      localStorage.removeItem('last_sync_timestamp_v6');
-      window.location.reload();
+      StorageService.removeItem('prestamaster_v2').then(() => {
+        localStorage.clear();
+        window.location.reload();
+      });
     }
   };
 
@@ -270,28 +321,17 @@ const App: React.FC = () => {
   // REMOVED: Duplicate sync interval - already handled by the main sync effect below (line 309)
 
   useEffect(() => {
+    if (isInitializing) return; // Don't save incomplete state during initialization
     const timer = setTimeout(() => {
-      // PERFORMANCE OPTIMIZATION (Zonas de mala señal / Gama Baja):
-      // No guardamos las fotos en localStorage para evitar saturar los 5MB del navegador y crashear la APK.
-      // Las fotos se descargan bajo demanda cuando se abre el expediente.
-      const stateToPersist = {
-        ...state,
-        clients: (state.clients || []).map(c => ({
-          ...c,
-          profilePic: undefined,
-          housePic: undefined,
-          businessPic: undefined,
-          documentPic: undefined
-        }))
-      };
-
+      // Con IndexedDB (localforage) ya no hay límite estricto de 5MB. 
+      // Las fotos se persisten completas.
       try {
-        localStorage.setItem('prestamaster_v2', JSON.stringify(stateToPersist));
+        StorageService.setItem('prestamaster_v2', state);
         if (state.currentUser) {
           Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
         }
       } catch (e) {
-        console.error("Local Storage Save Error:", e);
+        console.error("IDB Save Error:", e);
       }
     }, 1500);
 
@@ -704,7 +744,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.63 PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.133-PWA</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -716,7 +756,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.82 PWA</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.133</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
