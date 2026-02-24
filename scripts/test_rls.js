@@ -11,6 +11,7 @@ async function testFetch() {
 
     const { data: clients, error: clientsErr } = await supabase.from('clients').select('id, name').limit(5);
     console.log("CLIENTS:", clients?.length, clientsErr ? clientsErr : '');
+    console.log("CLIENT DATA SAMPLE:", clients);
 
     const { data: users, error: usersErr } = await supabase.from('users').select('id, name, role').limit(5);
     console.log("USERS:", users?.length, usersErr ? usersErr : '');

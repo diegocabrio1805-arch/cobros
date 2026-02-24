@@ -285,7 +285,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         setSyncError(null);
 
         // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
-        const lastSyncTime = localStorage.getItem('last_sync_timestamp_v6');
+        const lastSyncTime = localStorage.getItem('last_sync_timestamp_v7');
 
         // ------------------------------------------------------------------
         // OPTIMIZATION FOR LOW-END DEVICES (2GB RAM)
@@ -440,7 +440,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // Update last sync time
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
-            localStorage.setItem('last_sync_timestamp_v6', new Date().toISOString());
+            localStorage.setItem('last_sync_timestamp_v7', new Date().toISOString());
 
             const result = {
                 clients: (Array.isArray(clientsResult.data) ? clientsResult.data : []).map((c: any) => ({

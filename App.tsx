@@ -50,7 +50,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.132-FIX';
+    const CURRENT_VERSION_ID = 'v6.1.135-PWA';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -75,7 +75,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.132-FIX';
+      const CURRENT_VERSION_ID = 'v6.1.135-PWA';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
 
@@ -107,6 +107,11 @@ const App: React.FC = () => {
 
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
           localStorage.removeItem('prestamaster_v2'); // Destruir de LocalStorage normal (pesada)
+
+          // CRÍTICO: Forzar full sync eliminando timestamps viejos
+          localStorage.removeItem('last_sync_timestamp_ms');
+          localStorage.removeItem('last_sync_timestamp_v6');
+          localStorage.removeItem('last_sync_timestamp_v7');
 
           if (savedSettings || savedBranchSettings) {
             await StorageService.setItem('prestamaster_v2', { settings: savedSettings || defaultInitialState.settings, branchSettings: savedBranchSettings || {} });
