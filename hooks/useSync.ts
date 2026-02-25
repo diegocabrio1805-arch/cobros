@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -16,7 +16,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const [isFullSyncing, setIsFullSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("¡Sincronizado!");
+    const [successMessage, setSuccessMessage] = useState("┬íSincronizado!");
     const [isOnline, setIsOnline] = useState(true);
     const [queueLength, setQueueLength] = useState(0);
     const [lastErrors, setLastErrors] = useState<{ table: string, error: any, timestamp: string }[]>([]);
@@ -287,6 +287,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
         const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
 
+        // ------------------------------------------------------------------
+        // OPTIMIZATION FOR LOW-END DEVICES (2GB RAM)
+        // 1. Reduced PAGE_SIZE from 1000 to 500 to lower memory spikes per chunk.
+        // 2. Removed Promise.all. We now fetch tables SEQUENTIALLY.
         // 3. Added explicit 'yields' (setTimeout) between tables to let the UI breathe/render.
         // ------------------------------------------------------------------
         const PAGE_SIZE = 500;
@@ -397,9 +401,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
         try {
             // 1. Settings (Small)
-            // setSyncError("Sincronizando: Configuración...");
+            // setSyncError("Sincronizando: Configuraci├│n...");
             const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
-            if (settingsResult.error) throw new Error(`Configuración: ${settingsResult.error.message}`);
+            if (settingsResult.error) throw new Error(`Configuraci├│n: ${settingsResult.error.message}`);
 
             await new Promise(r => setTimeout(r, 100));
 
@@ -418,9 +422,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             await new Promise(r => setTimeout(r, 200));
 
             // 4. Loans (Medium)
-            // setSyncError("Sincronizando: Préstamos...");
+            // setSyncError("Sincronizando: Pr├®stamos...");
             const loansResult = await fetchAll(loansQuery.abortSignal(controller.signal));
-            if (loansResult.error) throw new Error(`Préstamos: ${loansResult.error.message}`);
+            if (loansResult.error) throw new Error(`Pr├®stamos: ${loansResult.error.message}`);
 
             await new Promise(r => setTimeout(r, 200));
 
@@ -543,7 +547,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             console.error('Pull failed:', err);
             const msg = err.message || JSON.stringify(err);
             if (msg.includes('exceed_egress_quota')) {
-                setSyncError("⚠️ Límite de datos excedido. La app funcionará OFFLINE hasta que se reinicie el ciclo.");
+                setSyncError("ÔÜá´©Å L├¡mite de datos excedido. La app funcionar├í OFFLINE hasta que se reinicie el ciclo.");
                 setIsOnline(false); // Force offline mode to stop retries
             } else {
                 setSyncError(`Error Descarga: ${msg}`);
@@ -585,7 +589,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const online = await checkConnection();
                 setIsOnline(online);
                 if (!online) {
-                    setSyncError('Sin conexión a Internet. Cola pausada.');
+                    setSyncError('Sin conexi├│n a Internet. Cola pausada.');
                     return;
                 }
             } else {
@@ -893,7 +897,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // HIDDEN: Success message only shown on initial login, not on every sync
                 // setShowSuccess(true);
                 // setTimeout(() => setShowSuccess(false), 2000); // Auto-hide after 2 seconds
-                if (force) console.log("Sincronización forzada completada con éxito.");
+                if (force) console.log("Sincronizaci├│n forzada completada con ├®xito.");
                 setSyncError(null);
             } else if (newQueue.length > 0) {
                 // Check if the remaining items are just waiting for parents
@@ -905,12 +909,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     // Retry immediately to process dependent items now that parents might be synced
                     setTimeout(() => processQueue(true), 1000);
                 } else {
-                    setSyncError(`No se pudieron sincronizar ${newQueue.length} elementos. Se reintentará.`);
+                    setSyncError(`No se pudieron sincronizar ${newQueue.length} elementos. Se reintentar├í.`);
                 }
             }
         } catch (err) {
             console.error("Queue processing error:", err);
-            setSyncError("Error al procesar la cola de sincronización.");
+            setSyncError("Error al procesar la cola de sincronizaci├│n.");
         } finally {
             isProcessingRef.current = false;
             setIsSyncing(false);
@@ -1013,7 +1017,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             console.error('Error pushing loan:', err);
             setLastErrors(prev => [{ table: 'loans', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_LOAN', loan);
-            setSyncError('Error al subir préstamo. Guardado localmente.');
+            setSyncError('Error al subir pr├®stamo. Guardado localmente.');
             return false;
         }
     };
