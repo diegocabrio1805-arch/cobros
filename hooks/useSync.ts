@@ -364,8 +364,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         let deletedItemsQuery = supabase.from('deleted_items').select('*');
 
         if (lastSyncTime && !fullSync) {
-            // SAFETY MARGIN: Increased to 10 seconds to definitively solve Chrome/ClockSkew issues
-            const safetyMargin = 10000;
+            // SAFETY MARGIN: Increased to 60 seconds (60000ms) to definitive solve Clock Skews between 
+            // the server and different devices syncing at the same time causing lost payments.
+            const safetyMargin = 60000;
             const adjustedSyncTime = new Date(new Date(lastSyncTime).getTime() - safetyMargin).toISOString();
 
             clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);

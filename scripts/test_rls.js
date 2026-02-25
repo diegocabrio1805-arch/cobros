@@ -13,6 +13,13 @@ async function testFetch() {
     console.log("CLIENTS:", clients?.length, clientsErr ? clientsErr : '');
     console.log("CLIENT DATA SAMPLE:", clients);
 
+    const { data: payments, error: payErr } = await supabase
+        .from('payments')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+    console.log("RECENT PAYMENTS:", payments, payErr ? payErr : '');
+
     const { data: users, error: usersErr } = await supabase.from('users').select('id, name, role').limit(5);
     console.log("USERS:", users?.length, usersErr ? usersErr : '');
 

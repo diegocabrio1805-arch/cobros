@@ -50,7 +50,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.135-PWA';
+    const CURRENT_VERSION_ID = 'v6.1.136-PWA';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -75,7 +75,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.135-PWA';
+      const CURRENT_VERSION_ID = 'v6.1.136-PWA';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
 
@@ -196,13 +196,13 @@ const App: React.FC = () => {
     }
   }, [state.currentUser, state.branchSettings, state.users]);
 
-  // 2. HELPER FUNCTIONS
   const mergeData = <T extends { id: string, updated_at?: string }>(
     local: T[],
     remote: T[],
     pendingAddIds: Set<string> = new Set(),
     pendingDeleteIds: Set<string> = new Set(),
-    isFullSync: boolean = false
+    isFullSync: boolean = false,
+    isAppendOnly: boolean = false
   ): T[] => {
     if (!Array.isArray(local)) local = [];
     if (!Array.isArray(remote)) remote = [];
@@ -234,11 +234,17 @@ const App: React.FC = () => {
           result.push(l);
           resultMap.set(l.id, l);
         }
-      } else if (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()) {
-        const idx = result.findIndex(item => item.id === l.id);
-        if (idx !== -1) {
-          result[idx] = l;
-          resultMap.set(l.id, l);
+      } else if (isAppendOnly || (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
+        // En registros Inmutables (AppendOnly) o si es un registro modificable y somos más nuevos: Retenemos local
+        // Wait, si isAppendOnly es true, el remote es la VERDAD ABSOLUTA. Nunca deberíamos sobreescribirlo con el local si el remoto ya lo bajó (salvo que esté en la cola pendiente).
+        // Por ende, si 'r' existe (Remoto ya bajó este pago), el local NO sobreescribe. 
+        // Corrijo mi lógica arriba. Si es isAppendOnly, ignoramos nuestro timestamp local. Remote manda.
+        if (!isAppendOnly && l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()) {
+          const idx = result.findIndex(item => item.id === l.id);
+          if (idx !== -1) {
+            result[idx] = l;
+            resultMap.set(l.id, l);
+          }
         }
       }
     });
@@ -280,8 +286,8 @@ const App: React.FC = () => {
         if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
       }
 
-      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
       if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
