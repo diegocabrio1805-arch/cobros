@@ -128,15 +128,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
           </div>
         </div>
 
-        {/* INDICADOR DE SINCRONIZACIÓN */}
-        {(isSyncing || isFullSyncing) && (
-          <div className="px-4 py-2 bg-emerald-600/10 border border-emerald-600/20 rounded-xl flex items-center gap-3 animate-pulse">
-            <i className="fa-solid fa-arrows-rotate animate-spin text-emerald-500 text-xs"></i>
-            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
-              {isFullSyncing ? 'DESCARGANDO TODO...' : 'SINCRONIZANDO...'}
-            </span>
-          </div>
-        )}
 
         <button
           onClick={onLogout}

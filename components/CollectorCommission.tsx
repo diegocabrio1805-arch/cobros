@@ -5,6 +5,7 @@ import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdu
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
+import * as XLSX from 'xlsx-js-style';
 
 interface CollectorCommissionProps {
   state: AppState;
@@ -45,7 +46,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const auditTableRef = useRef<HTMLDivElement>(null);
   const [sharingLog, setSharingLog] = useState<CollectionLog | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
 
   // LOGICA DE CALCULO DE MULTIPLICADOR POR DESEMPEÑO
   const getPayoutFactor = (moraRate: number) => {
@@ -193,47 +194,162 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     alert("Reglas de comisión actualizadas.");
   };
 
-  const handleExportPDF = async () => {
-    if (!auditTableRef.current || isGeneratingPDF) return;
-    setIsGeneratingPDF(true);
+  const handleExportExcel = async () => {
+    if (isGeneratingExcel || !excelLogs.length) return;
+    setIsGeneratingExcel(true);
 
     try {
-      const canvas = await html2canvas(auditTableRef.current, {
-        scale: 4, // HD Resolution
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+
+      // Define standard border
+      const borderAll = {
+        top: { style: "thin", color: { auto: 1 } },
+        bottom: { style: "thin", color: { auto: 1 } },
+        left: { style: "thin", color: { auto: 1 } },
+        right: { style: "thin", color: { auto: 1 } }
+      };
+
+      // Define headers style
+      const headerStyle = {
+        font: { bold: true, name: 'Aptos Narrow', sz: 12 },
+        border: borderAll,
+        alignment: { vertical: "center", horizontal: "center" }
+      };
+
+      // Base Data Construction
+      const wsData: any[][] = [];
+
+      // Row 1: Title
+      wsData.push([{
+        v: `AUDITORÍA DE ABONOS - ${state.settings.companyName || 'ANEXO COBRANZA'}`,
+        t: "s",
+        s: { font: { bold: true, name: 'Aptos Narrow', sz: 16 }, alignment: { vertical: "center", horizontal: "center" } }
+      }, "", "", "", "", ""]);
+
+      // Row 2: Empty
+      wsData.push([]);
+
+      // Row 3: Period
+      wsData.push([
+        "",
+        { v: `Periodo: ${excelStartDate} al ${excelEndDate}`, t: "s", s: { font: { name: 'Aptos Narrow', sz: 12 }, alignment: { vertical: "center", horizontal: "center" } } },
+        "", "", "", ""
+      ]);
+
+      // Row 4: Empty
+      wsData.push([]);
+
+      // Row 5: Headers
+      wsData.push([
+        { v: "Fecha", t: "s", s: headerStyle },
+        { v: "Cliente", t: "s", s: headerStyle },
+        { v: "Medio", t: "s", s: headerStyle },
+        { v: "Monto", t: "s", s: headerStyle },
+        { v: "Comisión Base", t: "s", s: headerStyle },
+        { v: "Gestor", t: "s", s: headerStyle }
+      ]);
+
+      // Add Data Rows
+      excelLogs.forEach(log => {
+        const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
+        const isNoPay = log.type === CollectionLogType.NO_PAGO;
+        const commBase = (log.amount || 0) * (localCommissionPercent / 100);
+        const gestor = state.users.find(u => u.id === log.recordedBy)?.name || '---';
+        const medioPago = isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo';
+
+        let fontColor = "FF000000"; // Black
+        if (medioPago === 'Efectivo') fontColor = "FF166534"; // Green
+        else if (medioPago === 'Transf.') fontColor = "FF1D4ED8"; // Blue
+        else if (medioPago === 'No Pago') fontColor = "FFDC2626"; // Red
+        else if (medioPago === 'Liquid.') fontColor = "FFD97706"; // Amber
+
+        const baseStyle = {
+          font: { color: { rgb: fontColor }, name: 'Aptos Narrow', sz: 11, bold: false },
+          border: borderAll,
+          alignment: { vertical: "center", horizontal: "left" }
+        };
+
+        const fechaStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "left" } };
+        const clienteStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "left" } };
+        const medioStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
+        const montoStyle = { ...baseStyle, numFmt: '"$"#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+        const gestorStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "center" } };
+
+        wsData.push([
+          { v: new Date(log.date).toLocaleString(), t: "s", s: fechaStyle },
+          { v: client?.name || '---', t: "s", s: clienteStyle },
+          { v: medioPago, t: "s", s: medioStyle },
+          { v: isNoPay ? '-' : (log.amount || 0), t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
+          { v: isNoPay ? '-' : commBase, t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
+          { v: gestor.toUpperCase(), t: "s", s: gestorStyle }
+        ]);
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = doc.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Add Summary
+      wsData.push([]);
 
-      doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfBlob = doc.output('blob');
-      const fileName = `Auditoria_${excelStartDate}_a_${excelEndDate}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const summaryRow1Idx = wsData.length;
+      const summaryLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12 }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
+      const summaryMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12 }, border: borderAll, numFmt: '"$"#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+      const emptyBorderStyle = { border: borderAll };
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Auditoría de Abonos - ${state.settings.companyName || 'ANEXO COBRO'}`,
-          text: `Reporte de auditoría del ${excelStartDate} al ${excelEndDate}`
-        });
-      } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
+      wsData.push([
+        { v: 'Recaudo Bruto:', t: "s", s: summaryLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: totalCollectedInRange, t: "n", s: summaryMoneyStyle },
+        "", "" // Empty
+      ]);
+
+      const summaryRow2Idx = wsData.length;
+      wsData.push([
+        { v: 'Total Liquidación:', t: "s", s: summaryLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: finalCommissionValue, t: "n", s: summaryMoneyStyle },
+        "", "" // Empty
+      ]);
+
+      // Create Worksheet
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Merge Cells Configuration
+      if (!ws['!merges']) ws['!merges'] = [];
+      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }); // Title Merge A1:F1
+      ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 4 } }); // Period Merge B3:E3
+      ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 2 } });
+
+      // Column Widths
+      ws['!cols'] = [
+        { wpx: 130 }, // Fecha
+        { wpx: 250 }, // Cliente
+        { wpx: 80 },  // Medio
+        { wpx: 100 }, // Monto
+        { wpx: 100 }, // Comision
+        { wpx: 150 }  // Gestor
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "Auditoria");
+
+      // Generate buffer and download
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `Auditoria_Excel_${excelStartDate}_al_${excelEndDate}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Error al generar el PDF.");
+      console.error("Error generating Excel:", error);
+      alert("Error al generar Excel. Revisa la consola o intenta de nuevo.");
     } finally {
-      setIsGeneratingPDF(false);
+      setIsGeneratingExcel(false);
     }
   };
 
@@ -611,15 +727,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div><p className="text-[8px] font-black text-slate-500 uppercase">Total a Renovar</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
-                <button onClick={() => window.print()} className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                  <i className="fa-solid fa-print"></i> IMPRIMIR
-                </button>
+                {/* Print button removed per feature request */}
                 <button
-                  onClick={handleExportPDF}
-                  disabled={isGeneratingPDF}
-                  className={`flex-1 md:flex-none px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isGeneratingPDF ? 'opacity-50 cursor-wait' : ''}`}
+                  onClick={handleExportExcel}
+                  disabled={isGeneratingExcel}
+                  className={`px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 w-full md:w-auto ${isGeneratingExcel ? 'opacity-50 cursor-wait' : ''}`}
                 >
-                  {isGeneratingPDF ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-pdf"></i>} EXPORTAR PDF
+                  {isGeneratingExcel ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-excel text-lg"></i>} EXPORTAR EXCEL
                 </button>
               </div>
             </div>
