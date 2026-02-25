@@ -84,6 +84,7 @@ export interface User {
   homePic?: string;    // Foto de la casa del cobrador
   homeLocation?: { lat: number; lng: number }; // Ubicación GPS de la casa
   requiresLocation?: boolean; // Si está activado, obliga a tener GPS encendido
+  deletedAt?: string; // Soft delete timestamp para ocular gerentes eliminados
 }
 
 export interface Client {

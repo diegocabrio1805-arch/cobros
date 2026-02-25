@@ -514,7 +514,23 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     branchId: e.branch_id,
                     addedBy: e.added_by
                 })) as Expense[],
-                users: (Array.isArray(profilesResult.data) ? profilesResult.data : []).map((u: any) => ({
+                users: (Array.isArray(profilesResult.data) ? profilesResult.data : []).filter((u: any) => {
+                    // PURGE LOGIC: Si es un gerente y su licencia expiró hace > 30 días, se elimina de la base de datos definitivamente (Hard Delete)
+                    if (u.role === 'Gerente' && u.expiry_date) {
+                        const expiry = new Date(u.expiry_date).getTime();
+                        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                        if (expiry < thirtyDaysAgo) {
+                            console.warn(`[Purge] Manager ${u.name} expired > 30 days ago. Hard deleting from Supabase...`);
+                            // Fire and forget, hard delete
+                            supabase.from('profiles').delete().eq('id', u.id).then(({ error }) => {
+                                if (error) console.error("[Purge] Error deleting manager", error);
+                            });
+                            // Excluir de la memoria local inmediatamente
+                            return false;
+                        }
+                    }
+                    return true;
+                }).map((u: any) => ({
                     ...u,
                     expiryDate: u.expiry_date,
                     managedBy: u.managed_by,

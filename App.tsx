@@ -50,7 +50,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.138-PWA';
+    const CURRENT_VERSION_ID = 'v6.1.139-PWA';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '9876543210', password: '9876543210' };
     const defaultInitialState: AppState = {
@@ -75,7 +75,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.137-PWA';
+      const CURRENT_VERSION_ID = 'v6.1.139-PWA';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
 
@@ -503,6 +503,16 @@ const App: React.FC = () => {
   };
 
   const deleteUser = async (userId: string) => {
+    const deletedTimestamp = new Date().toISOString();
+
+    // 1. Enviar Señal Soft-Delete a Supabase para el Gerente y sus Cobradores
+    const usersToDelete = state.users.filter(u => u.id === userId || u.managedBy === userId);
+    usersToDelete.forEach(u => {
+      // Inyectamos deletedAt para que nadie más lo descargue o lo vea activo
+      pushUser({ ...u, deletedAt: deletedTimestamp, updated_at: deletedTimestamp } as any);
+    });
+
+    // 2. Eliminar localmente de la vista inmediata
     setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId && u.managedBy !== userId) }));
     await handleForceSync(false);
   };
