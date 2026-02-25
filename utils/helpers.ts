@@ -334,29 +334,38 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   };
 
   const currencySymbol = settings.currencySymbol || '$';
-  const companyRaw = data.companyNameManual || settings.companyName || 'ANEXO COBRO';
+
+  // FIX: Force fallback to settings if manual overrides are empty strings or spaces
+  const rawManualName = (data.companyNameManual || '').trim();
+  const companyRaw = rawManualName ? rawManualName : (settings.companyName || 'ANEXO COBRO');
   const company = format(companyRaw.toUpperCase(), settings.companyNameBold, settings.companyNameSize);
 
-  const alias = (data.companyAliasManual || settings.companyAlias || '').toUpperCase();
+  const rawManualAlias = (data.companyAliasManual || '').trim();
+  const alias = (rawManualAlias ? rawManualAlias : (settings.companyAlias || '')).toUpperCase();
 
-  const contactLabel = data.contactLabelManual || "TEL. PUBLICO";
-  let phone = data.contactPhoneManual || settings.contactPhone || '---';
-  // Fallback extra robust if it's still empty but we have it in settings
+  const contactLabel = (data.contactLabelManual || '').trim() ? data.contactLabelManual : "TEL. PUBLICO";
+  const rawManualPhone = (data.contactPhoneManual || '').trim();
+  let phone = rawManualPhone ? rawManualPhone : (settings.contactPhone || '---');
   if (phone === '---' && settings.contactPhone) phone = settings.contactPhone;
   const formattedPhone = format(phone, settings.contactPhoneBold);
 
-  const idLabel = data.companyIdentifierLabelManual || "ID EMPRESA";
-  let idVal = data.companyIdentifierManual || settings.companyIdentifier || '---';
+  const idLabel = (data.companyIdentifierLabelManual || '').trim() ? data.companyIdentifierLabelManual : "ID EMPRESA";
+  const rawManualId = (data.companyIdentifierManual || '').trim();
+  let idVal = rawManualId ? rawManualId : (settings.companyIdentifier || '---');
   if (idVal === '---' && settings.companyIdentifier) idVal = settings.companyIdentifier;
   const idValue = format(idVal, settings.companyIdentifierBold);
 
-  const bankLabel = (data.shareLabelManual || settings.shareLabel || 'BANCO').toUpperCase();
-  let bankVal = data.shareValueManual || settings.shareValue || '';
+  const rawManualShareLabel = (data.shareLabelManual || '').trim();
+  const bankLabel = (rawManualShareLabel ? rawManualShareLabel : (settings.shareLabel || 'BANCO')).toUpperCase();
+
+  const rawManualShareVal = (data.shareValueManual || '').trim();
+  let bankVal = rawManualShareVal ? rawManualShareVal : (settings.shareValue || '');
   if ((!bankVal || bankVal === '---') && settings.shareValue) bankVal = settings.shareValue;
   const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
   const supportLabel = "TEL. PUBLICO";
-  let supportVal = data.supportPhoneManual || settings.contactPhone || '';
+  const rawManualSupport = (data.supportPhoneManual || '').trim();
+  let supportVal = rawManualSupport ? rawManualSupport : (settings.contactPhone || '');
   if ((!supportVal || supportVal === '---') && settings.contactPhone) supportVal = settings.contactPhone;
   const supportValue = format(supportVal, settings.contactPhoneBold);
 

@@ -743,7 +743,14 @@ const App: React.FC = () => {
     });
   };
 
-  if (!state.currentUser) return <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />;
+  if (!state.currentUser) {
+    return (
+      <>
+        <LocationEnforcer isRequired={true} onLocationEnabled={() => { }} />
+        <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />
+      </>
+    );
+  }
 
   const isPowerUser = state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER;
   const isAdmin = state.currentUser.role === Role.ADMIN;
@@ -751,6 +758,7 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
+      <LocationEnforcer isRequired={true} onLocationEnabled={() => { }} />
       <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
         {/* MOBILE HEADER */}
         <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
