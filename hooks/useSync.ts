@@ -285,12 +285,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         setSyncError(null);
 
         // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
-        const lastSyncTime = localStorage.getItem('last_sync_timestamp_v7');
+        const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
 
-        // ------------------------------------------------------------------
-        // OPTIMIZATION FOR LOW-END DEVICES (2GB RAM)
-        // 1. Reduced PAGE_SIZE from 1000 to 500 to lower memory spikes per chunk.
-        // 2. Removed Promise.all. We now fetch tables SEQUENTIALLY.
         // 3. Added explicit 'yields' (setTimeout) between tables to let the UI breathe/render.
         // ------------------------------------------------------------------
         const PAGE_SIZE = 500;
@@ -363,12 +359,25 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         let expensesQuery = supabase.from('expenses').select('*');
         let deletedItemsQuery = supabase.from('deleted_items').select('*');
 
+        let adjustedSyncTime: string | null = null;
         if (lastSyncTime && !fullSync) {
-            // SAFETY MARGIN: Increased to 60 seconds (60000ms) to definitive solve Clock Skews between 
-            // the server and different devices syncing at the same time causing lost payments.
-            const safetyMargin = 60000;
-            const adjustedSyncTime = new Date(new Date(lastSyncTime).getTime() - safetyMargin).toISOString();
+            try {
+                // SAFETY MARGIN: Increased to 60 seconds (60000ms) to definitive solve Clock Skews between 
+                // the server and different devices syncing at the same time causing lost payments.
+                const safetyMargin = 60000;
+                const parsedDate = new Date(lastSyncTime);
+                if (!isNaN(parsedDate.getTime())) {
+                    adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();
+                } else {
+                    fullSync = true;
+                }
+            } catch (e) {
+                fullSync = true;
+                console.error("Invalid local date cache, doing full fallback");
+            }
+        }
 
+        if (adjustedSyncTime && !fullSync) {
             clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);
             loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
             paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
@@ -441,7 +450,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // Update last sync time
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
-            localStorage.setItem('last_sync_timestamp_v7', new Date().toISOString());
+            localStorage.setItem('last_sync_timestamp_v8', new Date().toISOString());
 
             const result = {
                 clients: (Array.isArray(clientsResult.data) ? clientsResult.data : []).map((c: any) => ({
