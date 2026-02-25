@@ -50,7 +50,7 @@ const App: React.FC = () => {
 
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.137-PWA';
+    const CURRENT_VERSION_ID = 'v6.1.138-PWA';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
     const defaultInitialState: AppState = {
@@ -262,6 +262,7 @@ const App: React.FC = () => {
   };
 
   const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
+    console.log("[handleRealtimeData] Start merging data. isFullSync:", isFullSync, "payments:", newData.payments?.length);
     setState(prev => {
       const queueStr = localStorage.getItem('syncQueue');
       const queue = queueStr ? JSON.parse(queueStr) : [];
@@ -296,6 +297,7 @@ const App: React.FC = () => {
 
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
 
+      console.log("[handleRealtimeData] Merge Finished. Final payments:", updatedState.payments?.length);
       return updatedState;
     });
   };
@@ -375,6 +377,7 @@ const App: React.FC = () => {
     });
 
     const timer = setTimeout(() => {
+      console.log("[App] Executing doPull after initial mount timeout.");
       doPull();
     }, 5000);
 
@@ -402,6 +405,7 @@ const App: React.FC = () => {
     const intervalTime = queueLength > 0 ? 2000 : 30000;
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline && !isPrintingNow()) {
+        console.log(`[App] Idle sync interval triggered. Queue: ${queueLength}`);
         handleForceSync(true);
       }
     }, intervalTime);

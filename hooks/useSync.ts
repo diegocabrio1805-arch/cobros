@@ -272,136 +272,131 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     };
 
     const pullData = async (fullSync = false): Promise<Partial<AppState> | null> => {
-        const online = await checkConnection();
-        // If not online, we can try anyway if it's a pull request triggered manually, 
-        // but typically pullData is auto. Let's be lenient.
-        if (!online) {
-            console.warn("Pull data skipped: No ping response.");
-            // Optional: return null; 
-            // We continue to try fetch, maybe ping failed but Supabase works
-        }
-
         setIsSyncing(true);
         setSyncError(null);
-
-        // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
-        const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
-
-        // ------------------------------------------------------------------
-        // OPTIMIZATION FOR LOW-END DEVICES (2GB RAM)
-        // 1. Reduced PAGE_SIZE from 1000 to 500 to lower memory spikes per chunk.
-        // 2. Removed Promise.all. We now fetch tables SEQUENTIALLY.
-        // 3. Added explicit 'yields' (setTimeout) between tables to let the UI breathe/render.
-        // ------------------------------------------------------------------
-        const PAGE_SIZE = 500;
-
-        // Helper to fetch all pages with yields AND RETRIES for 3G/4G stability
-        const fetchAll = async (query: any) => {
-            let allData: any[] = [];
-            let page = 0;
-            let hasMore = true;
-
-            console.log(`[Sync] Starting fetchAll for query...`);
-
-            // Log the query structure if possible or just the start
-            // Note: Supabase query builder objects aren't easily stringifiable for debug
-
-            while (hasMore) {
-                console.log(`[Sync] Fetching page ${page}... Range: ${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE - 1}`);
-                let attempts = 0;
-                let success = false;
-
-                while (attempts < 3 && !success) {
-                    try {
-                        const { data, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-                        if (error) {
-                            console.error(`[Sync] Error fetching page ${page}:`, error);
-                            throw error;
-                        }
-
-                        console.log(`[Sync] Page ${page} fetched. Items: ${data?.length}`);
-
-                        if (data && data.length > 0) {
-                            allData = allData.concat(data);
-                            if (data.length < PAGE_SIZE) hasMore = false;
-                            else page++;
-                        } else {
-                            // If page 0 is empty, but we expected data, this is the key moment.
-                            if (page === 0) console.warn("[Sync] Page 0 returned 0 items. Check RLS or filters.");
-                            hasMore = false;
-                        }
-
-                        success = true;
-                    } catch (err: any) {
-                        attempts++;
-                        console.error(`[Sync] Detailed Error on page ${page}:`, err);
-                        console.warn(`[Sync] Network glitch on page ${page}. Retrying (${attempts}/3)... Error: ${err.message || 'Unknown'}`);
-                        // Wait 1s, 2s, 3s...
-                        await new Promise(r => setTimeout(r, 1000 * attempts));
-
-                        if (attempts >= 3) throw err;
-                    }
-                }
-
-                // Yield between pages of the SAME table
-                await new Promise(r => setTimeout(r, 50));
-
-                if (page > 100) break; // Safety limit
-            }
-            console.log(`[Sync] fetchAll complete. Total: ${allData.length}`);
-            return { data: allData, error: null };
-        };
-
-        // Queries - Optimized for low-end devices: only fetch active data
-        // EGRESS OPTIMIZATION: Exclude heavy photo columns from main sync
-        let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance');
-        let loansQuery = supabase.from('loans').select('*');
-        let paymentsQuery = supabase.from('payments').select('*');
-        let logsQuery = supabase.from('collection_logs').select('*');
-        let profilesQuery = supabase.from('profiles').select('*');
-        let settingsQuery = supabase.from('branch_settings').select('*');
-        let expensesQuery = supabase.from('expenses').select('*');
-        let deletedItemsQuery = supabase.from('deleted_items').select('*');
-
-        let adjustedSyncTime: string | null = null;
-        if (lastSyncTime && !fullSync) {
-            try {
-                // SAFETY MARGIN: Increased to 60 seconds (60000ms) to definitive solve Clock Skews between 
-                // the server and different devices syncing at the same time causing lost payments.
-                const safetyMargin = 60000;
-                const parsedDate = new Date(lastSyncTime);
-                if (!isNaN(parsedDate.getTime())) {
-                    adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();
-                } else {
-                    fullSync = true;
-                }
-            } catch (e) {
-                fullSync = true;
-                console.error("Invalid local date cache, doing full fallback");
-            }
-        }
-
-        if (adjustedSyncTime && !fullSync) {
-            clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);
-            loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
-            paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
-            logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
-            profilesQuery = profilesQuery.gt('updated_at', adjustedSyncTime);
-            settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
-            expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
-            deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
-        } else {
-            // FULL SYNC or NO TIMESTAMP: Ensure we use updated_at for consistency if needed, 
-            // but for full sync we just want everything.
-            console.log("[Sync] Performing FULL SYNC - Ignoring timestamps.");
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120s for 2G/3G networks
-
         try {
+            const online = await checkConnection();
+            if (!online) {
+                console.warn("Pull data skipped: No ping response.");
+            }
+
+            // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
+            const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
+
+            // ------------------------------------------------------------------
+            // OPTIMIZATION FOR LOW-END DEVICES (2GB RAM)
+            // 1. Reduced PAGE_SIZE from 1000 to 500 to lower memory spikes per chunk.
+            // 2. Removed Promise.all. We now fetch tables SEQUENTIALLY.
+            // 3. Added explicit 'yields' (setTimeout) between tables to let the UI breathe/render.
+            // ------------------------------------------------------------------
+            const PAGE_SIZE = 500;
+
+            // Helper to fetch all pages with yields AND RETRIES for 3G/4G stability
+            const fetchAll = async (query: any) => {
+                let allData: any[] = [];
+                let page = 0;
+                let hasMore = true;
+
+                console.log(`[Sync] Starting fetchAll for query...`);
+
+                // Log the query structure if possible or just the start
+                // Note: Supabase query builder objects aren't easily stringifiable for debug
+
+                while (hasMore) {
+                    console.log(`[Sync] Fetching page ${page}... Range: ${page * PAGE_SIZE} - ${(page + 1) * PAGE_SIZE - 1}`);
+                    let attempts = 0;
+                    let success = false;
+
+                    while (attempts < 3 && !success) {
+                        try {
+                            const { data, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+                            if (error) {
+                                console.error(`[Sync] Error fetching page ${page}:`, error);
+                                throw error;
+                            }
+
+                            console.log(`[Sync] Page ${page} fetched. Items: ${data?.length}`);
+
+                            if (data && data.length > 0) {
+                                allData = allData.concat(data);
+                                if (data.length < PAGE_SIZE) hasMore = false;
+                                else page++;
+                            } else {
+                                // If page 0 is empty, but we expected data, this is the key moment.
+                                if (page === 0) console.warn("[Sync] Page 0 returned 0 items. Check RLS or filters.");
+                                hasMore = false;
+                            }
+
+                            success = true;
+                        } catch (err: any) {
+                            attempts++;
+                            console.error(`[Sync] Detailed Error on page ${page}:`, err);
+                            console.warn(`[Sync] Network glitch on page ${page}. Retrying (${attempts}/3)... Error: ${err.message || 'Unknown'}`);
+                            // Wait 1s, 2s, 3s...
+                            await new Promise(r => setTimeout(r, 1000 * attempts));
+
+                            if (attempts >= 3) throw err;
+                        }
+                    }
+
+                    // Yield between pages of the SAME table
+                    await new Promise(r => setTimeout(r, 50));
+
+                    if (page > 100) break; // Safety limit
+                }
+                console.log(`[Sync] fetchAll complete. Total: ${allData.length}`);
+                return { data: allData, error: null };
+            };
+
+            // Queries - Optimized for low-end devices: only fetch active data
+            // EGRESS OPTIMIZATION: Exclude heavy photo columns from main sync
+            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance');
+            let loansQuery = supabase.from('loans').select('*');
+            let paymentsQuery = supabase.from('payments').select('*');
+            let logsQuery = supabase.from('collection_logs').select('*');
+            let profilesQuery = supabase.from('profiles').select('*');
+            let settingsQuery = supabase.from('branch_settings').select('*');
+            let expensesQuery = supabase.from('expenses').select('*');
+            let deletedItemsQuery = supabase.from('deleted_items').select('*');
+
+            let adjustedSyncTime: string | null = null;
+            if (lastSyncTime && !fullSync) {
+                try {
+                    // SAFETY MARGIN: Increased to 60 seconds (60000ms) to definitive solve Clock Skews between 
+                    // the server and different devices syncing at the same time causing lost payments.
+                    const safetyMargin = 60000;
+                    const parsedDate = new Date(lastSyncTime);
+                    if (!isNaN(parsedDate.getTime())) {
+                        adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();
+                    } else {
+                        fullSync = true;
+                    }
+                } catch (e) {
+                    fullSync = true;
+                    console.error("Invalid local date cache, doing full fallback");
+                }
+            }
+
+            if (adjustedSyncTime && !fullSync) {
+                clientsQuery = clientsQuery.gt('updated_at', adjustedSyncTime);
+                loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
+                paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
+                logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
+                profilesQuery = profilesQuery.gt('updated_at', adjustedSyncTime);
+                settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
+                expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
+                deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
+            } else {
+                // FULL SYNC or NO TIMESTAMP: Ensure we use updated_at for consistency if needed, 
+                // but for full sync we just want everything.
+                console.log("[Sync] Performing FULL SYNC - Ignoring timestamps.");
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120s for 2G/3G networks
+
             // 1. Settings (Small)
-            // setSyncError("Sincronizando: Configuraci├│n...");
+            // setSyncError("Sincronizando: Configuración...");
             const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
             if (settingsResult.error) throw new Error(`Configuraci├│n: ${settingsResult.error.message}`);
 
@@ -451,6 +446,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal));
             if (deletedResult.error) throw new Error(`Eliminaciones: ${deletedResult.error.message}`);
 
+            clearTimeout(timeoutId); // Limpiar timeout porque terminaron los fetch
 
             // Update last sync time
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
@@ -544,7 +540,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return result;
 
         } catch (err: any) {
-            console.error('Pull failed:', err);
+            console.error('[Sync] FATAL Data pull error:', err);
             const msg = err.message || JSON.stringify(err);
             if (msg.includes('exceed_egress_quota')) {
                 setSyncError("ÔÜá´©Å L├¡mite de datos excedido. La app funcionar├í OFFLINE hasta que se reinicie el ciclo.");

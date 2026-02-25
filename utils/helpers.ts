@@ -5,8 +5,8 @@ export const generateUUID = (): string => {
   return uuidv4();
 };
 
-export const getLocalDateStringForCountry = (country: string = 'CO'): string => {
-  const now = new Date();
+export const getLocalDateStringForCountry = (country: string = 'CO', date: Date | null = null): string => {
+  const targetDate = date || new Date();
   const options: Intl.DateTimeFormatOptions = {
     timeZone: country === 'PY' ? 'America/Asuncion' : 'America/Bogota',
     year: 'numeric',
@@ -14,7 +14,7 @@ export const getLocalDateStringForCountry = (country: string = 'CO'): string => 
     day: '2-digit'
   };
   // Forzamos formato YYYY-MM-DD usando Intl de forma segura
-  const parts = new Intl.DateTimeFormat('en-GB', options).formatToParts(now);
+  const parts = new Intl.DateTimeFormat('en-GB', options).formatToParts(targetDate);
   const day = parts.find(p => p.type === 'day')?.value;
   const month = parts.find(p => p.type === 'month')?.value;
   const year = parts.find(p => p.type === 'year')?.value;
