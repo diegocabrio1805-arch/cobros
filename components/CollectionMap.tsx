@@ -179,8 +179,11 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
       });
 
       if (filteredLogs.length > 0) {
-        const bounds = L.latLngBounds(filteredLogs.map(l => [l.location.lat, l.location.lng]));
-        leafletMap.current.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
+        const validGeoLogs = filteredLogs.filter(l => l.location && l.location.lat !== undefined);
+        if (validGeoLogs.length > 0) {
+          const bounds = L.latLngBounds(validGeoLogs.map(l => [l.location.lat, l.location.lng]));
+          leafletMap.current.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
+        }
       }
     }
   }, [typeFilter, collectorFilter, filteredLogs, enrichedLogs]);

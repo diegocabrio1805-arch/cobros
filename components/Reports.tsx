@@ -166,7 +166,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const startIcon = L.divIcon({ className: 'custom-icon', html: '<div style="font-size: 24px;">🏁</div>', iconAnchor: [12, 12] });
          const endIcon = L.divIcon({ className: 'custom-icon', html: '<div style="font-size: 24px;">🏁</div>', iconAnchor: [12, 12] });
 
-         if (openingLog) {
+         if (openingLog && openingLog.location) {
             L.marker([openingLog.location.lat, openingLog.location.lng], { icon: startIcon }).addTo(layerGroup.current);
             points.push([openingLog.location.lat, openingLog.location.lng]);
          }
@@ -191,7 +191,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                const nextTime = new Date(nextLog.date).getTime();
                const diffMinutes = (nextTime - currTime) / (1000 * 60);
 
-               const distToNext = calculateDistance(lat, lng, nextLog.location.lat, nextLog.location.lng);
+               const distToNext = (nextLog.location && nextLog.location.lat !== undefined)
+                  ? calculateDistance(lat, lng, nextLog.location.lat, nextLog.location.lng)
+                  : 0;
                calculatedDist += distToNext;
 
                if (diffMinutes > 20 && distToNext < 1) {
