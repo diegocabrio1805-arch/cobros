@@ -465,10 +465,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const filteredClients = useMemo(() => {
     let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden);
     if (debouncedSearch) {
-      const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
       clients = clients.filter(c => {
-        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return nameNorm.includes(s) || (c.documentId || '').includes(s);
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').replace(/\s+/g, "");
+        return nameNorm.includes(s) || docNorm.includes(s);
       });
     }
     if (selectedCollector !== 'all') {

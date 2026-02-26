@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
 // import { useRegisterSW } from 'virtual:pwa-register/react';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -87,7 +87,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.146-PWA';
+    const CURRENT_VERSION_ID = 'v6.1.147-APK';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '9876543210', password: '9876543210' };
     const defaultInitialState: AppState = {
@@ -112,7 +112,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.146-PWA';
+      const CURRENT_VERSION_ID = 'v6.1.147-APK';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: '123456', password: '123456' };
 
@@ -836,10 +836,58 @@ const App: React.FC = () => {
   const isAdmin = state.currentUser.role === Role.ADMIN;
   const t = getTranslation(state.settings.language).menu;
 
+  // --- Pull to Refresh Logic ---
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const pullStartY = useRef(0);
+  const MAX_PULL = 120;
+  const REFRESH_THRESHOLD = 80;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY <= 5) {
+      pullStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling) return;
+    const dy = e.touches[0].clientY - pullStartY.current;
+    if (dy > 0 && window.scrollY <= 5) {
+      setPullY(Math.min(dy * 0.4, MAX_PULL));
+    } else {
+      setIsPulling(false);
+      setPullY(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPulling) return;
+    if (pullY > REFRESH_THRESHOLD) {
+      setPullY(50);
+      doPull().finally(() => setPullY(0));
+    } else {
+      setPullY(0);
+    }
+    setIsPulling(false);
+  };
+
   return (
     <ErrorBoundary>
       <LocationEnforcer isRequired={!!state.currentUser.requiresLocation} onLocationEnabled={() => { }} />
-      <div className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden">
+      <div
+        className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ transform: `translateY(${pullY}px)`, transition: isPulling ? 'none' : 'transform 0.3s ease-out' }}
+      >
+        {/* Pull Indicator Overlay */}
+        <div className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none z-[200]" style={{ height: pullY, opacity: pullY / REFRESH_THRESHOLD, marginTop: -40 }}>
+          {pullY > 10 && <div className="p-2 bg-white rounded-full shadow-md">
+            <i className={`fa-solid fa-arrows-rotate text-emerald-600 ${pullY > REFRESH_THRESHOLD ? 'animate-spin' : ''}`}></i>
+          </div>}
+        </div>
         {/* MOBILE HEADER */}
         <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
           <div className="flex justify-between items-center">
@@ -848,7 +896,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.146-PWA</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.147-APK</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -860,7 +908,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.146</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.147-APK</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

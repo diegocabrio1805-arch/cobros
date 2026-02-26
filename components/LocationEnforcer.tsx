@@ -26,7 +26,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
                 // We must force a position request with high accuracy to be 100% sure.
                 try {
                     const pos = await Geolocation.getCurrentPosition({
-                        timeout: 3000,
+                        timeout: 1000, // FAST TIMEOUT TO DETECT DROPS
                         maximumAge: 0,
                         enableHighAccuracy: true
                     });
@@ -39,7 +39,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
                     }
                 } catch (err) {
                     // This happens if GPS is physically OFF (Location services disabled)
-                    console.warn("[GPS] Location services might be disabled:", err);
+                    console.warn("[GPS] Location services disabled or timed out:", err);
                     setIsLocationEnabled(false);
                 }
             } else {
@@ -66,7 +66,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
 
     useEffect(() => {
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 3000); // Check every 3 seconds
+        const interval = setInterval(checkLocationStatus, 2000); // Check every 2 seconds
         return () => clearInterval(interval);
     }, [isRequired]);
 

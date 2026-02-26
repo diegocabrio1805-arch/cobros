@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+Ôªøimport { v4 as uuidv4 } from 'uuid';
 import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency } from '../types';
 
 export const generateUUID = (): string => {
@@ -61,20 +61,20 @@ export const getCountryName = (country: CountryCode): string => {
   const names: Record<CountryCode, string> = {
     'CO': 'Colombia',
     'PY': 'Paraguay',
-    'PA': 'Panam·',
+    'PA': 'Panam√°',
     'EC': 'Ecuador',
     'SV': 'El Salvador',
     'GT': 'Guatemala',
     'HN': 'Honduras',
-    'MX': 'MÈxico',
+    'MX': 'M√©xico',
     'NI': 'Nicaragua',
     'CR': 'Costa Rica',
     'DO': 'Rep. Dominicana',
-    'AR': 'Argentina', 'BO': 'Bolivia', 'BR': 'Brasil', 'CL': 'Chile', 'PE': 'Per˙', 'UY': 'Uruguay', 'VE': 'Venezuela',
-    'US': 'Estados Unidos', 'ES': 'EspaÒa', 'BZ': 'Belice', 'GY': 'Guyana', 'SR': 'Surinam',
-    'CU': 'Cuba', 'HT': 'HaitÌ', 'JM': 'Jamaica', 'TT': 'Trinidad y Tobago', 'BS': 'Bahamas', 'BB': 'Barbados',
-    'LC': 'Santa LucÌa', 'VC': 'San Vicente', 'GD': 'Granada', 'AG': 'Antigua y Barbuda', 'DM': 'Dominica', 'KN': 'San CristÛbal y Nieves',
-    'CA': 'Canad·'
+    'AR': 'Argentina', 'BO': 'Bolivia', 'BR': 'Brasil', 'CL': 'Chile', 'PE': 'Per√∫', 'UY': 'Uruguay', 'VE': 'Venezuela',
+    'US': 'Estados Unidos', 'ES': 'Espa√±a', 'BZ': 'Belice', 'GY': 'Guyana', 'SR': 'Surinam',
+    'CU': 'Cuba', 'HT': 'Hait√≠', 'JM': 'Jamaica', 'TT': 'Trinidad y Tobago', 'BS': 'Bahamas', 'BB': 'Barbados',
+    'LC': 'Santa Luc√≠a', 'VC': 'San Vicente', 'GD': 'Granada', 'AG': 'Antigua y Barbuda', 'DM': 'Dominica', 'KN': 'San Crist√≥bal y Nieves',
+    'CA': 'Canad√°'
   };
   return names[country] || 'Colombia';
 };
@@ -160,13 +160,13 @@ export const generateAmortizationTable = (
     }
 
     if (isNaN(currentDate.getTime())) {
-      console.warn("Fecha inv·lida en amortizaciÛn, usando hoy");
+      console.warn("Fecha inv√°lida en amortizaci√≥n, usando hoy");
       currentDate = new Date();
       currentDate.setHours(0, 0, 0, 0);
     }
 
     for (let i = 1; i <= numInstallments; i++) {
-      // Calcular siguiente fecha seg˙n frecuencia
+      // Calcular siguiente fecha seg√∫n frecuencia
       if (frequency === Frequency.DAILY) {
         currentDate.setDate(currentDate.getDate() + 1);
       } else if (frequency === Frequency.WEEKLY) {
@@ -193,7 +193,7 @@ export const generateAmortizationTable = (
     }
     return table;
   } catch (error) {
-    console.error("Error generando tabla amortizaciÛn:", error);
+    console.error("Error generando tabla amortizaci√≥n:", error);
     return [];
   }
 };
@@ -205,13 +205,13 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
     const todayStr = getLocalDateStringForCountry(settings?.country || 'CO');
     const today = new Date(todayStr + 'T00:00:00');
 
-    // Priorizar c·lculo si se pasÛ `customTotalPaid`, de lo contrario hacer fallback al mÈtodo legacy
+    // Priorizar c√°lculo si se pas√≥ `customTotalPaid`, de lo contrario hacer fallback al m√©todo legacy
     const totalPaid = customTotalPaid !== undefined
       ? Number(customTotalPaid)
       : (loan.installments || []).reduce((acc: any, i: any) => acc + (Number(i.paidAmount) || 0), 0);
 
 
-    // SIEMPRE generar tabla virtual desde la fecha de creaciÛn real para el c·lculo de mora.
+    // SIEMPRE generar tabla virtual desde la fecha de creaci√≥n real para el c√°lculo de mora.
     // Esto evita errores si el cronograma guardado en el objeto 'loan' tiene fechas futuras.
     const virtualInstallments = generateAmortizationTable(
       loan.principal,
@@ -225,7 +225,7 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
 
     if (!virtualInstallments || virtualInstallments.length === 0) return 0;
 
-    // 1. Encontrar la primera cuota que no est· totalmente pagada en la tabla virtual
+    // 1. Encontrar la primera cuota que no est√° totalmente pagada en la tabla virtual
     let accumulatedPaid = totalPaid;
     const firstUnpaidInstallment = virtualInstallments.find(inst => {
       const amount = Number(inst.amount) || 0;
@@ -245,16 +245,16 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
       return 0;
     }
 
-    // 2. Contar DÕAS DE ATRASO (Excluyendo domingos y feriados sugeridos por el usuario)
+    // 2. Contar D√çAS DE ATRASO (Excluyendo domingos y feriados sugeridos por el usuario)
     let delayedWorkingDays = 0;
     let tempDate = new Date(firstDueDate);
 
-    // El atraso cuenta desde el dÌa siguiente al vencimiento HASTA EL DÕA ANTERIOR A HOY
-    // (Seg˙n ejemplo del usuario: si vence el 1 y es el 4, son 2 dÌas de mora: el 2 y el 3)
+    // El atraso cuenta desde el d√≠a siguiente al vencimiento HASTA EL D√çA ANTERIOR A HOY
+    // (Seg√∫n ejemplo del usuario: si vence el 1 y es el 4, son 2 d√≠as de mora: el 2 y el 3)
     while (tempDate < today) {
       tempDate.setDate(tempDate.getDate() + 1);
 
-      if (tempDate >= today) break; // NO contar el dÌa de hoy ni dÌas despuÈs
+      if (tempDate >= today) break; // NO contar el d√≠a de hoy ni d√≠as despu√©s
 
       const isSun = tempDate.getDay() === 0;
       const isHol = isHoliday(tempDate, settings?.country || 'CO', loan.customHolidays || []);
