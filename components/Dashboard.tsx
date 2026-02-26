@@ -123,14 +123,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const matchesDate = logDate >= start && logDate <= end;
       if (!matchesDate) return false;
 
-      if (auditCollector === 'all') {
-        // STRICT FILTER: Even for 'all', only match visible collectors
-        return visibleCollectors.some(c => c.id === log.recordedBy);
-        // Note: logs.recordedBy is who COLLECTED the money. 
+      // Si se filtra por un cobrador específico, mantener el filtro
+      if (auditCollector !== 'all') {
+        return log.recordedBy === auditCollector;
       }
 
-      // FILTRO ESTRICTO: Solo mostrar pagos realizados DESDE EL PERFIL del cobrador seleccionado
-      return log.recordedBy === auditCollector;
+      // Si es 'todos', no filtrar por visibleCollectors, sino mostrar lo que ya viene filtrado por App.tsx (sucursal)
+      return true;
     });
 
     const totalRevenue = logs.filter(l => l.type === CollectionLogType.PAYMENT).reduce((acc, l) => acc + (l.amount || 0), 0);

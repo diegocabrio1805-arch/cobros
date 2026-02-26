@@ -341,15 +341,20 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           const phone = client.phone.replace(/\D/g, '');
           window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
         }
-      } else if (client && type === CollectionLogType.NO_PAGO) {
-        let msg = '';
-        if (client.customNoPayMessage) {
-          msg = client.customNoPayMessage;
-        } else {
-          const overdueDays = getDaysOverdue(loan, state.settings);
-          msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings);
-        }
-        window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+      } else if (type === CollectionLogType.NO_PAGO) {
+        const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+        const currentBalance = loan.totalAmount - totalPaid;
+        const overdueDays = getDaysOverdue(loan, state.settings);
+
+        const msg = await generateNoPaymentAIReminder(
+          loan,
+          state.clients.find(c => c.id === loan.clientId)!,
+          overdueDays,
+          state.settings,
+          currentBalance
+        );
+        const cleanMsg = convertReceiptForWhatsApp(msg);
+        window.open(`https://wa.me/${state.clients.find(c => c.id === loan.clientId)?.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
         resetUI();
       }
     } catch (e) {

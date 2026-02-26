@@ -922,7 +922,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(cleanReceipt)}`;
         window.open(wpUrl, '_blank');
       } else if (type === CollectionLogType.NO_PAGO) {
-        let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(activeLoanInLegajo, clientInLegajo, getDaysOverdue(activeLoanInLegajo, state.settings), state.settings);
+        const metrics = getClientMetrics(clientInLegajo);
+        let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(
+          activeLoanInLegajo,
+          clientInLegajo,
+          metrics.daysOverdue,
+          state.settings,
+          metrics.balance
+        );
         const cleanMsg = convertReceiptForWhatsApp(msg);
         window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
       }

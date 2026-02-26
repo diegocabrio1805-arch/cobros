@@ -480,7 +480,7 @@ const App: React.FC = () => {
     let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => activeClientIds.has(l.clientId) && !l.deletedAt);
     let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
     let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId, e.addedBy, undefined));
-    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => activeClientIds.has(log.clientId) && !log.deletedAt);
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => !log.deletedAt);
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => user.role === Role.ADMIN || u.id === user.id || myTeamIds.has(u.id.toLowerCase()));
 
     if (user.role === Role.COLLECTOR) {
@@ -505,6 +505,8 @@ const App: React.FC = () => {
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
     localStorage.removeItem('last_sync_timestamp');
     localStorage.removeItem('last_sync_timestamp_v6');
+    localStorage.removeItem('last_sync_timestamp_v8');
+    localStorage.removeItem('last_sync_timestamp_ms');
     setTimeout(() => handleForceSync(true), 100);
 
     // Auto-reconnect Bluetooth on login for shared devices

@@ -121,13 +121,26 @@ export const generateAIStatement = async (loan: Loan, client: Client, daysOverdu
   }
 };
 
-export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, daysOverdue: number, settings?: AppSettings) => {
-  const installments = Array.isArray(loan.installments) ? loan.installments : [];
-  const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
-  const balance = loan.totalAmount - totalPaid;
+export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, daysOverdue: number, settings?: AppSettings, overrideBalance?: number) => {
   const companyName = settings?.companyName || 'ANEXO COBRO';
 
+  // Usar el saldo pasado (desde la UI) o calcularlo si es necesario
+  let balance = overrideBalance;
+  if (balance === undefined) {
+    const installments = Array.isArray(loan.installments) ? loan.installments : [];
+    const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+    balance = loan.totalAmount - totalPaid;
+  }
+
+  const formattedBalance = formatCurrency(balance, settings);
+
+  // Agregar aviso de días de atraso y advertencia de 20 días
+  let extraMsg = ` Actualmente cuenta con ${daysOverdue} días de atraso.`;
+  if (daysOverdue > 20) {
+    extraMsg += " Debe ponerse al día con sus días de atraso para no reducir su crédito el 20%.";
+  }
+
   // Template solicitado por usuario:
-  // "Hola (nombre) registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo (saldo) ATENTAMENTE (empresa)"
-  return `Hola ${client.name} registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo ${formatCurrency(balance, settings)} ATENTAMENTE ${companyName.toUpperCase()}`;
+  // "Hola (nombre) registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo (saldo)..."
+  return `Hola ${client.name} registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo ${formattedBalance}.${extraMsg} ATENTAMENTE ${companyName.toUpperCase()}`;
 };

@@ -325,10 +325,13 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         if (client.customNoPayMessage) {
           msg = client.customNoPayMessage;
         } else {
+          const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+          const currentBalance = loan.totalAmount - totalPaid;
           const overdueDays = getDaysOverdue(loan, state.settings);
-          msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings);
+          msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings, currentBalance);
         }
-        window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        const cleanMsg = convertReceiptForWhatsApp(msg);
+        window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
         resetUI();
       }
     } catch (e) {
