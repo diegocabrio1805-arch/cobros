@@ -53,20 +53,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0);
 
     return visibleCollectors.map(user => {
+      // Use recordedBy to match who actually registered the payment (same as Auditoría Histórica)
       const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-        const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
         const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
-        return loan?.collectorId === user.id && logDateStr === countryTodayStr;
+        return log.recordedBy === user.id && logDateStr === countryTodayStr;
       });
 
       const recaudoHoy = logsToday
         .filter(l => l.type === CollectionLogType.PAYMENT)
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
-      // ... existing stats calculation ...
+
       const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId)).size;
       const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === user.id && l.status === LoanStatus.ACTIVE);
       const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId)).size;
@@ -91,6 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       };
     });
   }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
+
 
   const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
