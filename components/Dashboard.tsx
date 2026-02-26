@@ -5,12 +5,15 @@ import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
 import { generateAuditPDF } from '../utils/auditReportGenerator';
+import PullToRefresh from './PullToRefresh';
+import { useSync } from '../hooks/useSync';
 
 interface DashboardProps {
   state: AppState;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ state }) => {
+  const { forceSync } = useSync();
   const [insights, setInsights] = useState<any>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

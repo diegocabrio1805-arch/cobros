@@ -452,7 +452,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.82-FINAL-AUDIT
+VER: v6.1.144-PWA
 `;
 };
 

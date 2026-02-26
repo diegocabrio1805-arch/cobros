@@ -18,20 +18,35 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
 
         setIsChecking(true);
         try {
+            // Priority: Check if positioning is enabled at system level
             const permission = await Geolocation.checkPermissions();
+
             if (permission.location === 'granted') {
-                // Try to get current position to verify GPS is actually on
+                // IMPORTANT: In some Android versions, permissions might be 'granted' but GPS is OFF.
+                // We must force a position request with high accuracy to be 100% sure.
                 try {
-                    await Geolocation.getCurrentPosition({ timeout: 5000, maximumAge: 0, enableHighAccuracy: true });
-                    setIsLocationEnabled(true);
-                    onLocationEnabled();
+                    const pos = await Geolocation.getCurrentPosition({
+                        timeout: 3000,
+                        maximumAge: 0,
+                        enableHighAccuracy: true
+                    });
+
+                    if (pos && pos.coords) {
+                        setIsLocationEnabled(true);
+                        onLocationEnabled();
+                    } else {
+                        setIsLocationEnabled(false);
+                    }
                 } catch (err) {
+                    // This happens if GPS is physically OFF (Location services disabled)
+                    console.warn("[GPS] Location services might be disabled:", err);
                     setIsLocationEnabled(false);
                 }
             } else {
                 setIsLocationEnabled(false);
             }
         } catch (error) {
+            console.error("[GPS] Critical check error:", error);
             setIsLocationEnabled(false);
         } finally {
             setIsChecking(false);
