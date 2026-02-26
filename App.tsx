@@ -38,6 +38,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
 import { StorageService } from './utils/localforageStorage';
+import { supabase } from './utils/supabaseClient';
 
 
 const App: React.FC = () => {
@@ -418,12 +419,23 @@ const App: React.FC = () => {
       if (value) {
         try {
           const user = JSON.parse(value);
-          setState(prev => ({ ...prev, currentUser: user }));
+          setState((prev: AppState) => ({ ...prev, currentUser: user }));
           setTimeout(() => handleForceSync(true), 1000);
         } catch (e) { }
       }
     };
     recover();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && navigator.onLine)) {
+        Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
+        setState((prev: AppState) => ({ ...prev, currentUser: null }));
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -557,7 +569,11 @@ const App: React.FC = () => {
     });
   };
 
-  const handleLogout = () => setState(prev => ({ ...prev, currentUser: null }));
+  const handleLogout = async () => {
+    setState((prev: AppState) => ({ ...prev, currentUser: null }));
+    if (navigator.onLine) await supabase.auth.signOut();
+    await Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+  };
 
   const addUser = async (user: User) => {
     const newUser = { ...user, managedBy: user.managedBy || (state.currentUser?.role === Role.MANAGER || state.currentUser?.role === Role.ADMIN ? state.currentUser.id : undefined) };

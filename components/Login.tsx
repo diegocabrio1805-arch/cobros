@@ -29,38 +29,59 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
 
     const cleanUsername = username.trim();
 
-    // 1. Try Local
-    let user = users.find(u =>
+    // 1. Try Local offline cache primarily for offline usage when they are locked out
+    let localUser = users.find(u =>
       u.username.toLowerCase() === cleanUsername.toLowerCase() &&
       u.password === password
     );
 
-    // 2. If not found locally, try Supabase (Online check for instant access)
-    if (!user && navigator.onLine) {
+    if (navigator.onLine) {
       try {
-        const { data, error } = await supabase
+        // Native Auth request leveraging Supabase secure endpoints
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: cleanUsername + '@anexocobro.com',
+          password: password
+        });
+
+        if (authError || !authData.user) {
+          setError("CREDENCIALES INVÁLIDAS O SESIÓN CADUCADA");
+          return;
+        }
+
+        // Fetch corresponding application profile to verify active/blocked status
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
-          .ilike('username', cleanUsername)
+          .eq('id', authData.user.id)
           .single();
 
-        if (data && data.password === password) {
-          user = data as unknown as User;
-          if (onSyncUser) onSyncUser(user); // Persistence logic
+        if (profileData) {
+          if (profileData.blocked) {
+            setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
+            await supabase.auth.signOut();
+            return;
+          }
+          if (onSyncUser) onSyncUser(profileData as unknown as User);
+          onLogin(profileData as unknown as User);
+          return;
+        } else {
+          setError("ERROR: PERFIL INEXISTENTE");
         }
       } catch (err) {
         console.error("Online login check failed", err);
+        setError("ERROR AL CONECTAR CON SERVIDOR");
       }
-    }
-
-    if (user) {
-      if (user.blocked) {
-        setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
-        return;
-      }
-      onLogin(user);
     } else {
-      setError(t.error);
+      // Offline fallback
+      if (localUser) {
+        if (localUser.blocked) {
+          setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
+          return;
+        }
+        onLogin(localUser);
+      } else {
+        setError(t.error); // Fallback to traditional error msg
+      }
     }
   };
 
