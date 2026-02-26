@@ -17,8 +17,29 @@ export default defineConfig(({ mode }) => {
       legacy({
         targets: ['defaults', 'android >= 5', 'chrome >= 64'],
         additionalLegacyPolyfills: ['regenerator-runtime/runtime']
+      }),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-controlled-icon.svg'],
+        manifest: {
+          name: 'Anexo Cobro',
+          short_name: 'Cobros',
+          description: 'Sistema de Gestión de Cobros',
+          theme_color: '#059669',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
       })
-      // VitePWA REMOVED TEMPORARILY TO FIX BUILD
     ],
     build: {
       target: 'es2015',
