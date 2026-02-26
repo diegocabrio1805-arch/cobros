@@ -503,10 +503,16 @@ const App: React.FC = () => {
     const normalizedUser = { ...user, role: normalizedRole };
     setState(prev => ({ ...prev, currentUser: normalizedUser }));
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
-    // Only clear old/legacy sync keys; keep v8 to avoid a full re-sync that blanks the dashboard
+    // Only clear legacy timestamps to avoid blanking the dashboard on reconnect
     localStorage.removeItem('last_sync_timestamp');
     localStorage.removeItem('last_sync_timestamp_v6');
-    setTimeout(() => handleForceSync(true), 100);
+    // Always trigger a pull from Supabase on login to refresh data (handles cache-cleared scenarios)
+    setTimeout(() => {
+      pullData(false).then(newData => {
+        if (newData) handleRealtimeData(newData);
+      });
+    }, 500);
+
 
     // Auto-reconnect Bluetooth on login for shared devices
     import('./services/bluetoothPrinterService').then(({ connectToPrinter }) => {
