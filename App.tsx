@@ -9,6 +9,8 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
 import Loans from './components/Loans';
+import { useRegisterSW } from 'virtual:pwa-register/react';
+
 import CollectionRoute from './components/CollectionRoute';
 import Expenses from './components/Expenses';
 import CollectionMap from './components/CollectionMap';
@@ -48,6 +50,41 @@ const App: React.FC = () => {
   const [isJumping, setIsJumping] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
+  // --- BULLETPROOF AUTO-UPDATER ---
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      try {
+        const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const text = await res.text();
+        const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
+        if (match && match[1]) {
+          const remoteVersion = match[1];
+          const localVersion = '6.1.146'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          if (remoteVersion !== localVersion) {
+            console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
+            localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
+            if ('caches' in window) {
+              const names = await caches.keys();
+              await Promise.all(names.map(name => caches.delete(name)));
+            }
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(r => r.unregister()));
+            }
+            window.location.reload();
+          }
+        }
+      } catch (error) {
+        console.log("Auto-updater check failed (offline?)");
+      }
+    };
+
+    // Check 5 seconds after boot, then every 2 minutes
+    setTimeout(checkForUpdates, 5000);
+    const interval = setInterval(checkForUpdates, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
     const CURRENT_VERSION_ID = 'v6.1.146-PWA';
