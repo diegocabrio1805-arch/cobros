@@ -193,6 +193,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
   const [selectedCollector, setSelectedCollector] = useState<string>('all');
+  const [carteraSortBy, setCarteraSortBy] = useState<'registro' | 'saldo' | 'atraso' | 'renovaciones'>('registro');
 
   // PAGINACIÓN PARA GAMA BAJA
   const [currentPage, setCurrentPage] = useState(1);
@@ -425,7 +426,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const installments = Array.isArray(activeLoan.installments) ? activeLoan.installments : [];
 
       // Regla de Oro: El Abonado debe coincidir exactamente con el historial reciente (logs)
-      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+      // FIX PARA PRÉSTAMOS EDITADOS POR ERROR: Descartar pagos anteriores a la fecha de inicio del crédito actual.
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
+        log.loanId === activeLoan.id &&
+        log.type === CollectionLogType.PAYMENT &&
+        !log.isOpening &&
+        !log.deletedAt &&
+        new Date(log.date.split('T')[0]).getTime() >= new Date(activeLoan.createdAt.split('T')[0]).getTime()
+      );
       totalPaid = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
 
       // Saldo Pendiente: Total Crédito - Suma de Abonos en Historial
@@ -494,21 +502,28 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
-    return (Array.isArray(state.clients) ? state.clients : []).filter(client => {
-      if (!client.createdAt || client.isHidden) return false;
-      const cDate = new Date(client.createdAt);
-      const inRange = cDate >= start && cDate <= end;
-      if (!inRange) return false;
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+
+    return (Array.isArray(state.clients) ? state.clients : []).map(client => {
+      if (client.isHidden) return null;
+
+      const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      if (!activeLoan) return null;
+
+      // Un "Crédito Nuevo" es aquel cuyo préstamo activo (no renovación) se creó en la fecha
+      if (activeLoan.isRenewal) return null;
+
+      const lDate = new Date(activeLoan.createdAt);
+      const inRange = lDate >= start && lDate <= end;
+      if (!inRange) return null;
 
       if (selectedCollector !== 'all') {
-        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return activeLoan?.collectorId === selectedCollector || client.addedBy === selectedCollector;
+        if (activeLoan.collectorId !== selectedCollector && client.addedBy !== selectedCollector) return null;
       }
-      return true;
-    }).map(client => {
+
       const metrics = getClientMetrics(client);
       return { ...client, _metrics: metrics };
-    }).sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan!.createdAt).getTime() - new Date(a._metrics.activeLoan!.createdAt).getTime());
   }, [state.clients, filterStartDate, filterEndDate, viewMode]);
 
   const renovacionesExcelData = useMemo(() => {
@@ -561,7 +576,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         new Date(l.createdAt).getTime() >= new Date(log.date).getTime() - 86400000
       );
 
-      if (!hasNewLoan) return null;
+      // EXCLUDE if we already caught the actual new loan in renewalLoans directly
+      const isAlreadyInRenewalLoans = renewalLoans.some(rl => rl.id === client.id);
+
+      if (!hasNewLoan || isAlreadyInRenewalLoans) return null;
 
       return {
         ...client,
@@ -596,11 +614,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const metrics = getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).sort((a, b) => {
+      if (carteraSortBy === 'renovaciones') {
+        const renewalsB = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === b.id && l.isRenewal).length : 0;
+        const renewalsA = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === a.id && l.isRenewal).length : 0;
+        return renewalsB - renewalsA;
+      }
+      if (carteraSortBy === 'saldo') {
+        return (b._metrics?.balance || 0) - (a._metrics?.balance || 0);
+      }
+      if (carteraSortBy === 'atraso') {
+        const delaysB = Math.max(0, b._metrics?.daysOverdue || 0);
+        const delaysA = Math.max(0, a._metrics?.daysOverdue || 0);
+        return delaysB - delaysA;
+      }
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [state.clients, viewMode]);
+  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy]);
 
   const handleOpenMap = (loc?: { lat: number, lng: number }) => {
     if (loc && loc.lat && loc.lng) {
@@ -697,7 +728,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     setIsCapturing(true);
     setCapturingType(type);
     try {
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
       const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       if (forEdit && editClientFormData) {
         setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc } : null);
@@ -705,6 +736,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc }));
       }
     } catch (err: any) {
+      try {
+        const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+        const fbLoc = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        if (forEdit && editClientFormData) {
+          setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc }));
+        }
+      } catch (fallbackErr: any) {
+        alert("Error GPS: " + fallbackErr.message);
+      }
       alert("Error GPS: " + err.message);
     } finally {
       setIsCapturing(false);
@@ -798,10 +840,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
       try {
-        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
         currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       } catch (geoErr) {
-        console.warn("Could not get real GPS from dossier:", geoErr);
+        try {
+          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        } catch (fallbackErr) {
+          console.warn("Could not get real GPS from dossier:", fallbackErr);
+        }
       }
 
       const log: CollectionLog = {
@@ -813,7 +860,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         date: new Date().toISOString(),
         location: currentLocation,
         isVirtual: dossierIsVirtual,
-        isRenewal: dossierIsRenewal
+        isRenewal: dossierIsRenewal,
+        companySnapshot: state.settings
       };
 
       addCollectionAttempt(log);
@@ -852,7 +900,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - totalPaidHistory),
           paidInstallments: paidInstCount,
           totalInstallments: activeLoanInLegajo.totalInstallments,
-          isRenewal: dossierIsRenewal
+          isRenewal: dossierIsRenewal,
+          isVirtual: dossierIsVirtual,
+          installmentValue: activeLoanInLegajo.installmentValue,
+          totalPaidAmount: totalPaidHistory
         }, state.settings);
 
         // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
@@ -1018,6 +1069,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const progress = newTotalPaid / (activeLoanInLegajo.installmentValue || 1);
       const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
+      const settingsToUse = logToEdit.companySnapshot || state.settings;
+
       const receiptText = generateReceiptText({
         clientName: clientInLegajo.name,
         amountPaid: amt,
@@ -1025,12 +1078,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         loanId: activeLoanInLegajo.id,
         startDate: activeLoanInLegajo.createdAt,
         expiryDate: lastDueDate,
-        daysOverdue: getDaysOverdue(activeLoanInLegajo, state.settings, newTotalPaid),
+        daysOverdue: getDaysOverdue(activeLoanInLegajo, settingsToUse, newTotalPaid),
         remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - newTotalPaid),
         paidInstallments: paidInstCount,
         totalInstallments: activeLoanInLegajo.totalInstallments,
-        isRenewal: logToEdit.isRenewal
-      }, state.settings);
+        isRenewal: logToEdit.isRenewal,
+        isVirtual: logToEdit.isVirtual,
+        installmentValue: activeLoanInLegajo.installmentValue,
+        totalPaidAmount: newTotalPaid
+      }, settingsToUse);
 
       const printWin = window.open('', '_blank', 'width=400,height=600');
       printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
@@ -1094,6 +1150,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const progress = totalPaidAtThatMoment / (activeLoanInLegajo.installmentValue || 1);
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
+    const settingsToUse = lastPaymentLog.companySnapshot || state.settings;
+
     // 3. Generar Texto
     const receiptText = generateReceiptText({
       clientName: clientInLegajo.name,
@@ -1102,12 +1160,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       loanId: activeLoanInLegajo.id,
       startDate: activeLoanInLegajo.createdAt,
       expiryDate: lastDueDate,
-      daysOverdue: getDaysOverdue(activeLoanInLegajo, state.settings, totalPaidAtThatMoment), // Mora recalculada con el total a ese momento
+      daysOverdue: getDaysOverdue(activeLoanInLegajo, settingsToUse, totalPaidAtThatMoment), // Mora recalculada con el total a ese momento
       remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - totalPaidAtThatMoment),
       paidInstallments: paidInstCount,
       totalInstallments: activeLoanInLegajo.totalInstallments,
-      isRenewal: lastPaymentLog.isRenewal
-    }, state.settings);
+      isRenewal: lastPaymentLog.isRenewal,
+      isVirtual: lastPaymentLog.isVirtual,
+      installmentValue: activeLoanInLegajo.installmentValue,
+      totalPaidAmount: totalPaidAtThatMoment
+    }, settingsToUse);
 
     // 4. Imprimir vía Bluetooth
     const { printText } = await import('../services/bluetoothPrinterService');
@@ -1566,7 +1627,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
                   {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).map(client => (
                     <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 uppercase text-slate-500">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                      <td className="px-6 py-4 uppercase text-slate-500">{client._metrics.activeLoan?.createdAt ? new Date(client._metrics.activeLoan.createdAt).toLocaleDateString() : '---'}</td>
                       <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
                       <td className="px-6 py-4 text-blue-600">{client.phone}</td>
                       <td className="px-6 py-4 text-right">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
@@ -1644,9 +1705,21 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-950 text-white text-[9px] font-black uppercase tracking-widest">
-                    <th className="px-6 py-4">Registro</th>
+                    <th className="px-6 py-4 flex items-center gap-1.5">
+                      <select
+                        value={carteraSortBy}
+                        onChange={(e) => setCarteraSortBy(e.target.value as any)}
+                        className="bg-slate-800 text-white border border-slate-700 outline-none uppercase font-black cursor-pointer rounded-md px-1.5 py-0.5 text-[7px] max-w-[85px] hover:border-slate-500 transition-colors shadow-inner"
+                      >
+                        <option value="registro">REGISTRO</option>
+                        <option value="saldo">POR SALDO</option>
+                        <option value="atraso">POR ATRASO</option>
+                        <option value="renovaciones">POR RENOV.</option>
+                      </select>
+                    </th>
                     <th className="px-6 py-4">Cliente / ID</th>
                     <th className="px-6 py-4">Teléfono(s)</th>
+                    <th className="px-6 py-4 text-center">Renov.</th>
                     <th className="px-6 py-4 text-right">Crédito</th>
                     <th className="px-6 py-4 text-center">Cuotas T/P</th>
                     <th className="px-6 py-4 text-right">Saldo Actual</th>
@@ -1663,6 +1736,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <td className="px-6 py-4">
                         <p className="text-blue-700">{client.phone}</p>
                         {client.secondaryPhone && <p className="text-slate-400 text-[10px]">{client.secondaryPhone}</p>}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">
+                          {Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === client.id && l.isRenewal).length : 0}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-right font-mono text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
                       <td className="px-6 py-4 text-center">

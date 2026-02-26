@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -242,7 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
         // Calculate current balance (Sanitized)
         const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
-        const paidAmt = loan ? (loan.installments || []).reduce((acc, i) => acc + (Number(i.paidAmount) || 0), 0) : 0;
+        const paidAmt = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs) : 0;
         const balance = totalAmt - paidAmt;
 
         return {

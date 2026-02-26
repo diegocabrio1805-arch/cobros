@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
@@ -217,8 +217,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     if (!loan) return;
 
     // Regla de Oro: El saldo siempre sale de los logs de pago
-    const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
-    const totalPaid = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
+    const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
 
     if (method === 'renewal') {
       setAmount(Math.max(0, loan.totalAmount - totalPaid));
@@ -239,10 +238,15 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
       let currentLocation = { lat: 0, lng: 0 };
       try {
-        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
         currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
       } catch (geoErr) {
-        console.warn("Could not get real-time GPS, using defaults:", geoErr);
+        try {
+          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        } catch (fallbackErr) {
+          console.warn("Could not get real-time GPS, using defaults:", fallbackErr);
+        }
       }
 
       const log: CollectionLog = {
@@ -254,7 +258,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         date: new Date().toISOString(),
         location: currentLocation,
         isVirtual,
-        isRenewal
+        isRenewal,
+        companySnapshot: state.settings
       };
 
       addCollectionAttempt(log);
@@ -268,10 +273,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       if (client && type === CollectionLogType.PAYMENT) {
         const installments = Array.isArray(loan.installments) ? loan.installments : [];
         // Regla de Oro: Recalculamos el total abonado BASADO EN EL HISTORIAL (incluyendo el nuevo pago)
-        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loanId && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
-        const totalPaidHistory = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0) + amountToApply;
+        const totalPaidHistory = calculateTotalPaidFromLogs(loan, state.collectionLogs) + amountToApply;
 
-        const overdueDays = getDaysOverdue(loan, state.settings);
+        const overdueDays = getDaysOverdue(loan, state.settings, totalPaidHistory);
         const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : loan.createdAt;
 
         // Cuotas pagadas basadas en el dinero total / valor cuota
@@ -289,7 +293,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           remainingBalance: Math.max(0, (loan.totalAmount || 0) - totalPaidHistory),
           paidInstallments: Number(formattedProgress), // Pasamos el progreso calculado
           totalInstallments: loan.totalInstallments || 0,
-          isRenewal
+          isRenewal,
+          isVirtual,
+          installmentValue: loan.installmentValue,
+          totalPaidAmount: totalPaidHistory
         }, state.settings);
 
         // Condición: Solo mostrar recibo en pantalla si hay una impresora conectada

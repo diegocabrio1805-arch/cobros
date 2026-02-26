@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
@@ -750,16 +750,17 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           const isNoPay = sharingLog.type === CollectionLogType.NO_PAGO;
           const installments = Array.isArray(loan.installments) ? loan.installments : [];
-          const totalPaid = installments.reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+          const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
           const balance = loan.totalAmount - totalPaid;
-          const daysOverdue = getDaysOverdue(loan, state.settings);
+          const settingsToUse = sharingLog.companySnapshot || state.settings;
+          const daysOverdue = getDaysOverdue(loan, settingsToUse, totalPaid);
           const paidInstallments = installments.filter(i => i.status === PaymentStatus.PAID).length;
 
           return (
             <div ref={receiptImageRef} className="w-[600px] bg-white border-[12px] border-red-600 rounded-[3rem] p-10 font-sans overflow-hidden shadow-2xl">
               {/* Header Card */}
               <div className="bg-red-600 rounded-[2rem] p-8 text-center text-white mb-10 shadow-lg">
-                <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{state.settings.companyName || 'ANEXO COBRO'}</h1>
+                <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{settingsToUse.companyName || 'ANEXO COBRO'}</h1>
                 <p className="text-lg font-bold opacity-90 uppercase tracking-widest">
                   {isNoPay ? 'NOTIFICACIÓN DE VISITA (MORA)' : 'COMPROBANTE OFICIAL DE PAGO'}
                 </p>
@@ -800,7 +801,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div className="bg-slate-50 rounded-[2rem] p-8 space-y-4 border border-slate-200">
                   <div className="flex justify-between items-center">
                     <p className="text-sm font-black text-slate-500 uppercase tracking-widest">SALDO RESTANTE:</p>
-                    <p className="text-3xl font-black text-red-600 font-mono">{formatCurrency(balance, state.settings)}</p>
+                    <p className="text-3xl font-black text-red-600 font-mono">{formatCurrency(balance, settingsToUse)}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
                     <p className="text-sm font-black text-slate-500 uppercase tracking-widest">DÍAS EN MORA:</p>
@@ -817,7 +818,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed">
                     EVITE EL REPORTE NEGATIVO EN CENTRALES.<br />
                     DOCUMENTO GENERADO POR SISTEMA AUTOMATIZADO.<br />
-                    SOPORTE: {state.settings.contactPhone || 'NO ASIGNADO'}
+                    SOPORTE: {settingsToUse.contactPhone || 'NO ASIGNADO'}
                   </p>
                   <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto">
                     <i className="fa-solid fa-circle-exclamation text-slate-400 text-2xl"></i>

@@ -22,7 +22,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
             if (permission.location === 'granted') {
                 // Try to get current position to verify GPS is actually on
                 try {
-                    await Geolocation.getCurrentPosition({ timeout: 5000 });
+                    await Geolocation.getCurrentPosition({ timeout: 5000, maximumAge: 0, enableHighAccuracy: true });
                     setIsLocationEnabled(true);
                     onLocationEnabled();
                 } catch (err) {

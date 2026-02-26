@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.anexocobro.app',
-  appName: 'Dante',
+  appName: 'anexo cobros',
   webDir: 'dist',
   android: {
     allowMixedContent: true,

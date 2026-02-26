@@ -157,11 +157,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           </div>
 
           <button
-            onClick={handleAutoGenerate}
-            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] flex items-center justify-center gap-3"
+            onClick={(e) => {
+              e.preventDefault();
+              window.open('https://wa.me/595994560450', '_blank');
+            }}
+            type="button"
+            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-3"
           >
-            <i className="fa-solid fa-user-tie text-emerald-400"></i>
-            GENERAR ACCESO GERENTE
+            <i className="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
+            SOPORTE +595994560450
           </button>
 
           <div className="text-center pt-2">

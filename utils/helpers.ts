@@ -21,6 +21,23 @@ export const getLocalDateStringForCountry = (country: string = 'CO', date: Date 
   return `${year}-${month}-${day}`;
 };
 
+export const calculateTotalPaidFromLogs = (loan: any, collectionLogs: any[]): number => {
+  if (!loan || !collectionLogs) return 0;
+
+  const loanStartDate = loan.createdAt ? new Date(loan.createdAt.split('T')[0]).getTime() : 0;
+
+  const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log =>
+    log.loanId === loan.id &&
+    log.type === 'PAYMENT' &&
+    !log.isOpening &&
+    !log.deletedAt &&
+    loan.createdAt &&
+    new Date(log.date.split('T')[0]).getTime() >= loanStartDate
+  );
+
+  return validLogs.reduce((acc: number, log: any) => acc + (log.amount || 0), 0);
+};
+
 export const formatFullDateTime = (country: string = 'CO'): string => {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
@@ -188,9 +205,11 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
     const todayStr = getLocalDateStringForCountry(settings?.country || 'CO');
     const today = new Date(todayStr + 'T00:00:00');
 
+    // Priorizar cálculo si se pasó `customTotalPaid`, de lo contrario hacer fallback al método legacy
     const totalPaid = customTotalPaid !== undefined
       ? Number(customTotalPaid)
-      : (loan.installments || []).reduce((acc, i) => acc + (Number(i.paidAmount) || 0), 0);
+      : (loan.installments || []).reduce((acc: any, i: any) => acc + (Number(i.paidAmount) || 0), 0);
+
 
     // SIEMPRE generar tabla virtual desde la fecha de creación real para el cálculo de mora.
     // Esto evita errores si el cronograma guardado en el objeto 'loan' tiene fechas futuras.
@@ -309,7 +328,10 @@ export interface ReceiptData {
   remainingBalance: number;
   paidInstallments: number;
   totalInstallments: number;
+  installmentValue?: number;
+  totalPaidAmount?: number;
   isRenewal?: boolean;
+  isVirtual?: boolean;
   // Manual overrides
   companyNameManual?: string;
   companyAliasManual?: string;
@@ -374,6 +396,35 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
 
   const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
+  const pendingInstallmentText = () => {
+    if (data.installmentValue && data.totalPaidAmount !== undefined) {
+      const progress = data.totalPaidAmount / data.installmentValue;
+      const exactRemainder = data.totalPaidAmount % data.installmentValue;
+      if (exactRemainder > 0 && Math.floor(progress) < data.totalInstallments) {
+        const pendingAmount = data.installmentValue - exactRemainder;
+        const nextInstallmentNum = Math.floor(progress) + 1;
+        return `\nPENDIENTE ${currencySymbol}${pendingAmount.toLocaleString('es-CO').replace(/,/g, '.')}  /  ${nextInstallmentNum}`;
+      }
+    }
+    return '';
+  };
+
+  let displayedPaidInstallments = data.paidInstallments;
+  if (data.installmentValue && data.totalPaidAmount !== undefined) {
+    const fullInstallments = Math.floor(data.totalPaidAmount / data.installmentValue);
+    const fraction = (data.totalPaidAmount % data.installmentValue) / data.installmentValue;
+
+    let decimalPart = 0;
+    if (fraction > 0) {
+      decimalPart = Math.floor(fraction * 10) / 10;
+      if (decimalPart === 0) decimalPart = 0.1;
+      if (decimalPart > 0.9) decimalPart = 0.9;
+    }
+
+    // Override the raw calculation with the precise decimal scale
+    displayedPaidInstallments = fullInstallments + decimalPart;
+  }
+
   return `
 ${company}
 ${alias ? alias : ''}
@@ -384,13 +435,14 @@ ${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}
 CLIENTE: ${data.clientName.toUpperCase()}
 FECHA: ${datePart ? datePart.trim() : dateTime}
 HORA: ${timePart ? timePart.trim() : '---'}
+METODO: ${data.isVirtual ? 'TRANSFERENCIA' : 'EFECTIVO'}
 ===============================
-SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
-ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
-SALDO ACTUAL: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO').replace(/,/g, '.')}
+ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO').replace(/,/g, '.')}
+SALDO ACTUAL: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO').replace(/,/g, '.')}
 ===============================
-CUOTAS PAGADAS: ${data.paidInstallments}
-CUOTAS TOTALES: ${data.totalInstallments}
+CUOTAS PAGADAS: ${displayedPaidInstallments}
+CUOTAS TOTALES: ${data.totalInstallments}${pendingInstallmentText()}
 ===============================
 FECHA DE INICIO: ${formatDate(data.startDate)}
 FECHA DE VENCIMIENTO: ${formatDate(data.expiryDate)}

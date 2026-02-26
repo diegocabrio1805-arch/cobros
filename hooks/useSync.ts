@@ -60,6 +60,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         const interval = setInterval(async () => {
             const online = await checkConnection();
             if (online !== isOnline) setIsOnline(online);
+            if (online) {
+                const queueStr = localStorage.getItem('syncQueue');
+                if (queueStr && JSON.parse(queueStr).length > 0) {
+                    processQueue();
+                }
+            }
         }, 30000);
 
         const setupListener = async () => {

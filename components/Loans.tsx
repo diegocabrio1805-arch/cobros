@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
@@ -95,7 +95,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       let balance = 0;
       if (activeLoan) {
-        const totalPaid = (Array.isArray(activeLoan.installments) ? activeLoan.installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+        const totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
         balance = activeLoan.totalAmount - totalPaid;
       }
       return { ...client, balance };
@@ -151,8 +151,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     const tableRows = (Array.isArray(filteredLoans) ? filteredLoans : []).map(loan => {
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-      const mora = getDaysOverdue(loan, state.settings);
-      const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+      const mora = getDaysOverdue(loan, state.settings, totalPaid);
       const balance = loan.totalAmount - totalPaid;
       return `
         <tr>
@@ -216,7 +216,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     if (method === 'renewal' && selectedLoanId) {
       const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === selectedLoanId);
       if (loan) {
-        const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc, i) => acc + (i.paidAmount || 0), 0);
+        const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         setPaymentAmount(Math.max(0, loan.totalAmount - totalPaid));
       }
     } else {
@@ -253,11 +253,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         console.log("Obteniendo ubicación GPS obligatoria...");
         const pos = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
-          timeout: 10000
+          timeout: 2000,
+          maximumAge: 120000
         });
         currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       } catch (geoErr) {
-        console.warn("Falla en captura GPS:", geoErr);
+        try {
+          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        } catch (fbErr) {
+          console.warn("Falla en captura GPS:", fbErr);
+        }
       }
 
       // GPS fallback: solo advertir, NO bloquear el pago
@@ -274,7 +280,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         date: new Date().toISOString(),
         location: currentLocation,
         isVirtual,
-        isRenewal
+        isRenewal,
+        companySnapshot: state.settings
       };
 
       addCollectionAttempt(log);
@@ -303,6 +310,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           paidInstallments: paidInstCount,
           totalInstallments: loan.totalInstallments,
           isRenewal,
+          isVirtual,
+          installmentValue: loan.installmentValue,
+          totalPaidAmount: totalPaidHistory,
           // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
           companyNameManual: state.settings.companyName || null,
           companyAliasManual: state.settings.companyAlias || null,
@@ -387,6 +397,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const progress = totalPaidAtThatMoment / (loan.installmentValue || 1);
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
+    const settingsToUse = lastPaymentLog.companySnapshot || state.settings;
+
     const receiptData: ReceiptData = {
       clientName: client.name,
       amountPaid: amountPaidInLastLog,
@@ -394,27 +406,30 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       loanId: loan.id,
       startDate: loan.createdAt,
       expiryDate: lastDueDate,
-      daysOverdue: getDaysOverdue(loan, state.settings, totalPaidAtThatMoment),
+      daysOverdue: getDaysOverdue(loan, settingsToUse, totalPaidAtThatMoment),
       remainingBalance: Math.max(0, loan.totalAmount - totalPaidAtThatMoment),
       paidInstallments: paidInstCount,
       totalInstallments: loan.totalInstallments,
       isRenewal: lastPaymentLog.isRenewal,
-      // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
-      companyNameManual: state.settings.companyName || null,
-      companyAliasManual: state.settings.companyAlias || null,
+      isVirtual: lastPaymentLog.isVirtual,
+      installmentValue: loan.installmentValue,
+      totalPaidAmount: totalPaidAtThatMoment,
+
+      companyNameManual: settingsToUse.companyName || null,
+      companyAliasManual: settingsToUse.companyAlias || null,
       contactLabelManual: "TEL. PUBLICO",
-      contactPhoneManual: state.settings.contactPhone || null,
+      contactPhoneManual: settingsToUse.contactPhone || null,
       companyIdentifierLabelManual: "ID EMPRESA",
-      companyIdentifierManual: state.settings.companyIdentifier || null,
-      shareLabelManual: state.settings.shareLabel || null,
-      shareValueManual: state.settings.shareValue || null,
+      companyIdentifierManual: settingsToUse.companyIdentifier || null,
+      shareLabelManual: settingsToUse.shareLabel || null,
+      shareValueManual: settingsToUse.shareValue || null,
       supportLabelManual: "NUMERO CO",
-      supportPhoneManual: state.settings.technicalSupportPhone || null,
+      supportPhoneManual: settingsToUse.technicalSupportPhone || null,
       fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
     };
 
     // Direct register and UI flow
-    const finalReceipt = generateReceiptText(receiptData, state.settings);
+    const finalReceipt = generateReceiptText(receiptData, settingsToUse);
     setReceipt(finalReceipt);
 
     // Silent print
@@ -645,9 +660,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   </tr>
                 ) : (
                   (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
+                    const amountToPay = loan.installmentValue || 0;
                     const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-                    const mora = getDaysOverdue(loan, state.settings);
-                    const totalPaid = (Array.isArray(loan.installments) ? loan.installments : []).reduce((acc: number, i: any) => acc + (i.paidAmount || 0), 0);
+                    const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+                    const mora = getDaysOverdue(loan, state.settings, totalPaid);
                     const balance = loan.totalAmount - totalPaid;
 
                     return (

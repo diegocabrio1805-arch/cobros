@@ -177,6 +177,7 @@ export interface CollectionLog {
   isOpening?: boolean;
   recordedBy?: string; // ID del usuario que marcó el abono
   notes?: string; // Nota opcional para el motivo de No Pago
+  companySnapshot?: AppSettings; // Snapshot inmutable de las opciones de la empresa en el momento del recibo
   deletedAt?: string;
   updated_at?: string;
 }
