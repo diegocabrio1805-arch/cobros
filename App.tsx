@@ -89,7 +89,25 @@ const App: React.FC = () => {
       try {
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-          // Migración forzada / Clean
+          console.log(`[App] Version mismatch: ${lastAppVersion} -> ${CURRENT_VERSION_ID}. Purging cache...`);
+
+          // 1. Unregister Service Workers
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+              await registration.unregister();
+            }
+          }
+
+          // 2. Clear Caches
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) {
+              await caches.delete(cacheName);
+            }
+          }
+
+          // 3. Keep settings but clear the rest
           let savedSettings = null; let savedBranchSettings = null;
 
           const oldSaved = localStorage.getItem('prestamaster_v2');
@@ -117,6 +135,10 @@ const App: React.FC = () => {
           if (savedSettings || savedBranchSettings) {
             await StorageService.setItem('prestamaster_v2', { settings: savedSettings || defaultInitialState.settings, branchSettings: savedBranchSettings || {} });
           }
+
+          console.log("[App] Purge complete. Reloading...");
+          window.location.reload();
+          return;
         }
 
         // Leer datos actuales de IndexedDB (antes LocalStorage)
