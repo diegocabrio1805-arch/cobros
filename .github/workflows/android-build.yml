@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -61,16 +64,30 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
-      - name: Upload Debug APK
+      - name: Rename and Zip APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v6.1.144_Debug.apk
+          zip Anexo_Cobro_v6.1.144_Debug.zip Anexo_Cobro_v6.1.144_Debug.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v6.1.144-PWA"
+          name: "Release v6.1.144-PWA"
+          body: |
+            Nueva versión optimizada para Android.
+            - Búsqueda de clientes debounced.
+            - GPS obligatorio cada 3s.
+            - Pull-to-refresh habilitado.
+            - Versión string: v6.1.144-PWA
+          files: |
+            Anexo_Cobro_v6.1.144_Debug.apk
+            Anexo_Cobro_v6.1.144_Debug.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Debug APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: anexo-cobro-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        if: success()
-        continue-on-error: true
-        with:
-          name: anexo-cobro-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: Anexo_Cobro_v6.1.144_Debug.apk
