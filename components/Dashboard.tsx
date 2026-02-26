@@ -53,12 +53,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
+    const todayDateStr = new Date().toDateString(); // Use toDateString() - same as CollectorCommission
 
     return visibleCollectors.map(user => {
-      // Use recordedBy to match who actually registered the payment (same as Auditoría Histórica)
+      // Use recordedBy + same date comparison method as Auditoría Histórica
       const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-        const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
-        return log.recordedBy === user.id && logDateStr === countryTodayStr;
+        return log.recordedBy === user.id &&
+          new Date(log.date).toDateString() === todayDateStr &&
+          !log.isOpening;
       });
 
       const recaudoHoy = logsToday
