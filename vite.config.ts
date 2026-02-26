@@ -20,10 +20,10 @@ export default defineConfig(({ mode }) => {
       }),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-controlled-icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'maskable-icon.png'],
         manifest: {
           name: 'Anexo Cobro',
-          short_name: 'Cobros',
+          short_name: 'Cobro',
           description: 'Sistema de Gestión de Cobros',
           theme_color: '#059669',
           icons: [
@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => {
               type: 'image/png'
             }
           ]
+        },
+        workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MiB
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
         }
       })
     ],
@@ -45,6 +49,8 @@ export default defineConfig(({ mode }) => {
       target: 'es2015',
       minify: mode === 'production' ? 'terser' : false,
       sourcemap: mode !== 'production',
+      cssCodeSplit: true,
+      assetsInlineLimit: 4096,
       terserOptions: {
         compress: {
           drop_console: mode === 'production',
@@ -54,14 +60,19 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor': ['react', 'react-dom'],
-            'supabase': ['@supabase/supabase-js'],
-            'capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/network']
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@supabase')) return 'vendor-supabase';
+              if (id.includes('@capacitor')) return 'vendor-capacitor';
+              if (id.includes('react')) return 'vendor-react';
+              if (id.includes('lucide')) return 'vendor-lucide';
+              if (id.includes('recharts')) return 'vendor-recharts';
+              return 'vendor';
+            }
           }
         }
       },
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 2000
     },
     resolve: {
       alias: {
