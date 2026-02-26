@@ -824,18 +824,6 @@ const App: React.FC = () => {
     });
   };
 
-  if (!state.currentUser) {
-    return (
-      <>
-        <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />
-      </>
-    );
-  }
-
-  const isPowerUser = state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER;
-  const isAdmin = state.currentUser.role === Role.ADMIN;
-  const t = getTranslation(state.settings.language).menu;
-
   // --- Pull to Refresh Logic ---
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -871,6 +859,18 @@ const App: React.FC = () => {
     }
     setIsPulling(false);
   };
+
+  if (!state.currentUser) {
+    return (
+      <>
+        <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />
+      </>
+    );
+  }
+
+  const isPowerUser = state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER;
+  const isAdmin = state.currentUser.role === Role.ADMIN;
+  const t = getTranslation(state.settings.language).menu;
 
   return (
     <ErrorBoundary>
