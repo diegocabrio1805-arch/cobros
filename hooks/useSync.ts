@@ -1305,6 +1305,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     };
     const pushSettings = async (branchId: string, settings: AppSettings): Promise<boolean> => {
         if (!branchId || branchId === 'none') return false;
+        // SAFETY: Avoid pushing placeholders
+        if (settings.companyName === '11111111' || branchId === 'admin-1' || branchId === '00000000-0000-0000-0000-000000000001') {
+            console.warn("[pushSettings] Blocking junk data push:", branchId, settings.companyName);
+            return true; // Pretend it worked so we don't retry forever
+        }
+
         if (!isOnline) {
             addToQueue('UPDATE_SETTINGS', { branchId, settings });
             return false;

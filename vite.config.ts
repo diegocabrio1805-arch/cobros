@@ -60,15 +60,10 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('@supabase')) return 'vendor-supabase';
-              if (id.includes('@capacitor')) return 'vendor-capacitor';
-              if (id.includes('react')) return 'vendor-react';
-              if (id.includes('lucide')) return 'vendor-lucide';
-              if (id.includes('recharts')) return 'vendor-recharts';
-              return 'vendor';
-            }
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/network']
           }
         }
       },
