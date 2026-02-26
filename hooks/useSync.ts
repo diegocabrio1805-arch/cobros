@@ -1,4 +1,4 @@
-ï»¿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -16,7 +16,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const [isFullSyncing, setIsFullSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("â”¬Ã­Sincronizado!");
+    const [successMessage, setSuccessMessage] = useState("-íSincronizado!");
     const [isOnline, setIsOnline] = useState(true);
     const [queueLength, setQueueLength] = useState(0);
     const [lastErrors, setLastErrors] = useState<{ table: string, error: any, timestamp: string }[]>([]);
@@ -284,6 +284,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const online = await checkConnection();
             if (!online) {
                 console.warn("Pull data skipped: No ping response.");
+                // Return null so we don't accidentally wipe offline data
+                return null;
+            }
+
+            // NATIVE AUTH ZERO TRUST CHECK
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                console.warn("[Sync] Pull omitted: No active auth session.");
+                setSyncError('Sesión caducada. Por favor inicie sesión nuevamente.');
+                return null;
             }
 
             // FORCE FULL SYNC for V6 fix to ensure missing clients are downloaded
@@ -402,55 +412,55 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120s for 2G/3G networks
 
             // 1. Settings (Small)
-            // setSyncError("Sincronizando: ConfiguraciÃ³n...");
+            // setSyncError("Sincronizando: Configuración...");
             const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
-            if (settingsResult.error) throw new Error(`Configuraciâ”œâ”‚n: ${settingsResult.error.message}`);
+            if (settingsResult.error) throw new Error(`Configuraci+¦n: ${( settingsResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 100));
 
             // 2. Profiles (Small)
             // setSyncError("Sincronizando: Usuarios...");
             const profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal));
-            if (profilesResult.error) throw new Error(`Usuarios: ${profilesResult.error.message}`);
+            if (profilesResult.error) throw new Error(`Usuarios: ${( profilesResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 100));
 
             // 3. Clients (Medium)
             // setSyncError("Sincronizando: Clientes...");
             const clientsResult = await fetchAll(clientsQuery.abortSignal(controller.signal));
-            if (clientsResult.error) throw new Error(`Clientes: ${clientsResult.error.message}`);
+            if (clientsResult.error) throw new Error(`Clientes: ${( clientsResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 200));
 
             // 4. Loans (Medium)
-            // setSyncError("Sincronizando: Prâ”œÂ®stamos...");
+            // setSyncError("Sincronizando: Pr+®stamos...");
             const loansResult = await fetchAll(loansQuery.abortSignal(controller.signal));
-            if (loansResult.error) throw new Error(`Prâ”œÂ®stamos: ${loansResult.error.message}`);
+            if (loansResult.error) throw new Error(`Pr+®stamos: ${( loansResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 200));
 
             // 5. Payments (Large)
             // setSyncError("Sincronizando: Pagos...");
             const paymentsResult = await fetchAll(paymentsQuery.abortSignal(controller.signal));
-            if (paymentsResult.error) throw new Error(`Pagos: ${paymentsResult.error.message}`);
+            if (paymentsResult.error) throw new Error(`Pagos: ${( paymentsResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 200));
 
             // 6. Logs (Large)
             // setSyncError("Sincronizando: Registros...");
             const logsResult = await fetchAll(logsQuery.abortSignal(controller.signal));
-            if (logsResult.error) throw new Error(`Registros: ${logsResult.error.message}`);
+            if (logsResult.error) throw new Error(`Registros: ${( logsResult.error as any ).message}`);
 
             await new Promise(r => setTimeout(r, 100));
 
             // 7. Expenses (Small)
             // setSyncError("Sincronizando: Gastos...");
             const expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal));
-            if (expensesResult.error) throw new Error(`Gastos: ${expensesResult.error.message}`);
+            if (expensesResult.error) throw new Error(`Gastos: ${( expensesResult.error as any ).message}`);
 
             // 8. Deleted Items (Sync Deletions)
             const deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal));
-            if (deletedResult.error) throw new Error(`Eliminaciones: ${deletedResult.error.message}`);
+            if (deletedResult.error) throw new Error(`Eliminaciones: ${( deletedResult.error as any ).message}`);
 
             clearTimeout(timeoutId); // Limpiar timeout porque terminaron los fetch
 
@@ -521,7 +531,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     addedBy: e.added_by
                 })) as Expense[],
                 users: (Array.isArray(profilesResult.data) ? profilesResult.data : []).filter((u: any) => {
-                    // PURGE LOGIC: Si es un gerente y su licencia expirÃ³ hace > 30 dÃ­as, se elimina de la base de datos definitivamente (Hard Delete)
+                    // PURGE LOGIC: Si es un gerente y su licencia expiró hace > 30 días, se elimina de la base de datos definitivamente (Hard Delete)
                     if (u.role === 'Gerente' && u.expiry_date) {
                         const expiry = new Date(u.expiry_date).getTime();
                         const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -565,7 +575,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             console.error('[Sync] FATAL Data pull error:', err);
             const msg = err.message || JSON.stringify(err);
             if (msg.includes('exceed_egress_quota')) {
-                setSyncError("Ã”ÃœÃ¡Â´Â©Ã… Lâ”œÂ¡mite de datos excedido. La app funcionarâ”œÃ­ OFFLINE hasta que se reinicie el ciclo.");
+                setSyncError("ÔÜá´©Å L+¡mite de datos excedido. La app funcionar+í OFFLINE hasta que se reinicie el ciclo.");
                 setIsOnline(false); // Force offline mode to stop retries
             } else {
                 setSyncError(`Error Descarga: ${msg}`);
@@ -607,11 +617,19 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const online = await checkConnection();
                 setIsOnline(online);
                 if (!online) {
-                    setSyncError('Sin conexiâ”œâ”‚n a Internet. Cola pausada.');
+                    setSyncError('Sin conexi+¦n a Internet. Cola pausada.');
                     return;
                 }
             } else {
                 checkConnection().then(setIsOnline);
+            }
+
+            // NATIVE AUTH ZERO TRUST CHECK
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                console.warn("[Sync] Postponing queue: No active auth session.");
+                setSyncError('Sesión caducada. Cola en pausa.');
+                return;
             }
 
             const queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
@@ -768,7 +786,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     } catch (err: any) {
                         console.error(`Batch upsert error on ${table}:`, err);
                         // We continue with next chunk even if this one failed
-                        setLastErrors(prev => [{ table, error: err, timestamp: new Date().toISOString() }, ...prev]);
+                        setLastErrors((prev: any[]) => [{ table, error: err, timestamp: new Date().toISOString() }, ...prev]);
                     }
                 }
             };
@@ -915,7 +933,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // HIDDEN: Success message only shown on initial login, not on every sync
                 // setShowSuccess(true);
                 // setTimeout(() => setShowSuccess(false), 2000); // Auto-hide after 2 seconds
-                if (force) console.log("Sincronizaciâ”œâ”‚n forzada completada con â”œÂ®xito.");
+                if (force) console.log("Sincronizaci+¦n forzada completada con +®xito.");
                 setSyncError(null);
             } else if (newQueue.length > 0) {
                 // Check if the remaining items are just waiting for parents
@@ -927,12 +945,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     // Retry immediately to process dependent items now that parents might be synced
                     setTimeout(() => processQueue(true), 1000);
                 } else {
-                    setSyncError(`No se pudieron sincronizar ${newQueue.length} elementos. Se reintentarâ”œÃ­.`);
+                    setSyncError(`No se pudieron sincronizar ${newQueue.length} elementos. Se reintentar+í.`);
                 }
             }
         } catch (err) {
             console.error("Queue processing error:", err);
-            setSyncError("Error al procesar la cola de sincronizaciâ”œâ”‚n.");
+            setSyncError("Error al procesar la cola de sincronizaci+¦n.");
         } finally {
             isProcessingRef.current = false;
             setIsSyncing(false);
@@ -975,7 +993,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing client:', err);
-            setLastErrors(prev => [{ table: 'clients', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'clients', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_CLIENT', client);
             setSyncError('Error al subir cliente. Guardado localmente.');
             return false;
@@ -1033,9 +1051,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing loan:', err);
-            setLastErrors(prev => [{ table: 'loans', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'loans', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_LOAN', loan);
-            setSyncError('Error al subir prâ”œÂ®stamo. Guardado localmente.');
+            setSyncError('Error al subir pr+®stamo. Guardado localmente.');
             return false;
         }
     };
@@ -1082,7 +1100,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing payment:', err);
-            setLastErrors(prev => [{ table: 'payments', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'payments', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_PAYMENT', payment);
             setSyncError('Error al subir pago. Guardado localmente.');
             return false;
@@ -1132,7 +1150,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing log:', err);
-            setLastErrors(prev => [{ table: 'collection_logs', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'collection_logs', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_LOG', log);
             setSyncError('Error al subir registro. Guardado localmente.');
             return false;
@@ -1168,7 +1186,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing user:', err);
-            setLastErrors(prev => [{ table: 'profiles', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'profiles', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('ADD_PROFILE', user);
             setSyncError('Error al subir usuario. Guardado localmente.');
             return false;
@@ -1332,7 +1350,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             return true;
         } catch (err: any) {
             console.error('Error pushing settings:', err);
-            setLastErrors(prev => [{ table: 'branch_settings', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
+            setLastErrors((prev: any[]) => [{ table: 'branch_settings', error: err, timestamp: new Date().toISOString() }, ...prev].slice(0, 10));
             addToQueue('UPDATE_SETTINGS', { branchId, settings });
             setSyncError('Error al sincronizar opciones. Guardado localmente.');
             return false;
