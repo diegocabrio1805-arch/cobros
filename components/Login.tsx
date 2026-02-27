@@ -39,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
       try {
         // Native Auth request leveraging Supabase secure endpoints
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: cleanUsername + '@anexocobro.com',
+          email: cleanUsername.toLowerCase() + '@anexocobro.com',
           password: password
         });
 
