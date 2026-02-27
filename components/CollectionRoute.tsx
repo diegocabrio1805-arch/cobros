@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
+import PullToRefresh from './PullToRefresh';
 
 interface CollectionRouteProps {
   state: AppState;
@@ -162,11 +163,13 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const filteredRoute = useMemo(() => {
     const validEnriched = Array.isArray(enrichedRoute) ? enrichedRoute : [];
     if (!debouncedSearch) return validEnriched;
-    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
     return validEnriched.filter(item => {
-      const nameNorm = (item.client?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const addressNorm = (item.client?.address || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return nameNorm.includes(s) || addressNorm.includes(s);
+      const nameNorm = (item.client?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+      const addressNorm = (item.client?.address || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+      const docNorm = (item.client?.documentId || '').replace(/\s+/g, "");
+      const phoneNorm = (item.client?.phone || '').replace(/\D/g, '');
+      return nameNorm.includes(s) || addressNorm.includes(s) || docNorm.includes(debouncedSearch.replace(/\s+/g, "")) || phoneNorm.includes(debouncedSearch.replace(/\D/g, ''));
     });
   }, [enrichedRoute, debouncedSearch]);
 
@@ -370,258 +373,260 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 pb-32 animate-fadeIn px-1 md:px-0">
-      <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
-            <div className={`w-10 h-10 md:w-12 md:h-12 shrink-0 ${isViewingToday ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xl`}>
-              <i className={`fa-solid ${isViewingToday ? 'fa-route' : 'fa-clock-rotate-left'} text-lg md:text-xl`}></i>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tighter truncate">Planilla de Ruta</h2>
-              <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-500 tracking-widest truncate">
-                {selectedCollectorFilter === 'all' ? 'CONSOLIDADO' : (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedCollectorFilter)?.name.toUpperCase()}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-            {isAdminOrManager && (
-              <div className="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 shadow-inner">
-                <i className="fa-solid fa-user-gear text-emerald-600 text-[10px]"></i>
-                <select
-                  value={selectedCollectorFilter}
-                  onChange={(e) => setSelectedCollectorFilter(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[9px] font-black text-black uppercase tracking-widest cursor-pointer w-full focus:ring-0"
-                >
-                  {selectedCollectorFilter === 'all' ? <option value="all">TODAS LAS RUTAS</option> : null}
-                  {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
-                    <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
-                  ))}
-                </select>
+    <PullToRefresh onRefresh={async () => { if (onForceSync) await onForceSync(false); }}>
+      <div className="w-full max-w-6xl mx-auto space-y-4 pb-32 animate-fadeIn px-1 md:px-0">
+        <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
+              <div className={`w-10 h-10 md:w-12 md:h-12 shrink-0 ${isViewingToday ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xl`}>
+                <i className={`fa-solid ${isViewingToday ? 'fa-route' : 'fa-clock-rotate-left'} text-lg md:text-xl`}></i>
               </div>
-            )}
-            <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shadow-inner">
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
-              <span className="text-slate-400 font-bold">-</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
+              <div className="min-w-0">
+                <h2 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tighter truncate">Planilla de Ruta</h2>
+                <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-500 tracking-widest truncate">
+                  {selectedCollectorFilter === 'all' ? 'CONSOLIDADO' : (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedCollectorFilter)?.name.toUpperCase()}
+                </p>
+              </div>
             </div>
-            {onForceSync && (
-              <button
-                onClick={() => onForceSync(false)}
-                className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl border border-emerald-200 flex items-center gap-2 hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
-              >
-                <i className="fa-solid fa-rotate text-[10px] animate-spin-slow"></i>
-                <span className="text-[9px] font-black uppercase tracking-widest">Sincronizar</span>
-              </button>
-            )}
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+              {isAdminOrManager && (
+                <div className="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 shadow-inner">
+                  <i className="fa-solid fa-user-gear text-emerald-600 text-[10px]"></i>
+                  <select
+                    value={selectedCollectorFilter}
+                    onChange={(e) => setSelectedCollectorFilter(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[9px] font-black text-black uppercase tracking-widest cursor-pointer w-full focus:ring-0"
+                  >
+                    {selectedCollectorFilter === 'all' ? <option value="all">TODAS LAS RUTAS</option> : null}
+                    {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
+                      <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shadow-inner">
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
+                <span className="text-slate-400 font-bold">-</span>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
+              </div>
+              {onForceSync && (
+                <button
+                  onClick={() => onForceSync(false)}
+                  className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl border border-emerald-200 flex items-center gap-2 hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
+                >
+                  <i className="fa-solid fa-rotate text-[10px] animate-spin-slow"></i>
+                  <span className="text-[9px] font-black uppercase tracking-widest">Sincronizar</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-2 border-t border-slate-100 pt-3">
+              <button onClick={() => setViewMode('active')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'active' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ruta Activa</button>
+              <button onClick={() => setViewMode('hidden')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'hidden' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ocultos / Incobrables</button>
+            </div>
           </div>
 
-          <div className="flex gap-2 border-t border-slate-100 pt-3">
-            <button onClick={() => setViewMode('active')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'active' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ruta Activa</button>
-            <button onClick={() => setViewMode('hidden')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'hidden' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ocultos / Incobrables</button>
+          <div className="flex flex-col md:flex-row items-center gap-3 w-full border-t border-slate-100 pt-3 md:pt-4">
+            <div className="relative w-full">
+              <input type="text" placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
+              <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-[10px] md:text-xs"></i>
+            </div>
+            <div className="bg-slate-900 px-5 md:px-6 py-3 rounded-xl md:rounded-2xl border border-slate-800 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end shrink-0 shadow-xl w-full md:w-auto">
+              <span className="text-[7px] font-black text-slate-500 uppercase md:mb-0.5">Recaudo</span>
+              <span className="text-base md:text-lg font-black text-emerald-400 font-mono leading-none">{formatCurrency(totalCollectedInView, state.settings)}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-3 w-full border-t border-slate-100 pt-3 md:pt-4">
-          <div className="relative w-full">
-            <input type="text" placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
-            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-[10px] md:text-xs"></i>
-          </div>
-          <div className="bg-slate-900 px-5 md:px-6 py-3 rounded-xl md:rounded-2xl border border-slate-800 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end shrink-0 shadow-xl w-full md:w-auto">
-            <span className="text-[7px] font-black text-slate-500 uppercase md:mb-0.5">Recaudo</span>
-            <span className="text-base md:text-lg font-black text-emerald-400 font-mono leading-none">{formatCurrency(totalCollectedInView, state.settings)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto mobile-scroll-container">
-          <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead>
-              <tr className="bg-slate-100 text-slate-500 text-[8px] md:text-[9px] font-black uppercase border-b border-slate-200">
-                <th className="px-3 md:px-4 py-4">Cliente</th>
-                {viewMode === 'hidden' ? (
-                  <>
-                    <th className="px-3 md:px-4 py-4 text-center">Registro</th>
-                    <th className="px-3 md:px-4 py-4 text-center">Teléfono</th>
-                    <th className="px-3 md:px-4 py-4 text-center line-clamp-1">Saldo Deuda</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="px-3 md:px-4 py-4 text-center">Base</th>
-                    <th className="px-3 md:px-4 py-4 text-center bg-emerald-50/50">Abono</th>
-                    <th className="px-3 md:px-4 py-4 text-center">Estatus</th>
-                  </>
-                )}
-                <th className="px-3 md:px-4 py-4 text-center">Gestión</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {(Array.isArray(paginatedRoute) ? paginatedRoute : []).map((item) => (
-                <tr key={item.id} className={`hover:bg-slate-50/80 transition-all ${item.paidPeriod > 0 ? 'bg-emerald-50/10' : ''}`}>
-                  <td className="px-3 md:px-4 py-4">
-                    <p className="text-[10px] md:text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[150px]">{item.client?.name}</p>
-                    <p className="text-[7px] font-black text-blue-500 uppercase tracking-widest mt-0.5 truncate">{item.client?.address}</p>
-                  </td>
+        <div className="bg-white rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+          <div className="overflow-x-auto mobile-scroll-container">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead>
+                <tr className="bg-slate-100 text-slate-500 text-[8px] md:text-[9px] font-black uppercase border-b border-slate-200">
+                  <th className="px-3 md:px-4 py-4">Cliente</th>
                   {viewMode === 'hidden' ? (
                     <>
-                      <td className="px-3 md:px-4 py-4 text-center font-mono text-[9px] text-slate-500 truncate">
-                        {item.client?.createdAt ? new Date(item.client.createdAt).toLocaleDateString('es-CO') : '-'}
-                      </td>
-                      <td className="px-3 md:px-4 py-4 text-center font-black text-[9px] text-slate-600 whitespace-nowrap">
-                        {item.client?.phone}
-                      </td>
-                      <td className="px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] text-red-600">
-                        {formatCurrency(Math.max(0, (item.totalAmount || 0) - ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === item.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt).reduce((acc, log) => acc + (log.amount || 0), 0))), state.settings)}
-                      </td>
+                      <th className="px-3 md:px-4 py-4 text-center">Registro</th>
+                      <th className="px-3 md:px-4 py-4 text-center">Teléfono</th>
+                      <th className="px-3 md:px-4 py-4 text-center line-clamp-1">Saldo Deuda</th>
                     </>
                   ) : (
                     <>
-                      <td className="px-3 md:px-4 py-4 text-center font-mono text-[9px] md:text-[10px] text-slate-500">{formatCurrency(item.installmentValue, state.settings)}</td>
-                      <td className={`px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] md:text-[11px] ${item.paidPeriod > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
-                        {item.paidPeriod > 0 ? formatCurrency(item.paidPeriod, state.settings) : '-'}
-                      </td>
-                      <td className="px-3 md:px-4 py-4 text-center font-bold text-[9px] md:text-[10px]">
-                        {isViewingToday ? (
-                          <span className={`font-mono ${item.dailyBalance > 0 ? 'text-red-500' : 'text-emerald-400'}`}>{item.dailyBalance > 0 ? formatCurrency(item.dailyBalance, state.settings) : 'AL DÍA'}</span>
-                        ) : (
-                          <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-1 rounded-md ${item.paidPeriod > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{item.paidPeriod > 0 ? 'Cobro' : 'No Pago'}</span>
-                        )}
-                      </td>
+                      <th className="px-3 md:px-4 py-4 text-center">Base</th>
+                      <th className="px-3 md:px-4 py-4 text-center bg-emerald-50/50">Abono</th>
+                      <th className="px-3 md:px-4 py-4 text-center">Estatus</th>
                     </>
                   )}
-                  <td className="px-3 md:px-4 py-4">
-                    <div className="flex items-center justify-center gap-2">
-                      {viewMode === 'hidden' ? (
-                        <div className="flex gap-2">
-                          <button onClick={() => item.client && handleRecoverClient(item.client)} className="px-4 py-3 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">RECUPERAR</button>
-                          {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
-                        </div>
-                      ) : isViewingToday ? (
-                        item.paidPeriod === 0 && !item.visitedNoPayment ? (
+                  <th className="px-3 md:px-4 py-4 text-center">Gestión</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(Array.isArray(paginatedRoute) ? paginatedRoute : []).map((item) => (
+                  <tr key={item.id} className={`hover:bg-slate-50/80 transition-all ${item.paidPeriod > 0 ? 'bg-emerald-50/10' : ''}`}>
+                    <td className="px-3 md:px-4 py-4">
+                      <p className="text-[10px] md:text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[150px]">{item.client?.name}</p>
+                      <p className="text-[7px] font-black text-blue-500 uppercase tracking-widest mt-0.5 truncate">{item.client?.address}</p>
+                    </td>
+                    {viewMode === 'hidden' ? (
+                      <>
+                        <td className="px-3 md:px-4 py-4 text-center font-mono text-[9px] text-slate-500 truncate">
+                          {item.client?.createdAt ? new Date(item.client.createdAt).toLocaleDateString('es-CO') : '-'}
+                        </td>
+                        <td className="px-3 md:px-4 py-4 text-center font-black text-[9px] text-slate-600 whitespace-nowrap">
+                          {item.client?.phone}
+                        </td>
+                        <td className="px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] text-red-600">
+                          {formatCurrency(Math.max(0, (item.totalAmount || 0) - ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === item.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt).reduce((acc, log) => acc + (log.amount || 0), 0))), state.settings)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 md:px-4 py-4 text-center font-mono text-[9px] md:text-[10px] text-slate-500">{formatCurrency(item.installmentValue, state.settings)}</td>
+                        <td className={`px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] md:text-[11px] ${item.paidPeriod > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                          {item.paidPeriod > 0 ? formatCurrency(item.paidPeriod, state.settings) : '-'}
+                        </td>
+                        <td className="px-3 md:px-4 py-4 text-center font-bold text-[9px] md:text-[10px]">
+                          {isViewingToday ? (
+                            <span className={`font-mono ${item.dailyBalance > 0 ? 'text-red-500' : 'text-emerald-400'}`}>{item.dailyBalance > 0 ? formatCurrency(item.dailyBalance, state.settings) : 'AL DÍA'}</span>
+                          ) : (
+                            <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-1 rounded-md ${item.paidPeriod > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{item.paidPeriod > 0 ? 'Cobro' : 'No Pago'}</span>
+                          )}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-3 md:px-4 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        {viewMode === 'hidden' ? (
                           <div className="flex gap-2">
-                            <button onClick={() => handleOpenPayment(item.clientId, item)} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">Abonar</button>
+                            <button onClick={() => item.client && handleRecoverClient(item.client)} className="px-4 py-3 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">RECUPERAR</button>
                             {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
                           </div>
+                        ) : isViewingToday ? (
+                          item.paidPeriod === 0 && !item.visitedNoPayment ? (
+                            <div className="flex gap-2">
+                              <button onClick={() => handleOpenPayment(item.clientId, item)} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">Abonar</button>
+                              {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
+                            </div>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-2 rounded-lg flex items-center ${item.paidPeriod > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.paidPeriod > 0 ? 'RECIBIDO' : 'MORA'}</span>
+                              {isAdminOrManager && (
+                                <>
+                                  <button onClick={() => handleOpenPayment(item.clientId, item)} className="w-9 h-9 text-blue-500 bg-white border border-blue-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-plus-circle"></i></button>
+                                  {item.paidPeriod > 0 && (
+                                    <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 text-red-500 bg-white border border-red-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
+                                  )}
+                                  <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-3 py-2 bg-red-600 text-white rounded-lg font-black text-[8px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>
+                                </>
+                              )}
+                            </div>
+                          )
                         ) : (
-                          <div className="flex gap-1.5">
-                            <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-2 rounded-lg flex items-center ${item.paidPeriod > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.paidPeriod > 0 ? 'RECIBIDO' : 'MORA'}</span>
-                            {isAdminOrManager && (
-                              <>
-                                <button onClick={() => handleOpenPayment(item.clientId, item)} className="w-9 h-9 text-blue-500 bg-white border border-blue-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-plus-circle"></i></button>
-                                {item.paidPeriod > 0 && (
-                                  <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 text-red-500 bg-white border border-red-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
-                                )}
-                                <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-3 py-2 bg-red-600 text-white rounded-lg font-black text-[8px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>
-                              </>
-                            )}
-                          </div>
-                        )
-                      ) : (
-                        isAdminOrManager && item.paidPeriod > 0 && (
-                          <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100 active:scale-90 transition-all shadow-sm">
-                            <i className="fa-solid fa-trash-can"></i>
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                          isAdminOrManager && item.paidPeriod > 0 && (
+                            <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100 active:scale-90 transition-all shadow-sm">
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-3 py-6">
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">{currentPage} de {totalPages}</span>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-right"></i></button>
+          </div>
+        )}
+
+        {selectedClient && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-2">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm p-6 text-center animate-scaleIn border border-white/20">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl border border-emerald-100">
+                <i className="fa-solid fa-hand-holding-dollar"></i>
+              </div>
+              <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tighter">Registrar Abono</h3>
+
+              <div className="grid grid-cols-3 gap-2 mb-6">
+                <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualProcessing && !isRenewalProcessing ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Efectivo</button>
+                <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Transf.</button>
+                <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Renovar</button>
+              </div>
+
+              <div className="relative mb-6">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
+                <input type="number" autoFocus value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-2xl text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                <button onClick={() => { const item = enrichedRoute.find(l => l.clientId === selectedClient); if (item) handleAction(selectedClient, item.id, CollectionLogType.PAYMENT, amount, isVirtualProcessing, isRenewalProcessing); }} className="w-full font-black py-5 bg-emerald-600 text-white rounded-xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Confirmar e Imprimir</button>
+                <button onClick={resetUI} className="w-full py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">CERRAR</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {receipt && (
+          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center z-[160] p-4 overflow-y-auto">
+            <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
+              {/* Header de navegación en el ticket */}
+              <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
+                <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
+                  <i className="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Vista de Comprobante</span>
+                <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-red-500 transition-all active:scale-90">
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8">
+                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
+                  <i className="fa-solid fa-check-double"></i>
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
+                <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
+                  {receipt}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
+                    Finalizar y Salir
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const { printText } = await import('../services/bluetoothPrinterService');
+                      printText(receipt || '').catch(e => alert("Error impresión: " + e));
+                    }}
+                    className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                  </button>
+                  <button
+                    onClick={() => {
+                      const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
+                        receipt.includes(c.name.toUpperCase().substring(0, 10))
+                      );
+                      const phone = client?.phone.replace(/\D/g, '') || '';
+                      const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
+                      window.open(wpUrl, '_blank');
+                    }}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-3 py-6">
-          <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">{currentPage} de {totalPages}</span>
-          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-right"></i></button>
-        </div>
-      )}
-
-      {selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-2">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm p-6 text-center animate-scaleIn border border-white/20">
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl border border-emerald-100">
-              <i className="fa-solid fa-hand-holding-dollar"></i>
-            </div>
-            <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tighter">Registrar Abono</h3>
-
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualProcessing && !isRenewalProcessing ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Efectivo</button>
-              <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Transf.</button>
-              <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Renovar</button>
-            </div>
-
-            <div className="relative mb-6">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-              <input type="number" autoFocus value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-2xl text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner" />
-            </div>
-            <div className="space-y-2">
-              <button onClick={() => { const item = enrichedRoute.find(l => l.clientId === selectedClient); if (item) handleAction(selectedClient, item.id, CollectionLogType.PAYMENT, amount, isVirtualProcessing, isRenewalProcessing); }} className="w-full font-black py-5 bg-emerald-600 text-white rounded-xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Confirmar e Imprimir</button>
-              <button onClick={resetUI} className="w-full py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">CERRAR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {receipt && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center z-[160] p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
-            {/* Header de navegación en el ticket */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
-              <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
-                <i className="fa-solid fa-arrow-left text-lg"></i>
-              </button>
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Vista de Comprobante</span>
-              <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-red-500 transition-all active:scale-90">
-                <i className="fa-solid fa-xmark text-xl"></i>
-              </button>
-            </div>
-
-            <div className="p-6 md:p-8">
-              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
-                <i className="fa-solid fa-check-double"></i>
-              </div>
-              <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
-              <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
-                {receipt}
-              </div>
-              <div className="flex flex-col gap-2">
-                <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                  Finalizar y Salir
-                </button>
-                <button
-                  onClick={async () => {
-                    const { printText } = await import('../services/bluetoothPrinterService');
-                    printText(receipt || '').catch(e => alert("Error impresión: " + e));
-                  }}
-                  className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
-                >
-                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
-                </button>
-                <button
-                  onClick={() => {
-                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
-                      receipt.includes(c.name.toUpperCase().substring(0, 10))
-                    );
-                    const phone = client?.phone.replace(/\D/g, '') || '';
-                    const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
-                    window.open(wpUrl, '_blank');
-                  }}
-                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
-                >
-                  <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </PullToRefresh>
   );
 };
 

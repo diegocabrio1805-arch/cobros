@@ -61,8 +61,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
             await supabase.auth.signOut();
             return;
           }
-          if (onSyncUser) onSyncUser(profileData as unknown as User);
-          onLogin(profileData as unknown as User);
+          // Map snake_case DB fields to camelCase frontend fields
+          const mappedProfile: User = {
+            id: profileData.id,
+            name: profileData.name,
+            username: profileData.username,
+            password: profileData.password,
+            role: profileData.role as Role,
+            blocked: profileData.blocked,
+            expiryDate: profileData.expiry_date,
+            managedBy: profileData.managed_by,
+            profilePic: profileData.profile_pic,
+            homePic: profileData.home_pic,
+            homeLocation: profileData.home_location,
+            requiresLocation: profileData.requires_location,
+            deletedAt: profileData.deleted_at,
+          };
+          if (onSyncUser) onSyncUser(mappedProfile);
+          onLogin(mappedProfile);
           return;
         } else {
           setError("ERROR: PERFIL INEXISTENTE");
