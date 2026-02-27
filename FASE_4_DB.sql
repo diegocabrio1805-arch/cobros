@@ -101,7 +101,7 @@ CREATE POLICY "Gerente gestiona pagos" ON public.payments FOR ALL USING (
    public.get_my_role() = 'Gerente' AND branch_id = auth.uid()::text
 );
 CREATE POLICY "Cobrador gestiona sus pagos" ON public.payments FOR ALL USING (
-   collector_id = auth.uid()::text OR branch_id = public.get_my_manager()
+   branch_id = public.get_my_manager()
 );
 
 -- COLLECTION LOGS
@@ -123,5 +123,5 @@ CREATE POLICY "Gerente gestiona gastos" ON public.expenses FOR ALL USING (
   public.get_my_role() = 'Gerente' AND branch_id = auth.uid()::text
 );
 CREATE POLICY "Cobrador gestiona sus propios gastos" ON public.expenses FOR ALL USING (
-  recorded_by = auth.uid()::text OR branch_id = public.get_my_manager()
+  added_by = auth.uid()::text OR branch_id = public.get_my_manager()
 );

@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// HARDCODED CREDENTIALS FOR STABILITY
-const supabaseUrl = 'https://oppcyderpkhcnduqexag.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wcGN5ZGVycGtoY25kdXFleGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MTI4MTAsImV4cCI6MjA4NDE4ODgxMH0.1HTcC027RlcyOPn_BT4xoVw9PDibm_S8A03DQ5IEzaU';
+// NUEVO PROYECTO MIGRADO - 2026-02-27
+const supabaseUrl = 'https://samgpnczlznynnfhjjff.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbWdwbmN6bHpueW5uZmhqamZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNjU1NjQsImV4cCI6MjA4Nzc0MTU2NH0.AV1Z-QlltfPp8am-_ALlgopoGB8WhOrle83TNZrjqTE';
 
 console.log('--- SUPABASE CLIENT DEBUG ---');
 console.log('URL:', supabaseUrl);

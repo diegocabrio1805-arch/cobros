@@ -1,0 +1,77 @@
+[
+  {
+    "id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "settings": {
+      "country": "PY",
+      "bankName": "BANCO",
+      "language": "es",
+      "shareLabel": "BANCO FAMILIAR ",
+      "shareValue": "3.770.096",
+      "bankAccount": "555555555 / 666666666",
+      "companyName": "ANEXO COBRANZA ",
+      "companyAlias": "ANEXO S.A",
+      "contactLabel": "NUMERO CO",
+      "contactPhone": "+595981874120",
+      "numberFormat": "dot",
+      "shareLabelBold": false,
+      "shareLabelSize": "normal",
+      "shareValueBold": false,
+      "shareValueSize": "normal",
+      "companyNameBold": false,
+      "companyNameSize": "normal",
+      "contactPhoneBold": false,
+      "companyIdentifier": "LEGAJO DE ESTADO ",
+      "receiptPrintMargin": 2,
+      "companyIdentifierBold": false,
+      "technicalSupportPhone": "+595994560450"
+    },
+    "updated_at": "2026-02-26T02:52:13.132+00:00"
+  },
+  {
+    "id": "4286f551-e310-45ac-bc95-222f9ffa5146",
+    "settings": {
+      "country": "PY",
+      "bankName": "BANCO",
+      "language": "es",
+      "shareLabel": "BANCO",
+      "shareValue": "---",
+      "bankAccount": "---",
+      "companyName": "ANEXO COBRO",
+      "companyAlias": "",
+      "contactLabel": "TEL.",
+      "contactPhone": "---",
+      "numberFormat": "dot",
+      "companyIdentifier": "---",
+      "technicalSupportPhone": "---"
+    },
+    "updated_at": "2026-02-11T05:00:33.435076+00:00"
+  },
+  {
+    "id": "93e73104-7ce8-453b-b0a3-b574b69a744c",
+    "settings": {
+      "country": "PY",
+      "bankName": "BANCO",
+      "language": "es",
+      "shareLabel": "BANCO BASA",
+      "shareValue": "55555",
+      "bankAccount": "555555555 / 666666666",
+      "companyName": "GERENTE LETICIA ",
+      "companyAlias": "LETICIA",
+      "contactLabel": "NUMERO CO",
+      "contactPhone": "66666666666",
+      "numberFormat": "dot",
+      "shareLabelBold": false,
+      "shareLabelSize": "normal",
+      "shareValueBold": false,
+      "shareValueSize": "normal",
+      "companyNameBold": false,
+      "companyNameSize": "normal",
+      "contactPhoneBold": false,
+      "companyIdentifier": "66666666",
+      "receiptPrintMargin": 2,
+      "companyIdentifierBold": false,
+      "technicalSupportPhone": "+595994560450"
+    },
+    "updated_at": "2026-02-21T19:53:13.625+00:00"
+  }
+]
