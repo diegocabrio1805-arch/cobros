@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.148'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          const localVersion = '6.1.149'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
             localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
@@ -90,7 +90,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.147-APK';
+    const CURRENT_VERSION_ID = 'v6.1.149-APK';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: '9876543210' };
     const defaultInitialState: AppState = {
@@ -115,7 +115,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.148-APK';
+      const CURRENT_VERSION_ID = 'v6.1.149-APK';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: '9876543210' };
 
