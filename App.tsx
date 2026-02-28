@@ -691,20 +691,32 @@ const App: React.FC = () => {
 
     const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
     const balance = Math.max(0, loan.totalAmount - totalPaid);
-    const isPaid = balance <= 0;
 
-    const updatedLoans = state.loans.map(l =>
-      l.id === loanId ? {
-        ...l,
-        totalPaid,
-        balance,
-        status: isPaid ? LoanStatus.PAID : l.status,
-        updatedAt: new Date().toISOString()
-      } : l
-    );
+    // Si el saldo es 0 o menor, está pagado. Si tiene saldo y estaba marcado como pagado, volver a activo.
+    const isPaid = balance <= 0.01;
+    let newStatus = loan.status;
+    if (isPaid) {
+      newStatus = LoanStatus.PAID;
+    } else if (loan.status === LoanStatus.PAID) {
+      newStatus = LoanStatus.ACTIVE;
+    }
 
+    const updatedLoan = {
+      ...loan,
+      totalPaid,
+      balance,
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedLoans = state.loans.map(l => l.id === loanId ? updatedLoan : l);
     setState(prev => ({ ...prev, loans: updatedLoans }));
     Storage.saveLoans(updatedLoans);
+
+    // Si hubo cambio de estado, sincronizar con el servidor
+    if (newStatus !== loan.status) {
+      pushLoan(updatedLoan);
+    }
   };
 
   const deleteLoan = async (loanId: string) => {
@@ -952,31 +964,6 @@ const App: React.FC = () => {
   };
 
   // --- Pull to Refresh Logic ---
-  const recalculateLoanStatus = (loanId: string) => {
-    setState(prev => {
-      const loan = prev.loans.find(l => l.id === loanId);
-      if (!loan) return prev;
-
-      const loanLogs = (prev.collectionLogs || []).filter(log =>
-        log.loanId === loanId &&
-        log.type === CollectionLogType.PAYMENT &&
-        !log.deletedAt
-      );
-
-      const totalPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
-      const balance = loan.totalAmount - totalPaid;
-
-      if (loan.status === LoanStatus.PAID && balance > 1) {
-        const updatedLoan = { ...loan, status: LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
-        pushLoan(updatedLoan);
-        return {
-          ...prev,
-          loans: prev.loans.map(l => l.id === loanId ? updatedLoan : l)
-        };
-      }
-      return prev;
-    });
-  };
 
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
