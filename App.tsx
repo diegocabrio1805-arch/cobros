@@ -26,7 +26,7 @@ import Profile from './components/Profile';
 import Reports from './components/Reports';
 import Generator from './components/Generator/Generator';
 import { getTranslation } from './utils/translations';
-import { getLocalDateStringForCountry, generateUUID } from './utils/helpers';
+import { getLocalDateStringForCountry, generateUUID, formatCurrency, parseAmount, calculateTotalPaidFromLogs } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
 import { useSync } from './hooks/useSync';
 import { isPrintingNow, startConnectionKeeper } from './services/bluetoothPrinterService';
@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.150'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          const localVersion = '6.1.151'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
             localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
@@ -678,21 +678,22 @@ const App: React.FC = () => {
       await Storage.saveLoans(updatedLoans);
 
       console.log('Recalculación global completada con éxito.');
-      Alert.alert('Éxito', 'Todos los saldos han sido recalculados y sincronizados correctamente.');
+      alert('Todos los saldos han sido recalculados y sincronizados correctamente.');
     } catch (error) {
       console.error('Error en recalculación global:', error);
-      Alert.alert('Error', 'No se pudo completar la recalculación global.');
+      alert('No se pudo completar la recalculación global.');
     }
   };
 
-  const recalculateLoanStatus = (loanId: string) => {
+  const recalculateLoanStatus = async (loanId: string, providedLogs?: CollectionLog[]) => {
     const loan = state.loans.find(l => l.id === loanId);
-    if (!loan) return;
+    if (!loan) return null;
 
-    const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+    const useLogs = providedLogs || state.collectionLogs;
+    const totalPaid = calculateTotalPaidFromLogs(loan, useLogs);
     const balance = Math.max(0, loan.totalAmount - totalPaid);
 
-    // Si el saldo es 0 o menor, está pagado. Si tiene saldo y estaba marcado como pagado, volver a activo.
+    // Si el saldo es 0 o menor, está pagado.
     const isPaid = balance <= 0.01;
     let newStatus = loan.status;
     if (isPaid) {
@@ -715,8 +716,9 @@ const App: React.FC = () => {
 
     // Si hubo cambio de estado, sincronizar con el servidor
     if (newStatus !== loan.status) {
-      pushLoan(updatedLoan);
+      await pushLoan(updatedLoan);
     }
+    return updatedLoan;
   };
 
   const deleteLoan = async (loanId: string) => {
@@ -809,6 +811,7 @@ const App: React.FC = () => {
   };
 
   const deleteCollectionLog = async (logId: string) => {
+    // Permission check
     if (state.currentUser?.role === Role.COLLECTOR) {
       alert("ERROR: No tienes permisos para eliminar registros.");
       return;
@@ -822,59 +825,34 @@ const App: React.FC = () => {
     }
 
     try {
-      // 1. Remote Deletion first to ensure consistency
-      await deleteRemoteLog(logId);
-
-      let updatedLoans = [...state.loans];
-      const recordsToReverse = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
+      // 1. Optimistic Update (Immediate)
+      const updatedLogs = state.collectionLogs.filter(l => l.id !== logId);
       const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
-      const loansToSync: Loan[] = [];
 
-      if (logToDelete.type === CollectionLogType.PAYMENT) {
-        updatedLoans = updatedLoans.map(loan => {
-          if (loan.id === logToDelete.loanId) {
-            const newInst = (loan.installments || []).map(i => ({ ...i }));
-            recordsToReverse.forEach(rec => {
-              const idx = rec.installmentNumber - 1;
-              if (newInst[idx]) {
-                newInst[idx].paidAmount = Math.max(0, Number(((newInst[idx].paidAmount || 0) - rec.amount).toFixed(2)));
-                if (newInst[idx].paidAmount <= 0.01) newInst[idx].status = PaymentStatus.PENDING;
-                else if (newInst[idx].paidAmount < newInst[idx].amount - 0.01) newInst[idx].status = PaymentStatus.PARTIAL;
-                else newInst[idx].status = PaymentStatus.PAID;
-              }
-            });
-            const allPaid = newInst.every(inst => inst.status === PaymentStatus.PAID);
-            const updatedLoan = { ...loan, installments: newInst, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
-            loansToSync.push(updatedLoan);
-            return updatedLoan;
-          }
-          return loan;
-        });
-      }
-
-      // 2. State Update (Atomic)
       setState(prev => ({
         ...prev,
-        loans: updatedLoans,
-        payments: updatedPayments,
-        collectionLogs: prev.collectionLogs.filter(l => l.id !== logId)
+        collectionLogs: updatedLogs,
+        payments: updatedPayments
       }));
 
-      // 3. Side Effects (Backgrounded but awaited)
-      const tasks = [];
-      if (recordsToReverse.length > 0) {
-        for (const p of recordsToReverse) tasks.push(deleteRemotePayment(p.id));
-      }
-      if (loansToSync.length > 0) {
-        for (const l of loansToSync) tasks.push(pushLoan(l));
+      // Auto-save handles persistence via useEffect on state change
+
+      // 2. Recalculate Loan Status synchronously for UI
+      if (logToDelete.loanId) {
+        await recalculateLoanStatus(logToDelete.loanId, updatedLogs);
       }
 
-      await Promise.all(tasks);
-      await handleForceSync(true);
+      // 3. Remote Sync (Background)
+      deleteRemoteLog(logId).catch(e => console.error("Sync error in deleteCollectionLog:", e));
 
-    } catch (err) {
+      const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
+      for (const p of related) {
+        deleteRemotePayment(p.id).catch(() => { });
+      }
+
+    } catch (err: any) {
       console.error("Critical error deleting log:", err);
-      alert("Error al eliminar el registro. Por favor intente de nuevo.");
+      alert("Error al eliminar el registro.");
     }
   };
 
@@ -883,46 +861,42 @@ const App: React.FC = () => {
       const logToUpdate = state.collectionLogs.find(l => l.id === logId);
       if (!logToUpdate) return;
 
-      // 1. Update remote (Supabase)
-      const { error: remoteError } = await supabase
-        .from('collection_logs')
-        .update({ amount: newAmount, updatedAt: new Date().toISOString() })
-        .eq('id', logId);
-
-      if (remoteError) throw remoteError;
-
-      // 2. Update local state
+      // 1. Optimistic Update
       const updatedLogs = state.collectionLogs.map(l =>
-        l.id === logId ? { ...l, amount: newAmount, updatedAt: new Date().toISOString() } : l
+        l.id === logId ? { ...l, amount: newAmount, updated_at: new Date().toISOString() } : l
       );
 
-      // 3. Update payment record if applicable
-      if (logToUpdate.type === CollectionLogType.PAYMENT) {
-        await supabase.from('payments').update({ amount: newAmount }).eq('id', logId);
-      }
-
-      // 4. State synchronization
       setState(prev => ({
         ...prev,
         collectionLogs: updatedLogs
       }));
+      Storage.saveCollectionLogs(updatedLogs);
 
-      // 5. Recalculate and push loan update
+      // 2. Recalculate Loan
       if (logToUpdate.loanId) {
-        const updatedLoan = await recalculateLoanStatus(logToUpdate.loanId, updatedLogs);
-        if (updatedLoan) {
-          await supabase.from('loans').update(updatedLoan).eq('id', updatedLoan.id);
-          setState(prev => ({
-            ...prev,
-            loans: prev.loans.map(l => l.id === updatedLoan.id ? updatedLoan : l)
-          }));
-        }
+        await recalculateLoanStatus(logToUpdate.loanId, updatedLogs);
       }
 
-      await showToast('Cobro actualizado correctamente');
-    } catch (error) {
+      // 3. Remote Sync (Background)
+      supabase.from('collection_logs').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('id', logId).then(({ error }) => {
+        if (error) console.error("Error updating remote log:", error);
+      });
+
+      if (logToUpdate.type === CollectionLogType.PAYMENT) {
+        // Update local payments too for consistency
+        const updatedPayments = state.payments.map(p =>
+          p.id.startsWith(`pay-${logId}-`) ? { ...p, amount: newAmount, updated_at: new Date().toISOString() } : p
+        );
+        setState(prev => ({ ...prev, payments: updatedPayments }));
+
+        supabase.from('payments').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('logId', logId).then(({ error }) => {
+          if (error) console.error("Error updating remote payment:", error);
+        });
+      }
+
+    } catch (error: any) {
       console.error('Error updating collection log:', error);
-      await showToast('Error al actualizar el cobro');
+      alert('Error al actualizar el cobro');
     }
   };
 
@@ -1036,7 +1010,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.147-APK</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.151-APK</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1048,7 +1022,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.147-APK</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.151-APK</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

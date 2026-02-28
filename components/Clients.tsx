@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor } from '../utils/helpers';
+import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -1064,7 +1064,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const handleSaveEditedLog = () => {
-    const amt = Number(newLogAmount);
+    const amt = parseAmount(newLogAmount);
     if (editingLogId && updateCollectionLog && clientInLegajo && activeLoanInLegajo) {
       const logToEdit = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).find(l => l.id === editingLogId);
       if (!logToEdit) return;
@@ -2022,12 +2022,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </div>
                           ) : (
                             <div className="bg-white p-10 rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4 shadow-inner animate-fadeIn">
-                              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl"><i className="fa-solid fa-money-bill-transfer"></i></div>
-                              <div>
-                                <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Sin Préstamos Activos</h4>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">El cliente ya liquidó o no tiene créditos registrados.</p>
+                              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl">
+                                <i className="fa-solid fa-money-bill-transfer"></i>
                               </div>
-                              <button onClick={() => setShowRenewModal(true)} className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl active:scale-95 transition-all flex items-center gap-3"><i className="fa-solid fa-plus-circle"></i> CARGAR NUEVO CRÉDITO</button>
+                              <div className="space-y-1">
+                                <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">SIN PRÉSTAMOS ACTIVOS</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">Este cliente no posee créditos vigentes en este momento.</p>
+                              </div>
+                              <button
+                                onClick={() => setShowRenewModal(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-3 border border-blue-400/30"
+                              >
+                                <i className="fa-solid fa-plus-circle"></i> NUEVA RENOVACIÓN / CRÉDITO
+                              </button>
                             </div>
                           )}
 
