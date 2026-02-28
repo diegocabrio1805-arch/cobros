@@ -371,11 +371,10 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Usuario ID</label>
                     <input
                       required
-                      readOnly={isManager && !!editingUserId}
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
-                      className={`w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 ${isManager && editingUserId ? 'opacity-60 grayscale cursor-not-allowed bg-slate-100' : ''}`}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -386,11 +385,10 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Fecha Vencimiento Licencia</label>
                     <input
                       required
-                      readOnly={isManager}
                       type="date"
                       value={formData.expiryDate}
                       onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                      className={`w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 ${isManager ? 'opacity-60 grayscale cursor-not-allowed bg-slate-100' : ''}`}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                       style={{ colorScheme: 'light' }}
                     />
                   </div>

@@ -29,6 +29,7 @@ interface ClientsProps {
   onForceSync?: (silent?: boolean, message?: string) => Promise<void>;
   setActiveTab?: (tab: string) => void;
   fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
+  recalculateLoanStatus?: (loanId: string) => void;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -157,7 +158,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, 
   </div>
 );
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus }) => {
   const { forceSync } = useSync();
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
@@ -469,7 +470,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       clients = clients.filter(c => {
         const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
         const docNorm = (c.documentId || '').replace(/\s+/g, "");
-        return nameNorm.includes(s) || docNorm.includes(s);
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        return nameNorm.includes(s) || docNorm.includes(s) || phoneNorm.includes(s);
       });
     }
     if (selectedCollector !== 'all') {
@@ -511,18 +513,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return (Array.isArray(state.clients) ? state.clients : []).map(client => {
       if (client.isHidden) return null;
 
-      const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-      if (!activeLoan) return null;
-
-      // Un "Crédito Nuevo" es aquel cuyo préstamo activo (no renovación) se creó en la fecha
-      if (activeLoan.isRenewal) return null;
-
-      const lDate = new Date(activeLoan.createdAt);
-      const inRange = lDate >= start && lDate <= end;
+      // Un "Registro de Cliente" debe basarse en cuándo se creó el cliente
+      const cDate = new Date(client.createdAt || '');
+      const inRange = cDate >= start && cDate <= end;
       if (!inRange) return null;
 
+      const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+
+      // Si el préstamo activo es una renovación, no es un "Nuevo Cliente" para esta lista
+      if (activeLoan?.isRenewal) return null;
+
       if (selectedCollector !== 'all') {
-        if (activeLoan.collectorId !== selectedCollector && client.addedBy !== selectedCollector) return null;
+        const matchesCollector = (activeLoan && activeLoan.collectorId === selectedCollector) || (client.addedBy === selectedCollector);
+        if (!matchesCollector) return null;
       }
 
       const metrics = getClientMetrics(client);
@@ -716,10 +719,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         client.currentBalance = total;
       }
       await addClient(client, loan);
-      // Custom confirmation message as requested
       if (onForceSync) onForceSync(false, "CREDITO SUBIDO CORRECTAMENTE");
       setShowModal(false);
-      setCurrentPage(1); // FORCE RESET TO PAGE 1 TO SEE NEW CLIENT
+      // No longer force resetting or changing viewMode manually here if not needed
       setClientData({ id: '', documentId: '', name: '', phone: '', secondaryPhone: '', address: '', creditLimit: 1000000, location: undefined, domicilioLocation: undefined, profilePic: '', housePic: '', businessPic: '', documentPic: '', allowCollectorLocationUpdate: false, isActive: true, isHidden: false });
     } catch (error) {
       alert("Error al crear el cliente.");
@@ -1224,8 +1226,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     });
 
     setShowRenewModal(false);
-    if (onForceSync) onForceSync(false);
-    alert("Crédito renovado exitosamente.");
+    if (onForceSync) onForceSync(false, "RENOVACIÓN REALIZADA CORRECTAMENTE");
   };
 
   const handlePrintCartera = () => {
@@ -2074,7 +2075,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                               {log.type === CollectionLogType.PAYMENT && (
                                                 <button onClick={() => handleEditLog(log)} className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-sm" title="Editar Pago"><i className="fa-solid fa-pen text-[10px]"></i></button>
                                               )}
-                                              <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
+                                              <button onClick={() => {
+                                                if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) {
+                                                  deleteCollectionLog?.(log.id);
+                                                  if (log.loanId && recalculateLoanStatus) {
+                                                    // Pequeño delay para asegurar que el estado local se actualice antes del recalculo si es necesario
+                                                    setTimeout(() => recalculateLoanStatus(log.loanId!), 500);
+                                                  }
+                                                }
+                                              }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                                             </div>
                                           )}
                                           {isAdminOrManager && isLoanGrant && log.loanId && (

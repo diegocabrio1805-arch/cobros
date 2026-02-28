@@ -843,6 +843,32 @@ const App: React.FC = () => {
   };
 
   // --- Pull to Refresh Logic ---
+  const recalculateLoanStatus = (loanId: string) => {
+    setState(prev => {
+      const loan = prev.loans.find(l => l.id === loanId);
+      if (!loan) return prev;
+
+      const loanLogs = (prev.collectionLogs || []).filter(log =>
+        log.loanId === loanId &&
+        log.type === CollectionLogType.PAYMENT &&
+        !log.deletedAt
+      );
+
+      const totalPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
+      const balance = loan.totalAmount - totalPaid;
+
+      if (loan.status === LoanStatus.PAID && balance > 1) {
+        const updatedLoan = { ...loan, status: LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
+        pushLoan(updatedLoan);
+        return {
+          ...prev,
+          loans: prev.loans.map(l => l.id === loanId ? updatedLoan : l)
+        };
+      }
+      return prev;
+    });
+  };
+
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const pullStartY = useRef(0);
@@ -981,6 +1007,7 @@ const App: React.FC = () => {
           <div className="max-w-[1400px] mx-auto pb-20">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
             {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} deleteLoan={deleteLoan}
+              recalculateLoanStatus={recalculateLoanStatus}
               setActiveTab={setActiveTab}
               fetchClientPhotos={fetchClientPhotos}
             />
