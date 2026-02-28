@@ -64,30 +64,37 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
+      - name: Get Version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Rename and Zip APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v6.1.144_Debug.apk
-          zip Anexo_Cobro_v6.1.144_Debug.zip Anexo_Cobro_v6.1.144_Debug.apk
+          VERSION=${{ steps.package-version.outputs.version }}
+          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v${VERSION}_Debug.apk
+          zip Anexo_Cobro_v${VERSION}_Debug.zip Anexo_Cobro_v${VERSION}_Debug.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v6.1.144-PWA"
-          name: "Release v6.1.144-PWA"
+          tag_name: "v${{ steps.package-version.outputs.version }}-PWA"
+          name: "Release v${{ steps.package-version.outputs.version }}-PWA"
           body: |
             Nueva versión optimizada para Android.
-            - Búsqueda de clientes debounced.
-            - GPS obligatorio cada 3s.
-            - Pull-to-refresh habilitado.
-            - Versión string: v6.1.144-PWA
+            - Correcciones globales de asignaciones de clientes y sucursales.
+            - Mejoras en la interfaz de Clients.tsx (registros y renovaciones sin redirección).
+            - Formato ZIP incluido para mayor compatibilidad en Windows.
+            - Versión string: v${{ steps.package-version.outputs.version }}-PWA
           files: |
-            Anexo_Cobro_v6.1.144_Debug.apk
-            Anexo_Cobro_v6.1.144_Debug.zip
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Debug APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: anexo-cobro-debug
-          path: Anexo_Cobro_v6.1.144_Debug.apk
+          name: anexo-cobro-v${{ steps.package-version.outputs.version }}-debug
+          path: Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
