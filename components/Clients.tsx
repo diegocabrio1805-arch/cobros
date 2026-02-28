@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp } from '../utils/helpers';
+import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -13,6 +12,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF } from '../utils/pdfHelper';
+import { RefreshCcw } from 'lucide-react';
 
 interface ClientsProps {
   state: AppState;
@@ -85,7 +85,7 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   };
 
   return (
-    <div className={`bg-white border border-slate-300 rounded-2xl p-4 shadow-sm animate-fadeIn ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`bg - white border border - slate - 300 rounded - 2xl p - 4 shadow - sm animate - fadeIn ${disabled ? 'opacity-50 pointer-events-none' : ''} `}>
       <div className="flex justify-between items-center mb-4">
         <h5 className="text-[10px] font-black uppercase text-slate-900">{monthNames[month]} {year}</h5>
         <div className="flex gap-1">
@@ -98,7 +98,7 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, idx) => {
-          if (day === null) return <div key={`empty-${idx}`} />;
+          if (day === null) return <div key={`empty - ${idx} `} />;
           const date = new Date(year, month, day);
           const iso = date.toISOString().split('T')[0];
           const isStart = startDate === iso;
@@ -110,11 +110,12 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
               type="button"
               onClick={() => handleDayClick(day)}
               onContextMenu={(e) => { e.preventDefault(); !disabled && toggleHoliday(iso); }}
-              className={`h-10 w-full rounded-lg text-[10px] font-black flex flex-col items-center justify-center transition-all border
+              className={`h - 10 w - full rounded - lg text - [10px] font - black flex flex - col items - center justify - center transition - all border
                 ${isStart ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-105 z-10' :
                   isHoliday ? 'bg-orange-500 text-white border-orange-400' :
                     isSunday ? 'bg-red-50 text-red-700 border-red-200' :
-                      'bg-white text-slate-800 border-slate-300 hover:border-blue-400'}`}
+                      'bg-white text-slate-800 border-slate-300 hover:border-blue-400'
+                } `}
             >
               {day}
               {isHoliday && <div className="w-1 h-1 bg-white rounded-full mt-0.5"></div>}
@@ -128,9 +129,9 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
 };
 
 const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, forEdit?: boolean, disabled?: boolean }) => (
-  <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
+  <div className={`flex flex - col gap - 1.5 ${disabled ? 'opacity-50 grayscale' : ''} `}>
     <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
-    <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
+    <div className={`relative group aspect - square rounded - 2xl border - 2 border - dashed border - slate - 300 bg - slate - 50 overflow - hidden flex flex - col items - center justify - center transition - all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''} `}>
       {value ? (
         <>
           <img src={value} className="w-full h-full object-cover" />
@@ -170,7 +171,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // Title
       doc.setFontSize(16);
-      doc.text(`Expediente: ${client.name} - ${title}`, 10, 15);
+      doc.text(`Expediente: ${client.name} - ${title} `, 10, 15);
 
       // Add image
       const imgProps = doc.getImageProperties(imageSrc);
@@ -292,7 +293,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         startDateTime.setHours(0, 0, 0, 0);
       }
 
-      console.log(`[REGEN DEBUG] Regenerating Loan: ${editLoanFormData.id} | Principal: ${p} | StartDate (createdAt): ${editLoanFormData.createdAt}`);
+      console.log(`[REGEN DEBUG] Regenerating Loan: ${editLoanFormData.id} | Principal: ${p} | StartDate(createdAt): ${editLoanFormData.createdAt} `);
 
       const table = generateAmortizationTable(
         p,
@@ -405,7 +406,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const loanGrants = (state.loans || [])
       .filter(loan => loan.clientId === showLegajo)
       .map(loan => ({
-        id: `loan-${loan.id}`,
+        id: `loan - ${loan.id} `,
         clientId: loan.clientId,
         loanId: loan.id,
         type: CollectionLogType.PAYMENT, // Dummy type for rendering
@@ -421,27 +422,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
-    if (!client) return { balance: 0, installmentsStr: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '' };
+    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasTP: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0 };
     const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
     const activeLoan = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '';
+    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasTP = '0/0', isFullyPaid = false, maxDaysOverdue = 0;
 
     if (activeLoan) {
       const installments = Array.isArray(activeLoan.installments) ? activeLoan.installments : [];
 
-      // Regla de Oro: El Abonado debe coincidir exactamente con el historial reciente (logs)
-      // FIX PARA PRÉSTAMOS EDITADOS POR ERROR: Descartar pagos anteriores a la fecha de inicio del crédito actual.
-      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
-        log.loanId === activeLoan.id &&
-        log.type === CollectionLogType.PAYMENT &&
-        !log.isOpening &&
-        !log.deletedAt &&
-        new Date(log.date.split('T')[0]).getTime() >= new Date(activeLoan.createdAt.split('T')[0]).getTime()
-      );
-      totalPaid = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
+      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
 
       // Saldo Pendiente: Total Crédito - Suma de Abonos en Historial
       balance = Math.max(0, activeLoan.totalAmount - totalPaid);
+      isFullyPaid = balance <= 0.01;
 
       // Progreso Cuotas: Total Abonado / Valor Cuota (para reflejar parciales)
       const progress = totalPaid / (activeLoan.installmentValue || 1);
@@ -450,17 +443,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // Cuotas T/P (Total / Pagadas de forma entera)
       const paidUnits = Math.floor(progress);
-      const cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
+      cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
 
       daysOverdue = getDaysOverdue(activeLoan, state.settings, totalPaid);
+
+      const daysOverdueArr = activeLoan.installments
+        .filter(i => i.status !== PaymentStatus.PAID)
+        .map(i => getDaysOverdue(i.dueDate, state.settings));
+      maxDaysOverdue = daysOverdueArr.length > 0 ? Math.max(...daysOverdueArr) : 0;
+
       if (installments.length > 0) {
         lastExpiryDate = installments[installments.length - 1].dueDate;
       }
       createdAt = activeLoan.createdAt;
 
-      return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt };
+      return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
     }
-    return { balance, installmentsStr, cuotasTP: '0/0', daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt };
+    return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
   };
 
   const filteredClients = useMemo(() => {
@@ -2007,7 +2006,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">Resumen Cuenta</h4><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-md uppercase border border-emerald-500/30">En curso</span></div>
                               <div className="overflow-x-auto">
                                 {(() => {
-                                  const m = getClientMetrics(clientInLegajo);
+                                  const m = getClientMetrics(clientInLegajo!);
                                   return (
                                     <table className="w-full text-left border-collapse">
                                       <tbody className="divide-y divide-slate-800 text-slate-100 font-bold text-[10px] md:text-[11px]">
@@ -2113,7 +2112,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                               <div className="max-h-[600px] overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 mobile-scroll-container bg-slate-50/30">
                                 {(() => {
-                                  const m = getClientMetrics(clientInLegajo);
+                                  const m = getClientMetrics(clientInLegajo!);
                                   let remainingToAllocate = m.totalPaid;
 
                                   return (Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
@@ -2183,7 +2182,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div className="p-4 space-y-3 flex-1 bg-gradient-to-b from-white to-emerald-50/20">
                                 <div className="flex justify-between items-center">
                                   <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">Gestión Rápida</h4>
-                                  {(() => { const m = getClientMetrics(clientInLegajo); return (<span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase border ${m.daysOverdue > 0 ? 'bg-red-50 text-red-800 border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{m.daysOverdue > 0 ? `${m.daysOverdue} d mora` : 'Al Día'}</span>); })()}
+                                  {(() => { const m = getClientMetrics(clientInLegajo!); return (<span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase border ${m.daysOverdue > 0 ? 'bg-red-50 text-red-800 border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{m.daysOverdue > 0 ? `${m.daysOverdue} d mora` : 'Al Día'}</span>); })()}
                                 </div>
                                 <div className="bg-white p-3 rounded-xl space-y-2 border border-emerald-200 shadow-inner">
                                   <div className="flex justify-between items-center"><p className="text-[7px] font-black text-slate-700 uppercase">Valor Cuota</p><p className="text-base font-black text-blue-800 font-mono">{formatCurrency(activeLoanInLegajo.installmentValue, state.settings)}</p></div>
@@ -2198,7 +2197,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
                                       <button
                                         onClick={isFullyPaid ? () => setShowRenewModal(true) : handleOpenDossierPayment}
-                                        className={`py-2.5 ${isFullyPaid ? 'bg-blue-600' : 'bg-emerald-600'} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
+                                        className={`py-2.5 ${getRenewalButtonColor(m.maxDaysOverdue)} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
                                       >
                                         {isFullyPaid ? 'Renovar Crédito' : 'Cobrar / Renovación'}
                                       </button>

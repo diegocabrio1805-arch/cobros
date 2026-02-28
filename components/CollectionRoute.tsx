@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
@@ -19,7 +19,7 @@ interface CollectionRouteProps {
 const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync }) => {
   const [viewMode, setViewMode] = useState<'active' | 'hidden'>('active');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [amount, setAmount] = useState<number>(0);
+  const [amountInput, setAmountInput] = useState<string>('0');
   const [isVirtualProcessing, setIsVirtualProcessing] = useState(false);
   const [isRenewalProcessing, setIsRenewalProcessing] = useState(false);
   const [receipt, setReceipt] = useState<string | null>(null);
@@ -190,13 +190,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     setIsProcessing(false);
     setIsVirtualProcessing(false);
     setIsRenewalProcessing(false);
-    setAmount(0);
+    setAmountInput('0');
   };
 
   const handleOpenPayment = (clientId: string, loan: any) => {
     if (!isViewingToday) return;
     setSelectedClient(clientId);
-    setAmount(Math.max(0, loan.installmentValue - (loan.paidPeriod || 0)));
+    const initialAmount = Math.max(0, loan.installmentValue - (loan.paidPeriod || 0));
+    setAmountInput(initialAmount.toString());
     setIsVirtualProcessing(false);
     setIsRenewalProcessing(false);
   };
@@ -218,14 +219,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
     const loan = (Array.isArray(enrichedRoute) ? enrichedRoute : []).find(l => l.clientId === selectedClient);
     if (!loan) return;
-
-    // Regla de Oro: El saldo siempre sale de los logs de pago
     const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
 
     if (method === 'renewal') {
-      setAmount(Math.max(0, loan.totalAmount - totalPaid));
+      setAmountInput(Math.max(0, loan.totalAmount - totalPaid).toString());
     } else {
-      setAmount(Math.max(0, loan.installmentValue - (loan.paidPeriod || 0)));
+      setAmountInput(Math.max(0, loan.installmentValue - (loan.paidPeriod || 0)).toString());
     }
   };
 
@@ -312,11 +311,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
             await printText(receiptText);
           } catch (printErr) {
             console.error("Error direct printing:", printErr);
-            // triggerPrintTicket(receiptText); // Ya no usamos el fallback del sistema si el usuario quiere que no se genere imagen
           }
         } else {
-          // Si no hay impresora, no mostramos el recibo en pantalla, solo abrimos WhatsApp
-          setAmount(0);
+          setAmountInput('0');
           setSelectedClient(null);
           setReceipt(null);
         }
@@ -562,10 +559,37 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
               <div className="relative mb-6">
                 <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                <input type="number" autoFocus value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-2xl text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-2xl text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner"
+                />
               </div>
               <div className="space-y-2">
-                <button onClick={() => { const item = enrichedRoute.find(l => l.clientId === selectedClient); if (item) handleAction(selectedClient, item.id, CollectionLogType.PAYMENT, amount, isVirtualProcessing, isRenewalProcessing); }} className="w-full font-black py-5 bg-emerald-600 text-white rounded-xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Confirmar e Imprimir</button>
+                <button
+                  onClick={() => {
+                    const item = enrichedRoute.find(l => l.clientId === selectedClient);
+                    if (!item) return;
+
+                    const finalAmount = parseAmount(amountInput);
+
+                    // REGLA GLOBAL: Si el monto es muy pequeño (ej: < 500), pedir confirmación triple para evitar errores como registrar "25" en vez de "25000"
+                    const threshold = 500;
+                    if (finalAmount > 0 && finalAmount < threshold) {
+                      if (!confirm(`¡ATENCIÓN!\n\nHas ingresado un monto de ${formatCurrency(finalAmount, state.settings)}.\n\n¿Estás SEGURO de que este monto es correcto y no quisiste poner un número mayor?`)) {
+                        return;
+                      }
+                    }
+
+                    handleAction(selectedClient!, item.id, CollectionLogType.PAYMENT, finalAmount, isVirtualProcessing, isRenewalProcessing);
+                  }}
+                  className="w-full font-black py-5 bg-emerald-600 text-white rounded-xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all"
+                >
+                  Confirmar e Imprimir
+                </button>
                 <button onClick={resetUI} className="w-full py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">CERRAR</button>
               </div>
             </div>

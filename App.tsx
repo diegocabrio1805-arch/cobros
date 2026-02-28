@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.149'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          const localVersion = '6.1.150'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
             localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
@@ -90,7 +90,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.149-APK';
+    const CURRENT_VERSION_ID = 'v6.1.150-APK';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: '9876543210' };
     const defaultInitialState: AppState = {
@@ -652,6 +652,61 @@ const App: React.FC = () => {
     handleForceSync(false);
   };
 
+  const recalculateAllLoansBalances = async () => {
+    console.log('Iniciando recalculación global de saldos...');
+    try {
+      const updatedLoans = state.loans.map(loan => {
+        const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+        const balance = Math.max(0, loan.totalAmount - totalPaid);
+
+        // Determinar si el préstamo está pagado
+        const isPaid = balance <= 0;
+        const status = isPaid ? LoanStatus.PAID : loan.status;
+
+        return {
+          ...loan,
+          totalPaid,
+          balance,
+          status,
+          updatedAt: new Date().toISOString()
+        };
+      });
+
+      setState(prev => ({ ...prev, loans: updatedLoans }));
+
+      // Persistir cambios localmente
+      await Storage.saveLoans(updatedLoans);
+
+      console.log('Recalculación global completada con éxito.');
+      Alert.alert('Éxito', 'Todos los saldos han sido recalculados y sincronizados correctamente.');
+    } catch (error) {
+      console.error('Error en recalculación global:', error);
+      Alert.alert('Error', 'No se pudo completar la recalculación global.');
+    }
+  };
+
+  const recalculateLoanStatus = (loanId: string) => {
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+
+    const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+    const balance = Math.max(0, loan.totalAmount - totalPaid);
+    const isPaid = balance <= 0;
+
+    const updatedLoans = state.loans.map(l =>
+      l.id === loanId ? {
+        ...l,
+        totalPaid,
+        balance,
+        status: isPaid ? LoanStatus.PAID : l.status,
+        updatedAt: new Date().toISOString()
+      } : l
+    );
+
+    setState(prev => ({ ...prev, loans: updatedLoans }));
+    Storage.saveLoans(updatedLoans);
+  };
+
   const deleteLoan = async (loanId: string) => {
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
@@ -746,63 +801,117 @@ const App: React.FC = () => {
       alert("ERROR: No tienes permisos para eliminar registros.");
       return;
     }
-    await deleteRemoteLog(logId);
 
     const logToDelete = state.collectionLogs.find(l => l.id === logId);
     if (!logToDelete) return;
 
-    let updatedLoans = [...state.loans];
-    const recordsToReverse = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
-    const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
-    const loansToSync: Loan[] = [];
-
-    if (logToDelete.type === CollectionLogType.PAYMENT) {
-      updatedLoans = updatedLoans.map(loan => {
-        if (loan.id === logToDelete.loanId) {
-          const newInst = (loan.installments || []).map(i => ({ ...i }));
-          recordsToReverse.forEach(rec => {
-            const idx = rec.installmentNumber - 1;
-            if (newInst[idx]) {
-              newInst[idx].paidAmount = Math.max(0, Number(((newInst[idx].paidAmount || 0) - rec.amount).toFixed(2)));
-              if (newInst[idx].paidAmount <= 0.01) newInst[idx].status = PaymentStatus.PENDING;
-              else if (newInst[idx].paidAmount < newInst[idx].amount - 0.01) newInst[idx].status = PaymentStatus.PARTIAL;
-              else newInst[idx].status = PaymentStatus.PAID;
-            }
-          });
-          const allPaid = newInst.every(inst => inst.status === PaymentStatus.PAID);
-          const updatedLoan = { ...loan, installments: newInst, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE };
-          loansToSync.push(updatedLoan);
-          return updatedLoan;
-        }
-        return loan;
-      });
+    if (!confirm(`¿ESTÁ SEGURO DE ELIMINAR EL REGISTRO DE ${logToDelete.type === CollectionLogType.PAYMENT ? 'PAGO' : 'GESTIÓN'} POR ${formatCurrency(logToDelete.amount || 0, state.settings)}?`)) {
+      return;
     }
 
-    setState(prev => ({
-      ...prev,
-      loans: updatedLoans,
-      payments: updatedPayments,
-      collectionLogs: prev.collectionLogs.filter(l => l.id !== logId)
-    }));
+    try {
+      // 1. Remote Deletion first to ensure consistency
+      await deleteRemoteLog(logId);
 
-    if (recordsToReverse.length > 0) {
-      for (const p of recordsToReverse) await deleteRemotePayment(p.id);
-    }
-    if (loansToSync.length > 0) {
-      for (const l of loansToSync) await pushLoan(l);
-    }
+      let updatedLoans = [...state.loans];
+      const recordsToReverse = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
+      const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
+      const loansToSync: Loan[] = [];
 
-    await handleForceSync(true);
+      if (logToDelete.type === CollectionLogType.PAYMENT) {
+        updatedLoans = updatedLoans.map(loan => {
+          if (loan.id === logToDelete.loanId) {
+            const newInst = (loan.installments || []).map(i => ({ ...i }));
+            recordsToReverse.forEach(rec => {
+              const idx = rec.installmentNumber - 1;
+              if (newInst[idx]) {
+                newInst[idx].paidAmount = Math.max(0, Number(((newInst[idx].paidAmount || 0) - rec.amount).toFixed(2)));
+                if (newInst[idx].paidAmount <= 0.01) newInst[idx].status = PaymentStatus.PENDING;
+                else if (newInst[idx].paidAmount < newInst[idx].amount - 0.01) newInst[idx].status = PaymentStatus.PARTIAL;
+                else newInst[idx].status = PaymentStatus.PAID;
+              }
+            });
+            const allPaid = newInst.every(inst => inst.status === PaymentStatus.PAID);
+            const updatedLoan = { ...loan, installments: newInst, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
+            loansToSync.push(updatedLoan);
+            return updatedLoan;
+          }
+          return loan;
+        });
+      }
+
+      // 2. State Update (Atomic)
+      setState(prev => ({
+        ...prev,
+        loans: updatedLoans,
+        payments: updatedPayments,
+        collectionLogs: prev.collectionLogs.filter(l => l.id !== logId)
+      }));
+
+      // 3. Side Effects (Backgrounded but awaited)
+      const tasks = [];
+      if (recordsToReverse.length > 0) {
+        for (const p of recordsToReverse) tasks.push(deleteRemotePayment(p.id));
+      }
+      if (loansToSync.length > 0) {
+        for (const l of loansToSync) tasks.push(pushLoan(l));
+      }
+
+      await Promise.all(tasks);
+      await handleForceSync(true);
+
+    } catch (err) {
+      console.error("Critical error deleting log:", err);
+      alert("Error al eliminar el registro. Por favor intente de nuevo.");
+    }
   };
 
-  const updateCollectionLog = (logId: string, newAmount: number) => {
-    const log = state.collectionLogs.find(l => l.id === logId);
-    if (!log) return;
-    deleteCollectionLog(logId);
-    setTimeout(() => {
-      const newLog: CollectionLog = { ...log, amount: newAmount, date: new Date().toISOString() };
-      addCollectionAttempt(newLog);
-    }, 10);
+  const updateCollectionLog = async (logId: string, newAmount: number) => {
+    try {
+      const logToUpdate = state.collectionLogs.find(l => l.id === logId);
+      if (!logToUpdate) return;
+
+      // 1. Update remote (Supabase)
+      const { error: remoteError } = await supabase
+        .from('collection_logs')
+        .update({ amount: newAmount, updatedAt: new Date().toISOString() })
+        .eq('id', logId);
+
+      if (remoteError) throw remoteError;
+
+      // 2. Update local state
+      const updatedLogs = state.collectionLogs.map(l =>
+        l.id === logId ? { ...l, amount: newAmount, updatedAt: new Date().toISOString() } : l
+      );
+
+      // 3. Update payment record if applicable
+      if (logToUpdate.type === CollectionLogType.PAYMENT) {
+        await supabase.from('payments').update({ amount: newAmount }).eq('id', logId);
+      }
+
+      // 4. State synchronization
+      setState(prev => ({
+        ...prev,
+        collectionLogs: updatedLogs
+      }));
+
+      // 5. Recalculate and push loan update
+      if (logToUpdate.loanId) {
+        const updatedLoan = await recalculateLoanStatus(logToUpdate.loanId, updatedLogs);
+        if (updatedLoan) {
+          await supabase.from('loans').update(updatedLoan).eq('id', updatedLoan.id);
+          setState(prev => ({
+            ...prev,
+            loans: prev.loans.map(l => l.id === updatedLoan.id ? updatedLoan : l)
+          }));
+        }
+      }
+
+      await showToast('Cobro actualizado correctamente');
+    } catch (error) {
+      console.error('Error updating collection log:', error);
+      await showToast('Error al actualizar el cobro');
+    }
   };
 
   const updateCollectionLogNotes = (logId: string, notes: string) => {

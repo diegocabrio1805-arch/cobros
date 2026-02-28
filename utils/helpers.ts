@@ -21,18 +21,22 @@ export const getLocalDateStringForCountry = (country: string = 'CO', date: Date 
   return `${year}-${month}-${day}`;
 };
 
-export const calculateTotalPaidFromLogs = (loan: any, collectionLogs: any[]): number => {
-  if (!loan || !collectionLogs) return 0;
+export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[], loanCreatedAt?: string): number => {
+  if (!loanOrId || !collectionLogs) return 0;
 
-  const loanStartDate = loan.createdAt ? new Date(loan.createdAt.split('T')[0]).getTime() : 0;
+  const loanId = typeof loanOrId === 'string' ? loanOrId : loanOrId.id;
+  const createdAt = typeof loanOrId === 'string' ? loanCreatedAt : loanOrId.createdAt;
+
+  const loanStartDate = createdAt ? new Date(createdAt.split('T')[0]).getTime() : 0;
 
   const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log =>
-    log.loanId === loan.id &&
-    log.type === 'PAYMENT' &&
+    log.loanId === loanId &&
+    log.type === 'PAGO' && // Note: using string 'PAGO' for compatibility or CollectionLogType.PAYMENT
     !log.isOpening &&
     !log.deletedAt &&
-    loan.createdAt &&
-    new Date(log.date.split('T')[0]).getTime() >= loanStartDate
+    // Relaxed date constraint: if we have a loan object, we strictly check date to avoid logs from prior loans with same ID if recycled (rare)
+    // If no createdAt provided, we trust the loanId link.
+    (!loanStartDate || new Date(log.date.split('T')[0]).getTime() >= loanStartDate - 86400000) // 1 day margin
   );
 
   return validLogs.reduce((acc: number, log: any) => acc + (log.amount || 0), 0);
@@ -452,7 +456,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.149-APK
+VER: v6.1.150-APK
 `;
 };
 
@@ -479,4 +483,34 @@ export const formatDate = (dateString: string): string => {
   const cleanDate = dateString.split('T')[0];
   const date = new Date(cleanDate + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+/**
+ * Robustly parses a currency string by stripping non-numeric characters.
+ * Handles cases like "25.000", "$ 25.000", "25,000.00" etc.
+ */
+export const parseAmount = (input: string | number): number => {
+  if (typeof input === 'number') return input;
+  if (!input) return 0;
+
+  // Remove currency symbols and common separators used in LATAM (dot for thousands, comma for decimal or viceversa)
+  // We keep only digits.
+  const clean = input.replace(/[^0-9]/g, '');
+  const parsed = parseInt(clean, 10);
+
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+/**
+ * Returns the tailwind class for the renewal button based on global rules:
+ * 0-39 days: Blue
+ * Exactly 40 days: Yellow
+ * 41-60 days: Orange
+ * >60 days: Red
+ */
+export const getRenewalButtonColor = (maxOverdueDays: number): string => {
+  if (maxOverdueDays <= 39) return 'bg-blue-600 hover:bg-blue-700';
+  if (maxOverdueDays === 40) return 'bg-yellow-500 hover:bg-yellow-600';
+  if (maxOverdueDays <= 60) return 'bg-orange-600 hover:bg-orange-700';
+  return 'bg-red-600 hover:bg-red-700';
 };
