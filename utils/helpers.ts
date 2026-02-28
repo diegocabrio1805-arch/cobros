@@ -456,7 +456,7 @@ ${contactLabel}: ${formattedPhone}
 ${idLabel}: ${idValue}
 ===============================
 ${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.150-APK
+VER: v6.1.151-APK
 `;
 };
 

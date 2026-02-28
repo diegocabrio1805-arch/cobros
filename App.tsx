@@ -674,8 +674,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, loans: updatedLoans }));
 
-      // Persistir cambios localmente
-      await Storage.saveLoans(updatedLoans);
+
 
       console.log('Recalculación global completada con éxito.');
       alert('Todos los saldos han sido recalculados y sincronizados correctamente.');
@@ -712,7 +711,7 @@ const App: React.FC = () => {
 
     const updatedLoans = state.loans.map(l => l.id === loanId ? updatedLoan : l);
     setState(prev => ({ ...prev, loans: updatedLoans }));
-    Storage.saveLoans(updatedLoans);
+
 
     // Si hubo cambio de estado, sincronizar con el servidor
     if (newStatus !== loan.status) {
@@ -870,7 +869,7 @@ const App: React.FC = () => {
         ...prev,
         collectionLogs: updatedLogs
       }));
-      Storage.saveCollectionLogs(updatedLogs);
+
 
       // 2. Recalculate Loan
       if (logToUpdate.loanId) {
