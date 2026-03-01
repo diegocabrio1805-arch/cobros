@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -78,10 +78,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;
       const routeCompletionRate = totalClientsCount > 0 ? (uniqueClientsVisitedToday / totalClientsCount) * 100 : 0;
       const isRouteCompleted = totalClientsCount > 0 && uniqueClientsVisitedToday >= totalClientsCount;
+      const monthlyStats = calculateMonthlyStats(state.loans, state.collectionLogs, new Date().getMonth(), new Date().getFullYear(), user.id);
+
       return {
         id: user.id,
         name: user.name,
         recaudo: recaudoHoy,
+        monthlyGoal: monthlyStats.monthlyGoal,
+        remainingGoal: monthlyStats.remainingBalance,
         financialMora: financialMoraRate,
         routeCompletion: routeCompletionRate,
         clientes: totalClientsCount,
@@ -422,9 +426,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <thead>
                   <tr className="bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest sticky top-0 z-20">
                     <th className="px-5 py-3 border-r border-white/10 w-1/4">Cobrador / Ruta</th>
-                    <th className="px-5 py-3 border-r border-white/10 text-center w-[15%]">Recaudo Hoy</th>
+                    <th className="px-2 py-3 border-r border-white/10 text-center w-[12%]">Recaudo Hoy</th>
+                    <th className="px-2 py-3 border-r border-white/10 text-center w-[12%]">Meta Mes</th>
                     <th className="px-5 py-3 border-r border-white/10 text-center w-[12%]">Ind. Mora</th>
-                    <th className="px-5 py-3 border-r border-white/10 w-[30%]">Progreso Visitas</th>
+                    <th className="px-5 py-3 border-r border-white/10 w-[20%]">Progreso Visitas</th>
                     <th className="px-5 py-3 text-center w-[18%]">Estatus</th>
                   </tr>
                 </thead>
@@ -435,8 +440,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         <p className="text-slate-900 font-black uppercase truncate tracking-tight">{stat.name}</p>
                         <p className="text-[7px] text-blue-500 font-black uppercase tracking-widest mt-0.5">{stat.clientes} Clientes</p>
                       </td>
-                      <td className="px-5 py-3 border-r border-slate-100 text-center font-mono font-black text-emerald-600 bg-slate-50/20">
+                      <td className="px-2 py-3 border-r border-slate-100 text-center font-mono font-black text-emerald-600 bg-slate-50/20">
                         {formatCurrency(stat.recaudo, state.settings)}
+                      </td>
+                      <td className="px-2 py-3 border-r border-slate-100 text-center font-mono font-black text-blue-600 bg-blue-50/10">
+                        {formatCurrency(stat.monthlyGoal, state.settings)}
                       </td>
                       <td className="px-5 py-3 border-r border-slate-100 text-center">
                         <span className={`px-2 py-0.5 rounded text-[8px] font-black font-mono border ${stat.financialMora > 30 ? 'bg-red-50 text-red-600 border-red-100' :

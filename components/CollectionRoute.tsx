@@ -167,9 +167,18 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     return validEnriched.filter(item => {
       const nameNorm = (item.client?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
       const addressNorm = (item.client?.address || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-      const docNorm = (item.client?.documentId || '').replace(/\s+/g, "");
+      const docNorm = (item.client?.documentId || '').replace(/\s+/g, "").toLowerCase();
+      const idNorm = (item.client?.id || '').replace(/\s+/g, "").toLowerCase();
       const phoneNorm = (item.client?.phone || '').replace(/\D/g, '');
-      return nameNorm.includes(s) || addressNorm.includes(s) || docNorm.includes(debouncedSearch.replace(/\s+/g, "")) || phoneNorm.includes(debouncedSearch.replace(/\D/g, ''));
+      const secondaryPhoneNorm = (item.client?.secondaryPhone || '').replace(/\D/g, '');
+      const searchClean = s.toLowerCase().replace(/\D/g, ''); // For phone numbers
+
+      return nameNorm.includes(s) ||
+        addressNorm.includes(s) ||
+        docNorm.includes(s) ||
+        idNorm.includes(s) ||
+        phoneNorm.includes(searchClean || s) ||
+        secondaryPhoneNorm.includes(searchClean || s);
     });
   }, [enrichedRoute, debouncedSearch]);
 
@@ -235,7 +244,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
     setIsProcessing(true);
     try {
-      const amountToApply = customAmount || amount;
+      const amountToApply = customAmount || parseAmount(amountInput);
       const logId = generateUUID();
 
       let currentLocation = { lat: 0, lng: 0 };
@@ -298,7 +307,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           isRenewal,
           isVirtual,
           installmentValue: loan.installmentValue,
-          totalPaidAmount: totalPaidHistory
+          totalPaidAmount: totalPaidHistory,
+          principal: loan.principal,
+          frequency: loan.frequency
         }, state.settings);
 
         // Condición: Solo mostrar recibo en pantalla si hay una impresora conectada

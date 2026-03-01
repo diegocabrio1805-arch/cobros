@@ -2535,7 +2535,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               <div className="text-right">
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
-                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.companyBank || 'BANCO FAMILIAR'}</p>
+                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareLabel || 'BANCO FAMILIAR'}</p>
                 <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
                 <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
               </div>

@@ -30,9 +30,10 @@ export const resolveSettings = (
             shareValue: isValid(branchSettings.shareValue) ? branchSettings.shareValue : (isValid(adminSettings.shareValue) ? adminSettings.shareValue : settings.shareValue),
             shareLabel: isValid(branchSettings.shareLabel) ? branchSettings.shareLabel : (isValid(adminSettings.shareLabel) ? adminSettings.shareLabel : settings.shareLabel),
             contactPhone: isValid(branchSettings.contactPhone) ? branchSettings.contactPhone : (isValid(adminSettings.contactPhone) ? adminSettings.contactPhone : settings.contactPhone),
-            technicalSupportPhone: isValid(branchSettings.technicalSupportPhone) ? branchSettings.technicalSupportPhone : (isValid(adminSettings.technicalSupportPhone) ? adminSettings.technicalSupportPhone : settings.technicalSupportPhone),
+            technicalSupportPhone: isValid(adminSettings.technicalSupportPhone) ? adminSettings.technicalSupportPhone : settings.technicalSupportPhone,
             companyIdentifier: isValid(branchSettings.companyIdentifier) ? branchSettings.companyIdentifier : (isValid(adminSettings.companyIdentifier) ? adminSettings.companyIdentifier : settings.companyIdentifier),
             companyName: isValid(branchSettings.companyName) ? branchSettings.companyName : (isValid(adminSettings.companyName) ? adminSettings.companyName : settings.companyName),
+            companyAlias: isValid(branchSettings.companyAlias) ? branchSettings.companyAlias : (isValid(adminSettings.companyAlias) ? adminSettings.companyAlias : settings.companyAlias),
         };
     }
 

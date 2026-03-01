@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
@@ -273,7 +273,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const fechaStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "left" } };
         const clienteStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "left" } };
         const medioStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
-        const montoStyle = { ...baseStyle, numFmt: '"$"#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+        const montoStyle = { ...baseStyle, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
         const gestorStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "center" } };
 
         wsData.push([
@@ -291,7 +291,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       const summaryRow1Idx = wsData.length;
       const summaryLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12 }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
-      const summaryMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12 }, border: borderAll, numFmt: '"$"#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+      const summaryMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12 }, border: borderAll, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
       const emptyBorderStyle = { border: borderAll };
 
       wsData.push([
@@ -696,8 +696,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                             {isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo'}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatCurrency(log.amount || 0, state.settings)}</td>
-                        <td className="px-5 py-3 text-right font-mono font-black text-blue-600 bg-blue-50/20">{isNoPay ? '-' : formatCurrency(comm, state.settings)}</td>
+                        <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatRawNumber(log.amount || 0)}</td>
+                        <td className="px-5 py-3 text-right font-mono font-black text-blue-600 bg-blue-50/20">{isNoPay ? '-' : formatRawNumber(comm)}</td>
                         <td className="px-5 py-3 text-center uppercase text-[9px] text-black">{state.users.find(u => u.id === log.recordedBy)?.name || '---'}</td>
                         <td className="px-5 py-3 no-print">
                           <div className="flex justify-center gap-1">

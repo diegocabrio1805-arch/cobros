@@ -92,7 +92,7 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
     const CURRENT_VERSION_ID = 'v6.1.151-APK';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: '9876543210' };
+    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
       clients: [],
       loans: [],
@@ -115,9 +115,9 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.149-APK';
+      const CURRENT_VERSION_ID = 'v6.1.152-APK';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
-      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: '9876543210' };
+      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
       const defaultInitialState: AppState = {
         clients: [], loans: [], payments: [], expenses: [], collectionLogs: [],
@@ -397,10 +397,8 @@ const App: React.FC = () => {
   // REMOVED: Duplicate sync interval - already handled by the main sync effect below (line 309)
 
   useEffect(() => {
-    if (isInitializing) return; // Don't save incomplete state during initialization
+    if (isInitializing) return;
     const timer = setTimeout(() => {
-      // Con IndexedDB (localforage) ya no hay límite estricto de 5MB. 
-      // Las fotos se persisten completas.
       try {
         StorageService.setItem('prestamaster_v2', state);
         if (state.currentUser) {
@@ -412,7 +410,7 @@ const App: React.FC = () => {
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [state, isInitializing]);
 
   useEffect(() => {
     const recover = async () => {
@@ -1009,7 +1007,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.151-APK</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.152-APK</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1021,7 +1019,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.151-APK</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.152-APK</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

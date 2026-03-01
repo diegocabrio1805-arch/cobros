@@ -1,8 +1,33 @@
 ﻿import { v4 as uuidv4 } from 'uuid';
-import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency } from '../types';
+import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency, LoanStatus, CollectionLogType, PaymentStatus } from '../types';
 
 export const generateUUID = (): string => {
   return uuidv4();
+};
+
+const safeParseDate = (dateStr: any): Date | null => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+
+  // Try YYYY-MM-DD format manually if needed
+  if (typeof dateStr === 'string' && dateStr.includes('-')) {
+    const [y, m, d_part] = dateStr.split('T')[0].split('-').map(Number);
+    const local = new Date(y, m - 1, d_part);
+    if (!isNaN(local.getTime())) return local;
+  }
+  return null;
+};
+
+const getProp = (obj: any, camel: string, snake: string) => {
+  if (!obj) return undefined;
+  return obj[camel] !== undefined ? obj[camel] : obj[snake];
+};
+
+const isPaidStatus = (status: any) => {
+  if (!status) return false;
+  const s = String(status).toLowerCase();
+  return s === 'pagado' || s === 'paid' || s === PaymentStatus.PAID.toLowerCase();
 };
 
 export const getLocalDateStringForCountry = (country: string = 'CO', date: Date | null = null): string => {
@@ -31,15 +56,78 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[],
 
   const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log =>
     log.loanId === loanId &&
-    log.type === 'PAGO' && // Note: using string 'PAGO' for compatibility or CollectionLogType.PAYMENT
+    (log.type === 'PAGO' || log.type === CollectionLogType.PAYMENT) &&
     !log.isOpening &&
     !log.deletedAt &&
-    // Relaxed date constraint: if we have a loan object, we strictly check date to avoid logs from prior loans with same ID if recycled (rare)
-    // If no createdAt provided, we trust the loanId link.
-    (!loanStartDate || new Date(log.date.split('T')[0]).getTime() >= loanStartDate - 86400000) // 1 day margin
+    (!loanStartDate || new Date(log.date.split('T')[0]).getTime() >= loanStartDate - 86400000)
   );
 
   return validLogs.reduce((acc: number, log: any) => acc + (log.amount || 0), 0);
+};
+
+export const calculateMonthlyStats = (
+  loans: Loan[],
+  collectionLogs: CollectionLog[],
+  month: number,
+  year: number,
+  collectorId?: string
+) => {
+  const activeLoans = (Array.isArray(loans) ? loans : []).filter(l => {
+    const status = getProp(l, 'status', 'status');
+    return status === LoanStatus.ACTIVE || status === 'Activo';
+  });
+
+  const filteredLoans = collectorId
+    ? activeLoans.filter(l => {
+      const cId = getProp(l, 'collectorId', 'collector_id');
+      return cId === collectorId;
+    })
+    : activeLoans;
+
+  let totalResponsibility = 0; // Lo que falta cobrar de cuotas vencidas y del mes actual
+  const lastDayOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+
+  filteredLoans.forEach(loan => {
+    (Array.isArray(loan.installments) ? loan.installments : []).forEach(inst => {
+      const dueDate = safeParseDate(inst.dueDate);
+      if (!dueDate) return;
+
+      if (dueDate <= lastDayOfMonth) {
+        const instAmount = Number(inst.amount) || 0;
+        const instPaid = Number(inst.paidAmount) || 0;
+        const balance = Math.max(0, instAmount - instPaid);
+        totalResponsibility += balance;
+      }
+    });
+  });
+
+  // Logs del mes para estadísticas de actividad
+  const filteredLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log => {
+    const logDate = safeParseDate(log.date);
+    if (!logDate) return false;
+
+    const loan = (Array.isArray(loans) ? loans : []).find(l => l.id === log.loanId);
+    const cId = getProp(loan, 'collectorId', 'collector_id');
+    const isCollector = collectorId ? cId === collectorId : true;
+    const logType = getProp(log, 'type', 'type');
+
+    return isCollector &&
+      logDate.getMonth() === month &&
+      logDate.getFullYear() === year &&
+      (logType === CollectionLogType.PAYMENT || String(logType).toUpperCase() === 'PAGO') &&
+      !log.deletedAt;
+  });
+
+  const collectedThisMonth = filteredLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
+
+  return {
+    monthlyGoal: totalResponsibility + collectedThisMonth, // Meta teórica al inicio del mes
+    currentMonthGoals: totalResponsibility, // Lo que falta hoy
+    pastArrears: 0,
+    collectedThisMonth,
+    remainingBalance: totalResponsibility, // "No Recaudado" real hoy
+    logsCount: filteredLogs.length
+  };
 };
 
 export const formatFullDateTime = (country: string = 'CO'): string => {
@@ -119,6 +207,11 @@ export const formatCurrency = (value: number | undefined, settings: AppSettings 
   const currencySymbol = settings?.currencySymbol || '$';
   if (value === undefined || isNaN(value)) return `${currencySymbol}0`;
   return `${currencySymbol}${Math.round(value).toLocaleString('es-CO')}`;
+};
+
+export const formatRawNumber = (value: number | undefined): string => {
+  if (value === undefined || isNaN(value)) return '0';
+  return Math.round(value).toLocaleString('es-CO');
 };
 
 export const calculateTotalReturn = (amount: any, rate: any): number => {
@@ -334,6 +427,8 @@ export interface ReceiptData {
   totalInstallments: number;
   installmentValue?: number;
   totalPaidAmount?: number;
+  principal?: number;
+  frequency?: string;
   isRenewal?: boolean;
   isVirtual?: boolean;
   // Manual overrides
@@ -429,6 +524,11 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
     displayedPaidInstallments = fullInstallments + decimalPart;
   }
 
+  // Formatting for the new "MONTO, CUOTA, PLAZO" block
+  const montoStr = data.principal ? data.principal.toLocaleString('es-CO').replace(/,/g, '.') : '---';
+  const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString('es-CO').replace(/,/g, '.') : '---';
+  const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
+
   return `
 ${company}
 ${alias ? alias : ''}
@@ -440,6 +540,10 @@ CLIENTE: ${data.clientName.toUpperCase()}
 FECHA: ${datePart ? datePart.trim() : dateTime}
 HORA: ${timePart ? timePart.trim() : '---'}
 METODO: ${data.isVirtual ? 'TRANSFERENCIA' : 'EFECTIVO'}
+===============================
+MONTO: ${montoStr}
+CUOTA: ${cuotaStr}
+PLAZO: ${plazoStr}
 ===============================
 SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO').replace(/,/g, '.')}
 ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO').replace(/,/g, '.')}
@@ -453,10 +557,9 @@ FECHA DE VENCIMIENTO: ${formatDate(data.expiryDate)}
 DIAS DE MORA: ${data.daysOverdue} dias
 ===============================
 ${contactLabel}: ${formattedPhone}
-${idLabel}: ${idValue}
+${idLabel}: ESTADO DE CUENTA
 ===============================
-${data.isRenewal ? '*** RENOVACION ***' : ''}
-VER: v6.1.151-APK
+GRACIAS POR SU PAGO
 `;
 };
 
