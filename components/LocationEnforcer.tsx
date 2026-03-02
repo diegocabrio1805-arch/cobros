@@ -73,7 +73,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 10000); // Check every 10 seconds (More relaxed)
+        const interval = setInterval(checkLocationStatus, 30000); // 30s: Más relajado para gama baja
         return () => {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
