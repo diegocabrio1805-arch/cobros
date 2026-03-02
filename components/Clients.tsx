@@ -2149,9 +2149,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           <div className="flex flex-col">
                                             <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-emerald-700' : 'text-slate-700'}`}>
                                               {(() => {
-                                                if (!inst.dueDate) return '---';
-                                                const d = new Date(inst.dueDate.split('T')[0] + 'T00:00:00');
-                                                return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase();
+                                                if (!inst || !inst.dueDate) return '---';
+                                                try {
+                                                  const d = new Date(inst.dueDate.split('T')[0] + 'T00:00:00');
+                                                  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase();
+                                                } catch (e) {
+                                                  return '---';
+                                                }
                                               })()}
                                             </span>
                                             {isPartial && <span className="text-[7px] font-black text-emerald-600 uppercase">ABONO: {formatCurrency(amountPaidForThisOne, state.settings)}</span>}
@@ -2497,7 +2501,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex justify-between items-center mb-0.5 leading-none">
                             <span className={`text-[11px] font-black ${isPaid ? 'text-[#10b981]' : 'text-slate-800'}`}>#{inst.number}</span>
                             <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
-                              {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' })}
+                              {(() => {
+                                if (!inst || !inst.dueDate) return '---';
+                                try {
+                                  const d = new Date(inst.dueDate + 'T00:00:00');
+                                  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' });
+                                } catch (e) {
+                                  return '---';
+                                }
+                              })()}
                             </span>
                           </div>
                           <p className={`text-lg font-black leading-none mt-0.5 mb-1 ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
