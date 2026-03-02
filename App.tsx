@@ -303,12 +303,14 @@ const App: React.FC = () => {
           result.push(l);
           resultMap.set(l.id, l);
         }
-      } else if (isAppendOnly || (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
-        // En registros Inmutables (AppendOnly) o si es un registro modificable y somos más nuevos: Retenemos local
-        // Wait, si isAppendOnly es true, el remote es la VERDAD ABSOLUTA. Nunca deberíamos sobreescribirlo con el local si el remoto ya lo bajó (salvo que esté en la cola pendiente).
-        // Por ende, si 'r' existe (Remoto ya bajó este pago), el local NO sobreescribe. 
-        // Corrijo mi lógica arriba. Si es isAppendOnly, ignoramos nuestro timestamp local. Remote manda.
-        if (!isAppendOnly && l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()) {
+      } else {
+        // PROTECTION: If remote has more installments than local, ALWAYS use remote.
+        // This fixes the "2 installments vs 40" bug where local was considered "newer" but was truncated.
+        const remoteCount = Array.isArray((r as any).installments) ? (r as any).installments.length : 0;
+        const localCount = Array.isArray((l as any).installments) ? (l as any).installments.length : 0;
+        const remoteIsMoreComplete = remoteCount > localCount;
+
+        if (!isAppendOnly && (remoteIsMoreComplete || (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()))) {
           const idx = result.findIndex(item => item.id === l.id);
           if (idx !== -1) {
             result[idx] = l;
@@ -356,12 +358,37 @@ const App: React.FC = () => {
         if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
       }
 
-      if (newData.payments) updatedState.payments = mergeData(updatedState.payments, newData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
-      if (newData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, newData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
-      if (newData.loans) updatedState.loans = mergeData(updatedState.loans, newData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (newData.clients) updatedState.clients = mergeData(updatedState.clients, newData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (newData.expenses) updatedState.expenses = mergeData(updatedState.expenses, newData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (newData.users) updatedState.users = mergeData(updatedState.users, newData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      // MAP SNAKE_CASE TO CAMELCASE PREVENTIVELY
+      const mappedData = { ...newData };
+      if (mappedData.collectionLogs) {
+        mappedData.collectionLogs = mappedData.collectionLogs.map(l => ({
+          ...l,
+          loanId: l.loanId || (l as any).loan_id,
+          collectorId: (l as any).collectorId || (l as any).collector_id,
+          receiptNumber: (l as any).receiptNumber || (l as any).receipt_number
+        }));
+      }
+      if (mappedData.payments) {
+        mappedData.payments = mappedData.payments.map(p => ({
+          ...p,
+          loanId: p.loanId || (p as any).loan_id,
+          clientId: p.clientId || (p as any).client_id
+        }));
+      }
+      if (mappedData.loans) {
+        mappedData.loans = mappedData.loans.map(lo => ({
+          ...lo,
+          clientId: lo.clientId || (lo as any).client_id,
+          collectorId: lo.collectorId || (lo as any).collector_id
+        }));
+      }
+
+      if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      if (mappedData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, mappedData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.users) updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
 
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
 

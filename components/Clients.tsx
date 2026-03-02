@@ -949,8 +949,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     setIsSharing(true);
     try {
       // 1. MANEJO DE VISIBILIDAD MANUAL PARA ASEGURAR CAPTURA
-      // Html2Canvas a veces falla con elementos ocultos incluso con onclone.
-      // Lo hacemos visible momentáneamente "fuera de pantalla" pero renderizable.
       const shareContainer = document.getElementById('share-container-hidden');
       let originalStyle = '';
 
@@ -971,7 +969,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 6, // Full HD Resolution for crisp, non-pixelated images
+        scale: 6, // Full HD Resolution
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -979,11 +977,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         width: 700,
         height: shareCardRef.current.scrollHeight,
       });
-
-      // 2. Restauramos estilo original (oculto)
-      if (shareContainer) {
-        shareContainer.setAttribute('style', originalStyle);
-      }
 
       const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.png`;
 
@@ -998,64 +991,68 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           const file = new File([blob], fileName, { type: 'image/png' });
 
           let sharedSuccessfully = false;
-          const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-          // 1. Intentar Share Nativo (SOLO MÓVILES)
-          // Evitamos usar share en PC porque suele dar error o no es lo que el usuario espera en desktop
-          if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
               await navigator.share({
                 files: [file],
-                title: `Estado de Cuenta - ${clientInLegajo.name}`
+                title: 'Estado de Cuenta',
+                text: `Estado de Cuenta de ${clientInLegajo.name}`
               });
               sharedSuccessfully = true;
-            } catch (e) {
-              console.warn("Share cancelado o fallido en móvil, usando fallback...", e);
+            } catch (err) {
+              console.log("Web share cancelled or failed:", err);
             }
           }
 
-          // 2. FALLBACK: Si no es móvil o si falló el compartir (PC o Mobile cancelado)
-          // Ejecutamos Descarga + Visualización en pestaña
           if (!sharedSuccessfully) {
-            // A. Descarga forzada
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            // B. Abrir pestaña para feedback visual inmediato
-            const newWindow = window.open(blobUrl, '_blank');
-            if (newWindow) {
-              newWindow.focus();
-            } else {
-              alert("¡Imagen descargada! Revisa tu carpeta de Descargas (el navegador bloqueó la ventana emergente).");
-            }
           }
-        }, 'image/png', 1.0);
-      }
-      // LOGICA CAPACITOR (APK)
-      else {
-        const base64Data = canvas.toDataURL('image/png', 1.0);
-        const base64Content = base64Data.split(',')[1];
-        const savedFile = await Filesystem.writeFile({
-          path: fileName,
-          data: base64Content,
-          directory: Directory.Cache
-        });
+        }, 'image/png');
+      } else {
+        // LÓGICA NATIVA (CAPACITOR)
+        try {
+          const base64Data = canvas.toDataURL('image/png').split(',')[1];
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const { Share } = await import('@capacitor/share');
 
-        await Share.share({
-          title: `Estado de Cuenta - ${clientInLegajo.name}`,
-          text: `Estado de Cuenta de ${clientInLegajo.name}`,
-          files: [savedFile.uri],
-          dialogTitle: 'Enviar Estado de Cuenta'
-        });
+          const savedFile = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Cache
+          });
+
+          await Share.share({
+            title: 'Estado de Cuenta',
+            text: `Estado de Cuenta de ${clientInLegajo.name}`,
+            url: savedFile.uri,
+            dialogTitle: 'Compartir Estado de Cuenta'
+          });
+        } catch (err) {
+          console.error("Native share failed:", err);
+          alert("Error al compartir: " + (err instanceof Error ? err.message : String(err)));
+        }
       }
     } catch (e) {
-      console.error("Error capture:", e);
-      alert("Error al generar la imagen. Intenta cerrar y abrir el expediente.");
+      console.error("Error generating/sharing dossier:", e);
+      alert("Error al generar el reporte. Intente de nuevo.");
     } finally {
+      // 2. Restauramos estilo original (oculto) SIEMPRE
+      const shareContainer = document.getElementById('share-container-hidden');
+      if (shareContainer) {
+        shareContainer.style.position = 'fixed';
+        shareContainer.style.left = '-5000px';
+        shareContainer.style.top = '0';
+        shareContainer.style.opacity = '0';
+        shareContainer.style.pointerEvents = 'none';
+        shareContainer.style.zIndex = '-1';
+        shareContainer.style.display = 'block';
+        shareContainer.style.visibility = 'hidden';
+      }
       setIsSharing(false);
     }
   };

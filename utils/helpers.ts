@@ -46,23 +46,22 @@ export const getLocalDateStringForCountry = (country: string = 'CO', date: Date 
   return `${year}-${month}-${day}`;
 };
 
-export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[], loanCreatedAt?: string): number => {
+export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[]): number => {
   if (!loanOrId || !collectionLogs) return 0;
 
-  const loanId = typeof loanOrId === 'string' ? loanOrId : loanOrId.id;
-  const createdAt = typeof loanOrId === 'string' ? loanCreatedAt : loanOrId.createdAt;
+  const loanId = typeof loanOrId === 'string' ? loanOrId : (loanOrId.id || loanOrId.loan_id);
 
-  const loanStartDate = createdAt ? new Date(createdAt.split('T')[0]).getTime() : 0;
+  const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log => {
+    const logLoanId = log.loanId || log.loan_id;
+    const logType = log.type;
 
-  const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log =>
-    log.loanId === loanId &&
-    (log.type === 'PAGO' || log.type === CollectionLogType.PAYMENT) &&
-    !log.isOpening &&
-    !log.deletedAt &&
-    (!loanStartDate || new Date(log.date.split('T')[0]).getTime() >= loanStartDate - 86400000)
-  );
+    return logLoanId === loanId &&
+      (logType === 'PAGO' || logType === CollectionLogType.PAYMENT) &&
+      !log.isOpening &&
+      !log.deletedAt;
+  });
 
-  return validLogs.reduce((acc: number, log: any) => acc + (log.amount || 0), 0);
+  return validLogs.reduce((acc: number, log: any) => acc + (Number(log.amount) || 0), 0);
 };
 
 export const calculateMonthlyStats = (
