@@ -197,7 +197,10 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
   const managers = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.MANAGER);
   const selectedManager = (Array.isArray(state.users) ? state.users : []).find(u => u.id === showCollectorManagerModal);
-  const currentCollectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && u.managedBy?.toLowerCase() === showCollectorManagerModal?.toLowerCase());
+  const currentCollectors = (Array.isArray(state.users) ? state.users : []).filter(u =>
+    u.role === Role.COLLECTOR &&
+    (u.managedBy || (u as any).managed_by)?.toLowerCase() === showCollectorManagerModal?.toLowerCase()
+  );
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24 px-1">

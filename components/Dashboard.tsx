@@ -47,7 +47,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         return u.id === state.currentUser.id;
       }
       // Admin/Manager sees only their direct reports
-      return u.managedBy === state.currentUser?.id;
+      const mId = (u.managedBy || (u as any).managed_by);
+      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
     });
   }, [state.users, state.currentUser]);
 
@@ -58,7 +59,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     return visibleCollectors.map(user => {
       // Use recordedBy + same date comparison method as Auditoría Histórica
       const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-        return log.recordedBy === user.id &&
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        return logRecordedBy === user.id.toLowerCase() &&
           new Date(log.date).toDateString() === todayDateStr &&
           !log.isOpening;
       });
@@ -67,9 +69,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         .filter(l => l.type === CollectionLogType.PAYMENT)
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
-      const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId)).size;
-      const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.collectorId === user.id && l.status === LoanStatus.ACTIVE);
-      const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId)).size;
+      const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
+      const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
+        (l.collectorId?.toLowerCase() === user.id.toLowerCase() || (l as any).collector_id?.toLowerCase() === user.id.toLowerCase()) &&
+        l.status === LoanStatus.ACTIVE
+      );
+      const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId || (l as any).client_id)).size;
 
       const overdueLoansCount = assignedActiveLoans.filter(loan => {
         return getDaysOverdue(loan, state.settings) > 0;
@@ -130,7 +135,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
       // Si se filtra por un cobrador específico, mantener el filtro
       if (auditCollector !== 'all') {
-        return log.recordedBy === auditCollector;
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        return logRecordedBy === auditCollector.toLowerCase();
       }
 
       // Si es 'todos', no filtrar por visibleCollectors, sino mostrar lo que ya viene filtrado por App.tsx (sucursal)
@@ -138,7 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
 
     const totalRevenue = logs.filter(l => l.type === CollectionLogType.PAYMENT).reduce((acc, l) => acc + (l.amount || 0), 0);
-    const activeClientsSet = new Set(logs.map(l => l.clientId));
+    const activeClientsSet = new Set(logs.map(l => l.clientId || (l as any).client_id));
     const activeClients = activeClientsSet.size;
 
     // Clientes nuevos en el periodo
@@ -148,7 +154,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       if (!isNew) return false;
       // Si filtramos por cobrador, verificar si tiene prestamos con ese cobrador (aproximación)
       if (auditCollector !== 'all') {
-        const hasLoanWithColl = (Array.isArray(state.loans) ? state.loans : []).some(l => l.clientId === c.id && l.collectorId === auditCollector);
+        const hasLoanWithColl = (Array.isArray(state.loans) ? state.loans : []).some(l =>
+          (l.clientId || (l as any).client_id) === c.id &&
+          (l.collectorId || (l as any).collector_id)?.toLowerCase() === auditCollector.toLowerCase()
+        );
         return hasLoanWithColl;
       }
       return true;
@@ -166,7 +175,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       if (!matchesDate) return false;
       if (log.type !== CollectionLogType.PAYMENT) return false;
       if (auditCollector === 'all') return true;
-      return log.recordedBy === auditCollector;
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
     });
 
     const previousRevenue = previousLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
@@ -200,7 +210,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       if (auditCollector === 'all') return true;
 
       // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
-      return log.recordedBy === auditCollector;
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
     });
 
     const dailyRevenueMap = new Map<string, number>();
@@ -226,20 +237,21 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
       if (l.status !== LoanStatus.ACTIVE) return false;
       if (auditCollector === 'all') return true;
-      return l.collectorId === auditCollector;
+      const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
+      return lCollectorId === auditCollector.toLowerCase();
     });
-    const relevantClientIds = new Set(relevantLoans.map(l => l.clientId));
-    const paidClientIds = new Set(logs.filter(l => l.type === CollectionLogType.PAYMENT).map(l => l.clientId));
+    const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
+    const paidClientIds = new Set(logs.filter(l => l.type === CollectionLogType.PAYMENT).map(l => l.clientId || (l as any).client_id));
 
     const clientsWithoutPayment = (Array.isArray(state.clients) ? state.clients : [])
       .filter(c => relevantClientIds.has(c.id) && !paidClientIds.has(c.id))
       .map(c => {
         // Find active loan for this client and collector
-        const loan = relevantLoans.find(l => l.clientId === c.id);
+        const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
 
         // Find VERY last payment (lifetime) or return null
         const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-          .filter(l => l.clientId === c.id && l.type === CollectionLogType.PAYMENT)
+          .filter(l => (l.clientId || (l as any).client_id) === c.id && l.type === CollectionLogType.PAYMENT)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         const lastPayment = clientLogs.length > 0 ? clientLogs[0] : null;
@@ -295,7 +307,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       if (auditCollector === 'all') return true;
 
       // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
-      return l.recordedBy === auditCollector;
+      const logRecordedBy = (l.recordedBy || (l as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
     });
 
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -329,7 +342,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   }, [auditCollector, auditStartDate, auditEndDate, state.collectionLogs, state.loans, state.clients]);
 
   const handleGenerateAuditPDF = () => {
-    const collectorName = auditCollector === 'all' ? 'TODOS' : state.users.find(u => u.id === auditCollector)?.name || 'DESCONOCIDO';
+    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
     generateAuditPDF({
       collectorName,
       startDate: auditStartDate,
@@ -352,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.1.146-PWA</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.1.160</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Panel de Control Principal

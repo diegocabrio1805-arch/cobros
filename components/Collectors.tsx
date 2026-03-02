@@ -172,7 +172,10 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && u.managedBy === currentUserId);
+  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u =>
+    u.role === Role.COLLECTOR &&
+    (u.managedBy || (u as any).managed_by)?.toLowerCase() === currentUserId?.toLowerCase()
+  );
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24">

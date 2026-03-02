@@ -273,23 +273,32 @@ export const isPrinterConnected = async (): Promise<boolean> => {
     return !!(connectedDevice && connectedDevice.gatt.connected);
 };
 
-// 5. CONNECTION KEEPER (Nuevo: Mantiene la conexión viva)
+// 5. CONNECTION KEEPER (Mantiene la conexi?n viva y reconecta autom?ticamente)
+export const forceReconnect = async (): Promise<boolean> => {
+    const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+    if (!savedAddress) return false;
+    console.log("[Bluetooth] Forcing fresh reconnection...");
+    return await connectToPrinter(savedAddress, true, false);
+};
+
 export const startConnectionKeeper = () => {
-    if (connectionKeeperInterval) return; // Already running
+    if (connectionKeeperInterval) return;
 
     console.log("[Bluetooth Keeper] Starting background connection keeper...");
     connectionKeeperInterval = setInterval(async () => {
-        // Skip check if printing to avoid interference
         if (isCurrentlyPrinting) return;
 
         const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
-        if (!savedAddress) return; // Nothing to keep alive
+        if (!savedAddress) return;
 
-        const connected = await isPrinterConnected();
-        if (!connected) {
-            // Try to reconnect silently
-            console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
-            await connectToPrinter(savedAddress, false, true);
+        try {
+            const connected = await isPrinterConnected();
+            if (!connected) {
+                console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
+                await connectToPrinter(savedAddress, false, true);
+            }
+        } catch (e) {
+            console.warn("[Bluetooth Keeper] Error checking status:", e);
         }
     }, KEEPER_INTERVAL_MS);
 };

@@ -59,7 +59,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const routeLoans = useMemo(() => {
     let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT);
     if (isAdminOrManager && selectedCollectorFilter !== 'all') {
-      loans = (Array.isArray(loans) ? loans : []).filter(l => l.collectorId === selectedCollectorFilter);
+      const filterLower = selectedCollectorFilter.toLowerCase();
+      loans = (Array.isArray(loans) ? loans : []).filter(l => (l.collectorId || (l as any).collector_id)?.toLowerCase() === filterLower);
     }
     return loans;
   }, [state.loans, selectedCollectorFilter, isAdminOrManager]);
@@ -118,7 +119,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const hasNoPayReport = (Array.isArray(rangeLogs) ? rangeLogs : []).some(log => log.type === CollectionLogType.NO_PAGO);
-      const collector = (Array.isArray(state.users) ? state.users : []).find(u => u.id === loan.collectorId);
+      const collector = (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === loan.collectorId?.toLowerCase() || u.id.toLowerCase() === (loan as any).collector_id?.toLowerCase());
 
       // CALCULO DE SALDO PENDIENTE REAL HASTA HOY
       const todayEnd = new Date();
@@ -407,7 +408,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     className="bg-transparent border-none outline-none text-[9px] font-black text-black uppercase tracking-widest cursor-pointer w-full focus:ring-0"
                   >
                     {selectedCollectorFilter === 'all' ? <option value="all">TODAS LAS RUTAS</option> : null}
-                    {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
+                    {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id.toLowerCase() === currentUserId?.toLowerCase() || (u.managedBy || (u as any).managed_by)?.toLowerCase() === currentUserId?.toLowerCase())).map(u => (
                       <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
                     ))}
                   </select>

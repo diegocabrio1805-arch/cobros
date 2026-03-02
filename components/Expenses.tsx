@@ -184,7 +184,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       amount: formData.amount,
       category: formData.category,
       date: new Date(formData.date).toISOString(),
-      branchId: state.currentUser?.managedBy || state.currentUser?.id,
+      branchId: state.currentUser?.managedBy || (state.currentUser as any)?.managed_by || state.currentUser?.id,
       addedBy: state.currentUser?.id
     };
     addExpense(expense);

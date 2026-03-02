@@ -65,9 +65,19 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
     };
 
     useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkLocationStatus();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 2000); // Check every 2 seconds
-        return () => clearInterval(interval);
+        const interval = setInterval(checkLocationStatus, 2500); // Check every 2.5 seconds (Balanced)
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [isRequired]);
 
     if (!isRequired || isLocationEnabled) {

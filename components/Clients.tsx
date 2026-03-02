@@ -474,9 +474,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       });
     }
     if (selectedCollector !== 'all') {
+      const collectorLower = selectedCollector.toLowerCase();
       clients = clients.filter(c => {
-        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
       });
     }
     // SAFE SORT (NaN PROOF)
@@ -523,7 +524,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (activeLoan?.isRenewal) return null;
 
       if (selectedCollector !== 'all') {
-        const matchesCollector = (activeLoan && activeLoan.collectorId === selectedCollector) || (client.addedBy === selectedCollector);
+        const collectorLower = selectedCollector.toLowerCase();
+        const matchesCollector = (activeLoan && (activeLoan.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower) || ((client.addedBy || (client as any).added_by)?.toLowerCase() === collectorLower);
         if (!matchesCollector) return null;
       }
 
@@ -547,7 +549,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       l.isRenewal &&
       new Date(l.createdAt) >= start &&
       new Date(l.createdAt) <= end &&
-      (selectedCollector === 'all' || l.collectorId === selectedCollector)
+      (selectedCollector === 'all' || (l.collectorId || (l as any).collector_id)?.toLowerCase() === selectedCollector.toLowerCase())
     ).map(loan => {
       const client = clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return null;
@@ -573,7 +575,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const client = clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return null;
 
-      if (selectedCollector !== 'all' && loan.collectorId !== selectedCollector && client.addedBy !== selectedCollector) return null;
+      if (selectedCollector !== 'all' && (loan.collectorId || (loan as any).collector_id)?.toLowerCase() !== selectedCollector.toLowerCase() && (client.addedBy || (client as any).added_by)?.toLowerCase() !== selectedCollector.toLowerCase()) return null;
 
       // CRITICAL FIX: Ensure a NEW loan exists after this payment (approx 24h)
       // This includes manual loans created by users like Fredy
@@ -612,8 +614,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden) return false;
       if (selectedCollector !== 'all') {
-        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.clientId === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return activeLoan?.collectorId === selectedCollector || c.addedBy === selectedCollector;
+        const collectorLower = selectedCollector.toLowerCase();
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
       }
       return true;
     }).map(client => {
@@ -669,7 +672,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const user = state.currentUser;
       const calculatedBranchId = (user?.role === Role.ADMIN || user?.role === Role.MANAGER)
         ? user.id
-        : (user?.managedBy || user?.id);
+        : (user?.managedBy || (user as any)?.managed_by || user?.id);
 
       const client: Client = {
         ...clientData,

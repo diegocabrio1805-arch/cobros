@@ -529,13 +529,14 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString('es-CO').replace(/,/g, '.') : '---';
   const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
 
+  const bankBlock = (bankVal && bankVal !== '---')
+    ? `\n${bankLabel}\n${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}\n===============================`
+    : '';
+
   return `
 ${company}
 ${alias ? alias : ''}
-===============================
-${bankLabel}
-${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}
-===============================
+===============================${bankBlock}
 CLIENTE: ${data.clientName.toUpperCase()}
 FECHA: ${datePart ? datePart.trim() : dateTime}
 HORA: ${timePart ? timePart.trim() : '---'}

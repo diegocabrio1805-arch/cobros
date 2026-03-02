@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.151'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          const localVersion = '6.1.161'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
             localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
@@ -90,7 +90,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.151-APK';
+    const CURRENT_VERSION_ID = 'v6.1.161';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -115,7 +115,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.152-APK';
+      const CURRENT_VERSION_ID = 'v6.1.161';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -205,7 +205,8 @@ const App: React.FC = () => {
 
         const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
           ...u,
-          role: u.role as Role
+          role: u.role as Role,
+          managedBy: u.managedBy || u.managed_by
         }));
 
         let validatedCurrentUser = null;
@@ -433,6 +434,26 @@ const App: React.FC = () => {
       }
     });
 
+    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant) ---
+    const triggerEmergencySync = async () => {
+      const user = state.currentUser;
+      if (!user) return;
+      const syncKey = `emergency_sync_done_${user.username}_v153`;
+      const isRestoredUser = true; // Universal for this fix to ensure 300k shows up everywhere
+
+      if (isRestoredUser && !localStorage.getItem(syncKey)) {
+        console.log("[EmergencySync] Restored collector detected. Forcing full sync...");
+        localStorage.setItem(syncKey, 'true');
+        // Clear old markers to ensure a clean slate
+        localStorage.removeItem('last_sync_timestamp');
+        localStorage.removeItem('last_sync_timestamp_v6');
+        setTimeout(() => {
+          handleForceSync(false, "¡Actualizando Cartera Restaurada!", true);
+        }, 3000);
+      }
+    };
+    triggerEmergencySync();
+
     return () => {
       subscription?.unsubscribe();
     };
@@ -504,41 +525,61 @@ const App: React.FC = () => {
     const branchId = getBranchId(user);
     const myTeamIds = new Set<string>();
     const myDirectCollectorIds = new Set<string>();
-    myTeamIds.add(user.id);
+    const myIdLower = user.id.toLowerCase();
+    myTeamIds.add(myIdLower);
 
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
-      if (u.managedBy?.toLowerCase() === user.id.toLowerCase()) {
-        myTeamIds.add(u.id.toLowerCase());
+      const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      if (uManagerId === myIdLower) {
+        // Only add to team if it's NOT a manager, or if the user wants to see them
         if (u.role === Role.COLLECTOR) {
+          myTeamIds.add(u.id.toLowerCase());
           myDirectCollectorIds.add(u.id.toLowerCase());
         }
       }
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      if (user.role === Role.ADMIN) return true; // ADMIN sees everything always
+      // ADMIN sees everything
+      if (user.role === Role.ADMIN) return true;
+
       const myId = user.id.toLowerCase();
-      if (itemAddedBy?.toLowerCase() === myId || (itemAddedBy && myDirectCollectorIds.has(itemAddedBy.toLowerCase()))) return true;
-      if (itemBranchId?.toLowerCase() === branchId.toLowerCase()) return true;
-      if (itemCollectorId?.toLowerCase() === myId || (itemCollectorId && myDirectCollectorIds.has(itemCollectorId.toLowerCase()))) return true;
+      const bId = branchId.toLowerCase();
+
+      const addedByLower = itemAddedBy?.toLowerCase();
+      const collectorIdLower = itemCollectorId?.toLowerCase();
+      const itemBranchLower = itemBranchId?.toLowerCase();
+
+      // AddedBy or CollectorId match my direct team
+      if (addedByLower === myId || (addedByLower && myDirectCollectorIds.has(addedByLower))) return true;
+      if (collectorIdLower === myId || (collectorIdLower && myDirectCollectorIds.has(collectorIdLower))) return true;
+
+      // BranchId match
+      if (itemBranchLower === bId) return true;
+
       return false;
     };
 
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => isOurBranch(c.branchId, c.addedBy, undefined) && c.isActive !== false && !c.deletedAt);
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) && c.isActive !== false && !c.deletedAt);
     const activeClientIds = new Set(clients.map(c => c.id));
-    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => activeClientIds.has(l.clientId) && !l.deletedAt);
-    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId) && !p.deletedAt);
-    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId, e.addedBy, undefined));
-    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => isOurBranch(log.branchId, log.recordedBy, undefined) && !log.deletedAt);
-    let users = (Array.isArray(state.users) ? state.users : []).filter(u => user.role === Role.ADMIN || u.id === user.id || myTeamIds.has(u.id.toLowerCase()));
+    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt);
+    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId || (p as any).client_id) && !p.deletedAt);
+    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined));
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) && !log.deletedAt);
+    let users = (Array.isArray(state.users) ? state.users : []).filter(u =>
+      u.id.toLowerCase() === myIdLower ||
+      myTeamIds.has(u.id.toLowerCase()) ||
+      ((u.managedBy || (u as any).managed_by)?.toLowerCase() === branchId.toLowerCase()) ||
+      user.role === Role.ADMIN
+    );
 
     if (user.role === Role.COLLECTOR) {
       const myAssignedClientIds = new Set<string>();
-      loans.forEach(l => { if (l.collectorId === user.id) myAssignedClientIds.add(l.clientId); });
-      clients = clients.filter(c => c.addedBy === user.id || myAssignedClientIds.has(c.id));
+      loans.forEach(l => { if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id); });
+      clients = clients.filter(c => (c.addedBy || (c as any).added_by) === user.id || myAssignedClientIds.has(c.id));
       const visibleClientIds = new Set(clients.map(c => c.id));
-      loans = loans.filter(l => visibleClientIds.has(l.clientId));
-      payments = payments.filter(p => visibleClientIds.has(p.clientId));
+      loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
+      payments = payments.filter(p => visibleClientIds.has(p.clientId || (p as any).client_id));
       collectionLogs = collectionLogs.filter(log => log.clientId && visibleClientIds.has(log.clientId));
       users = users.filter(u => u.id === user.id);
     }
@@ -563,9 +604,10 @@ const App: React.FC = () => {
     }, 500);
 
 
-    // Auto-reconnect Bluetooth on login for shared devices
-    import('./services/bluetoothPrinterService').then(({ connectToPrinter }) => {
-      connectToPrinter(undefined, false, true).catch(console.error);
+    // Auto-reconnect Bluetooth on login for shared devices (Aggressive v6.1.161)
+    import('./services/bluetoothPrinterService').then(({ forceReconnect, startConnectionKeeper }) => {
+      startConnectionKeeper();
+      forceReconnect().catch(console.error);
     });
   };
 
@@ -1007,7 +1049,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.152-APK</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.160-APK</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1019,7 +1061,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.152-APK</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.160-APK</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
