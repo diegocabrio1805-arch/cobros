@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Anexo Cobro v6.1.161</title>
+  <title>Anexo Cobro v6.1.162</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -30,7 +30,7 @@
 
   <script>
     (function () {
-      var CURRENT_VERSION = '6.1.161';
+      var CURRENT_VERSION = '6.1.162';
       var storedVersion = localStorage.getItem('pwa_app_version');
       if (storedVersion !== CURRENT_VERSION) {
         localStorage.setItem('pwa_app_version', CURRENT_VERSION);
@@ -63,7 +63,7 @@
 
     // --- MECANISMO DE RECUPERACIÓN (Anti-Pantalla en Blanco) ---
     (function () {
-      const BOOT_TIMEOUT = 10000; // 10 segundos para considerar arranque fallido
+      const BOOT_TIMEOUT = 15000; // 15 segundos para dar margen en móviles lentos
       let bootFinished = false;
 
       window.addEventListener('load', () => {
@@ -74,8 +74,8 @@
       });
 
       const handlePanic = (msg) => {
-        if (bootFinished) return;
-        console.error("Error crítico de arranque:", msg);
+        // Quitamos la restricción de bootFinished para que los errores posteriores también den opción a reparar
+        console.error("Error crítico detectado:", msg);
 
         var trap = document.getElementById('error-trap');
         if (trap) {

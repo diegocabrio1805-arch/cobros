@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.161'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
+          const localVersion = '6.1.162'; // UPDATE THIS CONSTANT WHEN BUMPING VERSION
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
             localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
@@ -88,9 +88,14 @@ const App: React.FC = () => {
     const interval = setInterval(checkForUpdates, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Indicate successful boot to index.html anti-panic
+  useEffect(() => {
+    (window as any).__isBooted = true;
+  }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = 'v6.1.161';
+    const CURRENT_VERSION_ID = 'v6.1.162';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -1049,7 +1054,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.160-APK</span></h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || 'Anexo Cobro'} <span className="text-[10px] opacity-50 ml-1">v6.1.162-APK</span></h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1061,7 +1066,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.160-APK</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.162-APK</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -1092,9 +1097,9 @@ const App: React.FC = () => {
                 if (item.powerOnly) return isPowerUser;
                 return true;
               }).map((item) => (
-                <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 p-3 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-sm`}></i></div>
-                  <span className="text-[10px] font-black uppercase tracking-wider truncate">{item.label}</span>
+                <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-2 p-2.5 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-xs`}></i></div>
+                  <span className="text-[9px] font-black uppercase tracking-wider truncate">{item.label}</span>
                 </button>
               ))}
               <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
@@ -1112,8 +1117,8 @@ const App: React.FC = () => {
           isSyncing={isSyncing}
           isFullSyncing={isFullSyncing}
         />
-        <main className="flex-1 p-3 md:p-8 mobile-scroll-container">
-          <div className="max-w-[1400px] mx-auto pb-20">
+        <main className="flex-1 p-2 md:p-8 mobile-scroll-container">
+          <div className="max-w-[1400px] mx-auto pb-12">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
             {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} deleteLoan={deleteLoan}
               recalculateLoanStatus={recalculateLoanStatus}
