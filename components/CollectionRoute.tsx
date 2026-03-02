@@ -206,7 +206,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const handleOpenPayment = (clientId: string, loan: any) => {
     if (!isViewingToday) return;
     setSelectedClient(clientId);
-    const initialAmount = Math.max(0, loan.installmentValue - (loan.paidPeriod || 0));
+    const instVal = Number(loan?.installmentValue) || 0;
+    const paidPer = Number(loan?.paidPeriod) || 0;
+    const initialAmount = Math.max(0, instVal - paidPer);
     setAmountInput(initialAmount.toString());
     setIsVirtualProcessing(false);
     setIsRenewalProcessing(false);
@@ -583,6 +585,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               <div className="space-y-2">
                 <button
                   onClick={() => {
+                    if (!enrichedRoute || !selectedClient) return;
                     const item = enrichedRoute.find(l => l.clientId === selectedClient);
                     if (!item) return;
 

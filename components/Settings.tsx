@@ -715,7 +715,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       {
         showPrinterModal && (
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-4">
-            <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn mx-4">
               <div className="bg-slate-900 p-6 flex justify-between items-center">
                 <h3 className="text-white font-black uppercase text-lg tracking-tighter">
                   <i className="fa-brands fa-bluetooth-b text-blue-400 mr-2"></i>
@@ -725,7 +725,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   <i className="fa-solid fa-xmark text-xl"></i>
                 </button>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="flex justify-center mb-6">
                   <button
                     onClick={handleScanPrinters}
@@ -744,7 +744,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   </button>
                 </div>
 
-                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {printerDevices.length === 0 ? (
                     <div className="text-center py-8 text-slate-400">
                       <i className="fa-solid fa-print text-4xl mb-2 opacity-20"></i>
@@ -756,7 +756,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       <button
                         key={idx}
                         onClick={() => handleSelectPrinter(dev)}
-                        className="w-full text-left p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                        className="w-full text-left p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group"
                       >
                         <div className="flex justify-between items-center">
                           <div>

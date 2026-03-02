@@ -26,8 +26,8 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
                 // We must force a position request with high accuracy to be 100% sure.
                 try {
                     const pos = await Geolocation.getCurrentPosition({
-                        timeout: 1000, // FAST TIMEOUT TO DETECT DROPS
-                        maximumAge: 0,
+                        timeout: 3000, // TIMEOUT MÁS RELAJADO PARA EVITAR CUELGUES
+                        maximumAge: 5000,
                         enableHighAccuracy: true
                     });
 
@@ -73,7 +73,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 2500); // Check every 2.5 seconds (Balanced)
+        const interval = setInterval(checkLocationStatus, 10000); // Check every 10 seconds (More relaxed)
         return () => {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
