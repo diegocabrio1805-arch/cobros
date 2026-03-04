@@ -275,7 +275,18 @@ const App: React.FC = () => {
     if (!Array.isArray(local)) local = [];
     if (!Array.isArray(remote)) remote = [];
     if (isFullSync) {
-      const result = [...remote.filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
+      const localMap = new Map((Array.isArray(local) ? local : []).map(l => [l.id, l]));
+      const result = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)
+        .map(r => {
+          const l = localMap.get(r.id);
+          if (l) {
+            // MERGE to preserve heavy fields (photos) that are excluded from main sync
+            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
+            return { ...l, ...cleanR } as T;
+          }
+          return r;
+        });
+
       const remoteIds = new Set(result.map(r => r.id));
       local.forEach(l => {
         if (l && l.id && pendingAddIds.has(l.id) && !remoteIds.has(l.id)) {

@@ -1641,7 +1641,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : 'Cartera General'}
             </h2>
 
-            {viewMode === 'cartera' && (
+            {viewMode === 'cartera' && isAdminOrManager && (
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={handlePrintCartera}
