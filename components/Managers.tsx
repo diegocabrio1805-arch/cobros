@@ -53,7 +53,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     );
 
     if (usernameExists) {
-      alert("USUARIO YA EXISTENTE: Este nombre de usuario ya está registrado.");
+      alert("ERROR ID YA REGISTRADO");
       return;
     }
 
@@ -132,7 +132,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     );
 
     if (usernameExists) {
-      alert("USUARIO YA EXISTENTE: Este nombre de usuario ya está registrado.");
+      alert("ERROR ID YA REGISTRADO");
       return;
     }
 
@@ -147,7 +147,8 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       managedBy: showCollectorManagerModal,
       profilePic: collectorForm.profilePic,
       homePic: collectorForm.homePic,
-      homeLocation: collectorForm.homeLocation
+      homeLocation: collectorForm.homeLocation,
+      requiresLocation: false
     };
 
     if (isEditingCollector) onUpdateUser(userData);
@@ -425,6 +426,32 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                                 <i className="fa-solid fa-camera"></i> VER FACHADA
                               </button>
                             )}
+                          </div>
+
+                          {/* GPS ENFORCEMENT - ADDED FOR MANAGERS */}
+                          <div className="mt-4 p-3 rounded-xl border bg-slate-50 border-slate-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <i className="fa-solid fa-location-dot text-sm text-blue-600"></i>
+                              <span className="text-[8px] font-black uppercase text-slate-700">GPS Obligatorio</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => onUpdateUser({ ...col, requiresLocation: true })}
+                                disabled={col.requiresLocation}
+                                className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${col.requiresLocation ? 'bg-emerald-600 text-white opacity-50' : 'bg-blue-600 text-white active:scale-95'}`}
+                              >
+                                <i className="fa-solid fa-check"></i>
+                                {col.requiresLocation ? 'ACTIVO' : 'ACTIVAR'}
+                              </button>
+                              <button
+                                onClick={() => onUpdateUser({ ...col, requiresLocation: false })}
+                                disabled={!col.requiresLocation}
+                                className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${!col.requiresLocation ? 'bg-slate-400 text-white opacity-50' : 'bg-red-600 text-white active:scale-95'}`}
+                              >
+                                <i className="fa-solid fa-xmark"></i>
+                                {!col.requiresLocation ? 'INACTIVO' : 'DESACTIVAR'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );

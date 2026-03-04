@@ -78,12 +78,12 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
 
     // Check for duplicate username
     const usernameExists = (Array.isArray(state.users) ? state.users : []).some(u =>
-      u.username.toLowerCase() === (isManager && editingUserId ? ((Array.isArray(state.users) ? state.users : []).find(x => x.id === editingUserId)?.username || '').toLowerCase() : formData.username.toLowerCase()) &&
+      u.username.toLowerCase() === formData.username.toLowerCase().trim() &&
       u.id !== editingUserId
     );
 
     if (usernameExists) {
-      alert("USUARIO YA EXISTENTE: Este nombre de usuario ya está registrado en el sistema. Por favor elija otro.");
+      alert("ERROR ID YA REGISTRADO");
       return;
     }
 
@@ -113,7 +113,8 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
         expiryDate: formData.expiryDate,
         profilePic: formData.profilePic,
         homePic: formData.homePic,
-        homeLocation: formData.homeLocation
+        homeLocation: formData.homeLocation,
+        requiresLocation: false
       };
       onAddUser(newUser);
     }
