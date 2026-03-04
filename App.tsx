@@ -443,7 +443,26 @@ const App: React.FC = () => {
       if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (mappedData.users) updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.users) {
+        updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
+        // CRITICAL: Also update currentUser if their profile changed remotely
+        // This ensures GPS enforcement and blocking take effect immediately
+        if (prev.currentUser && mappedData.users.length > 0) {
+          const refreshedCurrentUser = mappedData.users.find((u: any) => u.id === prev.currentUser!.id);
+          if (refreshedCurrentUser) {
+            const mappedUser = {
+              ...prev.currentUser,
+              ...refreshedCurrentUser,
+              requiresLocation: refreshedCurrentUser.requiresLocation ?? refreshedCurrentUser.requires_location ?? prev.currentUser.requiresLocation,
+              blocked: refreshedCurrentUser.blocked ?? prev.currentUser.blocked,
+              expiryDate: refreshedCurrentUser.expiryDate ?? refreshedCurrentUser.expiry_date ?? prev.currentUser.expiryDate,
+              name: refreshedCurrentUser.name ?? prev.currentUser.name,
+              username: refreshedCurrentUser.username ?? prev.currentUser.username,
+            };
+            updatedState.currentUser = mappedUser;
+          }
+        }
+      }
 
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
 
@@ -451,6 +470,7 @@ const App: React.FC = () => {
       return updatedState;
     });
   };
+
 
   // 3. SYNC HOOK
   const {
@@ -1229,7 +1249,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.175</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.176</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
