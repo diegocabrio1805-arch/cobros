@@ -316,8 +316,28 @@ const App: React.FC = () => {
         if (!isAppendOnly && !remoteIsMoreComplete && (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
           const idx = result.findIndex(item => item.id === l.id);
           if (idx !== -1) {
+            // FIX: Instead of replacing L with R, or keeping L as is, 
+            // if Remote exists but Local is "newer" (rare for sync but possible), 
+            // we should still consider if Remote has fields Local doesn't. 
+            // BUT here we were just preferring Local. 
+            // The critical part is when we choose REMOTE (result already has R).
             result[idx] = l;
             resultMap.set(l.id, l);
+          }
+        } else if (r) {
+          // If we are keeping remote item R (which is in 'result' by default), 
+          // we should MERGE it with local item L to preserve fields omitted by server (like photos).
+          const idx = result.findIndex(item => item.id === r.id);
+          if (idx !== -1) {
+            // CRITICAL FIX: Clean the remote object of explicit `undefined` values.
+            // If the sync query omitted a column (e.g. photos) to save bandwidth, pullData maps it as { profilePic: undefined }.
+            // Spreading this { profilePic: undefined } over the local object { profilePic: "base64" } deletes the base64!
+            // By filtering out `undefined` keys, the local value is preserved correctly.
+            // Note: `null` values are kept, as they represent actual DB clearings.
+            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
+
+            result[idx] = { ...l, ...cleanR } as T; // Shallow merge: preserve local valid data against undefined omissions
+            resultMap.set(r.id, result[idx]);
           }
         }
       }
