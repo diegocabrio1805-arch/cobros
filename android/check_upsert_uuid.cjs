@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function check() {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: 'alterfin@anexocobro.com', // Corrected email
+        email: 'alterfin@anexocobro.com',
         password: '20252026'
     });
 
@@ -30,27 +30,17 @@ async function check() {
     const d = {
         id: "550e8400-e29b-41d4-a716-446655440000",
         name: "ALTERFINZONA01",
-        username: "654321", // New username
-        password: "654321", // New password
+        username: "654321",
+        password: "654321",
         role: "Cobrador",
         managed_by: authData.user.id,
-        expiry_date: "2026-03-15",
+        expiry_date: null, // Fixed: using null instead of empty string
         requires_location: false
     };
 
     const { data, error } = await supabase.from('profiles').upsert([d]);
     console.log('Upsert test result error:', error);
     console.log('Upsert data:', data);
-
-    const { data: q } = await supabase.from('profiles').select('username, password, name').eq('id', d.id);
-    console.log('Profile now is:', q);
-
-    const payload = { userId: "550e8400-e29b-41d4-a716-446655440000", newUsername: "654321", newPassword: "654321" };
-
-    const { data: eData, error: eErr } = await supabase.functions.invoke('update-auth-user', {
-        body: payload
-    });
-    console.log('Edge func result:', eData, 'Error:', eErr);
 }
 
 check();
