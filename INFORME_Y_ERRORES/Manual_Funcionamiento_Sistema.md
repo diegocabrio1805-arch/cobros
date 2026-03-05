@@ -1,6 +1,6 @@
 # MANUAL DE FUNCIONAMIENTO - SISTEMA ANEXO COBRO
 
-**Versión: 6.1.170**
+**Versión: 6.1.185-FIX**
 
 Este documento detalla el funcionamiento integral del sistema, actuando como una guía técnica y operativa de alta precisión ("Reloj Suizo").
 
