@@ -62,23 +62,16 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.187-PRIVACY-LAW';
-          // ONLY reload if remote version exists and is DIFFERENT from local
-          // To prevent loops during deployment, we should ideally compare semantic versions
-          // but for now, we'll just log and only reload if a specific 'force-update' flag isn't present
-          // OR if we haven't reloaded in the last 60 seconds.
+          const localVersion = '6.1.188-STABLE';
+          // Extract numeric semver part for comparison (strip suffixes like -MIRROR, -PRIVACY-LAW)
+          const toNum = (v: string) => v.split('-')[0].split('.').map(Number).reduce((a, b, i) => a + b * Math.pow(1000, 2 - i), 0);
+          const localNum = toNum(localVersion);
+          const remoteNum = toNum(remoteVersion);
           const lastReload = parseInt(localStorage.getItem('last_auto_reload') || '0');
-          if (remoteVersion !== localVersion && (Date.now() - lastReload > 60000)) {
-            console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
+          // Only reload when remote is STRICTLY numerically newer AND cooldown has passed (5 minutes)
+          if (remoteNum > localNum && (Date.now() - lastReload > 300000)) {
+            console.log("UPDATE: remote", remoteVersion, "is newer than local", localVersion, "— reloading.");
             localStorage.setItem('last_auto_reload', Date.now().toString());
-
-            // If local is MIRROR but remote is FIX, maybe we shouldn't reload instantly
-            // especially if we just pushed the MIRROR version.
-            if (localVersion.includes('MIRROR') && remoteVersion.includes('FIX')) {
-              console.log("Local is ahead of remote. Skipping reload to avoid loop.");
-              return;
-            }
-
             if ('caches' in window) {
               const names = await caches.keys();
               await Promise.all(names.map(name => caches.delete(name)));
@@ -107,7 +100,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.187-PRIVACY-LAW';
+    const CURRENT_VERSION_ID = '6.1.188-STABLE';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -132,7 +125,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = '6.1.187-PRIVACY-LAW';
+      const CURRENT_VERSION_ID = '6.1.188-STABLE';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -666,9 +659,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // OPTIMIZATION: Increased idle interval from 60s to 120s to reduce egress
-    // OPTIMIZATION: Instant sync trigger (2s if busy, 30s if idle)
-    const intervalTime = queueLength > 0 ? 2000 : 30000;
+    // OPTIMIZATION: Idle sync every 5 minutes (realtime subscription handles instant updates)
+    const intervalTime = queueLength > 0 ? 2000 : 300000;
     const syncInterval = setInterval(() => {
       if (!isSyncing && isOnline && !isPrintingNow()) {
         console.log(`[App] Idle sync interval triggered. Queue: ${queueLength}`);
@@ -687,16 +679,8 @@ const App: React.FC = () => {
     };
   }, [isSyncing, isOnline, queueLength]);
 
-  useEffect(() => {
-    if (!isOnline || isSyncing || isPrintingNow()) return;
-
-    const interval = setInterval(() => {
-      console.log("[App] Forced Turbo 4s Sync triggered");
-      handleForceSync(true, "Actualizando...", false); // Sincronización PARCIAL cada 4s (más ligera)
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [isOnline, isSyncing]);
+  // Turbo sync removed: realtime Postgres subscription handles instant updates.
+  // Keeping this as a no-op to avoid regression in any references.
 
   const getBranchId = (user: User | null): string => {
     if (!user) return 'none';

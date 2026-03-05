@@ -1,7 +1,7 @@
 {
   "name": "anexo-cobro",
   "private": true,
-  "version": "6.1.187-PRIVACY-LAW",
+  "version": "6.1.188-STABLE",
   "type": "module",
   "scripts": {
     "dev": "vite",
