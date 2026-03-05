@@ -9,9 +9,10 @@ interface ManagersProps {
   onAddUser: (user: User) => void;
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
+  setActiveTab: (tab: string) => void;
 }
 
-const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onDeleteUser }) => {
+const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onDeleteUser, setActiveTab }) => {
   // Estados para Gerentes
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -208,17 +209,35 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
   return (
     <div className="space-y-6 animate-fadeIn pb-24 px-1">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm text-center md:text-left">
-        <div className="w-full md:w-auto">
-          <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter">Panel de Gerencia</h2>
-          <p className="text-[9px] md:text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1 opacity-80">Control de licencias y acceso</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 hover:text-slate-900 active:scale-90 transition-all md:hidden border border-slate-200"
+          >
+            <i className="fa-solid fa-arrow-left"></i>
+          </button>
+          <div>
+            <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter">Panel de Gerencia</h2>
+            <p className="text-[9px] md:text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1 opacity-80">Control de licencias y acceso</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all font-black shadow-lg shadow-indigo-500/20 active:scale-95 uppercase text-[10px] tracking-widest"
-        >
-          <i className="fa-solid fa-user-plus text-sm"></i>
-          {t.managers.newManager}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 px-6 py-4 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border border-slate-200 shadow-sm"
+          >
+            <i className="fa-solid fa-arrow-left-long"></i>
+            SALIR
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex-[2] md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 md:py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all font-black shadow-lg shadow-indigo-500/20 active:scale-95 uppercase text-[10px] tracking-widest"
+          >
+            <i className="fa-solid fa-user-plus text-sm"></i>
+            {t.managers.newManager}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">

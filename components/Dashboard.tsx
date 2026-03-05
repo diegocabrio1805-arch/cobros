@@ -365,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.1.180</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.1.184</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Panel de Control Principal
@@ -451,6 +451,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     <tr key={stat.id} className="hover:bg-blue-50/20 transition-colors group text-[10px] font-bold">
                       <td className="px-5 py-3 border-r border-slate-100 bg-white group-hover:bg-blue-50/5">
                         <p className="text-slate-900 font-black uppercase truncate tracking-tight">{stat.name}</p>
+                        <p className="text-[10px] text-white/40 font-mono mt-1">v6.1.183</p>
                         <p className="text-[7px] text-blue-500 font-black uppercase tracking-widest mt-0.5">{stat.clientes} Clientes</p>
                       </td>
                       <td className="px-2 py-3 border-r border-slate-100 text-center font-mono font-black text-emerald-600 bg-slate-50/20">

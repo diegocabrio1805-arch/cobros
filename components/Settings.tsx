@@ -444,8 +444,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
         </div>
       )}
 
-      {/* ZONA DE ESTABILIZACIÓN - SOLO ADMIN */}
-      {isAdmin && (
+      {/* ZONA DE ESTABILIZACIÓN - ACCESIBLE PARA ADMIN Y GERENTE */}
+      {isPowerUser && (
         <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-amber-400">
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-satellite-dish text-xl md:text-2xl text-amber-500 animate-pulse"></i>

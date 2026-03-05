@@ -400,31 +400,41 @@ const App: React.FC = () => {
           loanId: l.loanId || (l as any).loan_id,
           clientId: l.clientId || (l as any).client_id,
           branchId: l.branchId || (l as any).branch_id,
-          collectorId: (l as any).collectorId || (l as any).collector_id,
-          receiptNumber: (l as any).receiptNumber || (l as any).receipt_number,
-          isOpening: (l as any).isOpening !== undefined ? (l as any).isOpening : (l as any).is_opening,
-          isRenewal: (l as any).isRenewal !== undefined ? (l as any).isRenewal : (l as any).is_renewal,
-          isVirtual: (l as any).isVirtual !== undefined ? (l as any).isVirtual : (l as any).is_virtual,
-          deletedAt: (l as any).deletedAt || (l as any).deleted_at
+          collectorId: l.collectorId || (l as any).collector_id,
+          recordedBy: l.recordedBy || (l as any).recorded_by,
+          receiptNumber: l.receiptNumber || (l as any).receipt_number,
+          isOpening: l.isOpening !== undefined ? l.isOpening : (l as any).is_opening,
+          isRenewal: l.isRenewal !== undefined ? l.isRenewal : (l as any).is_renewal,
+          isVirtual: l.isVirtual !== undefined ? l.isVirtual : (l as any).is_virtual,
+          notes: l.notes || (l as any).notes,
+          deletedAt: l.deletedAt || (l as any).deleted_at
         }));
       }
       if (mappedData.payments) {
         mappedData.payments = mappedData.payments.map(p => ({
           ...p,
-          loanId: p.loanId || (p as any).loan_id,
-          clientId: p.clientId || (p as any).client_id,
-          branchId: p.branchId || (p as any).branch_id,
+          loanId: (p as any).loanId || (p as any).loan_id,
+          clientId: (p as any).clientId || (p as any).client_id,
+          branchId: (p as any).branchId || (p as any).branch_id,
           collectorId: (p as any).collectorId || (p as any).collector_id,
+          isVirtual: (p as any).isVirtual !== undefined ? (p as any).isVirtual : (p as any).is_virtual,
+          isRenewal: (p as any).isRenewal !== undefined ? (p as any).isRenewal : (p as any).is_renewal,
+          location: (p as any).location || (p as any).location,
           deletedAt: (p as any).deletedAt || (p as any).deleted_at
         }));
       }
       if (mappedData.loans) {
         mappedData.loans = mappedData.loans.map(lo => ({
           ...lo,
-          clientId: lo.clientId || (lo as any).client_id,
-          branchId: lo.branchId || (lo as any).branch_id,
-          collectorId: lo.collectorId || (lo as any).collector_id,
+          clientId: (lo as any).clientId || (lo as any).client_id,
+          branchId: (lo as any).branchId || (lo as any).branch_id,
+          collectorId: (lo as any).collectorId || (lo as any).collector_id,
+          interestRate: (lo as any).interestRate || (lo as any).interest_rate,
+          totalInstallments: (lo as any).totalInstallments || (lo as any).total_installments,
+          installmentValue: (lo as any).installmentValue || (lo as any).installment_value,
+          totalAmount: (lo as any).totalAmount || (lo as any).total_amount,
           isRenewal: (lo as any).isRenewal !== undefined ? (lo as any).isRenewal : (lo as any).is_renewal,
+          customHolidays: (lo as any).customHolidays || (lo as any).custom_holidays,
           deletedAt: (lo as any).deletedAt || (lo as any).deleted_at
         }));
       }
@@ -432,9 +442,42 @@ const App: React.FC = () => {
         mappedData.clients = mappedData.clients.map(c => ({
           ...c,
           documentId: (c as any).documentId || (c as any).document_id,
-          branchId: (c as any).branchId || (c as any).branch_id,
+          secondaryPhone: (c as any).secondaryPhone || (c as any).secondary_phone,
           addedBy: (c as any).addedBy || (c as any).added_by,
+          branchId: (c as any).branchId || (c as any).branch_id,
+          profilePic: (c as any).profilePic || (c as any).profile_pic,
+          housePic: (c as any).housePic || (c as any).house_pic,
+          businessPic: (c as any).businessPic || (c as any).business_pic,
+          documentPic: (c as any).documentPic || (c as any).document_pic,
+          domicilioLocation: (c as any).domicilioLocation || (c as any).domicilio_location,
+          creditLimit: (c as any).creditLimit || (c as any).credit_limit,
+          allowCollectorLocationUpdate: (c as any).allowCollectorLocationUpdate !== undefined ? (c as any).allowCollectorLocationUpdate : (c as any).allow_collector_location_update,
+          customNoPayMessage: (c as any).customNoPayMessage || (c as any).custom_no_pay_message,
+          isActive: (c as any).isActive !== undefined ? (c as any).isActive : (c as any).is_active,
+          isHidden: (c as any).isHidden !== undefined ? (c as any).isHidden : (c as any).is_hidden,
           deletedAt: (c as any).deletedAt || (c as any).deleted_at
+        }));
+      }
+      if (mappedData.users) {
+        mappedData.users = mappedData.users
+          .map(u => ({
+            ...u,
+            managedBy: (u as any).managedBy || (u as any).managed_by,
+            expiryDate: (u as any).expiryDate || (u as any).expiry_date,
+            requiresLocation: (u as any).requiresLocation !== undefined ? (u as any).requiresLocation : (u as any).requires_location,
+            profilePic: (u as any).profilePic || (u as any).profile_pic || (u as any).photo_url,
+            homePic: (u as any).homePic || (u as any).home_pic,
+            homeLocation: (u as any).homeLocation || (u as any).home_location,
+            deletedAt: (u as any).deletedAt || (u as any).deleted_at
+          }))
+          .filter(u => !u.deletedAt); // Ocultar usuarios eliminados suavemente
+      }
+      if (mappedData.expenses) {
+        mappedData.expenses = mappedData.expenses.map(e => ({
+          ...e,
+          branchId: (e as any).branchId || (e as any).branch_id,
+          addedBy: (e as any).addedBy || (e as any).added_by,
+          deletedAt: (e as any).deletedAt || (e as any).deleted_at
         }));
       }
 
@@ -1249,7 +1292,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.180</span>
+              <p className="text-[10px] text-slate-400 font-mono">v6.1.183</p>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -1347,8 +1390,8 @@ const App: React.FC = () => {
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
             {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}
-            {activeTab === 'collectors' && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} />}
-            {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} />}
+            {activeTab === 'collectors' && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} setActiveTab={setActiveTab} />}
+            {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} setActiveTab={setActiveTab} />}
             {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
             {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
             {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}

@@ -10,15 +10,17 @@ interface CollectorsProps {
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
   updateSettings: (settings: AppSettings) => void;
+  setActiveTab: (tab: string) => void;
 }
 
-const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser, onDeleteUser, updateSettings }) => {
+const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser, onDeleteUser, updateSettings, setActiveTab }) => {
   const [showModal, setShowModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isCapturingGPS, setIsCapturingGPS] = useState(false);
   const [pendingToggleUserId, setPendingToggleUserId] = useState<string | null>(null);
-  const [savedUserName, setSavedUserName] = useState<string | null>(null); // Para modal de confirmación
+  const [savedUserName, setSavedUserName] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -93,8 +95,8 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
       const updatedUser: User = {
         id: editingUserId,
         name: formData.name,
-        username: formData.username,  // Gerentes ahora pueden editar usuario
-        password: formData.password,
+        username: formData.username,
+        password: formData.password || oldUser?.password || '',
         role: formData.role,
         managedBy: oldUser?.managedBy,
         blocked: oldUser?.blocked || false,
@@ -151,6 +153,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
       homePic: '',
       homeLocation: undefined
     });
+    setShowPassword(false);
   };
 
   const handleEdit = (user: User) => {
@@ -186,14 +189,22 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
   return (
     <div className="space-y-6 animate-fadeIn pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm">
-        <div>
-          <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter">Rutas / Cobradores</h2>
-          <p className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">
-            {isAdmin ? 'Gestión de mis cobradores personales' : 'Gestión de sucursal aislada'}
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER ? 'dashboard' : 'route')}
+            className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 hover:text-slate-900 active:scale-90 transition-all md:hidden border border-slate-200"
+          >
+            <i className="fa-solid fa-arrow-left"></i>
+          </button>
+          <div>
+            <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter leading-none">Rutas / Cobradores</h2>
+            <p className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">
+              {isAdmin ? 'Gestión de mis cobradores personales' : 'Gestión de sucursal aislada'}
+            </p>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          {isAdminOrManager && (
+          {isAdmin && (
             <button
               onClick={() => {
                 setReceiptData({
@@ -210,10 +221,18 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
             </button>
           )}
 
-          {isAdminOrManager && (
+          <button
+            onClick={() => setActiveTab(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER ? 'dashboard' : 'route')}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 px-6 py-4 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border border-slate-200 shadow-sm"
+          >
+            <i className="fa-solid fa-arrow-left-long"></i>
+            SALIR
+          </button>
+
+          {isAdmin && (
             <button
               onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl flex items-center justify-center gap-2 transition-all font-bold shadow-lg shadow-blue-500/20 active:scale-95 text-[10px] uppercase tracking-widest"
+              className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-4 md:py-3 rounded-xl md:rounded-2xl flex items-center justify-center transition-all font-bold shadow-lg shadow-blue-500/20 active:scale-95 text-[10px] uppercase tracking-widest"
             >
               <i className="fa-solid fa-user-plus"></i>
               NUEVA RUTA
@@ -255,7 +274,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     >
                       <i className="fa-solid fa-pen-to-square"></i>
                     </button>
-                    {isAdminOrManager && (
+                    {isAdmin && (
                       <button
                         onClick={() => onDeleteUser(user.id)}
                         className={`w-9 h-9 md:w-10 md:h-10 rounded-lg transition-all active:scale-90 flex items-center justify-center shadow-sm ${isExpiringSoon ? 'bg-white/10 border border-white/20 text-white hover:bg-white/20' : 'bg-white border border-slate-100 text-slate-700 hover:text-red-500 hover:bg-red-50'}`}
@@ -357,14 +376,23 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[150] p-2 md:p-4 overflow-y-auto">
-          <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn flex flex-col border border-white/20">
-            <div className="p-5 md:p-8 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
-              <div>
-                <h3 className="text-lg md:text-xl font-black text-slate-950 uppercase tracking-tighter">{editingUserId ? 'Editar Cobrador' : 'Nueva Ruta de Cobro'}</h3>
-                <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Información detallada del personal</p>
+          <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scaleIn flex flex-col border border-white/20">
+            <div className="p-5 md:p-8 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                  <i className={`fa-solid ${editingUserId ? 'fa-user-pen' : 'fa-user-plus'}`}></i>
+                </div>
+                <div>
+                  <h3 className="text-lg md:text-xl font-black text-slate-950 uppercase tracking-tighter leading-none">{editingUserId ? 'Editar Cobrador' : 'Nueva Ruta de Cobro'}</h3>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expediente del personal</p>
+                </div>
               </div>
-              <button onClick={closeModal} className="w-8 h-8 text-slate-500 hover:text-slate-800 active:scale-95 transition-all">
-                <i className="fa-solid fa-xmark text-xl"></i>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-10 h-10 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center active:scale-90 transition-all border border-transparent hover:border-red-100 shadow-sm"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
 
@@ -386,22 +414,53 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                       className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Pin / Clave</label>
-                    <input required type="text" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div className="md:col-span-2 space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Fecha Vencimiento Licencia</label>
-                    <input
-                      required
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                      style={{ colorScheme: 'light' }}
-                    />
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">PIN / Clave</label>
+                    <label className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                      <i className="fa-solid fa-key text-slate-400"></i>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required={!editingUserId}
+                        placeholder={editingUserId ? "Dejar en blanco para no cambiar" : "Contraseña"}
+                        className="w-full bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1 px-2 text-slate-400 hover:text-blue-600 transition-colors"
+                      >
+                        <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                      </button>
+                    </label>
                   </div>
                 </div>
+
+                {/* LÓGICA DE SUSCRIPCIÓN / FECHA DE VENCIMIENTO */}
+                {(isAdmin || state.currentUser?.role === Role.MANAGER) && (
+                  <div className="mt-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha Vencimiento Licencia</label>
+                    <label className={`flex items-center gap-3 p-3 rounded-xl border ${isManager ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-75' : 'bg-white border-slate-200'}`}>
+                      <i className="fa-regular fa-calendar-xmark text-slate-400"></i>
+                      <input
+                        type="date"
+                        disabled={isManager}
+                        className="w-full bg-transparent border-none text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0 disabled:text-slate-500"
+                        value={formData.expiryDate || ''}
+                        onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                      />
+                    </label>
+                    {isManager && (
+                      <p className="text-[7px] text-red-500 font-bold mt-1 uppercase italic ml-2">
+                        <i className="fa-solid fa-lock mr-1"></i> Modificación restringida a administradores
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -458,43 +517,56 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                 </div>
               </div>
 
-              <div className="pt-4 sticky bottom-0 bg-slate-50/90 backdrop-blur-md z-10 pb-4">
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-xl md:rounded-2xl shadow-xl shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest text-[10px] md:text-sm">
-                  {editingUserId ? 'ACTUALIZAR EXPEDIENTE' : 'CREAR RUTA Y ACTIVAR'}
+              <div className="pt-4 sticky bottom-0 bg-white/95 backdrop-blur-md z-10 pb-4 flex gap-3 px-1 border-t border-slate-100/50">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-xl md:rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-[9px] md:text-xs"
+                >
+                  <i className="fa-solid fa-xmark mr-1"></i> SALIR
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl md:rounded-2xl shadow-xl shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest text-[10px] md:text-sm"
+                >
+                  <i className="fa-solid fa-floppy-disk mr-1"></i> {editingUserId ? 'GUARDAR CAMBIOS' : 'CREAR RUTA'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div >
       )}
 
       {/* MODAL DE CONFIRMACIÓN DE GUARDADO */}
-      {savedUserName && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[200] p-6">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border-4 border-emerald-500 text-center">
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 text-white">
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fa-solid fa-circle-check text-4xl"></i>
+      {
+        savedUserName && (
+          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[200] p-6">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border-4 border-emerald-500 text-center flex flex-col">
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 text-white">
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fa-solid fa-circle-check text-4xl"></i>
+                </div>
+                <h2 className="text-2xl font-black uppercase tracking-tight">¡Guardado!</h2>
+                <p className="text-sm font-bold opacity-90 mt-2 uppercase tracking-widest">Cambios aplicados con éxito</p>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight">¡Guardado!</h2>
-              <p className="text-sm font-bold opacity-90 mt-2 uppercase tracking-widest">Cambios aplicados con éxito</p>
-            </div>
-            <div className="p-8 space-y-4">
-              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
-                <p className="text-xs text-slate-700 font-black uppercase">Cobrador actualizado:</p>
-                <p className="text-xl font-black text-emerald-800 uppercase mt-1">{savedUserName}</p>
+              <div className="p-8 bg-emerald-50/50 flex flex-col">
+                <div className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-sm mb-6">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cobrador Actualizado:</p>
+                  <p className="text-lg font-black text-emerald-800 uppercase tracking-tighter">{savedUserName}</p>
+                </div>
+                <button
+                  onClick={() => setSavedUserName(null)}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-95 uppercase tracking-widest text-sm"
+                >
+                  Aceptar
+                </button>
               </div>
-              <button
-                onClick={() => setSavedUserName(null)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-sm"
-              >
-                ACEPTAR
-              </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+
+    </div >
   );
 };
 

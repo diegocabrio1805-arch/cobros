@@ -435,36 +435,101 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 password: d.password,
                 role: d.role,
                 blocked: d.blocked,
-                expiry_date: d.expiryDate === '' ? null : d.expiryDate,
-                managed_by: d.managedBy === '' ? null : d.managedBy,
+                expiry_date: !d.expiryDate || d.expiryDate === '' ? null : d.expiryDate,
+                managed_by: !d.managedBy || d.managedBy === '' ? null : d.managedBy,
                 profile_pic: d.profilePic,
                 home_pic: d.homePic,
                 home_location: d.homeLocation,
                 requires_location: d.requiresLocation,
+                deleted_at: d.deletedAt || null,
                 updated_at: new Date().toISOString()
             }));
             await batchUpsert('clients', groups['ADD_CLIENT'], (d) => ({
-                id: d.id, name: d.name, document_id: d.documentId, phone: d.phone, secondary_phone: d.secondaryPhone,
-                address: d.address, profile_pic: d.profilePic, house_pic: d.housePic, business_pic: d.businessPic,
-                document_pic: d.documentPic, domicilio_location: d.domicilioLocation, location: d.location,
-                credit_limit: d.creditLimit, allow_collector_location_update: d.allowCollectorLocationUpdate,
-                added_by: d.addedBy, branch_id: d.branchId, created_at: d.createdAt, updated_at: new Date().toISOString()
+                id: d.id,
+                name: d.name,
+                document_id: d.documentId,
+                phone: d.phone,
+                secondary_phone: d.secondaryPhone,
+                address: d.address,
+                profile_pic: d.profilePic,
+                house_pic: d.housePic,
+                business_pic: d.businessPic,
+                document_pic: d.documentPic,
+                domicilio_location: d.domicilioLocation,
+                location: d.location,
+                credit_limit: d.creditLimit,
+                allow_collector_location_update: d.allowCollectorLocationUpdate,
+                added_by: d.addedBy,
+                branch_id: d.branchId,
+                is_active: d.isActive !== undefined ? d.isActive : true,
+                is_hidden: d.isHidden || false,
+                deleted_at: d.deletedAt || null,
+                created_at: d.createdAt,
+                updated_at: new Date().toISOString()
             }));
             await batchUpsert('loans', groups['ADD_LOAN'], (d) => ({
-                id: d.id, client_id: d.clientId, branch_id: d.branchId, principal: d.principal,
-                interest_rate: d.interestRate, total_installments: d.totalInstallments, installment_value: d.installmentValue,
-                total_amount: d.totalAmount, status: d.status, created_at: d.createdAt, installments: d.installments,
-                frequency: d.frequency, updated_at: new Date().toISOString()
+                id: d.id,
+                client_id: d.clientId,
+                collector_id: d.collectorId,
+                branch_id: d.branchId,
+                principal: d.principal,
+                interest_rate: d.interestRate,
+                total_installments: d.totalInstallments,
+                installment_value: d.installmentValue,
+                total_amount: d.totalAmount,
+                status: d.status,
+                created_at: d.createdAt,
+                installments: d.installments,
+                frequency: d.frequency,
+                is_renewal: d.isRenewal || false,
+                custom_holidays: d.customHolidays || [],
+                deleted_at: d.deletedAt || null,
+                updated_at: new Date().toISOString()
             }));
             await batchUpsert('payments', groups['ADD_PAYMENT'], (d) => ({
-                id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId, amount: d.amount,
-                date: d.date, installment_number: d.installmentNumber, updated_at: new Date().toISOString()
+                id: d.id,
+                loan_id: d.loanId,
+                client_id: d.clientId,
+                collector_id: d.collectorId,
+                branch_id: d.branchId,
+                amount: d.amount,
+                date: d.date,
+                installment_number: d.installmentNumber,
+                location: d.location,
+                is_virtual: d.isVirtual || false,
+                is_renewal: d.isRenewal || false,
+                deleted_at: d.deletedAt || null,
+                updated_at: new Date().toISOString()
             }));
             await batchUpsert('collection_logs', groups['ADD_LOG'], (d) => ({
-                id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId, amount: d.amount,
-                type: d.type, date: d.date, location: d.location, recorded_by: d.recordedBy, updated_at: new Date().toISOString()
+                id: d.id,
+                loan_id: d.loanId,
+                client_id: d.clientId,
+                branch_id: d.branchId,
+                collector_id: d.collectorId,
+                recorded_by: d.recordedBy,
+                amount: d.amount,
+                type: d.type,
+                date: d.date,
+                location: d.location,
+                notes: d.notes,
+                is_virtual: d.isVirtual || false,
+                is_renewal: d.isRenewal || false,
+                is_opening: d.isOpening || false,
+                deleted_at: d.deletedAt || null,
+                updated_at: new Date().toISOString()
             }));
-            await batchUpsert('expenses', groups['ADD_EXPENSE'], (d) => ({ id: d.id, description: d.description, amount: d.amount, category: d.category, date: d.date, branch_id: d.branchId, added_by: d.addedBy }));
+            await batchUpsert('expenses', groups['ADD_EXPENSE'], (d) => ({
+                id: d.id,
+                description: d.description,
+                amount: d.amount,
+                category: d.category,
+                date: d.date,
+                branch_id: d.branchId,
+                added_by: d.addedBy,
+                deleted_at: d.deletedAt || null,
+                updated_at: new Date().toISOString()
+            }));
 
             const newQueue = queue.filter((_: any, index: number) => !processedIndices.has(index));
             localStorage.setItem('syncQueue', JSON.stringify(newQueue));
