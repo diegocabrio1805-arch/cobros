@@ -375,7 +375,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[150] p-2 md:p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[150] p-2 md:p-4 overflow-y-auto">
           <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scaleIn flex flex-col border border-white/20">
             <div className="p-5 md:p-8 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-20">
               <div className="flex items-center gap-3">
@@ -517,7 +517,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                 </div>
               </div>
 
-              <div className="pt-4 sticky bottom-0 bg-white/95 backdrop-blur-md z-10 pb-4 flex gap-3 px-1 border-t border-slate-100/50">
+              <div className="pt-4 sticky bottom-0 bg-white/98 z-10 pb-4 flex gap-3 px-1 border-t border-slate-100/50">
                 <button
                   type="button"
                   onClick={closeModal}
@@ -540,7 +540,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
       {/* MODAL DE CONFIRMACIÓN DE GUARDADO */}
       {
         savedUserName && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[200] p-6">
+          <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[200] p-6">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border-4 border-emerald-500 text-center flex flex-col">
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 text-white">
                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">

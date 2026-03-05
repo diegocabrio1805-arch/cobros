@@ -2825,7 +2825,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </div>
                       </div>
 
-                      <div className="pt-6 sticky bottom-0 bg-white/90 backdrop-blur-md z-10 pb-4">
+                      <div className="pt-6 sticky bottom-0 bg-white/98 z-10 pb-4">
                         <button onClick={handleSaveEditedClient} className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
                           <i className="fa-solid fa-cloud-arrow-up"></i>
                           {isCollector ? 'GUARDAR UBICACIONES' : 'GUARDAR TODOS LOS CAMBIOS'}
@@ -2842,7 +2842,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL RENOVACIÓN / NUEVO CRÉDITO */}
         {
           showRenewModal && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-start justify-center z-[250] p-4 pt-10 md:pt-20">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[250] p-4 pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-lg overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
                   <h3 className="text-xl font-black uppercase tracking-tighter">Generar Nuevo Crédito</h3>
@@ -2875,7 +2875,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL COBRO / LIQUIDACIÓN DENTRO DEL EXPEDIENTE */}
         {
           showDossierPaymentModal && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-start justify-center z-[200] p-2 overflow-y-auto pt-10 md:pt-20">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-2 overflow-y-auto pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
                   <h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Registrar Gestión</h3>
@@ -3111,7 +3111,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )
         }
         {showImportModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 z-[9999] animate-fadeIn pt-10 md:pt-20">
+          <div className="fixed inset-0 bg-black/95 flex items-start justify-center p-4 z-[9999] animate-fadeIn pt-10 md:pt-20">
             <div className="bg-slate-900 rounded-[2rem] p-8 border border-white/10 w-full max-w-md shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500"></div>
 

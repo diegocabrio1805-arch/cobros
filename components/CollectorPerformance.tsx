@@ -275,7 +275,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                     </div>
 
                     <div className="p-6 bg-slate-900 rounded-[2rem] text-white flex flex-col justify-between relative overflow-hidden group-hover:shadow-2xl transition-all duration-500">
-                      <div className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center mb-4 backdrop-blur-md">
+                      <div className="w-10 h-10 bg-white/20 text-white rounded-xl flex items-center justify-center mb-4">
                         <i className="fa-solid fa-star text-amber-400"></i>
                       </div>
                       <div className="relative z-10">

@@ -830,7 +830,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
 
             {/* Printer Selection Modal */}
             {showPrinterModal && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-4">
+                <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
                     <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn">
                         <div className="bg-slate-900 p-6 flex justify-between items-center">
                             <h3 className="text-white font-black uppercase text-lg tracking-tighter">

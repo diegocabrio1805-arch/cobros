@@ -247,7 +247,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
         <div ref={mapRef} className="h-full w-full z-10"></div>
 
         {/* Leyenda Flotante */}
-        <div className="absolute bottom-8 left-8 z-[1000] bg-white/90 backdrop-blur-md p-6 rounded-[2rem] border border-white shadow-2xl space-y-4 pointer-events-none hidden md:block border-l-4 border-l-emerald-500">
+        <div className="absolute bottom-8 left-8 z-[1000] bg-white/98 p-6 rounded-[2rem] border border-white shadow-2xl space-y-4 pointer-events-none hidden md:block border-l-4 border-l-emerald-500">
           <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2">Resumen de Vista</h4>
           <div className="space-y-2">
             <div className="flex items-center gap-3">

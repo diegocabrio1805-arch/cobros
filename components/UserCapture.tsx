@@ -208,7 +208,7 @@ const UserCapture: React.FC<UserCaptureProps> = ({ user, onUpdateUser }) => {
                                 disabled={!editMode}
                                 className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:bg-slate-100"
                             />
-                            {!editMode && <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-[2px] rounded-xl"></div>}
+                            {!editMode && <div className="absolute inset-0 bg-slate-100/80 rounded-xl"></div>}
                         </div>
                     </div>
 

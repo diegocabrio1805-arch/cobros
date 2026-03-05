@@ -122,7 +122,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                      <div>
                         <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1 md:mb-2">Cuota Estimada</p>
                         <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter font-mono">{formatCurrency(simulation.installmentValue, settings)}</h2>
-                        <span className="inline-block mt-2 md:mt-3 px-3 py-1 bg-white/10 rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                        <span className="inline-block mt-2 md:mt-3 px-3 py-1 bg-white/20 rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider">
                            {frequency}
                         </span>
                      </div>

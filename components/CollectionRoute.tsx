@@ -558,7 +558,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         )}
 
         {selectedClient && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-2">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-2">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm p-6 text-center animate-scaleIn border border-white/20">
               <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl border border-emerald-100">
                 <i className="fa-solid fa-hand-holding-dollar"></i>
@@ -612,7 +612,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         )}
 
         {receipt && (
-          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center z-[160] p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[160] p-4 overflow-y-auto">
             <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
               {/* Header de navegación en el ticket */}
               <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">

@@ -11,6 +11,15 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
     const [isLocationEnabled, setIsLocationEnabled] = useState(!isRequired);
     const [isChecking, setIsChecking] = useState(false);
 
+    // Resetear estado al cambiar prop para evitar bypass
+    useEffect(() => {
+        if (isRequired) {
+            setIsLocationEnabled(false);
+        } else {
+            setIsLocationEnabled(true);
+        }
+    }, [isRequired]);
+
     const checkLocationStatus = async () => {
         if (!isRequired) {
             setIsLocationEnabled(true);
@@ -126,7 +135,7 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
     }
 
     return (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-[9999] p-6 animate-fadeIn">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[9999] p-6 animate-fadeIn">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border-4 border-red-500">
                 <div className="bg-gradient-to-br from-red-600 to-red-700 p-8 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>

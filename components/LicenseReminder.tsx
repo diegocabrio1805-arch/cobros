@@ -58,7 +58,7 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
     const isCritical = minDays <= 1; // 1 day or less -> RED + ANIMATION
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/98 p-4 animate-fadeIn">
             <div className={`w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border-4 ${isCritical ? 'border-red-600 animate-pulse-border' : 'border-yellow-400'}`}>
 
                 {/* HEADER */}

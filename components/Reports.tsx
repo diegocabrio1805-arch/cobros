@@ -759,7 +759,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       <div className="h-full flex flex-col space-y-4 animate-fadeIn pb-20">
          {/* --- AI AUDIT MODAL --- */}
          {showAiModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/98 animate-fadeIn">
                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border-4 border-indigo-500/30 relative">
                   {/* Close Button */}
                   <button
@@ -997,7 +997,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          <div className="w-full bg-slate-900 rounded-[2rem] shadow-xl overflow-hidden relative border-4 border-slate-800 h-[400px]">
             <div ref={mapRef} className="w-full h-full z-10"></div>
             {routeData.length === 0 && (
-               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm z-20 text-white">
+               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/98 z-20 text-white">
                   <i className="fa-solid fa-map-location-dot text-6xl text-slate-700 mb-4"></i>
                   <h3 className="text-xl font-black uppercase tracking-tight">Sin Recorrido</h3>
                </div>
