@@ -45,7 +45,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
     { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
     { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
     { id: 'loans', icon: 'fa-money-bill-wave', label: t.loans, powerOnly: false },
-    { id: 'route', icon: 'fa-route', label: t.route, powerOnly: false },
     { id: 'notifications', icon: 'fa-bell', label: t.notifications, powerOnly: false },
     { id: 'collectors', icon: 'fa-user-gear', label: t.collectors, powerOnly: true },
     { id: 'performance', icon: 'fa-chart-column', label: t.performance, powerOnly: true },

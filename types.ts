@@ -134,6 +134,7 @@ export interface Client {
   residenceType?: 'propia' | 'alquilada' | 'familiar';
   residenceAntiquity?: string;
   clientType?: string; // Código para tipo de cliente (Formal/Informal, Empleado/Dueño)
+  deletedAt?: string; // Soft delete timestamp
 }
 
 export interface Installment {

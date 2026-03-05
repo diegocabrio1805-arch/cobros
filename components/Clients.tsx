@@ -31,6 +31,7 @@ interface ClientsProps {
   setActiveTab?: (tab: string) => void;
   fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
   recalculateLoanStatus?: (loanId: string) => void;
+  deleteClient?: (clientId: string) => void;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -180,7 +181,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus, deleteClient }) => {
   const { forceSync } = useSync();
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
@@ -569,7 +570,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const filteredClients = useMemo(() => {
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden);
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden && !c.deletedAt);
     if (debouncedSearch) {
       const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
       clients = clients.filter(c => {
@@ -619,7 +620,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
     return (Array.isArray(state.clients) ? state.clients : []).map(client => {
-      if (client.isHidden) return null;
+      if (client.isHidden || client.deletedAt) return null;
 
       // Búsqueda Global
       if (s) {
@@ -664,7 +665,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       (selectedCollector === 'all' || (l.collectorId || (l as any).collector_id)?.toLowerCase() === selectedCollector.toLowerCase())
     ).map(loan => {
       const client = clients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return null;
+      if (!client || client.isHidden || client.deletedAt) return null;
 
       // Búsqueda Global
       if (s) {
@@ -690,7 +691,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
-      if (c.isHidden) return false;
+      if (c.isHidden || c.deletedAt) return false;
 
       // Búsqueda Global
       if (s) {
@@ -729,6 +730,53 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       return dateB - dateA;
     });
   }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch]);
+
+  const ocultosExcelData = useMemo(() => {
+    if (viewMode !== 'ocultos') return [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+      if (!c.isHidden || c.deletedAt) return false;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return false;
+      }
+
+      if (selectedCollector !== 'all') {
+        const collectorLower = selectedCollector.toLowerCase();
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+      }
+      return true;
+    }).map(client => {
+      const metrics = getClientMetrics(client);
+      return { ...client, _metrics: metrics };
+    }).sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [state.clients, state.loans, viewMode, selectedCollector, debouncedSearch]);
+
+  const handleRestoreClient = async (clientId: string) => {
+    const client = state.clients.find(c => c.id === clientId);
+    if (!client) return;
+    await updateClient({ ...client, isHidden: false });
+    alert("CLIENTE RESTAURADO A LA CARTERA.");
+  };
+
+  const handlePermanentDeleteClient = async (clientId: string) => {
+    if (!window.confirm("¿ESTÁ SEGURO DE ELIMINAR A ESTE CLIENTE?")) return;
+    if (deleteClient) {
+      deleteClient(clientId);
+      alert("CLIENTE ELIMINADO.");
+    }
+  };
 
   const handleOpenMap = (loc?: { lat: number, lng: number }) => {
     if (loc && loc.lat && loc.lng) {
@@ -1762,13 +1810,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> AGREGAR</button>
           <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> RENOVACIONES</button>
           <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> CARTERA</button>
+          {(isAdmin || isManager) && (
+            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> OCULTOS</button>
+          )}
         </div>
 
         <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
-              <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : 'fa-briefcase text-slate-950'}`}></i>
-              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : 'Cartera General'}
+              <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : 'fa-briefcase text-slate-950'}`}></i>
+              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : 'Cartera General'}
             </h2>
 
             {viewMode === 'cartera' && isAdminOrManager && (
@@ -1816,7 +1867,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </select>
               </div>
             )}
-            {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' ? (
+            {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
                 <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
                   <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
@@ -2075,6 +2126,48 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          viewMode === 'ocultos' && (isAdmin || isManager) && (
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-red-800 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4">Fecha Reg.</th>
+                      <th className="px-6 py-4">Cliente / ID</th>
+                      <th className="px-6 py-4">Teléfono</th>
+                      <th className="px-6 py-4 text-right">Saldo</th>
+                      <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
+                    {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).map(client => (
+                      <tr key={client.id} className="hover:bg-red-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">DOC: {client.documentId}</span></td>
+                        <td className="px-6 py-4 text-blue-700">{client.phone}</td>
+                        <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
+                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i> RESTAURAR</button>
+                            {isAdminOrManager && (
+                              <button onClick={() => handlePermanentDeleteClient(client.id)} className="text-red-600 hover:underline" title="Eliminar"><i className="fa-solid fa-trash"></i> ELIMINAR</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {ocultosExcelData.length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay clientes ocultos</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

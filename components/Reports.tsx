@@ -95,7 +95,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       if (now - lastManualAction.current < 5000) return;
 
       const elapsed = now - lastMapUpdate.current;
-      const THROTTLE_MS = 5000; // 5 segundos de pausa entre refrescos automáticos (Ajustado para localhost)
+      const THROTTLE_MS = 30000; // 30 segundos de pausa para mejor visualización (Ajustado por el usuario)
 
       if (elapsed >= THROTTLE_MS) {
          setMapData(routeData);
