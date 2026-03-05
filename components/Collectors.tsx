@@ -97,6 +97,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
         password: formData.password,
         role: formData.role,
         managedBy: oldUser?.managedBy,
+        blocked: oldUser?.blocked || false,
         expiryDate: formData.expiryDate, // Gerentes ahora pueden editar fecha
         profilePic: formData.profilePic,
         homePic: formData.homePic,

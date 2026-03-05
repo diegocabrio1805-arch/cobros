@@ -428,7 +428,21 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 }
             };
 
-            await batchUpsert('profiles', groups['ADD_PROFILE'], (d) => ({ ...d, expiry_date: d.expiryDate, managed_by: d.managedBy, requires_location: d.requiresLocation }));
+            await batchUpsert('profiles', groups['ADD_PROFILE'], (d) => ({
+                id: d.id,
+                name: d.name,
+                username: d.username,
+                password: d.password,
+                role: d.role,
+                blocked: d.blocked,
+                expiry_date: d.expiryDate,
+                managed_by: d.managedBy,
+                profile_pic: d.profilePic,
+                home_pic: d.homePic,
+                home_location: d.homeLocation,
+                requires_location: d.requiresLocation,
+                updated_at: new Date().toISOString()
+            }));
             await batchUpsert('clients', groups['ADD_CLIENT'], (d) => ({
                 id: d.id, name: d.name, document_id: d.documentId, phone: d.phone, secondary_phone: d.secondaryPhone,
                 address: d.address, profile_pic: d.profilePic, house_pic: d.housePic, business_pic: d.businessPic,
