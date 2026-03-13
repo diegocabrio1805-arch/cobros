@@ -27,7 +27,7 @@ import { getTranslation } from './utils/translations';
 import { getLocalDateStringForCountry, generateUUID, formatCurrency, parseAmount, calculateTotalPaidFromLogs } from './utils/helpers';
 import { resolveSettings } from './utils/settingsHierarchy';
 import { useSync } from './hooks/useSync';
-import { connectToPrinter } from './services/bluetoothPrinterService';
+import { startConnectionKeeper, isPrintingNow, connectToPrinter } from './services/bluetoothPrinterService';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import { Geolocation } from '@capacitor/geolocation';
@@ -638,15 +638,24 @@ const App: React.FC = () => {
   }, [state.currentUser]);
 
   useEffect(() => {
-    // startConnectionKeeper(); // REVERTIDO: No disponible en versión estable
-    // Intento inicial agresivo
-    connectToPrinter(undefined).catch(() => { });
+    // Súper Conexión: Mantener impresora vinculada globalmente (v6.1.43)
+    startConnectionKeeper();
+    
+    // Intento inicial agresivo al montar la App
+    connectToPrinter(undefined, true).catch(() => { });
+    
     const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
       if (isActive) {
-        connectToPrinter(undefined);
+        connectToPrinter(undefined, true);
       }
     });
 
+    return () => {
+      resumeListener.then(l => l.remove());
+    };
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       console.log("[App] Executing doPull after initial mount timeout.");
       doPull();
@@ -674,7 +683,7 @@ const App: React.FC = () => {
     // OPTIMIZATION: Idle sync every 5 minutes (realtime subscription handles instant updates)
     const intervalTime = queueLength > 0 ? 2000 : 300000;
     const syncInterval = setInterval(() => {
-      if (!isSyncing && isOnline) {
+      if (!isSyncing && isOnline && !isPrintingNow()) {
         console.log(`[App] Idle sync interval triggered. Queue: ${queueLength}`);
         handleForceSync(true);
       }
