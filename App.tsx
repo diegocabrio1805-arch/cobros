@@ -650,17 +650,18 @@ const App: React.FC = () => {
       }
     });
 
+    const timer = setTimeout(() => {
+      console.log("[App] Executing doPull after initial mount timeout.");
+      doPull();
+    }, 1000);
+
     return () => {
       resumeListener.then(l => l.remove());
+      clearTimeout(timer);
     };
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log("[App] Executing doPull after initial mount timeout.");
-      doPull();
-    }, 5000);
-
     // OPTIMIZATION: Cooldown on focus to prevent sync storm when switching tabs
     let lastFocusSync = 0;
     const handleFocus = () => {
@@ -673,9 +674,7 @@ const App: React.FC = () => {
     window.addEventListener('focus', handleFocus);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('focus', handleFocus);
-      resumeListener.then(handle => handle.remove());
     };
   }, []);
 
