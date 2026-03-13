@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fondo azul sólido -->
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  
+  <!-- Monedas apiladas en líneas blancas -->
+  <g stroke="#ffffff" stroke-width="14" fill="none" stroke-linecap="round">
+    <!-- Moneda inferior -->
+    <ellipse cx="256" cy="350" rx="100" ry="30"/>
+    <path d="M 156 350 L 156 330"/>
+    <path d="M 356 350 L 356 330"/>
+    <ellipse cx="256" cy="330" rx="100" ry="30"/>
+    
+    <!-- Moneda media -->
+    <ellipse cx="256" cy="280" rx="100" ry="30"/>
+    <path d="M 156 280 L 156 260"/>
+    <path d="M 356 280 L 356 260"/>
+    <ellipse cx="256" cy="260" rx="100" ry="30"/>
+    
+    <!-- Moneda superior con $ -->
+    <ellipse cx="256" cy="210" rx="100" ry="30"/>
+    <path d="M 156 210 L 156 190"/>
+    <path d="M 356 210 L 356 190"/>
+    <ellipse cx="256" cy="190" rx="100" ry="30"/>
+    
+    <!-- Símbolo $ en la moneda superior -->
+    <text x="256" y="205" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+  </g>
+</svg>

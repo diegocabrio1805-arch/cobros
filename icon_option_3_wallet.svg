@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fondo azul sólido -->
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  
+  <!-- Billetera en líneas blancas -->
+  <g stroke="#ffffff" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cuerpo de la billetera -->
+    <rect x="140" y="200" width="232" height="160" rx="20"/>
+    
+    <!-- Solapa superior -->
+    <path d="M 140 200 L 140 180 Q 140 160 160 160 L 352 160 Q 372 160 372 180 L 372 200"/>
+    
+    <!-- Detalle de cierre -->
+    <circle cx="340" cy="280" r="20"/>
+    <circle cx="340" cy="280" r="8" fill="#ffffff"/>
+    
+    <!-- Símbolo $ grande -->
+    <text x="220" y="310" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+  </g>
+</svg>

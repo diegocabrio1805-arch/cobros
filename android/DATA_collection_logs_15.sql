@@ -1,0 +1,11 @@
+BEGIN;
+
+INSERT INTO public.collection_logs (id, loan_id, client_id, branch_id, type, amount, date, location, recorded_by, notes, raw_data, is_virtual, is_renewal, is_opening, updated_at, deleted_at) VALUES
+('cbf6dc0c-cd10-4813-b807-62f6bc17e354', '2e565880-4d8f-42b4-b3f1-c846c506d686', '34b692a3-236d-44a9-a017-d8e341714691', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', 'PAGO', 100000, '2026-02-25T15:43:56.615Z', '{"lat":-25.2730911,"lng":-57.4963293}', '78f8bf14-1d8f-4763-ad21-619fa7724a52', NULL, NULL, false, false, false, '2026-02-25T15:43:56.616+00:00', NULL),
+('33a73703-0c23-4808-9da3-bf83475121a6', '0c083e06-4518-44ac-9ce7-9fa7cada9976', '59660a65-f440-4e7b-bb7b-7e3b244e8057', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', 'PAGO', 100000, '2026-02-25T19:10:21.370Z', '{"lat":-25.354292,"lng":-57.5612472}', 'a69e2207-db0a-49b7-a764-2787624e5777', NULL, NULL, false, false, false, '2026-02-25T19:10:21.37+00:00', NULL),
+('fdbecb5e-5a60-4ca5-9d4a-a764e2ad141b', '3f309f4a-630f-4b13-a4e6-0630b27ac224', '0cd65e9f-ab7f-4fa4-8a02-8c56dcfc059d', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', 'PAGO', 65000, '2026-02-26T13:55:11.698Z', '{"lat":-25.3219565,"lng":-57.5807942}', 'c956ea2f-99d7-4956-93d5-36842aeb0d54', NULL, NULL, true, false, false, '2026-02-26T13:55:11.701+00:00', NULL),
+('c6bfabf3-135f-4280-a377-cc7fb21758a9', '0a40bcb8-08d3-40ef-9b8b-a135b83665c0', 'c7a2f29c-a159-496c-9070-f340f32c340d', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', 'PAGO', 50000, '2026-02-26T17:14:16.915Z', '{"lat":-25.2788322,"lng":-57.5533686}', 'c956ea2f-99d7-4956-93d5-36842aeb0d54', NULL, NULL, false, false, false, '2026-02-26T17:14:16.915+00:00', NULL),
+('e96afbff-4804-4f2b-92b1-c88d2f433cc1', '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', 'APERTURA', NULL, '2026-02-24T21:45:18.786Z', '{"lat":-25.32183317860348,"lng":-57.58086234463766}', 'b3716a78-fb4f-4918-8c0b-92004e3d63ec', NULL, NULL, false, false, false, '2026-02-25T02:16:57.786+00:00', NULL)
+ON CONFLICT (id) DO NOTHING;
+
+COMMIT;

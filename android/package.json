@@ -1,0 +1,9 @@
+{
+    "name": "icon-generator",
+    "version": "1.0.0",
+    "description": "Generate Android app icons",
+    "main": "generate_icons_canvas.js",
+    "dependencies": {
+        "canvas": "^2.11.2"
+    }
+}

@@ -1,0 +1,102 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Project
+        run: npm run build
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Android APK (Debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Decode Keystore
+        continue-on-error: true
+        run: echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 --decode > android/app/my-release-key.jks
+
+      - name: Build Android APK (Release)
+        continue-on-error: true
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Get Version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Rename and Zip APK
+        run: |
+          VERSION=${{ steps.package-version.outputs.version }}
+          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v${VERSION}_Debug.apk
+          zip Anexo_Cobro_v${VERSION}_Debug.zip Anexo_Cobro_v${VERSION}_Debug.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.package-version.outputs.version }}-LATEST
+          name: v${{ steps.package-version.outputs.version }} - Excel & UI Update
+          body: |
+            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Versión Actualizada
+            
+            **Mejoras en esta versión:**
+            - 📊 **Excel Profesional**: Importación y exportación masiva funcional (45 columnas).
+            - 🚀 **Nueva Interfaz de Modals**: Ventanas emergentes ahora aparecen en la parte superior para mejor visibilidad.
+            - 📖 **Manual Integrado**: Documentación detallada en la carpeta de informes.
+            - 🛠️ **Corrección de Errores**: Resueltos problemas de redeclaración e importación de dependencias.
+          files: |
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Debug APK (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: anexo-cobro-v${{ steps.package-version.outputs.version }}-debug
+          path: Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk

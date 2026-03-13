@@ -1,0 +1,7 @@
+{
+  "name": "ANEXO COBRO",
+  "description": "A comprehensive daily loan management system with smart collection routes, amortization simulation, and AI-powered financial reporting.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
