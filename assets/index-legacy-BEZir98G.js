@@ -1,0 +1,1 @@
+System.register(["./vendor-capacitor-legacy-Nd7O3zNd.js"],function(e,r){"use strict";var t,n;return{setters:[function(e){t=e.r,n=e._}],execute:function(){e("Share",t("Share",{web:function(){return n(function(){return r.import("./web-legacy-C03sIw7a.js")},void 0,r.meta.url).then(function(e){return new e.ShareWeb})}}))}}});
