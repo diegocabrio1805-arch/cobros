@@ -369,158 +369,133 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   ];
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
-      {/* CABECERA SUPERIOR - Premium Glassmorphism */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 glass-card p-6 rounded-3xl border-white/40">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 premium-gradient rounded-xl flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
-             <i className="fa-solid fa-chart-pie text-xl text-white"></i>
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Resumen <span className="text-emerald-500">Operativo</span></h2>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v6.4</span>
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                En Vivo
-              </span>
-            </div>
-          </div>
+    <div className="space-y-4 animate-fadeIn pb-24 max-w-[1600px] mx-auto">
+      {/* CABECERA SUPERIOR - Más compacta */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.4.0-STABLE</span></h2>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+            <i className="fa-solid fa-chart-line text-emerald-500"></i>
+            Panel de Control Principal
+          </p>
         </div>
-        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-xl border border-white/5">
-          <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
-          <span className="text-xs font-bold uppercase tracking-widest opacity-90">
+        <div className="flex items-center gap-3 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg">
+          <i className="fa-solid fa-calendar-day text-emerald-400 text-xs"></i>
+          <span className="text-[9px] font-black uppercase tracking-widest">
             {new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
           </span>
         </div>
       </div>
 
-      {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* MÉTRICAS PRINCIPALES (KPIs) - Altura reducida */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Utilidad Neta', value: formatCurrency(netUtility, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { label: 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-          { label: 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-          { label: 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: 'Utilidad Neta', value: formatCurrency(netUtility, state.settings), icon: 'fa-vault', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Ingresos Proy.', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-up-right-dots', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          { label: 'Capital Regist.', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+          { label: 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
-            <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
+          <div key={i} className={`bg-white p-4 rounded-2xl border ${stat.border} shadow-sm hover:shadow-md transition-all group overflow-hidden relative`}>
+            <div className="flex items-center gap-3 relative z-10">
+              <div className={`w-10 h-10 shrink-0 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center text-lg shadow-inner group-hover:scale-105 transition-transform`}>
                 <i className={`fa-solid ${stat.icon}`}></i>
               </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
-                <p className="text-xl font-bold text-slate-900 font-mono tracking-tight">{stat.value}</p>
+              <div className="min-w-0">
+                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 truncate">{stat.label}</p>
+                <p className={`text-xs md:text-sm font-black text-slate-800 font-mono tracking-tighter`}>{stat.value}</p>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* AUDITORÍA DE RUTAS - Premium Table */}
+      {/* CONTENEDOR CENTRAL: AUDITORÍA ESTILO EXCEL */}
       {isAdmin && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
-          <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-md">
-                <i className="fa-solid fa-list-check text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Auditoría de Rutas</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Monitoreo de Flujo de Efectivo
-                </p>
-              </div>
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+            <div>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <i className="fa-solid fa-table-list text-blue-600"></i>
+                Auditoría de Rutas
+              </h3>
             </div>
 
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                className="w-6 h-6 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all"
               >
-                <i className="fa-solid fa-chevron-left text-sm"></i>
+                <i className="fa-solid fa-chevron-left text-[10px]"></i>
               </button>
-              <div className="flex items-center gap-1.5 px-4 border-x border-slate-100">
-                <span className="text-sm font-bold text-slate-900 uppercase">{currentPage}</span>
-                <span className="text-[10px] text-slate-400 uppercase">/ {totalPages}</span>
-              </div>
+              <span className="text-[9px] font-black text-slate-800 uppercase tracking-widest px-2 border-x border-slate-100">
+                {currentPage} / {totalPages || 1}
+              </span>
               <button
                 disabled={currentPage === totalPages || totalPages === 0}
                 onClick={() => setCurrentPage(p => p + 1)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                className="w-6 h-6 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all"
               >
-                <i className="fa-solid fa-chevron-right text-sm"></i>
+                <i className="fa-solid fa-chevron-right text-[10px]"></i>
               </button>
             </div>
           </div>
 
           <div className="overflow-x-auto custom-scrollbar">
-            <div className="min-w-[1200px]">
+            <div className="min-w-[900px]">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-20">
-                    <th className="px-6 py-4 border-r border-white/5 w-1/4">Cobrador / Ruta</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">Recaudo de Hoy</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">Meta Mensual</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">Efectividad</th>
-                    <th className="px-6 py-4 border-r border-white/5 w-[20%]">Progreso de Visitas</th>
-                    <th className="px-6 py-4 text-center w-[13%]">Estado</th>
+                  <tr className="bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest sticky top-0 z-20">
+                    <th className="px-5 py-3 border-r border-white/10 w-1/4">Cobrador / Ruta</th>
+                    <th className="px-2 py-3 border-r border-white/10 text-center w-[12%]">Recaudo Hoy</th>
+                    <th className="px-2 py-3 border-r border-white/10 text-center w-[12%]">Meta Mes</th>
+                    <th className="px-5 py-3 border-r border-white/10 text-center w-[12%]">Ind. Mora</th>
+                    <th className="px-5 py-3 border-r border-white/10 w-[20%]">Progreso Visitas</th>
+                    <th className="px-5 py-3 text-center w-[18%]">Estatus</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/60">
+                <tbody className="divide-y divide-slate-100">
                   {paginatedCollectors.map((stat) => (
-                    <tr key={stat.id} className="hover:bg-slate-50 transition-colors group text-sm">
-                      <td className="px-6 py-3 border-r border-slate-50 bg-white group-hover:bg-slate-50">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold group-hover:bg-emerald-500 group-hover:text-white transition-all text-xs">
-                            {stat.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-slate-800 font-bold uppercase truncate">{stat.name}</p>
-                            <p className="text-[10px] text-emerald-600 font-semibold uppercase mt-0.5 opacity-80">{stat.clientes} Clientes</p>
-                          </div>
-                        </div>
+                    <tr key={stat.id} className="hover:bg-blue-50/20 transition-colors group text-[10px] font-bold">
+                      <td className="px-5 py-3 border-r border-slate-100 bg-white group-hover:bg-blue-50/5">
+                        <p className="text-slate-900 font-black uppercase truncate tracking-tight">{stat.name}</p>
+                        <p className="text-[10px] text-white/40 font-mono mt-1">v6.1.183</p>
+                        <p className="text-[7px] text-blue-500 font-black uppercase tracking-widest mt-0.5">{stat.clientes} Clientes</p>
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center font-mono font-bold text-emerald-600">
+                      <td className="px-2 py-3 border-r border-slate-100 text-center font-mono font-black text-emerald-600 bg-slate-50/20">
                         {formatCurrency(stat.recaudo, state.settings)}
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center font-mono font-bold text-blue-600">
+                      <td className="px-2 py-3 border-r border-slate-100 text-center font-mono font-black text-blue-600 bg-blue-50/10">
                         {formatCurrency(stat.monthlyGoal, state.settings)}
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center">
-                        <div className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold font-mono border ${
-                          stat.financialMora > 30 ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                          stat.financialMora > 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
-                          'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        }`}>
+                      <td className="px-5 py-3 border-r border-slate-100 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black font-mono border ${stat.financialMora > 30 ? 'bg-red-50 text-red-600 border-red-100' :
+                          stat.financialMora > 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          }`}>
                           {Math.round(stat.financialMora)}%
-                        </div>
+                        </span>
                       </td>
-                      <td className="px-6 py-3 border-r border-slate-50">
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
-                             <span>Rendimiento</span>
-                             <span>{Math.round(stat.routeCompletion)}%</span>
-                          </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                      <td className="px-5 py-3 border-r border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                             <div
-                              className={`h-full rounded-full transition-all duration-1000 ${stat.isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                              className={`h-full transition-all duration-1000 ${stat.isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}`}
                               style={{ width: `${Math.max(5, stat.routeCompletion)}%` }}
                             />
                           </div>
+                          <span className="text-[8px] font-black text-slate-500 w-10 text-right">
+                            {stat.visitados}/{stat.clientes}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-6 py-3 text-center">
+                      <td className="px-5 py-3 text-center">
                         {stat.isCompleted ? (
-                          <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-check"></i> Listo
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[7px] font-black uppercase flex items-center justify-center gap-1">
+                            <i className="fa-solid fa-check-double"></i> CERRADA
                           </span>
                         ) : (
-                          <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-clock opacity-50"></i> PEND.
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full text-[7px] font-black uppercase flex items-center justify-center gap-1">
+                            <i className="fa-solid fa-clock"></i> {stat.clientes - stat.visitados} PEND.
                           </span>
                         )}
                       </td>
@@ -533,55 +508,48 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         </div>
       )}
 
-      {/* SECCIÓN INFERIOR: GRÁFICOS E INSIGHTS - High-End Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* GRÁFICO DE RENDIMIENTO */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-xl flex flex-col transition-all">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                <i className="fa-solid fa-chart-line text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">Tendencia Operativa</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Métricas de Capital</p>
-              </div>
-            </div>
+      {/* SECCIÓN INFERIOR: GRÁFICOS E INSIGHTS IA - Altura Optimizada */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        {/* GRÁFICO DE RENDIMIENTO - Achicado */}
+        <div className="lg:col-span-7 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <i className="fa-solid fa-chart-column text-indigo-500"></i>
+              Métricas Mensuales
+            </h3>
+            <span className="text-[7px] font-black text-slate-400 uppercase">Datos Proyectados</span>
           </div>
 
-          <div className="h-[280px] w-full mt-auto bg-slate-50/50 rounded-2xl p-4 border border-slate-100 relative">
+          <div className="h-[250px] w-full mt-auto relative bg-slate-50/30 rounded-2xl p-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }}
-                  dy={10}
+                  tick={{ fontSize: 9, fill: '#64748b', fontWeight: 800 }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}
+                  tick={{ fontSize: 8, fill: '#94a3b8' }}
                   tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
-                  cursor={{ fill: '#f1f5f9', opacity: 0.6 }}
+                  cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
                   contentStyle={{
                     borderRadius: '1rem',
-                    border: 'none',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    backgroundColor: '#1e293b',
-                    color: '#fff',
-                    padding: '12px'
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)'
                   }}
-                  itemStyle={{ color: '#fff', padding: '2px 0' }}
                   formatter={(value: number) => formatCurrency(value, state.settings)}
                 />
-                <Bar dataKey="value" radius={[12, 12, 0, 0]} barSize={40}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={1500}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -591,28 +559,30 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
         </div>
 
-        {/* MÓDULO AUDITOR GENERAL PDF */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xl flex flex-col transition-all">
-          <div className="flex flex-col items-center text-center space-y-3 mb-6">
-            <div className="w-14 h-14 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-500/20 rotate-3">
-              <i className="fa-solid fa-file-pdf text-2xl"></i>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">Generador PDF</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Informes Auditables</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 flex-1 flex flex-col justify-between">
-            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+        {/* MÓDULO AUDITOR GENERAL PDF - Reemplaza Consultoría IA */}
+        <div className="lg:col-span-12 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-6">
+          {/* COLUMNA IZQUIERDA: CONTROLES */}
+          <div className="w-full md:w-1/3 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                <i className="fa-solid fa-file-contract text-lg"></i>
+              </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Auditor de Campo</label>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest leading-none">Auditor General PDF</h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Generador de Reportes de Rendimiento</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              {/* SELECTOR DE COBRADOR */}
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Seleccionar Cobrador</label>
                 <select
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   value={auditCollector}
                   onChange={(e) => setAuditCollector(e.target.value)}
                 >
-                  <option value="all">TODOS LOS COBRADORES</option>
+                  <option value="all">Todos los Cobradores</option>
                   {(Array.isArray(state.users) ? state.users : [])
                     .filter(u => {
                       if (u.role !== Role.COLLECTOR) return false;
@@ -620,37 +590,110 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                       return u.managedBy === state.currentUser?.id;
                     })
                     .map(u => (
-                      <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
+                      <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                 </select>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Rango de Fecha</label>
-                <div className="grid grid-cols-2 gap-2">
+              {/* SELECTOR DE FECHAS */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desde</label>
                   <input
                     type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
                     value={auditStartDate}
                     onChange={(e) => setAuditStartDate(e.target.value)}
                   />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Hasta</label>
                   <input
                     type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
                     value={auditEndDate}
                     onChange={(e) => setAuditEndDate(e.target.value)}
                   />
                 </div>
               </div>
+
+              {/* BOTONES */}
+              <button
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+                onClick={handleGenerateAuditPDF}
+              >
+                <i className="fa-solid fa-file-pdf text-red-400"></i>
+                Descargar Informe PDF
+              </button>
+            </div>
+          </div>
+
+          {/* COLUMNA DERECHA: PREVISUALIZACIÓN DE MÉTRICAS */}
+          <div className="w-full md:w-2/3 grid grid-cols-1 gap-4">
+
+            {/* KPI 2: CLIENTES (Ahora único en fila superior) */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Crecimiento Cartera</span>
+                {auditMetrics.clientsIncreased ? (
+                  <span className="text-[9px] font-black text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-user-plus"></i> Creció
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <i className="fa-solid fa-user-minus"></i> Se Mantiene
+                  </span>
+                )}
+              </div>
+              <div className="mt-4">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-2xl font-black text-slate-800 font-mono">{auditMetrics.activeClients}</p>
+                  <span className="text-xs font-bold text-blue-500 bg-blue-50 px-1.5 rounded">+{auditMetrics.newClients} Nuevos</span>
+                </div>
+                <p className="text-[9px] font-bold text-slate-500 mt-1">Total Clientes Activos</p>
+              </div>
+              <div className="h-1 bg-slate-200 rounded-full mt-4 overflow-hidden">
+                <div className="h-full bg-blue-500 w-[60%]"></div>
+              </div>
             </div>
 
-            <button
-              onClick={handleGenerateAuditPDF}
-              className="w-full py-3 premium-gradient text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
-            >
-              <i className="fa-solid fa-file-export text-sm"></i>
-              Descargar PDF
-            </button>
+            {/* GRÁFICO (EVOLUCIÓN SEMANAL) */}
+            <div className="col-span-1 sm:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 relative overflow-hidden flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Evolución Diaria (Lunes - Sábado)</h4>
+                <div className="flex gap-2 text-[7px] font-black uppercase text-slate-400">
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div> Bajo</span>
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div> Medio</span>
+                  <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Alto</span>
+                </div>
+              </div>
+
+              <div className="flex items-end justify-between h-28 gap-2 mt-auto">
+                {auditMetrics.dailyRevenue.map((day, i) => {
+                  const maxVal = Math.max(...auditMetrics.dailyRevenue.map(d => d.amount), 1);
+                  const heightPct = maxVal > 0 ? (day.amount / maxVal) * 100 : 0;
+
+                  // Determinar color
+                  let barColor = 'bg-rose-500'; // Bajo
+                  if (day.amount > (maxVal * 0.66)) barColor = 'bg-emerald-500'; // Alto
+                  else if (day.amount > (maxVal * 0.33)) barColor = 'bg-amber-400'; // Medio
+
+                  return (
+                    <div key={`${day.day}-${i}`} className="flex-1 flex flex-col justify-end items-center group relative h-full">
+                      <div
+                        className={`w-full ${barColor}/80 hover:${barColor} transition-all rounded-t-lg relative`}
+                        style={{ height: `${Math.max(5, heightPct)}%` }}
+                      >
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          {formatCurrency(day.amount, state.settings)}
+                        </div>
+                      </div>
+                      <span className="mt-2 text-[8px] font-bold text-slate-400 uppercase">{day.day.substring(0, 3)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>

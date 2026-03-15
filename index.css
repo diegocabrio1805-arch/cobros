@@ -1,42 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   --app-height: 100%;
+  --brand-primary: #10b981;
+  --brand-secondary: #6366f1;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --premium-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
 }
 
 html,
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  background-color: #f1f5f9;
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--premium-shadow);
 }
 
-button,
-a,
-input,
-select {
-  touch-action: manipulation;
+.premium-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-input,
-select,
-textarea {
-  font-size: 16px !important;
+.charcoal-gradient {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {

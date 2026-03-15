@@ -623,30 +623,38 @@ export const formatDate = (dateString: string): string => {
  * Robustly parses a currency string by stripping non-numeric characters.
  * Handles cases like "25.000", "$ 25.000", "25,000.00" etc.
  */
-export const parseAmount = (input: string | number): number => {
+export const parseAmount = (input: string | number | null | undefined): number => {
   if (typeof input === 'number') return input;
-  if (!input) return 0;
+  if (input === null || input === undefined) return 0;
 
   let str = String(input).trim();
+  if (!str) return 0;
   
-  // Si tiene puntos y comas, asumimos que el último es el decimal
+  // Limpieza agresiva: quitar símbolos de moneda, espacios, etc.
+  // Solo dejamos dígitos, puntos, comas y el signo menos
   const clean = str.replace(/[^\d.,-]/g, '');
+  if (!clean) return 0;
+
   const lastDot = clean.lastIndexOf('.');
   const lastComma = clean.lastIndexOf(',');
 
-  // Caso específico de Paraguay/Argentina: "1.320.000" o "1.320" 
+  // Caso específico de Paraguay/Argentina/España: "1.320.000" o "1.320" 
   // No hay comas, pero hay puntos. Si el punto NO es el decimal (porque hay múltiples o porque hay 3 dígitos después)
   if (lastComma === -1 && lastDot !== -1) {
     const dots = (clean.match(/\./g) || []).length;
     const afterLastDot = clean.substring(lastDot + 1);
     
-    // Si hay más de un punto, DEFINITIVAMENTE son separadores de miles
     if (dots > 1) return parseFloat(clean.replace(/\./g, '')) || 0;
-    
-    // Si hay un solo punto pero tiene 3 dígitos después (ej: 1.500), tratamos como miles
-    // EXCEPCIÓN: Si es un número pequeño con decimales (ej: 1.50). 
-    // En el contexto de esta App (Cobros), 1.320 suele ser mil trescientos veinte, no uno punto tres.
     if (afterLastDot.length === 3) return parseFloat(clean.replace(/\./g, '')) || 0;
+  }
+
+  // Caso opuesto (English/USA): "1,000,000" o "1,500" (sin decimales)
+  if (lastDot === -1 && lastComma !== -1) {
+    const commas = (clean.match(/,/g) || []).length;
+    const afterLastComma = clean.substring(lastComma + 1);
+    
+    if (commas > 1) return parseFloat(clean.replace(/,/g, '')) || 0;
+    if (afterLastComma.length === 3) return parseFloat(clean.replace(/,/g, '')) || 0;
   }
 
   // Lógica estándar para otros casos

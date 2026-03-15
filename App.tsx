@@ -1,17 +1,11 @@
-
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
-import { Preferences } from '@capacitor/preferences';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
 import Loans from './components/Loans';
-
 import CollectionRoute from './components/CollectionRoute';
 import Expenses from './components/Expenses';
-import CollectionMap from './components/CollectionMap';
 import CollectorCommission from './components/CollectorCommission';
 import Collectors from './components/Collectors';
 import Managers from './components/Managers';
@@ -24,1315 +18,49 @@ import Profile from './components/Profile';
 import Reports from './components/Reports';
 import Generator from './components/Generator/Generator';
 import { getTranslation } from './utils/translations';
-import { getLocalDateStringForCountry, generateUUID, formatCurrency, parseAmount, calculateTotalPaidFromLogs } from './utils/helpers';
-import { resolveSettings } from './utils/settingsHierarchy';
-import { useSync } from './hooks/useSync';
-import { startConnectionKeeper, isPrintingNow, connectToPrinter } from './services/bluetoothPrinterService';
+import { formatCurrency } from './utils/helpers';
+import { useAppInitialization } from './hooks/useAppInitialization';
+import { useAppSyncEngine } from './hooks/useAppSyncEngine';
+import { useAppActions } from './hooks/useAppActions';
+import { startConnectionKeeper } from './services/bluetoothPrinterService';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
-import { Geolocation } from '@capacitor/geolocation';
-
-
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
-import { StorageService } from './utils/localforageStorage';
-import { supabase } from './utils/supabaseClient';
-
-
-const CURRENT_VERSION_ID = '6.3.4-PERF';
-const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showManagerExpiryModal, setShowManagerExpiryModal] = useState(false);
-  const [showCollectorExpiryAlert, setShowCollectorExpiryAlert] = useState(false);
-  const [expiringCollectorsNames, setExpiringCollectorsNames] = useState<string[]>([]);
-  const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
-  const [isJumping, setIsJumping] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
-
-  // --- BULLETPROOF AUTO-UPDATER ---
-  useEffect(() => {
-    const checkForUpdates = async () => {
-      try {
-        const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
-        if (!res.ok) return;
-        const text = await res.text();
-        const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
-        if (match && match[1]) {
-          const remoteVersion = match[1];
-          const localVersion = CURRENT_VERSION_ID;
-          // Extract numeric semver part for comparison (strip suffixes like -MIRROR, -PRIVACY-LAW)
-          const toNum = (v: string) => v.split('-')[0].split('.').map(Number).reduce((a, b, i) => a + b * Math.pow(1000, 2 - i), 0);
-          const localNum = toNum(localVersion);
-          const remoteNum = toNum(remoteVersion);
-          const lastReload = parseInt(localStorage.getItem('last_auto_reload') || '0');
-          // Only reload when remote is STRICTLY numerically newer AND cooldown has passed (5 minutes)
-          if (remoteNum > localNum && (Date.now() - lastReload > 300000)) {
-            console.log("UPDATE: remote", remoteVersion, "is newer than local", localVersion, "— reloading.");
-            localStorage.setItem('last_auto_reload', Date.now().toString());
-            if ('caches' in window) {
-              const names = await caches.keys();
-              await Promise.all(names.map(name => caches.delete(name)));
-            }
-            if ('serviceWorker' in navigator) {
-              const regs = await navigator.serviceWorker.getRegistrations();
-              await Promise.all(regs.map(r => r.unregister()));
-            }
-            window.location.reload();
-          }
-        }
-      } catch (error) {
-        console.log("Auto-updater check failed (offline?)");
-      }
-    };
-
-    // Check 5 seconds after boot, then every 2 minutes
-    setTimeout(checkForUpdates, 5000);
-    const interval = setInterval(checkForUpdates, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Indicate successful boot to index.html anti-panic
-  useEffect(() => {
-    (window as any).__isBooted = true;
-  }, []);
-  // 1. STATE INITIALIZATION
-  const [state, setState] = useState<AppState>(() => {
-    const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
-    const defaultInitialState: AppState = {
-      clients: [],
-      loans: [],
-      payments: [],
-      expenses: [],
-      collectionLogs: [],
-      users: [initialAdmin],
-      currentUser: null,
-      commissionPercentage: 10,
-      commissionBrackets: [],
-      initialCapital: 0,
-      settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
-      branchSettings: {}
-    };
-    return defaultInitialState; // Inicialmente vacío mientras IndexedDB carga
-  });
-
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
-  useEffect(() => {
-    const loadData = async () => {
-      const EMERGENCY_SYNC_VERSION = 633; // INCREMENTED AFTER BALANCE RESTORATION AND RELOAD FIX
-      const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
-
-      const defaultInitialState: AppState = {
-        clients: [], loans: [], payments: [], expenses: [], collectionLogs: [],
-        users: [initialAdmin], currentUser: null, commissionPercentage: 10, commissionBrackets: [],
-        initialCapital: 0, settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
-        branchSettings: {}
-      };
-
-      try {
-        const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
-        if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-          console.log(`[App] Version mismatch: ${lastAppVersion} -> ${CURRENT_VERSION_ID}. Purging cache...`);
-
-          // 1. Unregister Service Workers
-          if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const registration of registrations) {
-              await registration.unregister();
-            }
-          }
-
-          // 2. Clear Caches
-          if ('caches' in window) {
-            const cacheNames = await caches.keys();
-            for (const cacheName of cacheNames) {
-              await caches.delete(cacheName);
-            }
-          }
-
-          // 3. Keep settings but clear the rest
-          let savedSettings = null; let savedBranchSettings = null;
-
-          const oldSaved = localStorage.getItem('prestamaster_v2');
-          if (oldSaved) {
-            try {
-              const oldData = JSON.parse(oldSaved);
-              if (oldData?.settings) savedSettings = oldData.settings;
-              if (oldData?.branchSettings) savedBranchSettings = oldData.branchSettings;
-            } catch (e) { }
-          } else {
-            const idbSaved = await StorageService.getItem<AppState>('prestamaster_v2');
-            if (idbSaved && idbSaved.settings) savedSettings = idbSaved.settings;
-            if (idbSaved && idbSaved.branchSettings) savedBranchSettings = idbSaved.branchSettings;
-          }
-
-          localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-          localStorage.removeItem('prestamaster_v2'); // Destruir de LocalStorage normal (pesada)
-
-          // CRÍTICO: Forzar full sync eliminando timestamps viejos
-          localStorage.removeItem('last_sync_timestamp_ms');
-          localStorage.removeItem('last_sync_timestamp_v6');
-          localStorage.removeItem('last_sync_timestamp_v7');
-          localStorage.removeItem('last_sync_timestamp_v8');
-
-          if (savedSettings || savedBranchSettings) {
-            await StorageService.setItem('prestamaster_v2', { settings: savedSettings || defaultInitialState.settings, branchSettings: savedBranchSettings || {} });
-          }
-
-          console.log("[App] Purge complete. Reloading...");
-          window.location.reload();
-          return;
-        }
-
-        // Leer datos actuales de IndexedDB (antes LocalStorage)
-        let rawData: any = await StorageService.getItem<AppState>('prestamaster_v2');
-        if (!rawData) {
-          // Fallback temporal si estaban en localStorage y no migramos versión
-          const lsData = localStorage.getItem('prestamaster_v2');
-          if (lsData) {
-            rawData = JSON.parse(lsData);
-            localStorage.removeItem('prestamaster_v2'); // Mudar
-            await StorageService.setItem('prestamaster_v2', rawData);
-          }
-        }
-
-        if (!rawData) {
-          setState(defaultInitialState);
-          setIsInitializing(false);
-          return;
-        }
-
-        // Reconstrucción del Estado
-        const json = JSON.stringify(rawData).replace(/"admin-1"/g, `"${SYSTEM_ADMIN_ID}"`);
-        rawData = JSON.parse(json);
-
-        const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
-          ...u,
-          role: u.role as Role,
-          managedBy: u.managedBy || u.managed_by
-        }));
-
-        let validatedCurrentUser = null;
-        if (rawData?.currentUser && rawData.currentUser.id) {
-          validatedCurrentUser = users.find((u: User) => u.id === rawData.currentUser.id) || null;
-        } else {
-          try {
-            const res = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
-            if (res.value) {
-              const parsedNative = JSON.parse(res.value);
-              validatedCurrentUser = users.find((u: User) => u.id === parsedNative.id) || null;
-            }
-          } catch (e) { }
-        }
-
-        setState({
-          clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
-          loans: (Array.isArray(rawData?.loans) ? rawData.loans : []).map((l: any) => ({ ...l, isRenewal: l.isRenewal || false })),
-          payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
-          expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
-          collectionLogs: (Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : []).map((l: any) => ({
-            ...l, isRenewal: l.isRenewal || false, isOpening: l.isOpening || false,
-            type: l.type as CollectionLogType
-          })),
-          users,
-          currentUser: validatedCurrentUser,
-          commissionPercentage: typeof rawData?.commissionPercentage === 'number' ? rawData.commissionPercentage : 10,
-          commissionBrackets: Array.isArray(rawData?.commissionBrackets) ? rawData.commissionBrackets : [],
-          initialCapital: typeof rawData?.initialCapital === 'number' ? rawData.initialCapital : 0,
-          settings: rawData?.settings || defaultInitialState.settings,
-          branchSettings: rawData?.branchSettings || defaultInitialState.branchSettings
-        });
-
-      } catch (err) {
-        console.error("Error loading IDB DB", err);
-        setState(defaultInitialState);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    loadData();
-  }, []);
-
-
-  const resolvedSettings = useMemo(() => {
-    try {
-      return resolveSettings(state.currentUser, state.branchSettings || {}, state.users, state.settings || { language: 'es', country: 'CO', numberFormat: 'dot' } as any);
-    } catch (e) {
-      console.error("Settings resolution error:", e);
-      return { language: 'es', country: 'CO', numberFormat: 'dot' } as any;
-    }
-  }, [state.currentUser, state.branchSettings, state.users]);
-
-  const mergeData = <T extends { id: string, updated_at?: string }>(
-    local: T[],
-    remote: T[],
-    pendingAddIds: Set<string> = new Set(),
-    pendingDeleteIds: Set<string> = new Set(),
-    isFullSync: boolean = false,
-    isAppendOnly: boolean = false
-  ): T[] => {
-    if (!Array.isArray(local)) local = [];
-    if (!Array.isArray(remote)) remote = [];
-    if (isFullSync) {
-      const localMap = new Map((Array.isArray(local) ? local : []).map(l => [l.id, l]));
-      const result = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)
-        .map(r => {
-          const l = localMap.get(r.id);
-          if (l) {
-            // MERGE to preserve heavy fields (photos) that are excluded from main sync
-            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
-            return { ...l, ...cleanR } as T;
-          }
-          return r;
-        });
-
-      const remoteIds = new Set(result.map(r => r.id));
-      local.forEach(l => {
-        if (!l || !l.id) return;
-
-        // PROTECTION: If local item is very recent (< 24 hours), keep it even if not in remote/result
-        // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
-        const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
-
-        if ((pendingAddIds.has(l.id) || isRecent) && !remoteIds.has(l.id)) {
-          result.push(l);
-          remoteIds.add(l.id);
-        }
-      });
-      return result;
-    }
-
-    const remoteMap = new Map((Array.isArray(remote) ? remote : []).map(i => [i.id, i]));
-    const result: T[] = [...(Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
-    const resultMap = new Map(result.map(i => [i.id, i]));
-
-    local.forEach(l => {
-      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
-      const r = remoteMap.get(l.id);
-
-      // PROTECTION: If local item is very recent (< 24 hours), keep it even if not in remote/result
-      // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
-      const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
-
-      if (!r) {
-        if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
-          result.push(l);
-          resultMap.set(l.id, l);
-        }
-      } else {
-        // PROTECTION: If remote has more installments than local, ALWAYS use remote.
-        // This fixes the "2 installments vs 40" bug where local was considered "newer" but was truncated.
-        const remoteInstallments = Array.isArray((r as any).installments) ? (r as any).installments : [];
-        const localInstallments = Array.isArray((l as any).installments) ? (l as any).installments : [];
-
-        const remotePaidCount = remoteInstallments.filter((i: any) => i.status === 'Pagado').length;
-        const localPaidCount = localInstallments.filter((i: any) => i.status === 'Pagado').length;
-
-        const remoteIsMoreComplete = remoteInstallments.length > localInstallments.length || remotePaidCount > localPaidCount;
-
-        if (!isAppendOnly && !remoteIsMoreComplete && (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
-          const idx = result.findIndex(item => item.id === l.id);
-          if (idx !== -1) {
-            // FIX: Instead of replacing L with R, or keeping L as is, 
-            // if Remote exists but Local is "newer" (rare for sync but possible), 
-            // we should still consider if Remote has fields Local doesn't. 
-            // BUT here we were just preferring Local. 
-            // The critical part is when we choose REMOTE (result already has R).
-            result[idx] = l;
-            resultMap.set(l.id, l);
-          }
-        } else if (r) {
-          // If we are keeping remote item R (which is in 'result' by default), 
-          // we should MERGE it with local item L to preserve fields omitted by server (like photos).
-          const idx = result.findIndex(item => item.id === r.id);
-          if (idx !== -1) {
-            // CRITICAL FIX: Clean the remote object of explicit `undefined` values.
-            // If the sync query omitted a column (e.g. photos) to save bandwidth, pullData maps it as { profilePic: undefined }.
-            // Spreading this { profilePic: undefined } over the local object { profilePic: "base64" } deletes the base64!
-            // By filtering out `undefined` keys, the local value is preserved correctly.
-            // Note: `null` values are kept, as they represent actual DB clearings.
-            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
-
-            result[idx] = { ...l, ...cleanR } as T; // Shallow merge: preserve local valid data against undefined omissions
-            resultMap.set(r.id, result[idx]);
-          }
-        }
-      }
-    });
-
-    if (!isFullSync) {
-      local.forEach(l => {
-        if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
-          result.push(l);
-          resultMap.set(l.id, l);
-        }
-      });
-    }
-    return result;
-  };
-
-  const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
-    console.log("[handleRealtimeData] Start merging data. isFullSync:", isFullSync, "payments:", newData.payments?.length);
-    setState(prev => {
-      const queueStr = localStorage.getItem('syncQueue');
-      const queue = queueStr ? JSON.parse(queueStr) : [];
-      const pendingDeleteIds = new Set<string>();
-      const pendingAddIds = new Set<string>();
-
-      if (Array.isArray(queue)) {
-        queue.forEach((item: any) => {
-          if (item?.data?.id) {
-            if (item.operation.startsWith('DELETE_')) pendingDeleteIds.add(item.data.id);
-            else if (item.operation.startsWith('ADD_')) pendingAddIds.add(item.data.id);
-          }
-        });
-      }
-
-      const updatedState = { ...prev };
-
-      if (newData.deletedItems && newData.deletedItems.length > 0) {
-        const delIds = new Set(newData.deletedItems.map(d => d.recordId));
-        if (updatedState.payments) updatedState.payments = updatedState.payments.filter(i => !delIds.has(i.id));
-        if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
-        if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
-        if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
-      }
-
-      // MAP SNAKE_CASE TO CAMELCASE PREVENTIVELY
-      const mappedData = { ...newData };
-      if (mappedData.collectionLogs) {
-        mappedData.collectionLogs = mappedData.collectionLogs.map(l => ({
-          ...l,
-          loanId: l.loanId || (l as any).loan_id,
-          clientId: l.clientId || (l as any).client_id,
-          branchId: l.branchId || (l as any).branch_id,
-          collectorId: l.collectorId || (l as any).collector_id,
-          recordedBy: l.recordedBy || (l as any).recorded_by,
-          receiptNumber: l.receiptNumber || (l as any).receipt_number,
-          isOpening: l.isOpening !== undefined ? l.isOpening : (l as any).is_opening,
-          isRenewal: l.isRenewal !== undefined ? l.isRenewal : (l as any).is_renewal,
-          isVirtual: l.isVirtual !== undefined ? l.isVirtual : (l as any).is_virtual,
-          notes: l.notes || (l as any).notes,
-          deletedAt: l.deletedAt || (l as any).deleted_at
-        }));
-      }
-      if (mappedData.payments) {
-        mappedData.payments = mappedData.payments.map(p => ({
-          ...p,
-          loanId: (p as any).loanId || (p as any).loan_id,
-          clientId: (p as any).clientId || (p as any).client_id,
-          branchId: (p as any).branchId || (p as any).branch_id,
-          collectorId: (p as any).collectorId || (p as any).collector_id,
-          isVirtual: (p as any).isVirtual !== undefined ? (p as any).isVirtual : (p as any).is_virtual,
-          isRenewal: (p as any).isRenewal !== undefined ? (p as any).isRenewal : (p as any).is_renewal,
-          location: (p as any).location || (p as any).location,
-          deletedAt: (p as any).deletedAt || (p as any).deleted_at
-        }));
-      }
-      if (mappedData.loans) {
-        mappedData.loans = mappedData.loans.map(lo => ({
-          ...lo,
-          clientId: (lo as any).clientId || (lo as any).client_id,
-          branchId: (lo as any).branchId || (lo as any).branch_id,
-          collectorId: (lo as any).collectorId || (lo as any).collector_id,
-          interestRate: (lo as any).interestRate || (lo as any).interest_rate,
-          totalInstallments: (lo as any).totalInstallments || (lo as any).total_installments,
-          installmentValue: (lo as any).installmentValue || (lo as any).installment_value,
-          totalAmount: (lo as any).totalAmount || (lo as any).total_amount,
-          isRenewal: (lo as any).isRenewal !== undefined ? (lo as any).isRenewal : (lo as any).is_renewal,
-          customHolidays: (lo as any).customHolidays || (lo as any).custom_holidays,
-          deletedAt: (lo as any).deletedAt || (lo as any).deleted_at
-        }));
-      }
-      if (mappedData.clients) {
-        mappedData.clients = mappedData.clients.map(c => ({
-          ...c,
-          documentId: (c as any).documentId || (c as any).document_id,
-          secondaryPhone: (c as any).secondaryPhone || (c as any).secondary_phone,
-          addedBy: (c as any).addedBy || (c as any).added_by,
-          branchId: (c as any).branchId || (c as any).branch_id,
-          profilePic: (c as any).profilePic || (c as any).profile_pic,
-          housePic: (c as any).housePic || (c as any).house_pic,
-          businessPic: (c as any).businessPic || (c as any).business_pic,
-          documentPic: (c as any).documentPic || (c as any).document_pic,
-          domicilioLocation: (c as any).domicilioLocation || (c as any).domicilio_location,
-          creditLimit: (c as any).creditLimit || (c as any).credit_limit,
-          allowCollectorLocationUpdate: (c as any).allowCollectorLocationUpdate !== undefined ? (c as any).allowCollectorLocationUpdate : (c as any).allow_collector_location_update,
-          customNoPayMessage: (c as any).customNoPayMessage || (c as any).custom_no_pay_message,
-          isActive: (c as any).isActive !== undefined ? (c as any).isActive : (c as any).is_active,
-          isHidden: (c as any).isHidden !== undefined ? (c as any).isHidden : (c as any).is_hidden,
-          deletedAt: (c as any).deletedAt || (c as any).deleted_at
-        }));
-      }
-      if (mappedData.users) {
-        mappedData.users = mappedData.users
-          .map(u => ({
-            ...u,
-            managedBy: (u as any).managedBy || (u as any).managed_by,
-            expiryDate: (u as any).expiryDate || (u as any).expiry_date,
-            requiresLocation: (u as any).requiresLocation !== undefined ? (u as any).requiresLocation : (u as any).requires_location,
-            profilePic: (u as any).profilePic || (u as any).profile_pic || (u as any).photo_url,
-            homePic: (u as any).homePic || (u as any).home_pic,
-            homeLocation: (u as any).homeLocation || (u as any).home_location,
-            deletedAt: (u as any).deletedAt || (u as any).deleted_at
-          }))
-          .filter(u => !u.deletedAt); // Ocultar usuarios eliminados suavemente
-      }
-      if (mappedData.expenses) {
-        mappedData.expenses = mappedData.expenses.map(e => ({
-          ...e,
-          branchId: (e as any).branchId || (e as any).branch_id,
-          addedBy: (e as any).addedBy || (e as any).added_by,
-          deletedAt: (e as any).deletedAt || (e as any).deleted_at
-        }));
-      }
-
-      if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
-      if (mappedData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, mappedData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
-      if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
-      if (mappedData.users) {
-        updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
-        // CRITICAL: Also update currentUser if their profile changed remotely
-        // This ensures GPS enforcement and blocking take effect immediately
-        if (prev.currentUser && mappedData.users.length > 0) {
-          const refreshedCurrentUser = mappedData.users.find((u: any) => u.id === prev.currentUser!.id);
-          if (refreshedCurrentUser) {
-            const mappedUser = {
-              ...prev.currentUser,
-              ...refreshedCurrentUser,
-              requiresLocation: refreshedCurrentUser.requiresLocation ?? (refreshedCurrentUser as any).requires_location ?? prev.currentUser.requiresLocation,
-              blocked: refreshedCurrentUser.blocked ?? prev.currentUser.blocked,
-              expiryDate: refreshedCurrentUser.expiryDate ?? (refreshedCurrentUser as any).expiry_date ?? prev.currentUser.expiryDate,
-              name: refreshedCurrentUser.name ?? prev.currentUser.name,
-              username: refreshedCurrentUser.username ?? prev.currentUser.username,
-            };
-            updatedState.currentUser = mappedUser;
-          }
-        }
-      }
-
-      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
-
-      console.log("[handleRealtimeData] Merge Finished. Final payments:", updatedState.payments?.length);
-      return updatedState;
-    });
-  };
-
-
-  // 3. SYNC HOOK
-  const {
-    isSyncing, isFullSyncing, syncError, isOnline, processQueue, forceFullSync, pullData,
-    pushClient, pushLoan, pushPayment, pushLog, pushUser, pushSettings, addToQueue,
-    setSuccessMessage, showSuccess, successMessage, queueLength, clearQueue,
-    deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, fetchClientPhotos
-  } = useSync(handleRealtimeData);
-
-  const doPull = () => pullData();
-
-  const handleDeepReset = () => {
-    if (confirm("¿Estás seguro? Esto borrará todos los datos locales y forzará una descarga total.")) {
-      StorageService.removeItem('prestamaster_v2').then(() => {
-        localStorage.clear();
-        window.location.reload();
-      });
-    }
-  };
-
-  // 4. COMMAND FUNCTIONS
-  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
-    if (!silent) setSuccessMessage(message);
-    if (fullSync) await forceFullSync();
-    else await processQueue(true, false, skipPull);
-  };
-
-  // --- 4. EFFECTS ---
-  const forceSyncRef = React.useRef(handleForceSync);
-  useEffect(() => { forceSyncRef.current = handleForceSync; }, [handleForceSync]);
-
-  // REMOVED: Duplicate sync interval - already handled by the main sync effect below (line 309)
-
-  useEffect(() => {
-    if (isInitializing) return;
-    const timer = setTimeout(() => {
-      try {
-        StorageService.setItem('prestamaster_v2', state);
-        if (state.currentUser) {
-          Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
-        }
-      } catch (e) {
-        console.error("IDB Save Error:", e);
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [state, isInitializing]);
-
-  useEffect(() => {
-    const recover = async () => {
-      if (state.currentUser) return;
-      const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
-      if (value) {
-        try {
-          const user = JSON.parse(value);
-          setState((prev: AppState) => ({ ...prev, currentUser: user }));
-          setTimeout(() => handleForceSync(true), 1000);
-        } catch (e) { }
-      }
-    };
-    recover();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && navigator.onLine)) {
-        Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
-        setState((prev: AppState) => ({ ...prev, currentUser: null }));
-      }
-    });
-    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant - MARCH 12 2026) ---
-    const triggerEmergencySync = async () => {
-      const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
-      const syncKey = 'emergency_sync_v639_FINAL_COMPLETE';
-      
-      if (lastSyncKey !== syncKey && state.currentUser) {
-        console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
-        setSuccessMessage("¡RECUPERANDO DATOS v6.4.0!");
-        
-        // Limpiar timestamps antiguos y claves de sincronización para forzar descarga total
-        const keysToRemove = [
-          'last_sync_timestamp',
-          'last_full_sync',
-          'sync_metadata',
-          'local_changes_queue',
-          'emergency_sync_v638_UPDATE_FINAL',
-          'emergency_sync_v639_UPDATE_FINAL',
-          'emergency_sync_v639_FINAL_COMPLETE',
-          'last_sync_timestamp_ms',
-          'last_sync_timestamp_v6',
-          'last_sync_timestamp_v7',
-          'last_sync_timestamp_v8',
-          'last_sync_timestamp_v630'
-        ];
-        
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-        localStorage.setItem('last_emergency_sync_key', syncKey);
-
-        console.log("🔄 [EMERGENCY] Synchronization forced. Reloading application...");
-        
-        // Un pequeño retraso para asegurar que el mensaje de éxito se vea antes de recargar
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      }
-    };
-    triggerEmergencySync();
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [state.currentUser]);
-
-  useEffect(() => {
-    // Súper Conexión: Mantener impresora vinculada globalmente (v6.1.43)
-    startConnectionKeeper();
-    
-    // Intento inicial agresivo al montar la App
-    connectToPrinter(undefined, true).catch(() => { });
-    
-    const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
-      if (isActive) {
-        connectToPrinter(undefined, true);
-      }
-    });
-
-    const timer = setTimeout(() => {
-      console.log("[App] Executing doPull after initial mount timeout.");
-      doPull();
-    }, 1000);
-
-    return () => {
-      resumeListener.then(l => l.remove());
-      clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    // OPTIMIZATION: Cooldown on focus to prevent sync storm when switching tabs
-    let lastFocusSync = 0;
-    const handleFocus = () => {
-      const now = Date.now();
-      if (now - lastFocusSync > 120000) { // Only sync if last focus sync was >2 minutes ago
-        lastFocusSync = now;
-        doPull();
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  useEffect(() => {
-    // OPTIMIZATION: Idle sync every 5 minutes (realtime subscription handles instant updates)
-    const intervalTime = queueLength > 0 ? 2000 : 300000;
-    const syncInterval = setInterval(() => {
-      if (!isSyncing && isOnline && !isPrintingNow()) {
-        console.log(`[App] Idle sync interval triggered. Queue: ${queueLength}`);
-        handleForceSync(true);
-      }
-    }, intervalTime);
-
-    const handleOnline = () => {
-      handleForceSync(true);
-    };
-    window.addEventListener('online', handleOnline);
-
-    return () => {
-      clearInterval(syncInterval);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [isSyncing, isOnline, queueLength]);
-
-  // Turbo sync removed: realtime Postgres subscription handles instant updates.
-  // Keeping this as a no-op to avoid regression in any references.
-
-  const getBranchId = (user: User | null): string => {
-    if (!user) return 'none';
-    if (user.role === Role.ADMIN || user.role === Role.MANAGER) return user.id;
-    return user.managedBy || 'none';
-  };
-
-  const filteredState = useMemo(() => {
-    if (!state.currentUser) return state;
-    const user = state.currentUser;
-    const branchId = getBranchId(user); // For ADMIN/MANAGER this is user.id; for COLLECTOR it's their managedBy
-    const myIdLower = user.id.toLowerCase();
-    const branchIdLower = branchId.toLowerCase();
-
-    // Build team of direct collectors under this branch
-    const myDirectCollectorIds = new Set<string>();
-    (Array.isArray(state.users) ? state.users : []).forEach(u => {
-      const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
-      if (uManagerId === branchIdLower && u.role === Role.COLLECTOR) {
-        myDirectCollectorIds.add(u.id.toLowerCase());
-      }
-    });
-
-    // ============================================================
-    // LEY DE AISLAMIENTO DE SUCURSAL (STRICT ISOLATION LAW)
-    // Rule: An item belongs to me IF AND ONLY IF:
-    //   1. It has a branchId AND it matches MY branchId, OR
-    //   2. It has NO branchId AND it was added by me or one of my direct collectors
-    //      (legacy data created before branch assignment)
-    // No exceptions. Not even for the owner account.
-    // ============================================================
-    const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      const itemBranchLower = itemBranchId?.toLowerCase();
-      const addedByLower = itemAddedBy?.toLowerCase() || '';
-      const collectorIdLower = itemCollectorId?.toLowerCase() || '';
-
-      if (itemBranchLower) {
-        // Rule 1: Branch is set — must match exactly
-        return itemBranchLower === branchIdLower;
-      } else {
-        // Rule 2: No branch set — check if it was added by me or my collectors
-        return addedByLower === myIdLower ||
-          myDirectCollectorIds.has(addedByLower) ||
-          collectorIdLower === myIdLower ||
-          myDirectCollectorIds.has(collectorIdLower);
-      }
-    };
-
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c =>
-      isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) &&
-      c.isActive !== false &&
-      !c.deletedAt
-    );
-    const activeClientIds = new Set(clients.map(c => c.id));
-
-    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-      activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt
-    );
-    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p =>
-      activeClientIds.has(p.clientId || (p as any).client_id) && !p.deletedAt
-    );
-    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e =>
-      isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined)
-    );
-    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
-      isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) &&
-      !log.deletedAt
-    );
-
-    // Users: only show myself + my direct collectors (managed_by === my id), EXCEPT if Admin, then see all.
-    let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
-      if (user.role === Role.ADMIN) return true; // ADMIN ve a todos (gerentes y los cobradores debajo de ellos)
-      const uId = u.id.toLowerCase();
-      const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
-      return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
-    });
-
-    if (user.role === Role.COLLECTOR) {
-      const myAssignedClientIds = new Set<string>();
-
-      // Ampliar la búsqueda de préstamos usando raw state.loans en vez de los filtrados, para incluir históricos/PAGADOS
-      const allHistoricLoans = Array.isArray(state.loans) ? state.loans : [];
-      allHistoricLoans.forEach(l => {
-        if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id);
-      });
-
-      clients = clients.filter(c => (c.addedBy || (c as any).added_by) === user.id || myAssignedClientIds.has(c.id));
-      const visibleClientIds = new Set(clients.map(c => c.id));
-      loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
-      payments = payments.filter(p => visibleClientIds.has(p.clientId || (p as any).client_id));
-      collectionLogs = collectionLogs.filter(log => log.clientId && visibleClientIds.has(log.clientId));
-      users = users.filter(u => u.id === user.id);
-    }
-
-    return { ...state, clients, loans, payments, expenses, collectionLogs, users, settings: resolvedSettings };
-  }, [state, resolvedSettings]);
-
-  // ACTION HANDLERS
-  const handleLogin = (user: User) => {
-    const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
-    const normalizedUser = { ...user, role: normalizedRole };
-    setState(prev => ({ ...prev, currentUser: normalizedUser }));
-    setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
-    // Only clear legacy timestamps to avoid blanking the dashboard on reconnect
-    localStorage.removeItem('last_sync_timestamp');
-    localStorage.removeItem('last_sync_timestamp_v6');
-    // Always trigger a pull from Supabase on login to refresh data (handles cache-cleared scenarios)
-    setTimeout(() => {
-      pullData(false).then(newData => {
-        if (newData) handleRealtimeData(newData);
-      });
-    }, 500);
-
-
-    // Auto-reconnect Bluetooth on login (Stable v6)
-    connectToPrinter(undefined).catch(() => { });
-  };
-
-  const handleLogout = async () => {
-    setState((prev: AppState) => ({ ...prev, currentUser: null }));
-    if (navigator.onLine) await supabase.auth.signOut();
-    await Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
-  };
-
-  const addUser = async (user: User) => {
-    const newUser = { ...user, managedBy: user.managedBy || (state.currentUser?.role === Role.MANAGER || state.currentUser?.role === Role.ADMIN ? state.currentUser.id : undefined) };
-
-    // Si es un Gerente, inicializamos sus datos de empresa por defecto como "A COMPLETAR"
-    if (newUser.role === Role.MANAGER) {
-      const defaultSettings: AppSettings = {
-        language: state.settings.language,
-        country: state.settings.country,
-        numberFormat: state.settings.numberFormat,
-        companyName: 'A COMPLETAR',
-        companyAlias: 'A COMPLETAR',
-        contactPhone: 'A COMPLETAR',
-        companyIdentifier: 'A COMPLETAR',
-        shareLabel: 'A COMPLETAR',
-        shareValue: 'A COMPLETAR',
-        receiptPrintMargin: 2
-      };
-
-      setState(prev => ({
-        ...prev,
-        branchSettings: { ...(prev.branchSettings || {}), [newUser.id]: defaultSettings }
-      }));
-      // Persistimos la configuración inicial en el servidor
-      await pushSettings(newUser.id, defaultSettings);
-    }
-
-    await pushUser(newUser);
-    setState(prev => ({ ...prev, users: [...prev.users, newUser] }));
-    await handleForceSync(false);
-  };
-
-  const updateUser = async (updatedUser: User) => {
-    const userWithStamp = { ...updatedUser, updated_at: new Date().toISOString() };
-    setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userWithStamp.id ? userWithStamp : u), currentUser: state.currentUser?.id === userWithStamp.id ? userWithStamp : state.currentUser }));
-    pushUser(userWithStamp);
-
-    // Sync auth.users via Edge Function when credentials change (username or password)
-    // This ensures login continues to work after editing collector credentials
-    if (navigator.onLine) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Find the old user to detect credential changes
-          const oldUser = state.users.find(u => u.id === updatedUser.id);
-          const usernameChanged = oldUser && oldUser.username !== updatedUser.username;
-          const passwordChanged = oldUser && oldUser.password !== updatedUser.password;
-
-          if (usernameChanged || passwordChanged) {
-            const payload: any = { userId: updatedUser.id };
-            if (usernameChanged) payload.newUsername = updatedUser.username;
-            if (passwordChanged) payload.newPassword = updatedUser.password;
-
-            const { error: fnError } = await supabase.functions.invoke('update-auth-user', {
-              body: payload
-            });
-            if (fnError) {
-              console.error('[updateUser] Failed to sync auth.users:', fnError);
-            } else {
-              console.log('[updateUser] auth.users synced successfully for:', updatedUser.username);
-            }
-          }
-        }
-      } catch (authSyncErr) {
-        console.error('[updateUser] Auth sync error:', authSyncErr);
-      }
-    }
-
-    handleForceSync(false);
-  };
-
-
-  const deleteUser = async (userId: string) => {
-    const deletedTimestamp = new Date().toISOString();
-
-    // 1. Enviar Señal Soft-Delete a Supabase para el Gerente y sus Cobradores
-    const usersToDelete = state.users.filter(u => u.id === userId || u.managedBy === userId);
-    usersToDelete.forEach(u => {
-      // Inyectamos deletedAt para que nadie más lo descargue o lo vea activo
-      pushUser({ ...u, deletedAt: deletedTimestamp, updated_at: deletedTimestamp } as any);
-    });
-
-    // 2. Eliminar localmente de la vista inmediata
-    setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId && u.managedBy !== userId) }));
-    await handleForceSync(false);
-  };
-
-  const updateSettings = async (newSettings: AppSettings) => {
-    const branchId = getBranchId(state.currentUser);
-    setState(prev => ({ ...prev, settings: newSettings, branchSettings: { ...(prev.branchSettings || {}), [branchId]: newSettings } }));
-    pushSettings(branchId, newSettings);
-    handleForceSync(false);
-  };
-
-  const addClient = async (client: Client, loan?: Loan) => {
-    const branchId = getBranchId(state.currentUser);
-    const newClient = { ...client, branchId, isActive: true, createdAt: new Date().toISOString(), updated_at: new Date().toISOString() };
-
-    // Optimistic Update
-    setState(prev => ({ ...prev, clients: [...prev.clients, newClient] }));
-
-    // Background Push
-    pushClient(newClient);
-    if (loan) addLoan(loan);
-    handleForceSync(false); // OPTIMIZATION: Partial sync is enough and safer for single record creation
-  };
-
-  const addLoan = async (loan: Loan) => {
-    const branchId = getBranchId(state.currentUser);
-    const newLoan = { ...loan, branchId, updated_at: new Date().toISOString() };
-
-    // Optimistic Update
-    setState(prev => ({ ...prev, loans: [newLoan, ...prev.loans] }));
-
-    // Background Push
-    pushLoan(newLoan);
-    handleForceSync(false); // OPTIMIZATION: Partial sync is enough and safer for single record creation
-  };
-
-  const updateClient = async (updatedClient: Client) => {
-    const clientWithStamp = { ...updatedClient, updated_at: new Date().toISOString() };
-    setState(prev => ({ ...prev, clients: prev.clients.map(c => c.id === clientWithStamp.id ? clientWithStamp : c) }));
-    pushClient(clientWithStamp);
-    handleForceSync(false);
-  };
-
-  const deleteClient = async (clientId: string) => {
-    const client = state.clients.find(c => c.id === clientId);
-    if (!client) return;
-    const updatedClient = { ...client, deletedAt: new Date().toISOString() };
-    await updateClient(updatedClient);
-    handleForceSync(false);
-  };
-
-  const updateLoan = async (updatedLoan: Loan) => {
-    const loanWithStamp = { ...updatedLoan, updated_at: new Date().toISOString() };
-    setState(prev => ({ ...prev, loans: prev.loans.map(l => l.id === loanWithStamp.id ? loanWithStamp : l) }));
-    pushLoan(loanWithStamp);
-    handleForceSync(false);
-  };
-
-  const recalculateAllLoansBalances = async () => {
-    console.log('Iniciando recalculación global de saldos...');
-    try {
-      const updatedLoans = state.loans.map(loan => {
-        const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
-        const balance = Math.max(0, loan.totalAmount - totalPaid);
-
-        // Determinar si el préstamo está pagado
-        const isPaid = balance <= 0;
-        const status = isPaid ? LoanStatus.PAID : loan.status;
-
-        return {
-          ...loan,
-          totalPaid,
-          balance,
-          status,
-          updatedAt: new Date().toISOString()
-        };
-      });
-
-      setState(prev => ({ ...prev, loans: updatedLoans }));
-
-
-
-      console.log('Recalculación global completada con éxito.');
-      alert('Todos los saldos han sido recalculados y sincronizados correctamente.');
-    } catch (error) {
-      console.error('Error en recalculación global:', error);
-      alert('No se pudo completar la recalculación global.');
-    }
-  };
-
-  const recalculateLoanStatus = async (loanId: string, providedLogs?: CollectionLog[]) => {
-    const loan = state.loans.find(l => l.id === loanId);
-    if (!loan) return null;
-
-    const useLogs = providedLogs || state.collectionLogs;
-    const totalPaid = calculateTotalPaidFromLogs(loan, useLogs);
-    const balance = Math.max(0, loan.totalAmount - totalPaid);
-
-    // Si el saldo es 0 o menor, está pagado.
-    const isPaid = balance <= 0.01;
-    let newStatus = loan.status;
-    if (isPaid) {
-      newStatus = LoanStatus.PAID;
-    } else if (loan.status === LoanStatus.PAID) {
-      newStatus = LoanStatus.ACTIVE;
-    }
-
-    const updatedLoan = {
-      ...loan,
-      totalPaid,
-      balance,
-      status: newStatus,
-      updatedAt: new Date().toISOString()
-    };
-
-    const updatedLoans = state.loans.map(l => l.id === loanId ? updatedLoan : l);
-    setState(prev => ({ ...prev, loans: updatedLoans }));
-
-
-    // Si hubo cambio de estado, sincronizar con el servidor
-    if (newStatus !== loan.status) {
-      await pushLoan(updatedLoan);
-    }
-    return updatedLoan;
-  };
-
-  const deleteLoan = async (loanId: string) => {
-    const loan = state.loans.find(l => l.id === loanId);
-    if (!loan) return;
-
-    // 1. Optimistic Update (Immediate UI response)
-    setState(prev => ({ ...prev, loans: prev.loans.filter(l => l.id !== loanId) }));
-
-    // 2. Specialized Deletion Sync (handles deleted_at + tracking)
-    deleteRemoteLoan(loanId);
-
-    // 3. Optional: Extra sync trigger
-    handleForceSync(false);
-  };
-
-  const addCollectionAttempt = async (log: CollectionLog, skipSync: boolean = false) => {
-    const branchId = getBranchId(state.currentUser);
-    const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
-
-    // 1. ASYNC FIRST: Ensure the log is pushed/queued
-    pushLog(newLog);
-
-    // 2. CALCULATE UPDATES (Synchronous logic based on current state)
-    let updatedLoans = [...state.loans];
-    let updatedPayments = [...state.payments];
-    const newPaymentsForSync: PaymentRecord[] = [];
-    const loansToSync: Loan[] = [];
-
-    // Si es un log de apertura, no procesamos abonos ni cuotas
-    if (newLog.type === CollectionLogType.OPENING) {
-      setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
-      if (!skipSync) handleForceSync(true);
-      return;
-    }
-
-    if (newLog.type === CollectionLogType.PAYMENT && newLog.amount) {
-      let totalToApply = Math.round(newLog.amount * 100) / 100;
-      updatedLoans = updatedLoans.map(loan => {
-        if (loan.id === newLog.loanId) {
-          const newInstallments = (loan.installments || []).map(i => ({ ...i }));
-
-          for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
-            const inst = newInstallments[i];
-            if (inst.status === PaymentStatus.PAID) continue;
-
-            const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
-            const appliedToInst = Math.min(totalToApply, remainingInInst);
-            inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
-            totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
-            inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
-
-            const pRec: PaymentRecord = {
-              id: `pay-${newLog.id}-${inst.number}`,
-              loanId: newLog.loanId,
-              clientId: newLog.clientId,
-              collectorId: state.currentUser?.id,
-              branchId: loan.branchId || branchId,
-              amount: appliedToInst,
-              date: newLog.date,
-              installmentNumber: inst.number,
-              isVirtual: newLog.isVirtual || false,
-              isRenewal: newLog.isRenewal || false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-
-            newPaymentsForSync.push(pRec);
-            updatedPayments.push(pRec);
-          }
-
-          const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
-          const updatedLoan = { ...loan, installments: newInstallments, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
-          loansToSync.push(updatedLoan);
-          return updatedLoan;
-        }
-        return loan;
-      });
-    }
-
-    // 3. UPDATE UI (Optimistic)
-    setState(prev => ({ ...prev, loans: updatedLoans, payments: updatedPayments, collectionLogs: [newLog, ...prev.collectionLogs] }));
-
-    // 4. EXECUTE SIDE EFFECTS (Outside setState)
-    if (newPaymentsForSync.length > 0 || loansToSync.length > 0) {
-      for (const p of newPaymentsForSync) pushPayment(p);
-      for (const l of loansToSync) pushLoan(l);
-      pushLog(newLog);
-    }
-
-    if (!skipSync) handleForceSync(true);
-  };
-
-  const deleteCollectionLog = async (logId: string) => {
-    // Permission check
-    if (state.currentUser?.role === Role.COLLECTOR) {
-      alert("ERROR: No tienes permisos para eliminar registros.");
-      return;
-    }
-
-    const logToDelete = state.collectionLogs.find(l => l.id === logId);
-    if (!logToDelete) return;
-
-    if (!confirm(`¿ESTÁ SEGURO DE ELIMINAR EL REGISTRO DE ${logToDelete.type === CollectionLogType.PAYMENT ? 'PAGO' : 'GESTIÓN'} POR ${formatCurrency(logToDelete.amount || 0, state.settings)}?`)) {
-      return;
-    }
-
-    try {
-      // 1. Optimistic Update (Immediate)
-      const updatedLogs = state.collectionLogs.filter(l => l.id !== logId);
-      const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
-
-      setState(prev => ({
-        ...prev,
-        collectionLogs: updatedLogs,
-        payments: updatedPayments
-      }));
-
-      // Auto-save handles persistence via useEffect on state change
-
-      // 2. Recalculate Loan Status synchronously for UI
-      if (logToDelete.loanId) {
-        await recalculateLoanStatus(logToDelete.loanId, updatedLogs);
-      }
-
-      // 3. Remote Sync (Background)
-      deleteRemoteLog(logId).catch(e => console.error("Sync error in deleteCollectionLog:", e));
-
-      const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
-      for (const p of related) {
-        deleteRemotePayment(p.id).catch(() => { });
-      }
-
-    } catch (err: any) {
-      console.error("Critical error deleting log:", err);
-      alert("Error al eliminar el registro.");
-    }
-  };
-
-  const updateCollectionLog = async (logId: string, newAmount: number) => {
-    try {
-      const logToUpdate = state.collectionLogs.find(l => l.id === logId);
-      if (!logToUpdate) return;
-
-      // 1. Optimistic Update
-      const updatedLogs = state.collectionLogs.map(l =>
-        l.id === logId ? { ...l, amount: newAmount, updated_at: new Date().toISOString() } : l
-      );
-
-      setState(prev => ({
-        ...prev,
-        collectionLogs: updatedLogs
-      }));
-
-
-      // 2. Recalculate Loan
-      if (logToUpdate.loanId) {
-        await recalculateLoanStatus(logToUpdate.loanId, updatedLogs);
-      }
-
-      // 3. Remote Sync (Background)
-      supabase.from('collection_logs').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('id', logId).then(({ error }) => {
-        if (error) console.error("Error updating remote log:", error);
-      });
-
-      if (logToUpdate.type === CollectionLogType.PAYMENT) {
-        // Update local payments too for consistency
-        const updatedPayments = state.payments.map(p =>
-          p.id.startsWith(`pay-${logId}-`) ? { ...p, amount: newAmount, updated_at: new Date().toISOString() } : p
-        );
-        setState(prev => ({ ...prev, payments: updatedPayments }));
-
-        supabase.from('payments').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('logId', logId).then(({ error }) => {
-          if (error) console.error("Error updating remote payment:", error);
-        });
-      }
-
-    } catch (error: any) {
-      console.error('Error updating collection log:', error);
-      alert('Error al actualizar el cobro');
-    }
-  };
-
-  const addBulkData = async (clients: Client[], loans: Loan[], logs: CollectionLog[]) => {
-    const branchId = getBranchId(state.currentUser);
-    const timestamp = new Date().toISOString();
-
-    const newClients = clients.map(c => ({ ...c, branchId: c.branchId || branchId, createdAt: c.createdAt || timestamp, updated_at: timestamp }));
-    const newLoans = loans.map(l => ({ ...l, branchId: l.branchId || branchId, updated_at: timestamp }));
-    const newLogs = logs.map(l => ({ ...l, branchId: l.branchId || branchId, recordedBy: state.currentUser?.id, updated_at: timestamp }));
-
-    // Pre-calculate payments for logs
-    const allNewPayments: PaymentRecord[] = [];
-    const updatedLoansWithPayments = newLoans.map(loan => {
-      const loanLogs = newLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT);
-      let totalToApply = loanLogs.reduce((sum, log) => sum + (log.amount || 0), 0);
-      
-      if (totalToApply <= 0) return loan;
-
-      const newInstallments = (loan.installments || []).map(i => ({ ...i }));
-      for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
-        const inst = newInstallments[i];
-        if (inst.status === PaymentStatus.PAID) continue;
-
-        const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
-        const appliedToInst = Math.min(totalToApply, remainingInInst);
-        inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
-        totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
-        inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
-
-        allNewPayments.push({
-          id: `pay-bulk-${loan.id}-${inst.number}-${Date.now()}`,
-          loanId: loan.id,
-          clientId: loan.clientId,
-          collectorId: loan.collectorId,
-          branchId: loan.branchId || branchId,
-          amount: appliedToInst,
-          date: loan.createdAt,
-          installmentNumber: inst.number,
-          isVirtual: false,
-          isRenewal: false,
-          created_at: timestamp,
-          updated_at: timestamp
-        });
-      }
-
-      const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
-      const totalPaidSoFar = newInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
-      const currentBalance = Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100;
-
-      return { 
-        ...loan, 
-        installments: newInstallments, 
-        status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE,
-        totalPaid: totalPaidSoFar,
-        balance: currentBalance,
-        updatedAt: timestamp
-      };
-    });
-
-    setState(prev => ({
-      ...prev,
-      clients: [...prev.clients, ...newClients],
-      loans: [...updatedLoansWithPayments, ...prev.loans],
-      collectionLogs: [...newLogs, ...prev.collectionLogs],
-      payments: [...allNewPayments, ...prev.payments]
-    }));
-
-    // Background push
-    for (const c of newClients) pushClient(c);
-    for (const l of updatedLoansWithPayments) pushLoan(l);
-    for (const log of newLogs) pushLog(log);
-    for (const p of allNewPayments) pushPayment(p);
-
-    handleForceSync(false, "Importación masiva completada");
-  };
-
-  const updateCollectionLogNotes = (logId: string, notes: string) => {
-    setState(prev => ({
-      ...prev,
-      collectionLogs: prev.collectionLogs.map(l => l.id === logId ? { ...l, notes } : l)
-    }));
-  };
-
-  const addExpense = (expense: Expense) => {
-    const branchId = getBranchId(state.currentUser);
-    const newExpense = { ...expense, branchId, addedBy: state.currentUser?.id };
-    setState(prev => ({ ...prev, expenses: [newExpense, ...prev.expenses] }));
-    addToQueue('ADD_EXPENSE', newExpense);
-    handleForceSync(true);
-  };
-
-  const removeExpense = async (id: string) => {
-    setState(prev => ({ ...prev, expenses: prev.expenses.filter(x => x.id !== id) }));
-    await handleForceSync(false);
-  };
-
-  const updateInitialCapital = async (amount: number) => {
-    setState(prev => ({ ...prev, initialCapital: amount }));
-    await handleForceSync(false);
-  };
-
-  const updateCommissionBrackets = async (brackets: CommissionBracket[]) => {
-    setState(prev => ({ ...prev, commissionBrackets: brackets }));
-    await handleForceSync(false);
-  };
-
-  const handleSyncUser = (user: User) => {
-    setState(prev => {
-      if (prev.users.find(u => u.id === user.id)) return prev;
-      return { ...prev, users: [user, ...prev.users] };
-    });
-  };
-
-  // --- Pull to Refresh Logic ---
-
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const pullStartY = useRef(0);
   const MAX_PULL = 120;
   const REFRESH_THRESHOLD = 80;
 
+  // 1. Initialize State and App Data
+  const { state, setState, isInitializing, resolvedSettings } = useAppInitialization();
+
+  // 2. Initialize Sync Engine
+  const sync = useAppSyncEngine(state, setState, resolvedSettings);
+  const { isSyncing, isFullSyncing, isOnline, queueLength, filteredState, handleForceSync, handleDeepReset, clearQueue } = sync;
+
+  // 3. Initialize Actions
+  const actions = useAppActions(state, setState, setActiveTab, sync);
+  const { 
+    handleLogin, handleLogout, addUser, updateUser, deleteUser, updateSettings,
+    addClient, addLoan, updateClient, deleteClient, updateLoan, 
+    recalculateLoanStatus, deleteLoan: deleteLoanAction, addCollectionAttempt, 
+    deleteCollectionLog, updateCollectionLog, addBulkData, updateCollectionLogNotes, 
+    addExpense, removeExpense, updateInitialCapital, updateCommissionBrackets, 
+    handleSyncUser, deleteRemoteClientAction 
+  } = actions;
+
+  // Global Bluetooth Keeper
+  useEffect(() => {
+    startConnectionKeeper();
+  }, []);
+
+  // Pull to Refresh Handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     if (window.scrollY <= 5) {
       pullStartY.current = e.touches[0].clientY;
@@ -1355,7 +83,6 @@ const App: React.FC = () => {
     if (!isPulling) return;
     if (pullY > REFRESH_THRESHOLD) {
       setPullY(50);
-      // Forzar una sincronización completa al tirar hacia abajo
       handleForceSync(false, "¡Sincronizando Todo!", true).finally(() => setPullY(0));
     } else {
       setPullY(0);
@@ -1363,11 +90,26 @@ const App: React.FC = () => {
     setIsPulling(false);
   };
 
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Cargando Sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!state.currentUser) {
     return (
-      <>
-        <Login onLogin={handleLogin} users={state.users} onGenerateManager={() => { }} onSyncUser={handleSyncUser} onForceSync={() => handleForceSync(true)} />
-      </>
+      <Login 
+        onLogin={handleLogin} 
+        users={state.users} 
+        onGenerateManager={() => { }} 
+        onSyncUser={handleSyncUser} 
+        onForceSync={() => handleForceSync(true)} 
+      />
     );
   }
 
@@ -1387,15 +129,21 @@ const App: React.FC = () => {
       >
         {/* Pull Indicator Overlay */}
         <div className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none z-[200]" style={{ height: pullY, opacity: pullY / REFRESH_THRESHOLD, marginTop: -40 }}>
-          {pullY > 10 && <div className="p-2 bg-white rounded-full shadow-md">
-            <i className={`fa-solid fa-arrows-rotate text-emerald-600 ${pullY > REFRESH_THRESHOLD ? 'animate-spin' : ''}`}></i>
-          </div>}
+          {pullY > 10 && (
+            <div className="p-2 bg-white rounded-full shadow-md">
+              <i className={`fa-solid fa-arrows-rotate text-emerald-600 ${pullY > REFRESH_THRESHOLD ? 'animate-spin' : ''}`}></i>
+            </div>
+          )}
         </div>
+
         {/* MOBILE HEADER */}
         <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}
+              >
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
@@ -1441,15 +189,17 @@ const App: React.FC = () => {
                 if (item.powerOnly) return isPowerUser;
                 return true;
               }).map((item) => (
-                <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-2 p-2.5 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}>
+                <button 
+                  key={item.id} 
+                  onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} 
+                  className={`flex items-center gap-2 p-2.5 rounded-2xl transition-all border ${activeTab === item.id ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-white text-slate-500 border-slate-100 active:bg-slate-50'}`}
+                >
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-50 text-emerald-500'}`}><i className={`fa-solid ${item.icon} text-xs`}></i></div>
                   <span className="text-[9px] font-black uppercase tracking-wider truncate">{item.label}</span>
                 </button>
               ))}
               <div className="col-span-2 p-1">
-                <div
-                  className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${isSyncing ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-inner' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
-                >
+                <div className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${isSyncing ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-inner' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSyncing ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
                       <i className={`fa-solid fa-sync ${isSyncing ? 'animate-spin' : ''}`}></i>
@@ -1461,21 +211,23 @@ const App: React.FC = () => {
                       <span className="text-[8px] font-bold opacity-70 uppercase tracking-tighter">Automático Total</span>
                     </div>
                   </div>
-                  {isSyncing && (
-                    <div className="flex gap-1.5 mr-2">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
-                    </div>
-                  )}
                 </div>
               </div>
-              <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
+              <button 
+                onClick={handleLogout} 
+                className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"
+              >
+                <i className="fa-solid fa-power-off"></i> CERRAR SESIÓN
+              </button>
             </div>
           )}
         </header>
 
-        <FloatingBackButton onClick={() => setActiveTab(isPowerUser ? 'dashboard' : 'route')} visible={activeTab !== 'dashboard' && activeTab !== 'route'} />
+        <FloatingBackButton 
+          onClick={() => setActiveTab(isPowerUser ? 'dashboard' : 'route')} 
+          visible={activeTab !== 'dashboard' && activeTab !== 'route'} 
+        />
+        
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -1485,39 +237,108 @@ const App: React.FC = () => {
           isSyncing={isSyncing}
           isFullSyncing={isFullSyncing}
         />
+
         <main className="flex-1 p-2 md:p-8 mobile-scroll-container">
           <div className="max-w-[1400px] mx-auto pb-12">
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
-            {activeTab === 'clients' && <Clients state={filteredState} addClient={addClient} addLoan={addLoan} updateClient={updateClient} updateLoan={updateLoan} deleteCollectionLog={deleteCollectionLog} updateCollectionLog={updateCollectionLog} updateCollectionLogNotes={updateCollectionLogNotes} addCollectionAttempt={addCollectionAttempt} globalState={state} onForceSync={handleForceSync} deleteLoan={deleteLoan}
-              recalculateLoanStatus={recalculateLoanStatus}
-              setActiveTab={setActiveTab}
-              fetchClientPhotos={fetchClientPhotos}
-              deleteClient={deleteClient}
-              addBulkData={addBulkData}
-              setState={setState}
-              pushLoan={pushLoan}
-            />
-            }
-            {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}
-            {activeTab === 'route' && <CollectionRoute state={filteredState} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} updateClient={updateClient} deleteClient={async (clientId: string) => {
-              setState(prev => ({
-                ...prev,
-                clients: prev.clients.filter(c => c.id !== clientId),
-                loans: prev.loans.filter(l => l.clientId !== clientId),
-                collectionLogs: prev.collectionLogs.filter(l => l.clientId !== clientId),
-              }));
-              await deleteRemoteClient(clientId);
-              await handleForceSync(true);
-            }} onForceSync={handleForceSync} />}
+            {activeTab === 'clients' && (
+              <Clients 
+                state={filteredState} 
+                addClient={addClient} 
+                addLoan={addLoan} 
+                updateClient={updateClient} 
+                updateLoan={updateLoan} 
+                deleteCollectionLog={deleteCollectionLog} 
+                updateCollectionLog={updateCollectionLog} 
+                updateCollectionLogNotes={updateCollectionLogNotes} 
+                addCollectionAttempt={addCollectionAttempt} 
+                globalState={state} 
+                onForceSync={handleForceSync} 
+                deleteLoan={deleteLoanAction}
+                recalculateLoanStatus={recalculateLoanStatus}
+                setActiveTab={setActiveTab}
+                fetchClientPhotos={sync.fetchClientPhotos}
+                deleteClient={deleteClient}
+                addBulkData={addBulkData}
+                setState={setState}
+                pushLoan={sync.pushLoan}
+              />
+            )}
+            {activeTab === 'loans' && (
+              <Loans 
+                state={filteredState} 
+                addLoan={addLoan} 
+                updateLoanDates={() => { }} 
+                addCollectionAttempt={addCollectionAttempt} 
+                deleteCollectionLog={deleteCollectionLog} 
+                onForceSync={handleForceSync} 
+              />
+            )}
+            {activeTab === 'route' && (
+              <CollectionRoute 
+                state={filteredState} 
+                addCollectionAttempt={addCollectionAttempt} 
+                deleteCollectionLog={deleteCollectionLog} 
+                updateClient={updateClient} 
+                deleteClient={deleteRemoteClientAction} 
+                onForceSync={handleForceSync} 
+              />
+            )}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
-            {activeTab === 'expenses' && isPowerUser && <Expenses state={filteredState} addExpense={addExpense} removeExpense={removeExpense} updateInitialCapital={updateInitialCapital} />}
-            {activeTab === 'commission' && <CollectorCommission state={filteredState} setCommissionPercentage={(p) => { setState(prev => ({ ...prev, commissionPercentage: p })); setTimeout(() => handleForceSync(true), 200); }} updateCommissionBrackets={updateCommissionBrackets} deleteCollectionLog={deleteCollectionLog} />}
-            {activeTab === 'collectors' && <Collectors state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} updateSettings={updateSettings} setActiveTab={setActiveTab} />}
-            {activeTab === 'managers' && isAdmin && <Managers state={filteredState} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} setActiveTab={setActiveTab} />}
+            {activeTab === 'expenses' && isPowerUser && (
+              <Expenses 
+                state={filteredState} 
+                addExpense={addExpense} 
+                removeExpense={removeExpense} 
+                updateInitialCapital={updateInitialCapital} 
+              />
+            )}
+            {activeTab === 'commission' && (
+              <CollectorCommission 
+                state={filteredState} 
+                setCommissionPercentage={(p) => { 
+                  setState(prev => ({ ...prev, commissionPercentage: p })); 
+                  setTimeout(() => handleForceSync(true), 200); 
+                }} 
+                updateCommissionBrackets={updateCommissionBrackets} 
+                deleteCollectionLog={deleteCollectionLog} 
+              />
+            )}
+            {activeTab === 'collectors' && (
+              <Collectors 
+                state={filteredState} 
+                onAddUser={addUser} 
+                onUpdateUser={updateUser} 
+                onDeleteUser={deleteUser} 
+                updateSettings={updateSettings} 
+                setActiveTab={setActiveTab} 
+              />
+            )}
+            {activeTab === 'managers' && isAdmin && (
+              <Managers 
+                state={filteredState} 
+                onAddUser={addUser} 
+                onUpdateUser={updateUser} 
+                onDeleteUser={deleteUser} 
+                setActiveTab={setActiveTab} 
+              />
+            )}
             {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
             {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
             {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
-            {activeTab === 'settings' && <Settings state={filteredState} updateSettings={updateSettings} setActiveTab={setActiveTab} onForceSync={() => handleForceSync(true)} onClearQueue={clearQueue} isOnline={isOnline} isSyncing={isSyncing} isFullSyncing={isFullSyncing} onDeepReset={handleDeepReset} />}
+            {activeTab === 'settings' && (
+              <Settings 
+                state={filteredState} 
+                updateSettings={updateSettings} 
+                setActiveTab={setActiveTab} 
+                onForceSync={() => handleForceSync(true)} 
+                onClearQueue={clearQueue} 
+                isOnline={isOnline} 
+                isSyncing={isSyncing} 
+                isFullSyncing={isFullSyncing} 
+                onDeepReset={handleDeepReset} 
+              />
+            )}
             {activeTab === 'generator' && <Generator settings={resolvedSettings} />}
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>

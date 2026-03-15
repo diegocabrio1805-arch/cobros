@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "upload": "node scripts/git-upload.js",
+    "deploy": "npm run build && npx netlify deploy --dir=dist --prod",
+    "build:apk": "node scripts/build-apk.js",
+    "repair": "node scripts/repair-system.js"
   },
   "dependencies": {
     "@capacitor-community/contacts": "^7.1.0",

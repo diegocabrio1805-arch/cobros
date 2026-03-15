@@ -117,62 +117,67 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px]"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/20 rounded-full blur-[120px] animate-pulse"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-500/20 rounded-full blur-[120px] animate-pulse [animation-delay:1s]"></div>
 
-      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn relative z-10">
-        <div className="p-10 text-center bg-gradient-to-br from-emerald-600 to-emerald-800 text-white relative">
-          <div className="w-20 h-20 bg-white/40 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/20">
-            <i className="fa-solid fa-sack-dollar text-4xl text-white"></i>
+      <div className="glass-card rounded-[3rem] w-full max-w-md overflow-hidden animate-scaleIn relative z-10 border-white/20">
+        <div className="p-12 text-center bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white relative">
+          <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl border border-white/30 rotate-3 hover:rotate-0 transition-transform duration-500">
+            <i className="fa-solid fa-sack-dollar text-5xl text-white drop-shadow-lg"></i>
           </div>
-          <h1 className="text-3xl font-black tracking-tight mb-2 uppercase">{t.welcome}</h1>
-          <p className="text-emerald-100 font-bold uppercase text-[10px] tracking-widest">{t.subtitle}</p>
+          <h1 className="text-4xl font-black tracking-tighter mb-3 uppercase italic">ANEXO <span className="text-emerald-200">COBRO</span></h1>
+          <p className="text-emerald-100 font-bold uppercase text-[11px] tracking-[0.3em] opacity-80">{t.subtitle}</p>
         </div>
 
-        <div className="p-10 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-6">
+        <div className="p-12 space-y-8 bg-white/10 backdrop-blur-xl">
+          <form onSubmit={handleLogin} className="space-y-8">
             {error && (
-              <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 text-[10px] font-black uppercase tracking-widest flex items-center gap-3 animate-shake">
-                <i className="fa-solid fa-circle-exclamation text-lg"></i>
+              <div className="p-5 bg-rose-500/10 text-rose-200 rounded-3xl border border-rose-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-4 animate-shake">
+                <i className="fa-solid fa-circle-exclamation text-xl text-rose-400"></i>
                 <span className="leading-tight">{error}</span>
               </div>
             )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t.username}</label>
+            <div className="space-y-6">
+              <div className="group">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-400 transition-colors uppercase">{t.username}</label>
                 <div className="relative">
-                  <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-400 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
+                    <i className="fa-solid fa-user"></i>
+                  </div>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700 transition-all uppercase placeholder:normal-case"
+                    className="w-full pl-18 pr-5 py-5 bg-slate-900/50 border border-white/5 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-white transition-all uppercase placeholder:normal-case tracking-wider"
                     required
+                    placeholder="USUARIO"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t.password}</label>
+              <div className="group">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-400 transition-colors uppercase">{t.password}</label>
                 <div className="relative">
-                  <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-400 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
+                    <i className="fa-solid fa-lock"></i>
+                  </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full pl-12 pr-12 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700 transition-all"
+                    className="w-full pl-18 pr-14 py-5 bg-slate-900/50 border border-white/5 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-white transition-all tracking-[0.3em]"
                     placeholder="••••••••"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-colors"
                   >
                     <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                   </button>
@@ -182,15 +187,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
 
             <button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-500/30 transition-all active:scale-[0.98] uppercase tracking-widest text-sm"
+              className="w-full premium-gradient hover:shadow-emerald-500/40 hover:scale-[1.02] text-white font-black py-5 rounded-3xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-sm border border-white/20"
             >
+              <i className="fa-solid fa-right-to-bracket mr-3"></i>
               {t.loginBtn}
             </button>
           </form>
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-slate-100"></div>
-            <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">O TAMBIÉN</span>
-            <div className="flex-grow border-t border-slate-100"></div>
+
+          <div className="relative flex items-center py-4">
+            <div className="flex-grow border-t border-white/10"></div>
+            <span className="flex-shrink mx-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.footer}</span>
+            <div className="flex-grow border-t border-white/10"></div>
           </div>
 
           <button
@@ -199,16 +206,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               window.open('https://wa.me/595994560450', '_blank');
             }}
             type="button"
-            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-3"
+            className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-3xl border border-white/10 transition-all active:scale-[0.98] tracking-widest text-[11px] flex items-center justify-center gap-4 group"
           >
-            <i className="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
-            SOPORTE +595994560450
+            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fa-brands fa-whatsapp text-white text-lg"></i>
+            </div>
+            SOPORTE TÉCNICO OFICIAL
           </button>
-          <div className="text-center pt-2">
-            <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">
-              {t.footer}
-            </p>
-          </div>
         </div>
       </div>
 

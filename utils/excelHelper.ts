@@ -144,35 +144,40 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                 let clientHeaderRow = -1;
                 let loanHeaderRow = -1;
+                let maxClientScore = 0;
+                let maxLoanScore = 0;
 
-                // 1. Detect Header Rows
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i].map(c => String(c || '').toUpperCase());
+                const CLIENT_KEYWORDS = ["NOMBRE", "CLIENTE", "TITULAR", "RAZON SOCIAL", "RAZÓN SOCIAL", "DOCUMENTO", "CEDULA", "DNI", "IDENTIFICACION", "NOMBRES", "ID", "RAZON"];
+                const LOAN_KEYWORDS = ["LIQUIDO", "CAPITAL", "MONTO", "PAGARE", "SALDO", "CUOTA", "INTERES", "PRESTAMO", "DEUDA", "IMP", "TOTAL", "PAGADO", "CANCELADO", "ESTADO", "CREDITO", "CRÉDITO", "PAGO", "OP", "IMPORT", "COBRADO", "HABILITADO", "V. CUOTA", "V CUOTA", "PENDIENTES", "PAGADAS"];
 
-                    // Detectar si la fila tiene datos de Clientes
-                    if (clientHeaderRow === -1 && (row.some(r => 
-                        r.includes("NOMBRE COMPLETO") || 
-                        r.includes("CLIENTE") || 
-                        r.includes("NOM. COMPLETO") || 
-                        r.includes("RAZON SOCIAL") || 
-                        r.includes("RAZÓN SOCIAL")
-                    ))) {
+                // 1. Detect Header Rows with Scoring System
+                for (let i = 0; i < Math.min(rows.length, 50); i++) { // Revise first 50 rows
+                    const row = (rows[i] || []).map(c => String(c || '').toUpperCase());
+                    
+                    let cScore = 0;
+                    let lScore = 0;
+                    
+                    row.forEach(cell => {
+                        if (CLIENT_KEYWORDS.some(k => cell.includes(k))) cScore++;
+                        if (LOAN_KEYWORDS.some(k => cell.includes(k))) lScore++;
+                    });
+
+                    if (cScore > maxClientScore) {
+                        maxClientScore = cScore;
                         clientHeaderRow = i;
                     }
-
-                    // Detectar si la fila tiene datos de Préstamos
-                    if (loanHeaderRow === -1 && (row.some(r => 
-                        r.includes("LIQUIDO DESEMBOLSADO") || 
-                        r.includes("SALDO CAPITAL") || 
-                        r.includes("LIQ. DESEMB") || 
-                        r.includes("MONTO PAGARE") || 
-                        r.includes("IMPORT. PAGARE") ||
-                        r.includes("IMP. PAGARE") ||
-                        r.includes("SALDO ACTUAL") || 
-                        r.includes("MONTO PAG")
-                    ))) {
+                    if (lScore > maxLoanScore) {
+                        maxLoanScore = lScore;
                         loanHeaderRow = i;
                     }
+                }
+
+                if (clientHeaderRow === -1 && loanHeaderRow === -1) {
+                    console.warn("⚠️ [FORENSIC] No se detectaron cabeceras claras por puntuación. Usando Fila 0 por defecto.");
+                    clientHeaderRow = 0;
+                    loanHeaderRow = 0;
+                } else if (clientHeaderRow !== -1 && (loanHeaderRow === -1 || maxLoanScore < 2)) {
+                    loanHeaderRow = clientHeaderRow;
                 }
 
                 if (clientHeaderRow === -1) {
@@ -220,13 +225,13 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                     return;
                 }
 
-                // Normalización avanzada para ignorar puntos, acentos y espacios extra
+                // Normalización agresiva para ignorar puntos, acentos, espacios y símbolos (/, -, etc)
                 const normalizeHeader = (s: string) => 
                     String(s || '')
                         .toUpperCase()
                         .normalize("NFD")
                         .replace(/[\u0300-\u036f]/g, "") // Quitar acentos
-                        .replace(/\./g, "")              // Quitar puntos
+                        .replace(/[^A-Z0-9]/g, "")       // QUITAR TODO lo que no sea letra o número
                         .trim();
 
                 // 2. Map Columns for each section
@@ -242,36 +247,61 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                 const clientMap = getColMap(clientHeaderRow);
                 const loanMap = loanHeaderRow !== -1 ? getColMap(loanHeaderRow) : null;
 
-                console.log("🔍 [FORENSIC] Headers Detectados (Normalizados):", { clientMap, loanMap });
+                console.log("🔍 [FORENSIC] Configuración de Importación:", { 
+                    clientHeaderRow, 
+                    loanHeaderRow, 
+                    clientMap, 
+                    loanMap,
+                    totalRows: rows.length,
+                    headersFound: rows[clientHeaderRow]
+                });
 
                 // --- INTEGRACIÓN IA: DESCUBRIMIENTO DE COLUMNAS CON GEMINI ---
-                const allHeaders = [...Object.keys(clientMap), ...(loanMap ? Object.keys(loanMap) : [])];
-                const aiMap = await mapHeadersWithAI(allHeaders);
+                // Tomamos una fila de ejemplo (la primera después de las cabeceras)
+                const sampleRow = (rows[Math.max(clientHeaderRow, loanHeaderRow) + 1] || []).slice(0, 20);
+                const allRawHeaders = rows[Math.max(clientHeaderRow, loanHeaderRow)] || [];
+                
+                let aiMap: Record<string, string> = {};
+                try {
+                    aiMap = await mapHeadersWithAI(allRawHeaders.map(h => String(h || '')), sampleRow);
+                } catch (error) {
+                    console.warn("⚠️ [IA] Error en Mapeo de IA:", error);
+                }
 
                 console.log("🤖 [FORENSIC] Mapeo de la IA:", aiMap);
 
                 const findCol = (map: Record<string, number> | null, internalKey: string, synonyms: string[]) => {
-                    if (!map) return undefined;
+                    if (!map) {
+                        console.log(`❌ [FORENSIC] findCol: Mapa no proporcionado para '${internalKey}'`);
+                        return undefined;
+                    }
                     
-                    // 1. Check IA Mapping
-                    // Normalizamos también lo que devuelve la IA para comparar
+                    // 1. Check Synonyms (PRIORITY: Exact/Synonym match is safer for known patterns)
+                    for (const s of synonyms) {
+                        const sNorm = normalizeHeader(s);
+                        if (map[sNorm] !== undefined) {
+                            console.log(`✅ [FORENSIC] Mapeo EXACTO: '${internalKey}' -> "${s}" (Col ${map[sNorm]})`);
+                            return map[sNorm];
+                        }
+                        
+                        // Partial match sobre las llaves normalizadas del mapa
+                        const partial = Object.keys(map).find(k => k.includes(sNorm) || sNorm.includes(k));
+                        if (partial !== undefined) {
+                            console.log(`✅ [FORENSIC] Mapeo PARCIAL: '${internalKey}' -> "${partial}" (Col ${map[partial]})`);
+                            return map[partial];
+                        }
+                    }
+
+                    // 2. Check IA Mapping (FALLBACK: Use IA if synonyms fail)
                     const aiMatch = Object.entries(aiMap).find(([header, target]) => {
                         return target === internalKey && map[normalizeHeader(header)] !== undefined;
                     });
                     if (aiMatch) {
-                        console.log(`✅ [FORENSIC] IA encontró '${internalKey}' en columna: "${aiMatch[0]}"`);
+                        console.log(`🤖 [FORENSIC] IA encontró '${internalKey}' en columna: "${aiMatch[0]}" (Col ${map[normalizeHeader(aiMatch[0])]})`);
                         return map[normalizeHeader(aiMatch[0])];
                     }
 
-                    // 2. Check Synonyms (Normalizando cada sinónimo)
-                    for (const s of synonyms) {
-                        const sNorm = normalizeHeader(s);
-                        if (map[sNorm] !== undefined) return map[sNorm];
-                        
-                        // Partial match sobre las llaves normalizadas del mapa
-                        const partial = Object.keys(map).find(k => k.includes(sNorm) || sNorm.includes(k));
-                        if (partial !== undefined) return map[partial];
-                    }
+                    console.log(`❌ [FORENSIC] No se encontró columna para: '${internalKey}'`);
                     return undefined;
                 };
 
@@ -283,10 +313,23 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                 let dataIndex = 0;
                 for (let i = clientHeaderRow + 1; i < rows.length; i++) {
                     const cRow = rows[i];
+                    const rawRowStr = JSON.stringify(cRow).toUpperCase();
+                    const isTargetClient = rawRowStr.includes("MILNER") || rawRowStr.includes("JACINTO");
+                    
+                    if (isTargetClient) {
+                        console.log(`🎯 [TARGET DEBUG] Fila detectada para Milner/Jacinto [Fila ${i}]:`, cRow);
+                    } else {
+                        console.log(`DEBUG [FILA ${i}]:`, cRow);
+                    }
                     if (!cRow || cRow.length === 0) continue;
 
-                    const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE", "RAZON SOCIAL", "RAZÓN SOCIAL", "NOMBRES"]);
-                    if (nameIdx === undefined || !cRow[nameIdx]) continue; // Skip empty rows or rows without name
+                    const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE", "RAZON SOCIAL", "RAZÓN SOCIAL", "NOMBRES", "NOM COMPLETO", "TITULAR", "TITULAR/NOMBRE", "PAGADOR"]);
+                    const rawName = String(cRow[nameIdx ?? -1] || '').trim();
+                    
+                    // Validaciones para saltar filas vacías o de totales
+                    if (nameIdx === undefined || !rawName) continue; 
+                    if (!isNaN(Number(rawName.replace(/\./g, '')))) continue; // Saltar si el nombre es solo un número (Fila de Totales)
+                    if (rawName.toUpperCase().includes("TOTAL") || rawName.toUpperCase().includes("RESUMEN")) continue;
                     
                     const clientId = generateUUID();
 
@@ -304,10 +347,10 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                     const client: Client = {
                         id: clientId,
                         name: String(cRow[nameIdx ?? -1] || ''),
-                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID", "DOCUMENTO", "CC"]) ?? -1)] || '0'),
-                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV", "WHATSAPP", "CONTACTO"]) ?? -1)] || '0'),
-                        secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2", "TEL SEC", "CEL SEC"]) ?? -1)] || 'SIN DATOS'),
-                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM", "UBICACION", "RESIDENCIA"]) ?? -1)] || 'SIN DATOS'),
+                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["OP. Nº", "OP", "NRO OP", "OPERACION", "OPERACIÓN", "NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID", "DOCUMENTO", "CC", "CODIGO", "NRO CLIENTE", "IDENTIFICACIÓN", "NIE"]) ?? -1)] || '0'),
+                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV", "WHATSAPP", "CONTACTO", "TELF", "MOVIL 1", "PRODUCTO", "NRO CEL", "WPP", "WS", "CELULAR1"]) ?? -1)] || '0'),
+                        secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2", "TEL SEC", "CEL SEC", "CELULAR2"]) ?? -1)] || 'SIN DATOS'),
+                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM", "UBICACION", "RESIDENCIA", "DEPTO", "BARRIO", "HOGAR", "PARTICULAR"]) ?? -1)] || 'SIN DATOS'),
                         addedBy: collectorId,
                         branchId: branchId,
                         creditLimit: 1000000,
@@ -371,45 +414,58 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 }
                             });
 
-                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL", "LIQUIDO", "MONTO CREDITO", "PRINCIPAL"]);
+                            const principalIdx = findCol(loanMap, 'principal', ["HABILITADO", "MONTO HABILITADO", "LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "LIQUIDO", "CAPITAL INICIAL", "MONTO CREDITO", "PRINCIPAL", "CAPITAL", "CREDITO", "CRÉDITO"]);
                             const rawPrincipal = lRow[principalIdx ?? -1];
                             const principal = parseAmount(rawPrincipal);
-                            console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
+                            console.log(`💰 [FORENSIC] Campo 'principal': ColIdx=${principalIdx}, Original="${rawPrincipal}", Final=${principal}`);
 
-                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "SALDO PEND", "SALDO PEND.", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR", "SALDO DEUDOR", "MONTO PENDIENTE", "RESTO"]);
+                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "SALDO PEND", "SALDO PEND.", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR", "SALDO DEUDOR", "MONTO PENDIENTE", "RESTO", "SALDOS", "SALDO CAPITAL", "SALDO CAP", "DEUDA"]);
                             const rawBalance = lRow[importedBalanceIdx ?? -1];
                             const legacyBalance = parseAmount(rawBalance);
-                            console.log(`💰 [FORENSIC] Campo 'balance': Original="${rawBalance}", Final=${legacyBalance}`);
+                            console.log(`💰 [FORENSIC] Campo 'balance': ColIdx=${importedBalanceIdx}, Original="${rawBalance}", Final=${legacyBalance}`);
 
-                            // 2. Obtener el total a pagar del Excel (si existe) o calcularlo
-                            const totalAmountStr = String(
-                                lRow[loanMap["TOTAL A PAGAR"]] ||
-                                lRow[loanMap["MONTO TOTAL"]] ||
-                                lRow[loanMap["TOTAL"]] ||
-                                lRow[loanMap["TOTAL DEVENSIÓN"]] ||
-                                lRow[loanMap["MONTO TOTAL PAGARE"]] ||
-                                '0'
-                            );
+                            // 2. Obtener valores financieros clave usando findCol (Inteligente)
+                            const totalAmountIdx = findCol(loanMap, 'totalAmount', ["TOTAL A PAGAR", "MONTO TOTAL", "TOTAL", "TOTAL DEVENSIÓN", "MONTO TOTAL PAGARE", "PLANILLA", "TOTAL CREDITO", "IMPORTE TOTAL", "TOTAL PAGAR", "TOTAL A ABONAR", "IMPORT. PAGARE", "IMPORT PAGARE", "MONTO PAGARE", "MONTO PAG", "MONTO", "PAGARE"]);
+                            const totalAmountExcel = parseAmount(lRow[totalAmountIdx ?? -1]);
 
-                            const capitalStr = String(lRow[loanMap["SALDO CAPITAL"] ?? loanMap["SALDO CAP"] ?? loanMap["CAPITAL"] ?? -1] || '0');
-                            const interestStr = String(lRow[loanMap["SALDO INTERES"] ?? loanMap["SALDO INT"] ?? loanMap["INTERES"] ?? -1] || '0');
+                            const capitalIdx = findCol(loanMap, 'capitalBalance', ["SALDO CAPITAL", "SALDO CAP", "CAPITAL", "DEUDA CAPITAL", "CAPITAL RESTANTE"]);
+                            const valCapital = parseAmount(lRow[capitalIdx ?? -1]);
 
-                            const valCapital = parseAmount(capitalStr);
-                            const valInterest = parseAmount(interestStr);
+                            const interestIdx = findCol(loanMap, 'interestBalance', ["SALDO INTERES", "SALDO INT", "INTERES", "INTERÉS", "DEUDA INTERES", "RESTANTE INTERES"]);
+                            const valInterest = parseAmount(lRow[interestIdx ?? -1]);
+
+                            // 2.1 Fallback para Principal (Si no hay líquido, usar saldo capital inicial)
+                            let finalPrincipal = principal;
+                            if (finalPrincipal === 0 && valCapital > 0) {
+                                finalPrincipal = valCapital;
+                            }
 
                             // RECONSTRUCCIÓN MATEMÁTICA v2.4 (Requerimiento Usuario)
                             // 1. Obtener Monto Cuota y Cantidades
-                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA", "IMPORTE CUOTA", "VALOR PLAN"]);
+                            const instValueIdx = findCol(loanMap, 'installmentValue', ["V. CUOTA", "V CUOTA", "MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA", "IMPORTE CUOTA", "VALOR PLAN", "VALOR CUOTAS", "VALOR INICIAL CUOTA"]);
                             const instValue = parseAmount(lRow[instValueIdx ?? -1]);
 
-                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO", "TOTAL CTAS", "NRO CUOTAS"]);
+                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "PLAZO", "CANT. CUOTAS", "CANT CUOTAS", "CANT CUOTA", "TOTAL CTAS", "NRO CUOTAS", "TIEMPO", "MESES", "SEMANAS", "CUOTAS", "CANT", "TOTAL CUOTAS"]);
                             const totalInstInput = parseAmount(lRow[totalInstIdx ?? -1] || 0);
+                            console.log(`🧮 [FORENSIC] Cuotas Totales: ColIdx=${totalInstIdx}, Header="${lRow[totalInstIdx ?? -1]}", Final=${totalInstInput}`);
 
-                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES", "COBRAR CUOTAS", "FALTANTES"]);
-                            const pendingInst = parseAmount(lRow[pendingInstIdx ?? -1] || 0);
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["C. PENDIENTES", "CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES", "COBRAR CUOTAS", "FALTANTES", "PENDIENTE", "RESTANTE", "DEUDA CUOTAS", "PEN", "CP"]);
+                            const rawPending = lRow[pendingInstIdx ?? -1];
+                            const pendingInst = parseAmount(rawPending || 0);
+                            
+                            const paidTotalIdx = findCol(loanMap, 'paidAmountTotal', ["MONTO COBRADO", "TOTAL COBRADO", "PAGADO", "TOTAL PAGADO", "COBRADO", "CUOTA COBRADA", "IMPORT. COBRADO", "ACUMULADO PAGADO"]);
+                            const excelPaidTotal = parseAmount(lRow[paidTotalIdx ?? -1] || 0);
 
-                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE", "COBRADAS", "PAGAS", "YA PAGAS"]);
-                            let paidInst = parseAmount(lRow[paidInstIdx ?? -1] || 0);
+                            console.log(`🧮 [FORENSIC] Cuotas Pendientes: ColIdx=${pendingInstIdx}, Header="${rawPending}", Final=${pendingInst}`);
+                            console.log(`🧮 [FORENSIC] Monto Cobrado Excel: ColIdx=${paidTotalIdx}, Header="${lRow[paidTotalIdx ?? -1]}", Final=${excelPaidTotal}`);
+
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["FECHA ULTIMO PAGO", "ULTIMO PAGO", "C. PAGADAS", "CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE", "COBRADAS", "PAGAS", "YA PAGAS", "ABONADAS", "CANCELADAS", "PAGOS", "PAG", "CPG"]);
+                            const rawPaid = lRow[paidInstIdx ?? -1];
+                            let paidInst = parseAmount(rawPaid || 0);
+                            console.log(`🧮 [FORENSIC] Cuotas Pagadas: ColIdx=${paidInstIdx}, Header="${rawPaid}", Final=${paidInst}`);
+
+                            const interestRateIdx = findCol(loanMap, 'interestRate', ["PORCENTAJE DE INTERES", "PORCENTAJE DE INTERÉS", "TASA", "INTERES", "INTERÉS", "%", "TASA DE INTERES", "TASA DE INTERÉS", "% INT", "PORCENTAJE", "VALOR INTERES"]);
+                            const importedInterestRate = parseAmount(lRow[interestRateIdx ?? -1] || 0);
 
                             // Si no viene el total de cuotas, intentar deducirlo de pagadas + pendientes
                             const totalInst = totalInstInput || (paidInst + pendingInst) || 24; 
@@ -417,6 +473,14 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                             // 2. Aplicar Fórmulas del Usuario
                             // Monto Total = Cuotas Totales * Monto Cuota
                             let totalAmount = totalInst * instValue;
+
+                            // Fallback 1: Si no tenemos monto de cuota pero sí total y cuotas totales, deducirlo
+                            let finalInstValue = instValue;
+                            if (finalInstValue === 0 && totalAmountExcel > 0 && totalInst > 0) {
+                                finalInstValue = Math.round(totalAmountExcel / totalInst);
+                                if (totalAmount === 0) totalAmount = totalAmountExcel;
+                                console.log(`🧮 [MATH v2.4] Cuota estimada (Total/Cuotas): ${finalInstValue}`);
+                            }
 
                             // 4. Determinar Saldo Final (REQUERIMIENTO v2.12 - PRIORIDAD ABSOLUTA)
                             // A. Prioridad 1: Campo "Saldo" directo (legacyBalance)
@@ -443,12 +507,16 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                             }
 
                             console.log(`🧮 [MATH FORENSIC v2.12] Cuota=${instValue} | Totales=${totalInst} | Pendientes=${pendingInst} | Pagadas=${paidInst}`);
-                            console.log(`🧮 [MATH FORENSIC v2.12] RESULTADO -> Total=${totalAmount} | Saldo=${importedBalance}`);
+                             console.log(`🧮 [MATH FORENSIC v2.12] RESULTADO -> Total=${totalAmount} | Saldo=${importedBalance}`);
 
-                            // Fallback por si lo anterior falla
-                            if (totalAmount === 0) {
-                                totalAmount = parseAmount(totalAmountStr) || (valCapital + valInterest) || principal;
-                            }
+                             // Fallback por si lo anterior falla (v2.13)
+                             if (totalAmount === 0) {
+                                 totalAmount = totalAmountExcel || (valCapital + valInterest) || principal;
+                             }
+                             if (finalPrincipal === 0 && totalAmount > 0) {
+                                 // Si no tenemos principal pero si total, asumir un interés del 20% para estimar el principal
+                                 finalPrincipal = Math.round(totalAmount / 1.25);
+                             }
 
                             // 5. Detectar frecuencia (INTELIGENTE)
                             let frequency = Frequency.DAILY;
@@ -463,7 +531,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 id: `L-${clientId}`,
                                 clientId,
                                 collectorId,
-                                principal,
+                                principal: finalPrincipal,
                                 totalAmount,
                                 totalInstallments: totalInst,
                                 installmentValue: instValue,
@@ -474,48 +542,62 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 branchId: branchId,
                                 operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
                                 sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
-                                interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
+                                interestRate: importedInterestRate || (finalPrincipal > 0 ? Math.round(((totalAmount / finalPrincipal) - 1) * 100) : 20),
                                 createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO", "FECHA PAGAR"]) ?? -1]),
                                 installments: [],
                                 raw_data: loanRawData // <-- GUARDA TODO
                             };
 
-                            // Generate historical installments (Always PENDING initial, log applicator will mark them)
+                            // GENERACIÓN DE CUOTAS - VERSIÓN 3.0 (DELEGACIÓN A LOGS)
+                            // Para evitar el error de "Saldo en Cero" por doble pago, creamos todas las cuotas como PENDING
+                            // y dejamos que addBulkData use el CollectionLog para marcarlas como pagadas.
+                            loan.installments = []; 
                             for (let j = 1; j <= totalInst; j++) {
                                 loan.installments.push({
                                     number: j,
-                                    amount: instValue,
+                                    amount: finalInstValue,
                                     dueDate: new Date().toISOString(), 
-                                    status: PaymentStatus.PENDING,
-                                    paidAmount: 0
+                                    status: PaymentStatus.PENDING, // <-- SIEMPRE PENDING AL INICIO
+                                    paidAmount: 0 // <-- SIEMPRE 0 AL INICIO
                                 });
                             }
 
-                            // 5. GENERAR LOG HISTÓRICO "RECONSTRUIDO" (v2.11)
-                            // Calculamos el monto del log para que: TOTAL - LOG = SALDO_DESEADO
-                            if (paidInst > 0 || totalAmount > importedBalance) {
-                                const logAmount = Math.max(0, totalAmount - importedBalance);
-                                if (logAmount > 0) {
-                                    logs.push({
-                                        id: generateUUID(),
-                                        loanId: loan.id,
-                                        clientId: client.id,
-                                        type: CollectionLogType.PAYMENT,
-                                        amount: logAmount,
-                                        date: loan.createdAt, // Usamos la fecha de inicio como referencia
-                                        location: { lat: 0, lng: 0 },
-                                        isOpening: false, // Falso para que 'helpers.ts' lo cuente como un pago real
-                                        notes: "Pago histórico importado (Ajuste de Saldo)",
-                                        branchId: branchId,
-                                        recordedBy: collectorId
-                                    });
-                                }
+                            // 5. GENERAR LOG HISTÓRICO "RECONSTRUIDO" (v3.0)
+                            // Calculamos cuánto se ha pagado según el Excel para aplicarlo en el sistema
+                            let logAmount = 0;
+                            if (excelPaidTotal > 0) {
+                                logAmount = excelPaidTotal;
+                            } else {
+                                logAmount = Math.max(0, totalAmount - importedBalance);
                             }
 
-                            loans.push(loan);
+                            console.log(`📝 [LOG RECONSTRUCTION] ClientID: ${clientId}, LogAmount=${logAmount}, FinalBalanceShouldBe=${importedBalance}`);
+
+                            if (logAmount > 0) {
+                                logs.push({
+                                    id: generateUUID(),
+                                    loanId: loan.id,
+                                    clientId: client.id,
+                                    type: CollectionLogType.PAYMENT,
+                                    amount: logAmount,
+                                    date: loan.createdAt || new Date().toISOString(), 
+                                    location: { lat: 0, lng: 0 },
+                                    isOpening: false, 
+                                    notes: "Importación Histórica Excel (Ajuste de Saldo)",
+                                    branchId: branchId,
+                                    recordedBy: collectorId
+                                });
+                            }
+
+                             if (finalPrincipal > 0 || totalAmountExcel > 0) {
+                                 loans.push(loan);
+                                 console.log(`✅ [FORENSIC] Préstamo creado para: ${client.name}`);
+                             } else {
+                                 console.warn(`⚠️ [FORENSIC] Préstamo NO creado para ${client.name}: Principal y Total son 0`);
+                             }
                             // Update client current balance
-                            client.creditLimit = principal;
-                            client.currentBalance = Math.max(0, totalAmount - (paidInst * instValue));
+                            client.capital = finalPrincipal;
+                            client.currentBalance = Math.round(importedBalance * 100) / 100;
                         }
                     }
                     dataIndex++;
@@ -529,4 +611,44 @@ export const processExcelImport = async (file: File, collectorId: string, branch
         reader.onerror = (err) => reject(err);
         reader.readAsArrayBuffer(file);
     });
+};
+
+export const downloadExcelTemplate = () => {
+    const headers = [
+        "IDENTIFICACION", "NOMBRE", "CELULAR", "DIRECCION", 
+        "HABILITADO", "V. CUOTA", "TOTAL CREDITO", "CANT CUOTAS",
+        "C. PENDIENTES", "SALDO ACTUAL", "FECHA ALTA"
+    ];
+    
+    const exampleData = [
+        [
+            "1234567", "JUAN PEREZ", "0981123456", "CALLE FALSA 123", 
+            2000000, 100000, 2400000, 24, 
+            12, 1200000, "13/03/2026"
+        ],
+        [
+            "7654321", "MARIA GARCIA", "0971654321", "AVENIDA SIEMPRE VIVA 742", 
+            1500000, 75000, 1800000, 24, 
+            24, 1800000, "13/03/2026"
+        ]
+    ];
+
+    const data = [headers, ...exampleData];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Plantilla Importacion");
+
+    // Estilos basicos para la cabecera
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + "1";
+        if (!worksheet[address]) continue;
+        worksheet[address].s = {
+            fill: { fgColor: { rgb: "0F172A" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true },
+            alignment: { horizontal: "center" }
+        };
+    }
+
+    XLSX.writeFile(workbook, "Plantilla_Anexo_Cobros.xlsx");
 };

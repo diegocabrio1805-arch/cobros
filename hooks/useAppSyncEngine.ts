@@ -1,0 +1,464 @@
+import { useEffect, useMemo, useRef } from 'react';
+import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus } from '../types';
+import { useSync } from './useSync';
+import { supabase } from '../utils/supabaseClient';
+import { StorageService } from '../utils/localforageStorage';
+import { Preferences } from '@capacitor/preferences';
+import { isPrintingNow, connectToPrinter } from '../services/bluetoothPrinterService';
+import { App as CapApp } from '@capacitor/app';
+
+export const useAppSyncEngine = (
+  state: AppState,
+  setState: React.Dispatch<React.SetStateAction<AppState>>,
+  resolvedSettings: any
+) => {
+  const mergeData = <T extends { id: string, updated_at?: string }>(
+    local: T[],
+    remote: T[],
+    pendingAddIds: Set<string> = new Set(),
+    pendingDeleteIds: Set<string> = new Set(),
+    isFullSync: boolean = false,
+    isAppendOnly: boolean = false
+  ): T[] => {
+    if (!Array.isArray(local)) local = [];
+    if (!Array.isArray(remote)) remote = [];
+    if (isFullSync) {
+      const localMap = new Map((Array.isArray(local) ? local : []).map(l => [l.id, l]));
+      const result = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)
+        .map(r => {
+          const l = localMap.get(r.id);
+          if (l) {
+            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
+            return { ...l, ...cleanR } as T;
+          }
+          return r;
+        });
+
+      const remoteIds = new Set(result.map(r => r.id));
+      local.forEach(l => {
+        if (!l || !l.id) return;
+        const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
+        if ((pendingAddIds.has(l.id) || isRecent) && !remoteIds.has(l.id)) {
+          result.push(l);
+          remoteIds.add(l.id);
+        }
+      });
+      return result;
+    }
+
+    const remoteMap = new Map((Array.isArray(remote) ? remote : []).map(i => [i.id, i]));
+    const result: T[] = [...(Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
+    const resultMap = new Map(result.map(i => [i.id, i]));
+
+    local.forEach(l => {
+      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
+      const r = remoteMap.get(l.id);
+      const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
+
+      if (!r) {
+        if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
+          result.push(l);
+          resultMap.set(l.id, l);
+        }
+      } else {
+        const remoteInstallments = Array.isArray((r as any).installments) ? (r as any).installments : [];
+        const localInstallments = Array.isArray((l as any).installments) ? (l as any).installments : [];
+        const remotePaidCount = remoteInstallments.filter((i: any) => i.status === 'Pagado').length;
+        const localPaidCount = localInstallments.filter((i: any) => i.status === 'Pagado').length;
+        const remoteIsMoreComplete = remoteInstallments.length > localInstallments.length || remotePaidCount > localPaidCount;
+
+        if (!isAppendOnly && !remoteIsMoreComplete && (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
+          const idx = result.findIndex(item => item.id === l.id);
+          if (idx !== -1) {
+            result[idx] = l;
+            resultMap.set(l.id, l);
+          }
+        } else if (r) {
+          const idx = result.findIndex(item => item.id === r.id);
+          if (idx !== -1) {
+            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
+            result[idx] = { ...l, ...cleanR } as T;
+            resultMap.set(r.id, result[idx]);
+          }
+        }
+      }
+    });
+
+    if (!isFullSync) {
+      local.forEach(l => {
+        if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
+          result.push(l);
+          resultMap.set(l.id, l);
+        }
+      });
+    }
+    return result;
+  };
+
+  const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
+    setState(prev => {
+      const queueStr = localStorage.getItem('syncQueue');
+      const queue = queueStr ? JSON.parse(queueStr) : [];
+      const pendingDeleteIds = new Set<string>();
+      const pendingAddIds = new Set<string>();
+
+      if (Array.isArray(queue)) {
+        queue.forEach((item: any) => {
+          if (item?.data?.id) {
+            if (item.operation.startsWith('DELETE_')) pendingDeleteIds.add(item.data.id);
+            else if (item.operation.startsWith('ADD_')) pendingAddIds.add(item.data.id);
+          }
+        });
+      }
+
+      const updatedState = { ...prev };
+
+      if (newData.deletedItems && newData.deletedItems.length > 0) {
+        const delIds = new Set(newData.deletedItems.map(d => d.recordId));
+        if (updatedState.payments) updatedState.payments = updatedState.payments.filter(i => !delIds.has(i.id));
+        if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
+        if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
+        if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
+      }
+
+      const mappedData = { ...newData };
+      if (mappedData.collectionLogs) {
+        mappedData.collectionLogs = mappedData.collectionLogs.map(l => ({
+          ...l,
+          loanId: l.loanId || (l as any).loan_id,
+          clientId: l.clientId || (l as any).client_id,
+          branchId: l.branchId || (l as any).branch_id,
+          collectorId: l.collectorId || (l as any).collector_id,
+          recordedBy: l.recordedBy || (l as any).recorded_by,
+          receiptNumber: l.receiptNumber || (l as any).receipt_number,
+          isOpening: l.isOpening !== undefined ? l.isOpening : (l as any).is_opening,
+          isRenewal: l.isRenewal !== undefined ? l.isRenewal : (l as any).is_renewal,
+          isVirtual: l.isVirtual !== undefined ? l.isVirtual : (l as any).is_virtual,
+          notes: l.notes || (l as any).notes,
+          deletedAt: l.deletedAt || (l as any).deleted_at
+        }));
+      }
+      if (mappedData.payments) {
+        mappedData.payments = mappedData.payments.map(p => ({
+          ...p,
+          loanId: (p as any).loanId || (p as any).loan_id,
+          clientId: (p as any).clientId || (p as any).client_id,
+          branchId: (p as any).branchId || (p as any).branch_id,
+          collectorId: (p as any).collectorId || (p as any).collector_id,
+          isVirtual: (p as any).isVirtual !== undefined ? (p as any).isVirtual : (p as any).is_virtual,
+          isRenewal: (p as any).isRenewal !== undefined ? (p as any).isRenewal : (p as any).is_renewal,
+          location: (p as any).location || (p as any).location,
+          deletedAt: (p as any).deletedAt || (p as any).deleted_at
+        }));
+      }
+      if (mappedData.loans) {
+        mappedData.loans = mappedData.loans.map(lo => ({
+          ...lo,
+          clientId: (lo as any).clientId || (lo as any).client_id,
+          branchId: (lo as any).branchId || (lo as any).branch_id,
+          collectorId: (lo as any).collectorId || (lo as any).collector_id,
+          interestRate: (lo as any).interestRate || (lo as any).interest_rate,
+          totalInstallments: (lo as any).totalInstallments || (lo as any).total_installments,
+          installmentValue: (lo as any).installmentValue || (lo as any).installment_value,
+          totalAmount: (lo as any).totalAmount || (lo as any).total_amount,
+          isRenewal: (lo as any).isRenewal !== undefined ? (lo as any).isRenewal : (lo as any).is_renewal,
+          customHolidays: (lo as any).customHolidays || (lo as any).custom_holidays,
+          deletedAt: (lo as any).deletedAt || (lo as any).deleted_at
+        }));
+      }
+      if (mappedData.clients) {
+        mappedData.clients = mappedData.clients.map(c => ({
+          ...c,
+          documentId: (c as any).documentId || (c as any).document_id,
+          secondaryPhone: (c as any).secondaryPhone || (c as any).secondary_phone,
+          addedBy: (c as any).addedBy || (c as any).added_by,
+          branchId: (c as any).branchId || (c as any).branch_id,
+          profilePic: (c as any).profilePic || (c as any).profile_pic,
+          housePic: (c as any).housePic || (c as any).house_pic,
+          businessPic: (c as any).businessPic || (c as any).business_pic,
+          documentPic: (c as any).documentPic || (c as any).document_pic,
+          domicilioLocation: (c as any).domicilioLocation || (c as any).domicilio_location,
+          creditLimit: (c as any).creditLimit || (c as any).credit_limit,
+          allowCollectorLocationUpdate: (c as any).allowCollectorLocationUpdate !== undefined ? (c as any).allowCollectorLocationUpdate : (c as any).allow_collector_location_update,
+          customNoPayMessage: (c as any).customNoPayMessage || (c as any).custom_no_pay_message,
+          isActive: (c as any).isActive !== undefined ? (c as any).isActive : (c as any).is_active,
+          isHidden: (c as any).isHidden !== undefined ? (c as any).isHidden : (c as any).is_hidden,
+          deletedAt: (c as any).deletedAt || (c as any).deleted_at
+        }));
+      }
+      if (mappedData.users) {
+        mappedData.users = mappedData.users
+          .map(u => ({
+            ...u,
+            managedBy: (u as any).managedBy || (u as any).managed_by,
+            expiryDate: (u as any).expiryDate || (u as any).expiry_date,
+            requiresLocation: (u as any).requiresLocation !== undefined ? (u as any).requiresLocation : (u as any).requires_location,
+            profilePic: (u as any).profilePic || (u as any).profile_pic || (u as any).photo_url,
+            homePic: (u as any).homePic || (u as any).home_pic,
+            homeLocation: (u as any).homeLocation || (u as any).home_location,
+            deletedAt: (u as any).deletedAt || (u as any).deleted_at
+          }))
+          .filter(u => !u.deletedAt);
+      }
+      if (mappedData.expenses) {
+        mappedData.expenses = mappedData.expenses.map(e => ({
+          ...e,
+          branchId: (e as any).branchId || (e as any).branch_id,
+          addedBy: (e as any).addedBy || (e as any).added_by,
+          deletedAt: (e as any).deletedAt || (e as any).deleted_at
+        }));
+      }
+
+      if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      if (mappedData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, mappedData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.users) {
+        updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
+        if (prev.currentUser && mappedData.users.length > 0) {
+          const refreshedCurrentUser = mappedData.users.find((u: any) => u.id === prev.currentUser!.id);
+          if (refreshedCurrentUser) {
+            const mappedUser = {
+              ...prev.currentUser,
+              ...refreshedCurrentUser,
+              requiresLocation: refreshedCurrentUser.requiresLocation ?? (refreshedCurrentUser as any).requires_location ?? prev.currentUser.requiresLocation,
+              blocked: refreshedCurrentUser.blocked ?? prev.currentUser.blocked,
+              expiryDate: refreshedCurrentUser.expiryDate ?? (refreshedCurrentUser as any).expiry_date ?? prev.currentUser.expiryDate,
+              name: refreshedCurrentUser.name ?? prev.currentUser.name,
+              username: refreshedCurrentUser.username ?? prev.currentUser.username,
+            };
+            updatedState.currentUser = mappedUser;
+          }
+        }
+      }
+
+      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
+
+      return updatedState;
+    });
+  };
+
+  const sync = useSync(handleRealtimeData);
+
+  const handleDeepReset = () => {
+    if (confirm("¿Estás seguro? Esto borrará todos los datos locales y forzará una descarga total.")) {
+      StorageService.removeItem('prestamaster_v2').then(() => {
+        localStorage.clear();
+        window.location.reload();
+      });
+    }
+  };
+
+  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
+    if (!silent) sync.setSuccessMessage(message);
+    if (fullSync) await sync.forceFullSync();
+    else await sync.processQueue(true, false, skipPull);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        StorageService.setItem('prestamaster_v2', state);
+        if (state.currentUser) {
+          Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
+        }
+      } catch (e) {
+        console.error("IDB Save Error:", e);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  useEffect(() => {
+    const recover = async () => {
+      if (state.currentUser) return;
+      const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+      if (value) {
+        try {
+          const user = JSON.parse(value);
+          setState((prev: AppState) => ({ ...prev, currentUser: user }));
+          setTimeout(() => handleForceSync(true), 1000);
+        } catch (e) { }
+      }
+    };
+    recover();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && navigator.onLine)) {
+        Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
+        setState((prev: AppState) => ({ ...prev, currentUser: null }));
+      }
+    });
+
+    const triggerEmergencySync = async () => {
+      const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
+      const syncKey = 'emergency_sync_v639_FINAL_COMPLETE';
+      
+      if (lastSyncKey !== syncKey && state.currentUser) {
+        console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
+        sync.setSuccessMessage("¡RECUPERANDO DATOS v6.4.0!");
+        
+        const keysToRemove = [
+          'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'local_changes_queue',
+          'emergency_sync_v638_UPDATE_FINAL', 'emergency_sync_v639_UPDATE_FINAL',
+          'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_ms',
+          'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
+          'last_sync_timestamp_v8', 'last_sync_timestamp_v630'
+        ];
+        
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem('last_emergency_sync_key', syncKey);
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    };
+    triggerEmergencySync();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [state.currentUser]);
+
+  useEffect(() => {
+    connectToPrinter(undefined, true).catch(() => { });
+    
+    const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive) {
+        connectToPrinter(undefined, true);
+      }
+    });
+
+    const timer = setTimeout(() => {
+      sync.pullData();
+    }, 1000);
+
+    return () => {
+      resumeListener.then(l => l.remove());
+      clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let lastFocusSync = 0;
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusSync > 120000) {
+        lastFocusSync = now;
+        sync.pullData();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  useEffect(() => {
+    const intervalTime = sync.queueLength > 0 ? 2000 : 300000;
+    const syncInterval = setInterval(() => {
+      if (!sync.isSyncing && sync.isOnline && !isPrintingNow()) {
+        handleForceSync(true);
+      }
+    }, intervalTime);
+
+    const handleOnline = () => handleForceSync(true);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [sync.isSyncing, sync.isOnline, sync.queueLength]);
+
+  const getBranchId = (user: User | null): string => {
+    if (!user) return 'none';
+    if (user.role === Role.ADMIN || user.role === Role.MANAGER) return user.id;
+    return user.managedBy || 'none';
+  };
+
+  const filteredState = useMemo(() => {
+    if (!state.currentUser) return state;
+    const user = state.currentUser;
+    const branchId = getBranchId(user);
+    const myIdLower = user.id.toLowerCase();
+    const branchIdLower = branchId.toLowerCase();
+
+    const myDirectCollectorIds = new Set<string>();
+    (Array.isArray(state.users) ? state.users : []).forEach(u => {
+      const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      if (uManagerId === branchIdLower && u.role === Role.COLLECTOR) {
+        myDirectCollectorIds.add(u.id.toLowerCase());
+      }
+    });
+
+    const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
+      const itemBranchLower = itemBranchId?.toLowerCase();
+      const addedByLower = itemAddedBy?.toLowerCase() || '';
+      const collectorIdLower = itemCollectorId?.toLowerCase() || '';
+
+      if (itemBranchLower) {
+        return itemBranchLower === branchIdLower;
+      } else {
+        return addedByLower === myIdLower ||
+          myDirectCollectorIds.has(addedByLower) ||
+          collectorIdLower === myIdLower ||
+          myDirectCollectorIds.has(collectorIdLower);
+      }
+    };
+
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c =>
+      isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) &&
+      c.isActive !== false &&
+      !c.deletedAt
+    );
+    const activeClientIds = new Set(clients.map(c => c.id));
+
+    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
+      activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt
+    );
+    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p =>
+      activeClientIds.has(p.clientId || (p as any).client_id) && !p.deletedAt
+    );
+    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e =>
+      isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined)
+    );
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
+      isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) &&
+      !log.deletedAt
+    );
+
+    let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (user.role === Role.ADMIN) return true;
+      const uId = u.id.toLowerCase();
+      const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
+    });
+
+    if (user.role === Role.COLLECTOR) {
+      const myAssignedClientIds = new Set<string>();
+      const allHistoricLoans = Array.isArray(state.loans) ? state.loans : [];
+      allHistoricLoans.forEach(l => {
+        if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id);
+      });
+
+      clients = clients.filter(c => (c.addedBy || (c as any).added_by) === user.id || myAssignedClientIds.has(c.id));
+      const visibleClientIds = new Set(clients.map(c => c.id));
+      loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
+      payments = payments.filter(p => visibleClientIds.has(p.clientId || (p as any).client_id));
+      collectionLogs = collectionLogs.filter(log => log.clientId && visibleClientIds.has(log.clientId));
+      users = users.filter(u => u.id === user.id);
+    }
+
+    return { ...state, clients, loans, payments, expenses, collectionLogs, users, settings: resolvedSettings };
+  }, [state, resolvedSettings]);
+
+  return {
+    ...sync,
+    handleForceSync,
+    handleDeepReset,
+    filteredState,
+    getBranchId
+  };
+};

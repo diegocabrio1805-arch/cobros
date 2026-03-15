@@ -12,7 +12,8 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
-import { exportClientsToExcel, processExcelImport } from '../utils/excelHelper';
+import { exportClientsToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
+import * as XLSX from 'xlsx-js-style';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
 
 const BANCA_CLIENT_TYPES = [
@@ -280,6 +281,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const [showImportModal, setShowImportModal] = useState(false);
+  const [previewData, setPreviewData] = useState<{ clients: Client[], loans: Loan[], logs: CollectionLog[] } | null>(null);
   const [selectedCollectorForImport, setSelectedCollectorForImport] = useState('');
   const [isProcessingExcel, setIsProcessingExcel] = useState(false);
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos'>('cartera');
@@ -293,9 +295,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const ITEMS_PER_PAGE = 20;
 
   const [showModal, setShowModal] = useState(false);
+  const [jsonPreviewData, setJsonPreviewData] = useState<string | null>(null);
+  const [isConvertingJson, setIsConvertingJson] = useState(false);
   const [showLegajo, setShowLegajo] = useState<string | null>(null);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [renewForm, setRenewForm] = useState<any>({
@@ -1892,6 +1897,38 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
 
+  const handleConfirmImport = async () => {
+    if (!previewData) return;
+    setIsProcessingExcel(true);
+    try {
+      if (addBulkData) {
+        console.log("🚀 [BULK] Executing atomic bulk import...");
+        await addBulkData(previewData.clients, previewData.loans, previewData.logs);
+      } else {
+        // Fallback for safety (though addBulkData should be present)
+        for (const client of previewData.clients) {
+          const clientLoan = previewData.loans.find(l => l.clientId === client.id);
+          await addClient(client, clientLoan);
+          
+          const loanLogs = previewData.logs.filter(log => log.loanId === clientLoan?.id);
+          for (const log of loanLogs) {
+             addCollectionAttempt(log);
+          }
+        }
+      }
+
+      alert(`IMPORTACIÓN EXITOSA: ${previewData.clients.length} CLIENTES, ${previewData.loans.length} PRÉSTAMOS Y ${previewData.logs?.length || 0} REGISTROS DE PAGO.`);
+      setShowImportModal(false);
+      setSelectedCollectorForImport('');
+      setPreviewData(null);
+    } catch (err) {
+      console.error(err);
+      alert("ERROR AL GUARDAR DATO: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsProcessingExcel(false);
+    }
+  };
+
   const handleFileUploadMasivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedCollectorForImport) return;
@@ -1907,31 +1944,83 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode);
 
-      if (addBulkData) {
-        console.log("🚀 [BULK] Executing atomic bulk import...");
-        await addBulkData(clients, loans, logs);
-      } else {
-        // Fallback for safety (though addBulkData should be present)
-        for (const client of clients) {
-          const clientLoan = loans.find(l => l.clientId === client.id);
-          await addClient(client, clientLoan);
-          
-          const loanLogs = logs.filter(log => log.loanId === clientLoan?.id);
-          for (const log of loanLogs) {
-             addCollectionAttempt(log);
-          }
-        }
+      if (clients.length === 0) {
+        alert("⚠️ ATENCIÓN: No se detectaron clientes ni préstamos válidos en el archivo. Verifique que los encabezados coincidan con el formato sugerido o use la Plantilla de Ejemplo.");
+        setIsProcessingExcel(false);
+        return;
       }
 
-      alert(`IMPORTACIÓN EXITOSA: ${clients.length} CLIENTES, ${loans.length} PRÉSTAMOS Y ${logs?.length || 0} REGISTROS DE PAGO.`);
-      setShowImportModal(false);
-      setSelectedCollectorForImport('');
+      setPreviewData({ clients, loans, logs });
     } catch (err) {
       console.error(err);
       alert("ERROR AL PROCESAR EL EXCEL. VERIFIQUE EL FORMATO.");
     } finally {
       setIsProcessingExcel(false);
       if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleConvertExcelToJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsConvertingJson(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonStr = JSON.stringify(XLSX.utils.sheet_to_json(worksheet), null, 2);
+      setJsonPreviewData(jsonStr);
+    } catch (error) {
+      console.error(error);
+      alert("Error al convertir Excel a JSON.");
+    } finally {
+      setIsConvertingJson(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleUploadJson = async () => {
+    if (!jsonPreviewData) return;
+    try {
+      const parsed = JSON.parse(jsonPreviewData);
+      console.log("JSON PARSEADO LISTO PARA SUBIR:", parsed);
+      alert(`✅ Formato JSON de ${parsed.length || 'varios'} registros enviado y listo para procesar en el sistema.\n\n(Simulación de Envío JSON Completada)`);
+      setJsonPreviewData(null);
+    } catch (e) {
+      alert("Error en el formato JSON.");
+    }
+  };
+
+  const handleGenerateDossierPDF = async () => {
+    if (!clientInLegajo || !shareCardRef.current) return;
+    
+    setIsGeneratingPDF(true);
+    try {
+      // Pequeña espera para asegurar que el DOM esté listo
+      await new Promise(r => setTimeout(r, 100));
+      
+      const canvas = await html2canvas(shareCardRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `Expediente_${clientInLegajo.name.replace(/\s+/g, '_')}_${currentDate}.pdf`;
+      
+      doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      await saveAndOpenPDF(doc, fileName);
+      
+      alert('✅ PDF generado y guardado localmente.\n\nPara que este archivo quede guardado de forma permanente en la base de datos central (Supabase Storage), se requiere habilitar un "Bucket" de almacenamiento en el servidor web. Por ahora, el documento se encuentra en tu dispositivo.');
+    } catch (error) {
+      console.error('Error al generar PDF del expediente:', error);
+      alert('Error al generar el documento PDF.');
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -2016,6 +2105,35 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         </div>
 
         <div className="space-y-4">
+          {viewMode === 'gestion' && (
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-4">
+                <h3 className="font-black text-amber-900 uppercase tracking-widest text-[10px] md:text-xs mb-3"><i className="fa-solid fa-file-code mr-2"></i>Convertidor Excel a JSON</h3>
+                {!jsonPreviewData ? (
+                  <div>
+                    <input type="file" accept=".xlsx, .xls" onChange={handleConvertExcelToJson} id="json-upload" className="hidden" />
+                    <label htmlFor="json-upload" className="inline-flex items-center justify-center w-full md:w-auto gap-2 px-6 py-4 md:py-3 bg-white border-2 border-amber-300 text-amber-700 rounded-xl font-black uppercase text-[10px] md:text-xs cursor-pointer hover:bg-amber-100 transition-all shadow-sm active:scale-95">
+                      {isConvertingJson ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-excel"></i>}
+                      SELECCIONAR EXCEL PARA CONVERTIR
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-fadeIn">
+                    <textarea 
+                      readOnly 
+                      value={jsonPreviewData} 
+                      className="w-full h-40 md:h-60 bg-slate-900 text-emerald-400 font-mono text-[10px] md:text-xs p-4 rounded-xl outline-none shadow-inner" 
+                    />
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <button onClick={() => setJsonPreviewData(null)} className="w-full md:w-auto px-6 py-4 md:py-3 bg-white text-slate-600 font-bold text-[10px] uppercase rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">Cancelar</button>
+                      <button onClick={handleUploadJson} className="w-full flex-1 px-6 py-4 md:py-3 bg-amber-600 font-black text-white text-[10px] uppercase rounded-xl hover:bg-amber-700 shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <i className="fa-solid fa-cloud-arrow-up text-sm"></i>
+                        SUBIR AL SISTEMA EL FORMATO JSON
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+          )}
           <div className="relative">
             <input
               type="text"
@@ -3009,9 +3127,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   );
                                 })()}
                               </div>
-                              <div className="px-3 pb-3 bg-white">
+                              <div className="px-3 pb-3 bg-white space-y-2">
                                 <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
                                   <i className="fa-solid fa-print"></i> REIMPRIMIR ÚLTIMO RECIBO
+                                </button>
+                                <button onClick={handleGenerateDossierPDF} disabled={isGeneratingPDF} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-indigo-500 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 disabled:bg-slate-400">
+                                  {isGeneratingPDF ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
+                                  {isGeneratingPDF ? 'GENERANDO PDF...' : 'TRANSFORMAR EN PDF'}
                                 </button>
                               </div>
                             </div>
@@ -3425,69 +3547,166 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     </PullToRefresh>
 
       {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-16 md:pt-24 px-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-8 md:pt-16 px-4 animate-fadeIn overflow-y-auto pb-10">
+          <div className={`bg-white rounded-3xl p-6 md:p-8 border border-slate-200 w-full ${previewData ? 'max-w-5xl' : 'max-w-md'} shadow-2xl relative animate-scaleIn`}>
             <button 
-              onClick={() => setShowImportModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all"
+              onClick={() => { setShowImportModal(false); setPreviewData(null); }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all z-10"
             >
               <i className="fa-solid fa-xmark text-xl"></i>
             </button>
 
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
-              <Upload />
-            </div>
+            {!previewData ? (
+              <>
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
+                  <Upload />
+                </div>
 
-            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importar Cartera</h3>
-            <p className="text-slate-500 text-[10px] font-bold mb-6 uppercase tracking-widest text-center">
-              Seleccione un cobrador para asignar la nueva cartera
-            </p>
+                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importación Inteligente</h3>
+                <p className="text-slate-500 text-[9px] font-bold mb-6 uppercase tracking-widest text-center px-4">
+                  Reconocimiento universal de encabezados (ID, Monto, Interés, Cuotas).
+                </p>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Cobrador / Ruta Destino</label>
-                <select 
-                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
-                  value={selectedCollectorForImport}
-                  onChange={(e) => setSelectedCollectorForImport(e.target.value)}
-                >
-                  <option value="">-- SELECCIONAR COBRADOR --</option>
-                  {collectors.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+                <div className="flex justify-center mb-4">
+                  <button 
+                    onClick={() => downloadExcelTemplate()}
+                    className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
+                  >
+                    <Download size={14} /> Descargar Plantilla de Ejemplo
+                  </button>
+                </div>
 
-              <div className="relative group">
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  disabled={isProcessingExcel}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  onChange={handleFileUploadMasivo}
-                />
-                <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all ${isProcessingExcel ? 'bg-slate-50 border-slate-200' : 'border-slate-300 group-hover:border-emerald-500 group-hover:bg-emerald-50'}`}>
-                  {isProcessingExcel ? (
-                    <>
-                      <i className="fa-solid fa-spinner animate-spin text-3xl text-emerald-500 mb-2"></i>
-                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Procesando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="fa-solid fa-file-excel text-3xl text-slate-300 group-hover:text-emerald-500 mb-2 transition-colors"></i>
-                      <span className="text-[10px] font-black text-slate-500 group-hover:text-emerald-700 uppercase tracking-widest">Seleccionar Excel</span>
-                    </>
-                  )}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Cobrador / Ruta Destino</label>
+                    <select 
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
+                      value={selectedCollectorForImport}
+                      onChange={(e) => setSelectedCollectorForImport(e.target.value)}
+                    >
+                      <option value="">-- SELECCIONAR COBRADOR --</option>
+                      {collectors.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative group">
+                    <input 
+                      type="file" 
+                      accept=".xlsx, .xls" 
+                      disabled={isProcessingExcel}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      onChange={handleFileUploadMasivo}
+                    />
+                    <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all ${isProcessingExcel ? 'bg-slate-50 border-slate-200' : 'border-slate-300 group-hover:border-emerald-500 group-hover:bg-emerald-50'}`}>
+                      {isProcessingExcel ? (
+                        <>
+                          <i className="fa-solid fa-spinner animate-spin text-3xl text-emerald-500 mb-2"></i>
+                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Analizando Planilla...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-file-excel text-3xl text-slate-300 group-hover:text-emerald-500 mb-2 transition-colors"></i>
+                          <span className="text-[10px] font-black text-slate-500 group-hover:text-emerald-700 uppercase tracking-widest">Seleccionar Archivo</span>
+                          <span className="text-[7px] font-bold text-slate-400 uppercase mt-1">Recomendado: .XLSX (Excel Moderno)</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => { setShowImportModal(false); setPreviewData(null); }}
+                    className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4 pr-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
+                      <i className="fa-solid fa-table-list"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Muestra de Datos</h3>
+                      <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                        Verifique antes de confirmar: {previewData.clients.length} Clientes | {previewData.loans.length} Préstamos
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-auto max-h-[50vh] border border-slate-200 rounded-xl shadow-inner bg-slate-50 mobile-scroll-container">
+                  <table className="w-full text-left border-collapse text-[9px] md:text-[10px]">
+                    <thead className="bg-slate-900 text-white sticky top-0 z-10">
+                      <tr className="uppercase font-black tracking-widest">
+                        <th className="px-3 md:px-4 py-3">#</th>
+                        <th className="px-3 md:px-4 py-3">Cliente</th>
+                        <th className="px-3 md:px-4 py-3 min-w-[80px]">CI/Doc</th>
+                        <th className="px-3 md:px-4 py-3 text-right">Capital</th>
+                        <th className="px-3 md:px-4 py-3 text-right">Cuota</th>
+                        <th className="px-3 md:px-4 py-3 text-center">Frecuencia</th>
+                        <th className="px-3 md:px-4 py-3 text-right">Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {previewData.clients.slice(0, 100).map((cli, i) => {
+                        const loan = previewData.loans.find(l => l.clientId === cli.id);
+                        const paid = calculateTotalPaidFromLogs(previewData.logs.filter(l => l.loanId === loan?.id));
+                        const balance = loan ? Math.max(0, loan.totalAmount - paid) : 0;
+                        return (
+                          <tr key={cli.id} className="hover:bg-blue-50/50 bg-white font-bold transition-colors">
+                            <td className="px-3 md:px-4 py-3 text-slate-400">{i + 1}</td>
+                            <td className="px-3 md:px-4 py-3 text-slate-900 uppercase">
+                              <div className="flex flex-col">
+                                <span className="font-black">{cli.name}</span>
+                                <span className="text-[8px] text-slate-400">{cli.phone}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 md:px-4 py-3 text-slate-600">{cli.documentId}</td>
+                            <td className="px-3 md:px-4 py-3 text-right text-emerald-600 font-mono">{formatCurrency(loan?.principal || 0, state.settings)}</td>
+                            <td className="px-3 md:px-4 py-3 text-right text-blue-600 font-mono">{formatCurrency(loan?.installmentValue || 0, state.settings)}</td>
+                            <td className="px-3 md:px-4 py-3 text-center text-slate-600 uppercase">{loan?.frequency}</td>
+                            <td className="px-3 md:px-4 py-3 text-right text-red-600 font-mono">{formatCurrency(balance, state.settings)}</td>
+                          </tr>
+                        );
+                      })}
+                      {previewData.clients.length > 100 && (
+                        <tr>
+                          <td colSpan={7} className="px-3 md:px-4 py-4 text-center text-slate-500 font-black text-[9px] uppercase tracking-widest bg-slate-100/50">
+                            ... y {previewData.clients.length - 100} registros más. Mostrando vista previa limitada.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-3 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => setPreviewData(null)}
+                    disabled={isProcessingExcel}
+                    className="flex-1 py-4 text-slate-600 font-black uppercase text-[10px] md:text-xs tracking-widest hover:bg-slate-100 rounded-xl transition-all border border-slate-200 disabled:opacity-50"
+                  >
+                    ATRAS / CANCELAR
+                  </button>
+                  <button 
+                    onClick={handleConfirmImport}
+                    disabled={isProcessingExcel}
+                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] md:text-xs tracking-widest shadow-xl flex justify-center items-center gap-2 transition-all active:scale-95 disabled:bg-slate-400"
+                  >
+                    {isProcessingExcel ? (
+                      <><i className="fa-solid fa-spinner animate-spin"></i> SUBIENDO AL SISTEMA...</>
+                    ) : (
+                      <><i className="fa-solid fa-cloud-arrow-up"></i> CONFIRMAR Y SUBIR AL SISTEMA</>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <button 
-                onClick={() => setShowImportModal(false)}
-                className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}

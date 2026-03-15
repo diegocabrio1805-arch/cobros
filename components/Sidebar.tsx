@@ -65,71 +65,96 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
   });
 
   const technicalSupportPhone = state.settings.technicalSupportPhone;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
+    return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
+    };
+  }, []);
 
   return (
-    <div className="w-64 bg-[#0f172a] h-screen sticky top-0 hidden md:flex flex-col text-slate-400 border-r border-slate-800">
-      <div className="p-6 border-b border-slate-800 space-y-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black text-emerald-500 flex items-center gap-3 uppercase tracking-tighter">
-            <i className="fa-solid fa-sack-dollar text-2xl"></i>
-            <span className="text-xs">{state.settings.companyName || 'Anexo Cobro'}</span>
-          </h1>
+    <div className="w-72 charcoal-gradient h-screen sticky top-0 hidden md:flex flex-col text-slate-400 border-r border-white/5 shadow-2xl z-[100]">
+      <div className="p-8 border-b border-white/5 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 premium-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-3 group hover:rotate-0 transition-transform duration-300">
+            <i className="fa-solid fa-sack-dollar text-2xl text-white"></i>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-black text-white uppercase tracking-tighter leading-none">ANEXO <span className="text-emerald-500">COBRO</span></h1>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-70">Sistema Core v6.4</p>
+          </div>
         </div>
 
-        {/* Sección de País y Hora Local */}
-        <div className="bg-white/5 rounded-xl p-3 border border-white/5 animate-fadeIn">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg leading-none">{flags[countryCode] || '🌎'}</span>
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter truncate">{countryName}</span>
+        {/* Sección de País y Hora Local - Premium Card */}
+        <div className="bg-white/5 backdrop-blur-md rounded-[1.5rem] p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl leading-none drop-shadow-sm">{flags[countryCode] || '🌎'}</span>
+              <span className="text-[10px] font-black text-white/80 uppercase tracking-tighter truncate">{countryName}</span>
+            </div>
+            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
           </div>
-          <div className="flex items-center gap-2 text-emerald-400">
+          <div className="flex items-center gap-2 text-emerald-400/90">
             <i className="fa-regular fa-clock text-[10px]"></i>
-            <span className="text-xs font-black font-mono tracking-widest">{currentTime}</span>
+            <span className="text-sm font-black font-mono tracking-[0.15em]">{currentTime}</span>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-6 space-y-1.5 overflow-y-auto custom-scrollbar">
         {filteredItems.map((item) => (
           <React.Fragment key={item.id}>
             <button
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === item.id
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
-                : 'hover:bg-slate-800 hover:text-slate-200'
+              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition-all group relative overflow-hidden ${activeTab === item.id
+                ? 'premium-gradient text-white shadow-xl shadow-emerald-500/10'
+                : 'hover:bg-white/5 hover:text-white text-slate-500'
                 }`}
             >
-              <i className={`fa-solid ${item.icon} w-5 text-lg ${activeTab === item.id ? 'text-white' : 'text-slate-50'}`}></i>
-              {item.label}
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-800/50 group-hover:bg-slate-700 text-emerald-500'}`}>
+                <i className={`fa-solid ${item.icon} text-sm ${activeTab === item.id ? 'text-white' : ''}`}></i>
+              </div>
+              <span className="relative z-10">{item.label}</span>
+              {activeTab === item.id && (
+                <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/30"></div>
+              )}
             </button>
-            {/* Soporte Técnico en Menú (Solo Managers) - Ajustes es visible para todos */}
+
             {item.id === 'settings' && isPowerUser && technicalSupportPhone && (
-              <div className="px-4 py-3 mt-1 bg-white/5 rounded-xl border border-white/5 animate-fadeIn">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Soporte Técnico</p>
-                <a href={`tel:${technicalSupportPhone}`} className="text-base font-black text-emerald-400 flex items-center gap-2 hover:text-emerald-300 transition-colors">
-                  <i className="fa-solid fa-phone-volume text-sm"></i>
+              <div className="px-5 py-4 mt-2 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 animate-fadeIn">
+                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Soporte VIP</p>
+                <a href={`tel:${technicalSupportPhone}`} className="text-sm font-black text-indigo-400 flex items-center gap-3 hover:text-indigo-300 transition-colors">
+                  <div className="w-6 h-6 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                    <i className="fa-solid fa-phone-volume text-[10px]"></i>
+                  </div>
                   {technicalSupportPhone}
                 </a>
               </div>
             )}
+            
             {item.id === 'settings' && (
-              <div className="px-4 pb-2 -mt-1">
+              <div className="px-5 py-3">
                 <div
-                  className={`w-full flex items-center justify-between p-2 rounded-xl border transition-all ${isSyncing ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                  className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${isSyncing ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-600'}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isSyncing ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-800 text-slate-500'}`}>
-                      <i className={`fa-solid fa-rotate text-[10px] ${isSyncing ? 'animate-spin' : ''}`}></i>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isSyncing ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800/80 text-slate-600'}`}>
+                      <i className={`fa-solid fa-rotate text-xs ${isSyncing ? 'animate-spin' : ''}`}></i>
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      {isSyncing ? 'SINCRONIZANDO...' : 'Sincro Turbo (4s)'}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                        {isSyncing ? 'Sincronizando...' : 'Online'}
+                      </span>
+                      <p className="text-[7px] font-bold opacity-50 uppercase mt-0.5">Cloud Sync v2</p>
+                    </div>
                   </div>
                   {isSyncing && (
-                    <div className="flex gap-1">
-                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce"></div>
-                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                    </div>
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></div>
                   )}
                 </div>
               </div>
@@ -138,23 +163,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-800 space-y-2">
-        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 rounded-2xl border border-slate-800 cursor-pointer hover:bg-slate-800 transition-all" onClick={() => setActiveTab('profile')}>
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-sm font-black shadow-lg shadow-emerald-500/30">
+      <div className="p-6 border-t border-white/5 bg-black/20">
+        <div 
+          className="flex items-center gap-4 p-4 bg-white/5 rounded-[1.5rem] border border-white/5 cursor-pointer hover:bg-white/10 transition-all group" 
+          onClick={() => setActiveTab('profile')}
+        >
+          <div className="w-12 h-12 rounded-2xl premium-gradient flex items-center justify-center text-white text-lg font-black shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             {user.name.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-white truncate uppercase tracking-tighter">{user.name}</p>
-            <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">{user.role}</p>
+            <p className="text-[11px] font-black text-white truncate uppercase tracking-tighter leading-none">{user.name}</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">{user.role}</p>
+            </div>
           </div>
         </div>
 
-
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black text-red-400 hover:bg-red-400/10 transition-colors uppercase tracking-widest"
+          className="w-full flex items-center gap-4 px-5 py-4 mt-4 rounded-2xl text-[10px] font-black text-rose-400 hover:bg-rose-500/10 transition-colors uppercase tracking-[0.2em]"
         >
-          <i className="fa-solid fa-right-from-bracket w-5 text-lg"></i>
+          <i className="fa-solid fa-power-off text-lg"></i>
           {t.logout}
         </button>
       </div>
