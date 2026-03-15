@@ -362,6 +362,12 @@ export const useAppActions = (
     const branchId = internalGetBranchId(state.currentUser);
     const timestamp = new Date().toISOString();
 
+    // Helper para generar IDs únicos robustos
+    const generateId = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+        return Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+    };
+
     const newClients = clients.map(c => ({ ...c, branchId: c.branchId || branchId, createdAt: c.createdAt || timestamp, updated_at: timestamp }));
     const newLoans = loans.map(l => ({ ...l, branchId: l.branchId || branchId, updated_at: timestamp }));
     const newLogs = logs.map(l => ({ ...l, branchId: l.branchId || branchId, recordedBy: state.currentUser?.id, updated_at: timestamp }));
@@ -371,40 +377,39 @@ export const useAppActions = (
       const loanLogs = newLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT);
       let totalToApply = loanLogs.reduce((sum, log) => sum + (log.amount || 0), 0);
       
-      if (totalToApply <= 0) return loan;
-
       const newInstallments = (loan.installments || []).map(i => ({ ...i }));
-      for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
-        const inst = newInstallments[i];
-        if (inst.status === PaymentStatus.PAID) continue;
+      
+      if (totalToApply > 0) {
+        for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
+          const inst = newInstallments[i];
+          if (inst.status === PaymentStatus.PAID) continue;
 
-        const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
-        const appliedToInst = Math.min(totalToApply, remainingInInst);
-        inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
-        totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
-        inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
+          const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
+          const appliedToInst = Math.min(totalToApply, remainingInInst);
+          inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
+          totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
+          inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
 
-        allNewPayments.push({
-          id: `pay-bulk-${loan.id}-${inst.number}-${Date.now()}`,
-          loanId: loan.id,
-          clientId: loan.clientId,
-          collectorId: loan.collectorId,
-          branchId: loan.branchId || branchId,
-          amount: appliedToInst,
-          date: loan.createdAt,
-          installmentNumber: inst.number,
-          isVirtual: false,
-          isRenewal: false,
-          created_at: timestamp,
-          updated_at: timestamp
-        });
+          allNewPayments.push({
+            id: `pay-bulk-${generateId()}`, // FIXED: ID único real
+            loanId: loan.id,
+            clientId: loan.clientId,
+            collectorId: loan.collectorId,
+            branchId: loan.branchId || branchId,
+            amount: appliedToInst,
+            date: loan.createdAt,
+            installmentNumber: inst.number,
+            isVirtual: false,
+            isRenewal: false,
+            created_at: timestamp,
+            updated_at: timestamp
+          });
+        }
       }
 
       const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
       const totalPaidSoFar = newInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
       const currentBalance = Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100;
-
-      console.log(`🚀 [BULK DEBUG] Loan ${loan.id} (Client: ${loan.clientId}): Total=${loan.totalAmount}, Paid=${totalPaidSoFar}, Balance=${currentBalance}`);
 
       return { 
         ...loan, 
@@ -416,20 +421,32 @@ export const useAppActions = (
       };
     });
 
+    // 1. Actualizar estado UI de un golpe
     setState(prev => ({
-      ...prev,
-      clients: [...prev.clients, ...newClients],
-      loans: [...updatedLoansWithPayments, ...prev.loans],
-      collectionLogs: [...newLogs, ...prev.collectionLogs],
-      payments: [...allNewPayments, ...prev.payments]
+        ...prev,
+        clients: [...prev.clients, ...newClients],
+        loans: [...prev.loans, ...updatedLoansWithPayments],
+        payments: [...prev.payments, ...allNewPayments],
+        collectionLogs: [...prev.collectionLogs, ...newLogs]
     }));
 
+    // 2. Persistir en cola de sincronización
     for (const c of newClients) pushClient(c);
     for (const l of updatedLoansWithPayments) pushLoan(l);
     for (const log of newLogs) pushLog(log);
     for (const p of allNewPayments) pushPayment(p);
 
-    handleForceSync(false, "Importación masiva completada");
+    // 3. Disparar sincronización forzada después de un breve delay
+    setTimeout(() => {
+        handleForceSync(false, "Importación masiva enviada a la nube");
+    }, 1500);
+
+    return {
+        clientsCount: newClients.length,
+        loansCount: updatedLoansWithPayments.length,
+        logsCount: newLogs.length,
+        paymentsCount: allNewPayments.length
+    };
   };
 
   const updateCollectionLogNotes = (logId: string, notes: string) => {

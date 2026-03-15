@@ -156,6 +156,7 @@ export const mapHeadersWithAI = async (headers: string[], sampleData?: any[]): P
     - Si una columna dice "VAL. CUOTA" pero el dato es una FECHA (ej: 03/01/2025), NO es installmentValue. Probablemente es una fecha de vencimiento.
     - Si una columna dice "ATRASO" pero el dato es "60" y el monto total es "1.200.000" y la cuota es "20.000", es probable que "60" sea totalInstallments (60 * 20.000 = 1.200.000).
     - Si una columna tiene un número de celular (9 cifras que empiezan con 09...), esa es 'phone', sin importar el encabezado.
+    - CRUCIAL: 'totalAmount' es el monto ORIGINAL total del crédito (Importe Pagaré). 'paidAmount' o 'Monto cobrado' es lo que YA se pagó. NUNCA mapees 'Monto cobrado' a 'totalAmount' si existe una columna como 'Importe Pagaré' o 'Habilitado'.
     
     CLAVES INTERNAS:
     - name: Nombre del cliente, Razón Social.
@@ -164,12 +165,12 @@ export const mapHeadersWithAI = async (headers: string[], sampleData?: any[]): P
     - address: Dirección, domicilio, Localidad.
     - principal: Capital inicial, HABILITADO, LIQUIDO, MONTO HABILITADO.
     - interestRate: Tasa de interés, %.
-    - totalAmount: Monto total con intereses, Pagare, Importe Pagare.
+    - totalAmount: Monto total nominal con intereses, Pagare, Importe Pagare. Es el valor total que el cliente debe devolver.
     - installmentValue: VALOR DE LA CUOTA (Ej: 50.000, 100.000).
     - totalInstallments: Cantidad total de cuotas del plan (Ej: 24, 50, 60).
     - paidInstallments: Cuotas ya pagadas (Ej: 1, 2, 10).
     - pendingInstallments: Cuotas que faltan pagar (Ej: 20, 40).
-    - balance: Saldo actual pendiente de cobro.
+    - balance: Saldo actual pendiente de cobro (Saldo actual).
     - frequency: Frecuencia (Diario, Semanal, etc).
     - date: Fecha de otorgamiento o inicio.
     

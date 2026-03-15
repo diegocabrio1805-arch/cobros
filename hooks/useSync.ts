@@ -343,6 +343,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     ...l, clientId: l.client_id, collectorId: l.collector_id, branchId: l.branch_id,
                     interestRate: l.interest_rate, totalInstallments: l.total_installments,
                     totalAmount: l.total_amount, installmentValue: l.installment_value,
+                    totalPaid: l.total_paid || 0, balance: l.balance || 0,
                     createdAt: l.created_at, deletedAt: l.deleted_at, installments: l.installments,
                     isRenewal: l.is_renewal || false, frequency: l.frequency,
                     ...(l.raw_data || {})
@@ -413,248 +414,152 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }
 
             setIsSyncing(true);
-            const groups: Record<string, any[]> = {
-                'ADD_CLIENT': [], 'ADD_LOAN': [], 'ADD_PAYMENT': [], 'ADD_LOG': [],
-                'ADD_EXPENSE': [], 'ADD_PROFILE': [], 'UPDATE_SETTINGS': [],
-                'DELETE_LOG': [], 'DELETE_PAYMENT': [], 'DELETE_LOAN': [], 'DELETE_CLIENT': [], 'DELETE_EXPENSE': []
-            };
-
             const processedIds = new Set<string>();
-            const processedIndices = new Set<number>();
-            queue.forEach((item: any, index: number) => {
-                if (groups[item.operation]) groups[item.operation].push({ item, index });
-            });
 
-            const batchUpsert = async (table: string, itemsWithIndex: any[], mapper: (d: any) => any) => {
-                if (itemsWithIndex.length === 0) return;
-                const CHUNK_SIZE = 5;
-                for (let i = 0; i < itemsWithIndex.length; i += CHUNK_SIZE) {
-                    const chunk = itemsWithIndex.slice(i, i + CHUNK_SIZE);
-                    const dataToUpsert = chunk.map(x => mapper(x.item.data));
-                    try {
-                        const { error } = await supabase.from(table).upsert(dataToUpsert);
-                        if (error) throw error;
-                        chunk.forEach(x => {
-                            if (x.item._id) processedIds.add(x.item._id);
-                            else processedIndices.add(x.index);
-                        });
-                    } catch (err) {
-                        console.error(`Batch sync error for ${table}, retrying individually:`, err);
-                        // Fallback: Try individually to isolate the bad apple
-                        for (const x of chunk) {
-                            try {
-                                const { error } = await supabase.from(table).upsert(mapper(x.item.data));
-                                if (error) throw error;
-                                if (x.item._id) processedIds.add(x.item._id);
-                                else processedIndices.add(x.index);
-                            } catch (singleErr) {
-                                console.error(`Individual sync error for ${table} record ${x.item.data.id}:`, singleErr);
-                                // Increment retry count for this item
-                                x.item.retryCount = (x.item.retryCount || 0) + 1;
+            // PROCESAMIENTO ESTRICTAMENTE SERIAL (1 a 1)
+            // Esto resuelve el error 500 por saturación y el error 21000 por duplicados en lote.
+            for (const item of queue) {
+                const { operation, data, _id } = item;
+                
+                try {
+                    let table = '';
+                    let mapper: (d: any) => any = (d) => d;
+                    let isDelete = false;
 
-                                // If it failed too many times, we might need to "skip" it 
-                                // to avoid blocking the queue forever, but we need to track it.
-                                if (x.item.retryCount > 5) {
-                                    console.warn(`Record ${x.item.data.id} reached max retries. Skipping for now to avoid queue blockage.`);
-                                    if (x.item._id) processedIds.add(x.item._id);
-                                    else processedIndices.add(x.index); // Mark as processed so it leaves the main queue
+                    switch (operation) {
+                        case 'ADD_PROFILE':
+                            table = 'profiles';
+                            mapper = (d) => ({
+                                id: d.id, name: d.name, username: d.username, password: d.password,
+                                role: d.role, blocked: d.blocked, expiry_date: d.expiryDate || null,
+                                managed_by: d.managedBy || null, profile_pic: d.profilePic,
+                                home_pic: d.homePic, home_location: d.homeLocation,
+                                requires_location: d.requiresLocation, deleted_at: d.deletedAt || null,
+                                updated_at: new Date().toISOString()
+                            });
+                            break;
+                        case 'ADD_CLIENT':
+                            table = 'clients';
+                            mapper = (d) => {
+                                const { id, documentId, name, phone, secondaryPhone, address, addedBy, branchId, location, domicilioLocation, creditLimit, allowCollectorLocationUpdate, customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt, capital, currentBalance, profilePic, housePic, businessPic, documentPic, raw_data, ...other } = d;
+                                return {
+                                    id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
+                                    profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
+                                    domicilio_location: domicilioLocation, location, credit_limit: creditLimit,
+                                    allow_collector_location_update: allowCollectorLocationUpdate, added_by: addedBy, branch_id: branchId,
+                                    is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
+                                    deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
+                                    capital, current_balance: currentBalance, raw_data: { ...raw_data, ...other }
+                                };
+                            };
+                            break;
+                        case 'ADD_LOAN':
+                            table = 'loans';
+                            mapper = (d) => {
+                                const { id, clientId, collectorId, branchId, principal, interestRate, totalInstallments, installmentValue, totalAmount, status, createdAt, installments, frequency, isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance, raw_data, ...other } = d;
+                                return {
+                                    id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
+                                    principal, interest_rate: interestRate, total_installments: totalInstallments,
+                                    installment_value: installmentValue, total_amount: totalAmount, status,
+                                    created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
+                                    custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
+                                    updated_at: new Date().toISOString(), total_paid: totalPaid, balance: balance,
+                                    raw_data: { ...raw_data, ...other }
+                                };
+                            };
+                            break;
+                        case 'ADD_PAYMENT':
+                            table = 'payments';
+                            mapper = (d) => ({
+                                id: d.id, loan_id: d.loanId, client_id: d.clientId, collector_id: d.collectorId,
+                                branch_id: d.branchId, amount: d.amount, date: d.date,
+                                installment_number: d.installmentNumber, location: d.location,
+                                is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false,
+                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                            });
+                            break;
+                        case 'ADD_LOG':
+                            table = 'collection_logs';
+                            mapper = (d) => ({
+                                id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
+                                recorded_by: d.recordedBy, amount: d.amount, type: d.type, date: d.date,
+                                location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
+                                is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
+                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                            });
+                            break;
+                        case 'ADD_EXPENSE':
+                            table = 'expenses';
+                            mapper = (d) => ({
+                                id: d.id, description: d.description, amount: d.amount, category: d.category,
+                                date: d.date, branch_id: d.branchId, added_by: d.addedBy,
+                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                            });
+                            break;
+                        case 'UPDATE_SETTINGS':
+                            table = 'branch_settings';
+                            mapper = (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() });
+                            break;
+                        case 'DELETE_LOG': table = 'collection_logs'; isDelete = true; break;
+                        case 'DELETE_PAYMENT': table = 'payments'; isDelete = true; break;
+                        case 'DELETE_LOAN': table = 'loans'; isDelete = true; break;
+                        case 'DELETE_CLIENT': table = 'clients'; isDelete = true; break;
+                        case 'DELETE_EXPENSE': table = 'expenses'; isDelete = true; break;
+                    }
 
-                                    // Store in a "failed items" log for admin review
-                                    const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
-                                    failedItems.push({ ...x.item, lastError: String(singleErr), fatal: true });
-                                    localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-50))); // Keep last 50
-                                }
+                    if (table) {
+                        if (isDelete) {
+                            const { data: { session: currentSession } } = await supabase.auth.getSession();
+                            if (currentSession) {
+                                const bId = (currentSession.user as any).user_metadata?.branchId || currentSession.user.id;
+                                await supabase.from('deleted_items').insert({
+                                    table_name: table, record_id: data.id, branch_id: bId,
+                                    deleted_at: new Date().toISOString()
+                                });
                             }
+                            const { error } = await supabase.from(table).delete().eq('id', data.id);
+                            if (error) throw error;
+                        } else {
+                            const { error } = await supabase.from(table).upsert(mapper(data));
+                            if (error) throw error;
                         }
                     }
-                }
-            };
 
-            await batchUpsert('profiles', groups['ADD_PROFILE'], (d) => ({
-                id: d.id,
-                name: d.name,
-                username: d.username,
-                password: d.password,
-                role: d.role,
-                blocked: d.blocked,
-                expiry_date: !d.expiryDate || d.expiryDate === '' ? null : d.expiryDate,
-                managed_by: !d.managedBy || d.managedBy === '' ? null : d.managedBy,
-                profile_pic: d.profilePic,
-                home_pic: d.homePic,
-                home_location: d.homeLocation,
-                requires_location: d.requiresLocation,
-                deleted_at: d.deletedAt || null,
-                updated_at: new Date().toISOString()
-            }));
-            await batchUpsert('clients', groups['ADD_CLIENT'], (d) => {
-                const {
-                    id, documentId, name, phone, secondaryPhone, address, addedBy, branchId,
-                    location, domicilioLocation, creditLimit, allowCollectorLocationUpdate,
-                    customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt,
-                    capital, currentBalance, profilePic, housePic, businessPic, documentPic,
-                    raw_data: existingRawData,
-                    ...otherFields
-                } = d;
+                    processedIds.add(_id);
+                    setQueueLength(prev => Math.max(0, prev - 1));
 
-                // Merge any fields not explicitly extracted into raw_data
-                const mergedRawData = {
-                    ...(existingRawData || {}),
-                    ...otherFields
-                };
+                    // Pausa de seguridad para no saturar 1 a 1
+                    await new Promise(r => setTimeout(r, 100));
 
-                return {
-                    id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
-                    profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
-                    domicilio_location: domicilioLocation, location, credit_limit: creditLimit,
-                    allow_collector_location_update: allowCollectorLocationUpdate, added_by: addedBy, branch_id: branchId,
-                    is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
-                    deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
-                    capital, current_balance: currentBalance,
-                    raw_data: Object.keys(mergedRawData).length > 0 ? mergedRawData : null
-                };
-            });
-            await batchUpsert('loans', groups['ADD_LOAN'], (d) => {
-                const {
-                    id, clientId, collectorId, branchId, principal, interestRate, totalInstallments,
-                    installmentValue, totalAmount, status, createdAt, installments, frequency,
-                    isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance,
-                    raw_data: existingRawData,
-                    ...otherFields
-                } = d;
-
-                const mergedRawData = {
-                    ...(existingRawData || {}),
-                    ...otherFields
-                };
-
-                return {
-                    id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
-                    principal, interest_rate: interestRate, total_installments: totalInstallments,
-                    installment_value: installmentValue, total_amount: totalAmount, status,
-                    created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
-                    custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
-                    updated_at: new Date().toISOString(),
-                    raw_data: Object.keys(mergedRawData).length > 0 ? mergedRawData : null
-                };
-            });
-            await batchUpsert('payments', groups['ADD_PAYMENT'], (d) => ({
-                id: d.id,
-                loan_id: d.loanId,
-                client_id: d.clientId,
-                collector_id: d.collectorId,
-                branch_id: d.branchId,
-                amount: d.amount,
-                date: d.date,
-                installment_number: d.installmentNumber,
-                location: d.location,
-                is_virtual: d.isVirtual || false,
-                is_renewal: d.isRenewal || false,
-                deleted_at: d.deletedAt || null,
-                updated_at: new Date().toISOString()
-            }));
-            await batchUpsert('collection_logs', groups['ADD_LOG'], (d) => ({
-                id: d.id,
-                loan_id: d.loanId,
-                client_id: d.clientId,
-                branch_id: d.branchId,
-                recorded_by: d.recordedBy,
-                amount: d.amount,
-                type: d.type,
-                date: d.date,
-                location: d.location,
-                notes: d.notes,
-                is_virtual: d.isVirtual || false,
-                is_renewal: d.isRenewal || false,
-                is_opening: d.isOpening || false,
-                deleted_at: d.deletedAt || null,
-                updated_at: new Date().toISOString()
-            }));
-            await batchUpsert('expenses', groups['ADD_EXPENSE'], (d) => ({
-                id: d.id,
-                description: d.description,
-                amount: d.amount,
-                category: d.category,
-                date: d.date,
-                branch_id: d.branchId,
-                added_by: d.addedBy,
-                deleted_at: d.deletedAt || null,
-                updated_at: new Date().toISOString()
-            }));
-
-            // 5. UPDATE SETTINGS
-            if (groups['UPDATE_SETTINGS'].length > 0) {
-                for (const { item, index } of groups['UPDATE_SETTINGS']) {
-                    try {
-                        const { error } = await supabase
-                            .from('branch_settings')
-                            .upsert({ id: item.data.branchId, settings: item.data.settings, updated_at: new Date().toISOString() });
-                        if (error) throw error;
-                        if (item._id) processedIds.add(item._id);
-                        else processedIndices.add(index);
-                    } catch (err) { console.error("Settings sync error:", err); }
+                } catch (err) {
+                    console.error(`Error de sincronización individual en ${operation}:`, err);
+                    item.retryCount = (item.retryCount || 0) + 1;
+                    if (item.retryCount > 3) {
+                         processedIds.add(_id);
+                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                         failedItems.push({ ...item, lastError: String(err), fatal: true });
+                         localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                    } else {
+                        break; 
+                    }
                 }
             }
 
-            // 6. PROCESS DELETIONS
-            const deleteOperations = [
-                { op: 'DELETE_LOG', table: 'collection_logs' },
-                { op: 'DELETE_PAYMENT', table: 'payments' },
-                { op: 'DELETE_LOAN', table: 'loans' },
-                { op: 'DELETE_CLIENT', table: 'clients' },
-                { op: 'DELETE_EXPENSE', table: 'expenses' }
-            ];
+            const freshQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+            const remainingQueue = freshQueue.filter((q: any) => !processedIds.has(q._id));
+            localStorage.setItem('syncQueue', JSON.stringify(remainingQueue));
+            setQueueLength(remainingQueue.length);
 
-            for (const { op, table } of deleteOperations) {
-                if (groups[op].length > 0) {
-                    const idsToDelete = groups[op].map(x => x.item.data.id);
-                    try {
-                        // First, we record the deletion in deleted_items for other devices to sync
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                            const branchId = (session.user as any).user_metadata?.branchId || session.user.id;
-                            const deleteRecords = idsToDelete.map(id => ({
-                                table_name: table,
-                                record_id: id,
-                                branch_id: branchId,
-                                deleted_at: new Date().toISOString()
-                            }));
-                            await supabase.from('deleted_items').insert(deleteRecords);
-                        }
-
-                        // Then perform the actual deletion (or soft delete update handled by DB trigger/policy)
-                        const { error } = await supabase.from(table).delete().in('id', idsToDelete);
-                        if (error) throw error;
-                        groups[op].forEach(x => {
-                            if (x.item._id) processedIds.add(x.item._id);
-                            else processedIndices.add(x.index);
-                        });
-                    } catch (err) { console.error(`Delete error for ${table}:`, err); }
-                }
-            }
-
-            // RACE CONDITION FIX: Read fresh queue because addToQueue might have pushed new items
-            const freshQueueStr = localStorage.getItem('syncQueue');
-            const freshQueue = JSON.parse(freshQueueStr || '[]');
-            
-            const newQueue = freshQueue.filter((item: any) => {
-                if (item._id) return !processedIds.has(item._id);
-                // Legacy fallback for pending items strictly without _id existing in memory before fix
-                const memIdx = queue.findIndex((q: any) => !q._id && q.operation === item.operation && q.timestamp === item.timestamp);
-                if (memIdx !== -1 && processedIndices.has(memIdx)) return false;
-                return true;
-            });
-
-            localStorage.setItem('syncQueue', JSON.stringify(newQueue));
-            setQueueLength(newQueue.length);
-
-            if (newQueue.length > 0) {
-                setSyncError(`Pendientes: ${newQueue.length}. Reintentando automáticamente...`);
-                setTimeout(() => processQueue(true, fullSync, skipPull), 5000);
+            if (remainingQueue.length > 0) {
+                setSyncError(`Pendientes: ${remainingQueue.length}. Reintentando automáticamente...`);
+                setTimeout(() => processQueue(true, fullSync, skipPull), 3000);
             } else {
                 setSyncError(null);
                 if (!skipPull) pullData(fullSync);
             }
-        } catch (err) { setSyncError("Error sincronización."); } finally {
+        } catch (err) { 
+            setSyncError("Error sincronización."); 
+        } finally {
             isProcessingRef.current = false;
             setIsSyncing(false);
         }

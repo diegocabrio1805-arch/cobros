@@ -131,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           <p className="text-emerald-100 font-bold uppercase text-[11px] tracking-[0.3em] opacity-80">{t.subtitle}</p>
         </div>
 
-        <div className="p-12 space-y-8 bg-white/10 backdrop-blur-xl">
+        <div className="p-10 space-y-6 bg-white">
           <form onSubmit={handleLogin} className="space-y-8">
             {error && (
               <div className="p-5 bg-rose-500/10 text-rose-200 rounded-3xl border border-rose-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-4 animate-shake">
@@ -142,9 +142,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
 
             <div className="space-y-6">
               <div className="group">
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-400 transition-colors uppercase">{t.username}</label>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-500 transition-colors uppercase">{t.username}</label>
                 <div className="relative">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-400 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
                     <i className="fa-solid fa-user"></i>
                   </div>
                   <input
@@ -152,7 +152,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
-                    className="w-full pl-18 pr-5 py-5 bg-slate-900/50 border border-white/5 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-white transition-all uppercase placeholder:normal-case tracking-wider"
+                    className="w-full pl-20 pr-5 py-5 bg-slate-50 border border-slate-200 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-slate-800 transition-all uppercase placeholder:normal-case tracking-wider"
                     required
                     placeholder="USUARIO"
                   />
@@ -160,9 +160,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               </div>
 
               <div className="group">
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-400 transition-colors uppercase">{t.password}</label>
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2 group-focus-within:text-emerald-500 transition-colors uppercase">{t.password}</label>
                 <div className="relative">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-400 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
                     <i className="fa-solid fa-lock"></i>
                   </div>
                   <input
@@ -170,7 +170,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full pl-18 pr-14 py-5 bg-slate-900/50 border border-white/5 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-white transition-all tracking-[0.3em]"
+                    className="w-full pl-20 pr-14 py-5 bg-slate-50 border border-slate-200 rounded-3xl focus:ring-4 focus:ring-emerald-500/20 outline-none font-bold text-slate-800 transition-all tracking-[0.3em]"
                     placeholder="••••••••"
                     required
                   />
@@ -206,7 +206,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               window.open('https://wa.me/595994560450', '_blank');
             }}
             type="button"
-            className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-3xl border border-white/10 transition-all active:scale-[0.98] tracking-widest text-[11px] flex items-center justify-center gap-4 group"
+            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 font-black py-5 rounded-3xl border border-slate-200 transition-all active:scale-[0.98] tracking-widest text-[11px] flex items-center justify-center gap-4 group"
           >
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
               <i className="fa-brands fa-whatsapp text-white text-lg"></i>

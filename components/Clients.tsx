@@ -13,8 +13,8 @@ import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
 import { exportClientsToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
-import * as XLSX from 'xlsx-js-style';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
+import * as XLSX from 'xlsx-js-style';
 
 const BANCA_CLIENT_TYPES = [
   { code: '130', label: 'MICRO UNI P/ FORMAL' },
@@ -281,9 +281,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const [showImportModal, setShowImportModal] = useState(false);
-  const [previewData, setPreviewData] = useState<{ clients: Client[], loans: Loan[], logs: CollectionLog[] } | null>(null);
   const [selectedCollectorForImport, setSelectedCollectorForImport] = useState('');
   const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const [isConvertingJson, setIsConvertingJson] = useState(false);
+  const [jsonPreviewData, setJsonPreviewData] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<{ 
+    clients: Client[], 
+    loans: Loan[], 
+    logs: CollectionLog[],
+    discoveryMeta: Record<string, string>,
+    errors: { row: number, clientName?: string, reason: string }[] 
+  } | null>(null);
+  const [importSummary, setImportSummary] = useState<{ success: number, failed: number } | null>(null);
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos'>('cartera');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
@@ -295,12 +304,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const ITEMS_PER_PAGE = 20;
 
   const [showModal, setShowModal] = useState(false);
-  const [jsonPreviewData, setJsonPreviewData] = useState<string | null>(null);
-  const [isConvertingJson, setIsConvertingJson] = useState(false);
   const [showLegajo, setShowLegajo] = useState<string | null>(null);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [renewForm, setRenewForm] = useState<any>({
@@ -583,13 +589,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
-    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false };
+    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false, totalInstallments: 0, paidInstallments: 0 };
     const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
     const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const activeLoan = sortedLoans[0];
     const hasMultipleLoans = clientLoans.length > 1;
 
-    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0;
+    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
 
     if (activeLoan) {
       // USAR SIEMPRE LA FUNCIÓN ROBUSTA UNIFICADA
@@ -609,10 +615,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const activeLoanPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
       const progress = activeLoanPaid / (activeLoan.installmentValue || 1);
       const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
-      installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
+      totalInstallmentsCount = activeLoan.totalInstallments;
+      paidInstallmentsCount = Math.floor(progress);
+      installmentsStr = `${formattedProgress} / ${totalInstallmentsCount}`;
 
-      const paidUnits = Math.floor(progress);
-      cuotasPendientes = Math.max(0, activeLoan.totalInstallments - paidUnits);
+      cuotasPendientes = Math.max(0, totalInstallmentsCount - paidInstallmentsCount);
 
       // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
       daysOverdue = Math.max(...clientLoans.map(l => {
@@ -631,9 +638,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       createdAt = activeLoan.createdAt;
 
-      return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue, totalCreditAmount };
+      return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue, totalCreditAmount, totalInstallments: totalInstallmentsCount, paidInstallments: paidInstallmentsCount };
     }
-    return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
+    return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue, totalInstallments: 0, paidInstallments: 0 };
   };
 
   const filteredClients = useMemo(() => {
@@ -1688,11 +1695,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <th>Cliente / ID</th>
                 <th>Teléfono</th>
                 <th class="text-right">Habilitado</th>
-                <th class="text-right">V. Cuota</th>
                 <th class="text-right">Monto</th>
-                <th class="text-center">C. PEND.</th>
-                <th class="text-right">Saldo Actual</th>
-                <th class="text-center">Progreso</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-center">Cuotas</th>
+                <th class="text-center">Pagadas</th>
                 <th class="text-center">Atraso</th>
               </tr>
             </thead>
@@ -1704,10 +1710,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <td>${client.phone}</td>
                   <td class="text-right">${formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
                   <td class="text-right">${formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
-                  <td class="text-right">${formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
-                  <td class="text-center">${client._metrics.cuotasPendientes}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.totalAmount || 0, state.settings)}</td>
                   <td class="text-right">${formatCurrency(client._metrics.balance, state.settings)}</td>
-                  <td class="text-center">${client._metrics.installmentsStr}</td>
+                  <td class="text-center">${client._metrics.totalInstallments}</td>
+                  <td class="text-center">${client._metrics.paidInstallments}</td>
                   <td class="text-center">
                     <span class="${client._metrics.daysOverdue > 0 ? 'mora-high' : 'mora-none'}">
                       ${client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} DÍAS` : 'AL DÍA'}
@@ -1794,9 +1800,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       doc.text("V. CUOTA", margin + 90, y + 5.5, { align: 'right' });
       doc.text("MONTO", margin + 110, y + 5.5, { align: 'right' });
       doc.text("PEND.", margin + 125, y + 5.5, { align: 'center' });
-      doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
-      doc.text("PROGRESO", margin + 165, y + 5.5, { align: 'center' });
-      doc.text("MORA", margin + 180, y + 5.5, { align: 'center' });
+      doc.text("SALDO", margin + 140, y + 5.5, { align: 'right' });
+      doc.text("CUOTAS", margin + 155, y + 5.5, { align: 'center' });
+      doc.text("PAG.", margin + 170, y + 5.5, { align: 'center' });
+      doc.text("MORA", margin + 185, y + 5.5, { align: 'center' });
 
       y += 8;
       doc.setFont("helvetica", "normal");
@@ -1822,9 +1829,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.text("V. CUOTA", margin + 90, y + 5.5, { align: 'right' });
           doc.text("MONTO", margin + 110, y + 5.5, { align: 'right' });
           doc.text("PEND.", margin + 125, y + 5.5, { align: 'center' });
-          doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
-          doc.text("PROGRESO", margin + 165, y + 5.5, { align: 'center' });
-          doc.text("MORA", margin + 180, y + 5.5, { align: 'center' });
+          doc.text("SALDO", margin + 140, y + 5.5, { align: 'right' });
+          doc.text("CUOTAS", margin + 155, y + 5.5, { align: 'center' });
+          doc.text("PAG.", margin + 170, y + 5.5, { align: 'center' });
+          doc.text("MORA", margin + 185, y + 5.5, { align: 'center' });
           y += 8;
           doc.setFont("helvetica", "normal");
           doc.setTextColor(30, 41, 59);
@@ -1859,18 +1867,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         doc.text(client._metrics.cuotasPendientes.toString(), margin + 125, y + 6, { align: 'center' });
 
         doc.setFont("helvetica", "bold");
-        doc.text(formatCurrency(client._metrics.balance || 0, state.settings), margin + 145, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.balance || 0, state.settings), margin + 140, y + 6, { align: 'right' });
 
         doc.setFont("helvetica", "normal");
-        doc.text(client._metrics.installmentsStr || '0/0', margin + 165, y + 6, { align: 'center' });
+        doc.text(client._metrics.totalInstallments.toString(), margin + 155, y + 6, { align: 'center' });
+        doc.text(client._metrics.paidInstallments.toString(), margin + 170, y + 6, { align: 'center' });
 
         if (client._metrics.daysOverdue > 0) {
           doc.setTextColor(220, 38, 38);
           doc.setFont("helvetica", "bold");
-          doc.text(`${client._metrics.daysOverdue} D`, margin + 180, y + 6, { align: 'center' });
+          doc.text(`${client._metrics.daysOverdue} D`, margin + 185, y + 6, { align: 'center' });
         } else {
           doc.setTextColor(5, 150, 105);
-          doc.text("OK", margin + 180, y + 6, { align: 'center' });
+          doc.text("OK", margin + 185, y + 6, { align: 'center' });
         }
 
         doc.setTextColor(30, 41, 59);
@@ -1897,38 +1906,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
 
-  const handleConfirmImport = async () => {
-    if (!previewData) return;
-    setIsProcessingExcel(true);
-    try {
-      if (addBulkData) {
-        console.log("🚀 [BULK] Executing atomic bulk import...");
-        await addBulkData(previewData.clients, previewData.loans, previewData.logs);
-      } else {
-        // Fallback for safety (though addBulkData should be present)
-        for (const client of previewData.clients) {
-          const clientLoan = previewData.loans.find(l => l.clientId === client.id);
-          await addClient(client, clientLoan);
-          
-          const loanLogs = previewData.logs.filter(log => log.loanId === clientLoan?.id);
-          for (const log of loanLogs) {
-             addCollectionAttempt(log);
-          }
-        }
-      }
-
-      alert(`IMPORTACIÓN EXITOSA: ${previewData.clients.length} CLIENTES, ${previewData.loans.length} PRÉSTAMOS Y ${previewData.logs?.length || 0} REGISTROS DE PAGO.`);
-      setShowImportModal(false);
-      setSelectedCollectorForImport('');
-      setPreviewData(null);
-    } catch (err) {
-      console.error(err);
-      alert("ERROR AL GUARDAR DATO: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsProcessingExcel(false);
-    }
-  };
-
   const handleFileUploadMasivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedCollectorForImport) return;
@@ -1941,16 +1918,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const calculatedBranchId = collectorManager || user?.id;
 
       const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
+      const country = state.settings.country || 'CO';
 
-      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode);
-
-      if (clients.length === 0) {
-        alert("⚠️ ATENCIÓN: No se detectaron clientes ni préstamos válidos en el archivo. Verifique que los encabezados coincidan con el formato sugerido o use la Plantilla de Ejemplo.");
-        setIsProcessingExcel(false);
-        return;
-      }
-
-      setPreviewData({ clients, loans, logs });
+      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country);
+      setPreviewData(data);
     } catch (err) {
       console.error(err);
       alert("ERROR AL PROCESAR EL EXCEL. VERIFIQUE EL FORMATO.");
@@ -1960,69 +1931,32 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
-  const handleConvertExcelToJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsConvertingJson(true);
+  const handleConfirmImport = async () => {
+    if (!previewData || isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonStr = JSON.stringify(XLSX.utils.sheet_to_json(worksheet), null, 2);
-      setJsonPreviewData(jsonStr);
-    } catch (error) {
-      console.error(error);
-      alert("Error al convertir Excel a JSON.");
+      if (addBulkData) {
+        await addBulkData(previewData.clients, previewData.loans, previewData.logs);
+        setImportSummary({ 
+          success: previewData.clients.length, 
+          failed: previewData.errors.length 
+        });
+        // We don't clear previewData yet, so they can see the errors
+      }
+    } catch (err) {
+      alert("Error en la importación final.");
     } finally {
-      setIsConvertingJson(false);
-      if (e.target) e.target.value = '';
+      setIsSubmitting(false);
     }
   };
 
-  const handleUploadJson = async () => {
-    if (!jsonPreviewData) return;
-    try {
-      const parsed = JSON.parse(jsonPreviewData);
-      console.log("JSON PARSEADO LISTO PARA SUBIR:", parsed);
-      alert(`✅ Formato JSON de ${parsed.length || 'varios'} registros enviado y listo para procesar en el sistema.\n\n(Simulación de Envío JSON Completada)`);
-      setJsonPreviewData(null);
-    } catch (e) {
-      alert("Error en el formato JSON.");
-    }
+  const handleResetImport = () => {
+    setPreviewData(null);
+    setImportSummary(null);
+    setShowImportModal(true); // Return to initial upload state
   };
 
-  const handleGenerateDossierPDF = async () => {
-    if (!clientInLegajo || !shareCardRef.current) return;
-    
-    setIsGeneratingPDF(true);
-    try {
-      // Pequeña espera para asegurar que el DOM esté listo
-      await new Promise(r => setTimeout(r, 100));
-      
-      const canvas = await html2canvas(shareCardRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
-      
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = doc.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      const currentDate = new Date().toISOString().split('T')[0];
-      const fileName = `Expediente_${clientInLegajo.name.replace(/\s+/g, '_')}_${currentDate}.pdf`;
-      
-      doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      
-      await saveAndOpenPDF(doc, fileName);
-      
-      alert('✅ PDF generado y guardado localmente.\n\nPara que este archivo quede guardado de forma permanente en la base de datos central (Supabase Storage), se requiere habilitar un "Bucket" de almacenamiento en el servidor web. Por ahora, el documento se encuentra en tu dispositivo.');
-    } catch (error) {
-      console.error('Error al generar PDF del expediente:', error);
-      alert('Error al generar el documento PDF.');
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
+
 
   return (
     <>
@@ -2105,35 +2039,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         </div>
 
         <div className="space-y-4">
-          {viewMode === 'gestion' && (
-              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-4">
-                <h3 className="font-black text-amber-900 uppercase tracking-widest text-[10px] md:text-xs mb-3"><i className="fa-solid fa-file-code mr-2"></i>Convertidor Excel a JSON</h3>
-                {!jsonPreviewData ? (
-                  <div>
-                    <input type="file" accept=".xlsx, .xls" onChange={handleConvertExcelToJson} id="json-upload" className="hidden" />
-                    <label htmlFor="json-upload" className="inline-flex items-center justify-center w-full md:w-auto gap-2 px-6 py-4 md:py-3 bg-white border-2 border-amber-300 text-amber-700 rounded-xl font-black uppercase text-[10px] md:text-xs cursor-pointer hover:bg-amber-100 transition-all shadow-sm active:scale-95">
-                      {isConvertingJson ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-excel"></i>}
-                      SELECCIONAR EXCEL PARA CONVERTIR
-                    </label>
-                  </div>
-                ) : (
-                  <div className="space-y-3 animate-fadeIn">
-                    <textarea 
-                      readOnly 
-                      value={jsonPreviewData} 
-                      className="w-full h-40 md:h-60 bg-slate-900 text-emerald-400 font-mono text-[10px] md:text-xs p-4 rounded-xl outline-none shadow-inner" 
-                    />
-                    <div className="flex flex-col md:flex-row gap-2">
-                      <button onClick={() => setJsonPreviewData(null)} className="w-full md:w-auto px-6 py-4 md:py-3 bg-white text-slate-600 font-bold text-[10px] uppercase rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">Cancelar</button>
-                      <button onClick={handleUploadJson} className="w-full flex-1 px-6 py-4 md:py-3 bg-amber-600 font-black text-white text-[10px] uppercase rounded-xl hover:bg-amber-700 shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
-                        <i className="fa-solid fa-cloud-arrow-up text-sm"></i>
-                        SUBIR AL SISTEMA EL FORMATO JSON
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-          )}
           <div className="relative">
             <input
               type="text"
@@ -2188,7 +2093,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </p>
                         </div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Cuotas</p><p className="text-xs md:text-sm font-black text-slate-800">{m.totalInstallments}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Pagadas</p><p className="text-xs md:text-sm font-black text-emerald-700">{m.paidInstallments}</p></div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
                       </div>
                       <div className="flex items-center gap-2 w-full md:w-auto">
@@ -2366,9 +2272,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <th className="px-6 py-4 text-right">Habilitado</th>
                       <th className="px-6 py-4 text-right">V. Cuota</th>
                       <th className="px-6 py-4 text-right">Monto</th>
-                      <th className="px-6 py-4 text-center">C. Pendientes</th>
                       <th className="px-6 py-4 text-right">Saldo Actual</th>
-                      <th className="px-6 py-4 text-center">Progreso</th>
+                      <th className="px-6 py-4 text-center">Cuotas</th>
+                      <th className="px-6 py-4 text-center">Pagadas</th>
                       <th className="px-6 py-4 text-center">Atraso</th>
                       <th className="px-6 py-4 text-center">Acciones</th>
                     </tr>
@@ -2397,12 +2303,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-right font-mono text-emerald-600">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono text-blue-600">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-100">{client._metrics.cuotasPendientes}</span>
-                        </td>
                         <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{client._metrics.installmentsStr}</span>
+                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{client._metrics.totalInstallments}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-100">{client._metrics.paidInstallments}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-0.5 rounded text-[9px] ${client._metrics.daysOverdue > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -3127,13 +3033,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   );
                                 })()}
                               </div>
-                              <div className="px-3 pb-3 bg-white space-y-2">
+                              <div className="px-3 pb-3 bg-white">
                                 <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
                                   <i className="fa-solid fa-print"></i> REIMPRIMIR ÚLTIMO RECIBO
-                                </button>
-                                <button onClick={handleGenerateDossierPDF} disabled={isGeneratingPDF} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-indigo-500 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 disabled:bg-slate-400">
-                                  {isGeneratingPDF ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-pdf"></i>}
-                                  {isGeneratingPDF ? 'GENERANDO PDF...' : 'TRANSFORMAR EN PDF'}
                                 </button>
                               </div>
                             </div>
@@ -3547,166 +3449,289 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     </PullToRefresh>
 
       {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-8 md:pt-16 px-4 animate-fadeIn overflow-y-auto pb-10">
-          <div className={`bg-white rounded-3xl p-6 md:p-8 border border-slate-200 w-full ${previewData ? 'max-w-5xl' : 'max-w-md'} shadow-2xl relative animate-scaleIn`}>
+        // ... (existing modal content)
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-16 md:pt-24 px-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
             <button 
-              onClick={() => { setShowImportModal(false); setPreviewData(null); }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all z-10"
+              onClick={() => setShowImportModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all font-black text-[10px] uppercase"
             >
-              <i className="fa-solid fa-xmark text-xl"></i>
+              Cerrar
             </button>
 
-            {!previewData ? (
-              <>
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
-                  <Upload />
-                </div>
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
+              <Upload />
+            </div>
 
-                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importación Inteligente</h3>
-                <p className="text-slate-500 text-[9px] font-bold mb-6 uppercase tracking-widest text-center px-4">
-                  Reconocimiento universal de encabezados (ID, Monto, Interés, Cuotas).
-                </p>
+            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importación Inteligente</h3>
+            <p className="text-slate-500 text-[9px] font-bold mb-6 uppercase tracking-widest text-center px-4">
+              Reconocimiento universal de encabezados (ID, Monto, Interés, Cuotas).
+            </p>
+            
+            <div className="space-y-4">
+              <button 
+                onClick={() => downloadExcelTemplate()}
+                className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all uppercase tracking-widest border border-slate-200 shadow-sm"
+              >
+                <Download size={14} /> Descargar Plantilla Muestra
+              </button>
 
-                <div className="flex justify-center mb-4">
-                  <button 
-                    onClick={() => downloadExcelTemplate()}
-                    className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
-                  >
-                    <Download size={14} /> Descargar Plantilla de Ejemplo
-                  </button>
-                </div>
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                <p className="text-[10px] font-black text-emerald-800 uppercase mb-2">Seleccionar Cobrador / Ruta</p>
+                <select 
+                  className="w-full bg-white border border-emerald-200 rounded-lg p-3 text-xs font-black text-emerald-900 outline-none focus:border-emerald-500 transition-all uppercase"
+                  value={selectedCollectorForImport}
+                  onChange={(e) => setSelectedCollectorForImport(e.target.value)}
+                >
+                  <option value="">-- ELIJA UN COBRADOR --</option>
+                  {collectors.map(c => (
+                    <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                  ))}
+                </select>
+              </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Cobrador / Ruta Destino</label>
-                    <select 
-                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
-                      value={selectedCollectorForImport}
-                      onChange={(e) => setSelectedCollectorForImport(e.target.value)}
-                    >
-                      <option value="">-- SELECCIONAR COBRADOR --</option>
-                      {collectors.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+              <label className={`w-full py-10 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl transition-all cursor-pointer ${!selectedCollectorForImport ? 'bg-slate-50 border-slate-200 opacity-50 grayscale' : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-500'}`}>
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept=".xlsx, .xls, .xlsb, .json"
+                  onChange={handleFileUploadMasivo}
+                  disabled={!selectedCollectorForImport || isProcessingExcel}
+                />
+                {isProcessingExcel ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <RefreshCcw className="animate-spin text-emerald-600" />
+                    <span className="text-[10px] font-black text-emerald-800 uppercase">Analizando...</span>
                   </div>
-
-                  <div className="relative group">
-                    <input 
-                      type="file" 
-                      accept=".xlsx, .xls" 
-                      disabled={isProcessingExcel}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      onChange={handleFileUploadMasivo}
-                    />
-                    <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all ${isProcessingExcel ? 'bg-slate-50 border-slate-200' : 'border-slate-300 group-hover:border-emerald-500 group-hover:bg-emerald-50'}`}>
-                      {isProcessingExcel ? (
-                        <>
-                          <i className="fa-solid fa-spinner animate-spin text-3xl text-emerald-500 mb-2"></i>
-                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Analizando Planilla...</span>
-                        </>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-file-excel text-3xl text-slate-300 group-hover:text-emerald-500 mb-2 transition-colors"></i>
-                          <span className="text-[10px] font-black text-slate-500 group-hover:text-emerald-700 uppercase tracking-widest">Seleccionar Archivo</span>
-                          <span className="text-[7px] font-bold text-slate-400 uppercase mt-1">Recomendado: .XLSX (Excel Moderno)</span>
-                        </>
-                      )}
-                    </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-emerald-600">
+                    <i className="fa-solid fa-file-upload text-3xl mb-2"></i>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-center">Subir Planilla EXCEL (XLSX, XLS),<br/> XLSB o Archivo JSON</span>
                   </div>
+                )}
+              </label>
 
-                  <button 
-                    onClick={() => { setShowImportModal(false); setPreviewData(null); }}
-                    className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
-                  >
-                    Cancelar
-                  </button>
+              <button 
+                onClick={() => setShowImportModal(false)}
+                className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
+              >
+                Cancelar Operación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewData && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[999999] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-scaleIn border border-slate-200">
+            <div className="bg-emerald-600 p-6 flex justify-between items-center text-white">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-xl">
+                  <Info size={24} />
                 </div>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4 pr-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
-                      <i className="fa-solid fa-table-list"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Muestra de Datos</h3>
-                      <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                        Verifique antes de confirmar: {previewData.clients.length} Clientes | {previewData.loans.length} Préstamos
-                      </p>
-                    </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tighter leading-none">Vista Previa de Importación</h3>
+                  <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mt-1">Verifique los datos antes de subir</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPreviewData(null)}
+                className="text-white/60 hover:text-white transition-all"
+              >
+                <i className="fa-solid fa-xmark text-2xl"></i>
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
+              {/* STATS */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Clientes</p>
+                  <p className="text-xl font-black text-slate-900">{previewData.clients.length}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Monto Total</p>
+                  <p className="text-xl font-black text-emerald-600">{formatCurrency(previewData.loans.reduce((acc, l) => acc + l.totalAmount, 0), state.settings)}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Saldo Total</p>
+                  <p className="text-xl font-black text-blue-600">{formatCurrency(previewData.loans.reduce((acc, l) => acc + l.balance, 0), state.settings)}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Pagos Detectados</p>
+                  <p className="text-xl font-black text-orange-600">{previewData.loans.filter(l => l.totalPaid > 0).length}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                  <p className="text-[8px] font-black text-red-500 uppercase mb-1">Filas con Error</p>
+                  <p className="text-xl font-black text-red-700">{previewData.errors.length}</p>
+                </div>
+              </div>
+
+              {/* ERRORS SECTION */}
+              {previewData.errors.length > 0 && (
+                <div className="mb-8 animate-pulse-slow">
+                  <h4 className="text-[10px] font-black text-red-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-red-500 rounded-full"></div>
+                    Filas que se saltarán (Acción requerida)
+                  </h4>
+                  <div className="bg-red-50 rounded-2xl border border-red-100 overflow-hidden">
+                    {previewData.errors.slice(0, 10).map((err, idx) => (
+                      <div key={idx} className="p-3 border-b border-red-100 last:border-0 flex items-start gap-3">
+                        <div className="bg-red-200 text-red-800 text-[8px] font-black px-2 py-1 rounded-lg">Fila {err.row}</div>
+                        <div>
+                          <p className="text-[10px] font-black text-red-900 uppercase">{err.clientName || 'Cliente desconocido'}</p>
+                          <p className="text-[8px] text-red-600 font-bold uppercase tracking-tight">{err.reason}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {previewData.errors.length > 10 && (
+                      <div className="p-3 text-center bg-red-100/50">
+                        <p className="text-[8px] font-black text-red-600 uppercase">... y {previewData.errors.length - 10} errores más</p>
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
 
-                <div className="overflow-auto max-h-[50vh] border border-slate-200 rounded-xl shadow-inner bg-slate-50 mobile-scroll-container">
-                  <table className="w-full text-left border-collapse text-[9px] md:text-[10px]">
+              {/* COLUMN MAPPING */}
+              <div className="mb-8">
+                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
+                  Columnas Detectadas en su Excel
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(previewData.discoveryMeta).map(([key, val]) => (
+                    <div key={key} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm">
+                      <span className="text-[7px] font-black text-slate-400 uppercase">{key}:</span>
+                      <span className="text-[9px] font-black text-slate-800 uppercase">{val}</span>
+                      <i className="fa-solid fa-check text-emerald-500 text-[8px]"></i>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SAMPLE TABLE */}
+              <div>
+                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                  Muestra de Datos ({previewData.clients.length})
+                </h4>
+                <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-inner max-h-[400px]">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-900 text-white sticky top-0 z-10">
-                      <tr className="uppercase font-black tracking-widest">
-                        <th className="px-3 md:px-4 py-3">#</th>
-                        <th className="px-3 md:px-4 py-3">Cliente</th>
-                        <th className="px-3 md:px-4 py-3 min-w-[80px]">CI/Doc</th>
-                        <th className="px-3 md:px-4 py-3 text-right">Capital</th>
-                        <th className="px-3 md:px-4 py-3 text-right">Cuota</th>
-                        <th className="px-3 md:px-4 py-3 text-center">Frecuencia</th>
-                        <th className="px-3 md:px-4 py-3 text-right">Saldo</th>
+                      <tr>
+                        <th className="p-3 text-[9px] font-black uppercase text-left">Cliente</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">Habilitado</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">V. Cuota</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">Monto</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-center">Tot</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-center">Pag</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-center">Pend</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">Saldo</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {previewData.clients.slice(0, 100).map((cli, i) => {
-                        const loan = previewData.loans.find(l => l.clientId === cli.id);
-                        const paid = calculateTotalPaidFromLogs(previewData.logs.filter(l => l.loanId === loan?.id));
-                        const balance = loan ? Math.max(0, loan.totalAmount - paid) : 0;
+                    <tbody className="divide-y divide-slate-100">
+                      {previewData.clients.map((c, i) => {
+                        const l = previewData.loans[i];
+                        const paidInst = l.installments?.filter(ins => ins.status === PaymentStatus.PAID).length || 
+                                       Math.floor(l.totalPaid / (l.installmentValue || 1));
+                        const pendInst = l.totalInstallments - paidInst;
                         return (
-                          <tr key={cli.id} className="hover:bg-blue-50/50 bg-white font-bold transition-colors">
-                            <td className="px-3 md:px-4 py-3 text-slate-400">{i + 1}</td>
-                            <td className="px-3 md:px-4 py-3 text-slate-900 uppercase">
-                              <div className="flex flex-col">
-                                <span className="font-black">{cli.name}</span>
-                                <span className="text-[8px] text-slate-400">{cli.phone}</span>
-                              </div>
+                          <tr key={c.id} className="bg-white hover:bg-slate-50 transition-colors">
+                            <td className="p-3">
+                              <p className="text-[10px] font-black text-slate-900 uppercase leading-none">{c.name}</p>
+                              <p className="text-[8px] text-slate-400 mt-1">{c.documentId}</p>
                             </td>
-                            <td className="px-3 md:px-4 py-3 text-slate-600">{cli.documentId}</td>
-                            <td className="px-3 md:px-4 py-3 text-right text-emerald-600 font-mono">{formatCurrency(loan?.principal || 0, state.settings)}</td>
-                            <td className="px-3 md:px-4 py-3 text-right text-blue-600 font-mono">{formatCurrency(loan?.installmentValue || 0, state.settings)}</td>
-                            <td className="px-3 md:px-4 py-3 text-center text-slate-600 uppercase">{loan?.frequency}</td>
-                            <td className="px-3 md:px-4 py-3 text-right text-red-600 font-mono">{formatCurrency(balance, state.settings)}</td>
+                            <td className="p-3 text-right">
+                              <p className="text-[10px] font-black text-emerald-600">{formatCurrency(l.principal, state.settings)}</p>
+                            </td>
+                            <td className="p-3 text-right">
+                              <p className="text-[10px] font-black text-blue-600">{formatCurrency(l.installmentValue, state.settings)}</p>
+                            </td>
+                            <td className="p-3 text-right">
+                              <p className="text-[10px] font-black text-slate-700">{formatCurrency(l.totalAmount, state.settings)}</p>
+                            </td>
+                            <td className="p-3 text-center">
+                              <p className="text-[10px] font-black text-slate-600">{l.totalInstallments}</p>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{paidInst}</span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{pendInst}</span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <p className={`text-[10px] font-black ${l.balance === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {formatCurrency(l.balance, state.settings)}
+                              </p>
+                            </td>
                           </tr>
                         );
                       })}
-                      {previewData.clients.length > 100 && (
-                        <tr>
-                          <td colSpan={7} className="px-3 md:px-4 py-4 text-center text-slate-500 font-black text-[9px] uppercase tracking-widest bg-slate-100/50">
-                            ... y {previewData.clients.length - 100} registros más. Mostrando vista previa limitada.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
-
-                <div className="flex flex-col md:flex-row gap-3 pt-4 border-t border-slate-100">
-                  <button 
-                    onClick={() => setPreviewData(null)}
-                    disabled={isProcessingExcel}
-                    className="flex-1 py-4 text-slate-600 font-black uppercase text-[10px] md:text-xs tracking-widest hover:bg-slate-100 rounded-xl transition-all border border-slate-200 disabled:opacity-50"
-                  >
-                    ATRAS / CANCELAR
-                  </button>
-                  <button 
-                    onClick={handleConfirmImport}
-                    disabled={isProcessingExcel}
-                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] md:text-xs tracking-widest shadow-xl flex justify-center items-center gap-2 transition-all active:scale-95 disabled:bg-slate-400"
-                  >
-                    {isProcessingExcel ? (
-                      <><i className="fa-solid fa-spinner animate-spin"></i> SUBIENDO AL SISTEMA...</>
-                    ) : (
-                      <><i className="fa-solid fa-cloud-arrow-up"></i> CONFIRMAR Y SUBIR AL SISTEMA</>
-                    )}
-                  </button>
-                </div>
               </div>
-            )}
+            </div>
+
+            <div className="bg-slate-50 p-6 flex flex-col gap-3 border-t border-slate-100">
+              {importSummary ? (
+                <div className="w-full">
+                  <div className="bg-emerald-100 p-4 rounded-2xl border border-emerald-200 mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-emerald-500 text-white p-2 rounded-full"><i className="fa-solid fa-check"></i></div>
+                      <span className="text-xs font-black text-emerald-900 uppercase">Carga de {importSummary.success} clientes completada</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => { setPreviewData(null); setImportSummary(null); setShowImportModal(false); }}
+                      className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                    >
+                      Finalizar
+                    </button>
+                    {importSummary.failed > 0 && (
+                      <button 
+                        onClick={handleResetImport}
+                        className="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95"
+                      >
+                        <i className="fa-solid fa-rotate-right mr-2"></i> RESUBIR FALLIDOS
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-3 w-full">
+                    <button 
+                      onClick={() => { setPreviewData(null); setShowImportModal(true); }}
+                      className="w-full py-4 bg-white text-orange-600 rounded-2xl border border-orange-200 font-black uppercase text-xs tracking-widest hover:bg-orange-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-file-excel"></i>
+                      CARGAR OTRO ARCHIVO / CAMBIAR
+                    </button>
+                    <div className="flex gap-3 w-full">
+                      <button 
+                        onClick={() => setPreviewData(null)}
+                        className="flex-1 py-4 bg-white text-slate-600 rounded-2xl border border-slate-200 font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        disabled={isSubmitting || previewData.errors.length > 0}
+                        onClick={handleConfirmImport}
+                        className={`flex-[2] py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 ${previewData.errors.length > 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700 active:scale-95'}`}
+                        title={previewData.errors.length > 0 ? "Corrija los errores en rojo antes de subir" : ""}
+                      >
+                        {isSubmitting ? <i className="fa-solid fa-spinner animate-spin"></i> : previewData.errors.length > 0 ? <i className="fa-solid fa-ban text-red-400 text-lg"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
+                        {previewData.errors.length > 0 ? 'ARCHIVO RECHAZADO (HAY ERRORES)' : 'CONFIRMAR Y SUBIR AL SISTEMA'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -1,15 +1,22 @@
 // bluetoothPrinterService.ts
-// Servicio Híbrido: Soporta Plugin Nativo (Cordova/Capacitor) y Web Bluetooth API
+// Servicio Híbrido Optimizado: Soporta Plugin Nativo (Cordova/Capacitor) y Web Bluetooth API
+// Optimizaciones para gama baja: Chunking, Retries y Timeouts extendidos.
 
 let connectedDevice: any = null;
 let printerCharacteristic: any = null;
 let isNativeConnection = false;
 let isCurrentlyPrinting = false;
-let connectionKeeperInterval: any = null;
+let connectionKeeperInterval: any = null; // Interval ID for keep-alive
 
 // Claves para persistencia
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
-const KEEPER_INTERVAL_MS = 5000; // 5 segundos para reconexión
+
+// Configuración OPTIMIZADA
+const CHUNK_SIZE = 200; // Aumentado para menos iteraciones
+const CHUNK_DELAY = 15; // Reducido drásticamente (antes 100ms) para velocidad
+const CONNECTION_RETRIES = 3; // Menos reintentos pero más rápidos
+const RETRY_DELAY = 500; // 500ms entre intentos iniciales
+const KEEPER_INTERVAL_MS = 5000; // 5s: Reconexión más agresiva solicitada por el usuario
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {
@@ -27,6 +34,9 @@ const waitForPlugin = async (): Promise<boolean> => {
     }
     return !!getBluetoothSerial();
 };
+
+// Utility: Espera asíncrona
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 1. Verificar estado y activar Bluetooth
 export const checkBluetoothEnabled = async (): Promise<boolean> => {
@@ -69,159 +79,189 @@ export const listBondedDevices = async (): Promise<any[]> => {
     });
 };
 
-// 3. Conexión Genérica (Usa guardado o parámetro)
-export const connectToPrinter = async (addressOrId?: string, silent = false): Promise<boolean> => {
-    // A. Intento Nativo
+// 3. Conexión Genérica Robusta
+const attemptNativeConnection = async (address: string, attemptNumber = 1, silent = false): Promise<boolean> => {
+    const bs = getBluetoothSerial();
+    return new Promise((resolve) => {
+        if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
+        bs.connect(
+            address,
+            () => {
+                if (!silent) console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
+                isNativeConnection = true;
+                connectedDevice = { address };
+                localStorage.setItem(PRINTER_STORAGE_KEY, address);
+                resolve(true);
+            },
+            (err: any) => {
+                if (!silent) console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
+                resolve(false);
+            }
+        );
+    });
+};
+
+export const connectToPrinter = async (addressOrId?: string, forceReconnect = false, silent = false): Promise<boolean> => {
+    // A. Intento Nativo con Retries
     if (await waitForPlugin()) {
         const bs = getBluetoothSerial();
         const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
         const targetAddress = addressOrId || savedAddress;
 
         if (!targetAddress) {
-            if (!silent) alert("No hay impresora configurada. Por favor usa el botón 'CONFIGURAR IMPRESORA' primero.");
+            if (!silent) console.log("No address provided and none saved.");
             return false;
         }
 
-        return new Promise((resolve) => {
-            // Verificar si ya estamos conectados
-            bs.isConnected(
-                () => {
-                    if (!silent) console.log("Ya estaba conectado");
-                    isNativeConnection = true;
-                    resolve(true);
-                },
-                () => {
-                    if (!silent) console.log("Intentando conectar a:", targetAddress);
-                    bs.connect(
-                        targetAddress,
-                        () => {
-                            if (!silent) console.log("Conectado exitosamente!");
-                            isNativeConnection = true;
-                            localStorage.setItem(PRINTER_STORAGE_KEY, targetAddress);
-                            resolve(true);
-                        },
-                        (err: any) => {
-                            console.error("Error conectando:", err);
-                            if (!silent) alert(`Error conectando a impresora (${targetAddress}). Verifica que esté encendida.`);
-                            resolve(false);
-                        }
-                    );
-                }
-            );
-        });
+        // FAST PATH: Verificar si ya está conectado al dispositivo correcto
+        if (!forceReconnect) {
+            const isConnectedNow = await new Promise<boolean>(r => bs.isConnected(() => r(true), () => r(false)));
+            if (isConnectedNow) {
+                if (!silent) console.log('[Bluetooth] Fast Path: Already connected');
+                isNativeConnection = true;
+                connectedDevice = { address: targetAddress };
+                return true;
+            }
+        }
+
+        // Solo desconectar si forzamos reconexión o falló el chequeo rápido
+        if (forceReconnect) {
+            try {
+                await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
+                await sleep(300); // Reduce wait time
+            } catch (e) {
+                if (!silent) console.log('[Bluetooth] No previous connection to clear');
+            }
+        }
+
+        // Intentar conectar con retries optimizados
+        if (!silent) console.log(`[Bluetooth] Starting connection to ${targetAddress}...`);
+        for (let i = 0; i < CONNECTION_RETRIES; i++) {
+            const success = await attemptNativeConnection(targetAddress, i + 1, silent);
+            if (success) {
+                await sleep(200); // Reduced stabilization delay
+                return true;
+            }
+            if (i < CONNECTION_RETRIES - 1) {
+                // Faster retries: 500ms, 1000ms, 1500ms
+                const delay = RETRY_DELAY * (i + 1);
+                if (!silent) console.log(`[Bluetooth] Waiting ${delay}ms before retry...`);
+                await sleep(delay);
+            }
+        }
+        return false;
     }
 
-    // B. Intento Web Bluetooth (Fallback)
-    // @ts-ignore
+    // B. Fallback Web Bluetooth (si no hay plugin)
     if (!('bluetooth' in navigator)) return false;
 
     try {
         // @ts-ignore
         const device = await navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: ['00001101-0000-1000-8000-00805f9b34fb', '000018f0-0000-1000-8000-00805f9b34fb', '49535343-fe7d-4ae5-8fa9-9fafd205e455']
+            optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
         });
-
         const server = await device.gatt.connect();
-        const serviceParams = ['00001101-0000-1000-8000-00805f9b34fb', '000018f0-0000-1000-8000-00805f9b34fb', '49535343-fe7d-4ae5-8fa9-9fafd205e455'];
-        let service;
-
-        for (const uuid of serviceParams) {
-            try { service = await server.getPrimaryService(uuid); break; } catch (e) { }
-        }
-
-        if (!service) throw new Error("Servicio no soportado.");
-
+        const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
         const characteristics = await service.getCharacteristics();
-        printerCharacteristic = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse) || characteristics[0];
-
+        printerCharacteristic = characteristics[0];
         connectedDevice = device;
         isNativeConnection = false;
         return true;
-
-    } catch (error: any) {
+    } catch (e) {
         return false;
     }
 };
 
-// 4. Función de Impresión Universal
-export const printText = async (rawText: string): Promise<boolean> => {
-    isCurrentlyPrinting = true;
-    const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    // A. Ruta Nativa
-    const bs = getBluetoothSerial();
-    if (isNativeConnection && bs) {
-        return new Promise((resolve) => {
-            bs.write(
-                text,
-                () => { isCurrentlyPrinting = false; resolve(true); },
-                (err: any) => {
-                    console.error("Error escribiendo nativo:", err);
-                    isCurrentlyPrinting = false;
-                    resolve(false);
-                }
-            );
-        });
+// 4. Función de Impresión Robusta con Chunking Rápido
+export const printText = async (rawText: string, retryCount = 0): Promise<boolean> => {
+    if (isCurrentlyPrinting && retryCount === 0) {
+        console.warn("Print already in progress. Skipping duplicate request.");
+        return false;
     }
 
-    // B. Ruta Web
-    if (!isNativeConnection && printerCharacteristic) {
-        try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(text);
-            await printerCharacteristic.writeValue(data);
+    isCurrentlyPrinting = true;
+    const bs = getBluetoothSerial();
+
+    // Asegurar conexión antes de imprimir (sin forzar desconexión inicial)
+    const connected = await isPrinterConnected();
+    if (!connected) {
+        console.log("Printer not connected. Attempting fast connection...");
+        const reconnected = await connectToPrinter(undefined, false);
+        if (!reconnected) {
             isCurrentlyPrinting = false;
-            return true;
-        } catch (e: any) {
-            if (await connectToPrinter(undefined, true)) {
-                return printText(text);
+            return false;
+        }
+    }
+
+    // Definición de Comandos ESC/POS
+    const ESC = '\x1B';
+    const GS = '\x1D';
+    const CMD_BOLD_ON = ESC + 'E' + '\x01';
+    const CMD_BOLD_OFF = ESC + 'E' + '\x00';
+    const CMD_SIZE_LARGE = GS + '!' + '\x11'; // Doble ancho y alto
+    const CMD_SIZE_MEDIUM = GS + '!' + '\x01'; // Doble alto, ancho normal
+    const CMD_SIZE_NORMAL = GS + '!' + '\x00';
+
+    // --- MARGIN LOGIC ---
+    const getPrintMargin = (): number => {
+        const saved = localStorage.getItem('printer_margin_bottom');
+        const val = saved ? parseInt(saved, 10) : 2; // Default to 2 lines if not set (matches Settings default)
+        return isNaN(val) ? 2 : val;
+    };
+    const marginLines = getPrintMargin();
+    const marginText = '\n'.repeat(marginLines);
+
+    // Append margin to the raw text (Feed paper)
+    const finalText = rawText + marginText;
+
+    // Normalizar texto y parsear etiquetas
+    const parts = finalText.split(/(<B[01]>|<GS[012]>)/);
+
+    const sendChunk = async (chunk: string): Promise<void> => {
+        if (chunk === '<B1>') return bs ? bs.write(CMD_BOLD_ON) : printerCharacteristic.writeValue(new Uint8Array([0x1B, 0x45, 0x01]));
+        if (chunk === '<B0>') return bs ? bs.write(CMD_BOLD_OFF) : printerCharacteristic.writeValue(new Uint8Array([0x1B, 0x45, 0x00]));
+        if (chunk === '<GS1>') return bs ? bs.write(CMD_SIZE_LARGE) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x11]));
+        if (chunk === '<GS2>') return bs ? bs.write(CMD_SIZE_MEDIUM) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x01]));
+        if (chunk === '<GS0>') return bs ? bs.write(CMD_SIZE_NORMAL) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x00]));
+
+        const cleanText = chunk.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (isNativeConnection && bs) {
+            // Optimización: Enviar chunks más grandes con menos delay
+            for (let i = 0; i < cleanText.length; i += CHUNK_SIZE) {
+                await new Promise<void>((res, rej) => bs.write(cleanText.substring(i, i + CHUNK_SIZE), res, rej));
+                await sleep(CHUNK_DELAY); // 15ms
+            }
+        } else if (printerCharacteristic) {
+            const encoder = new TextEncoder();
+            for (let i = 0; i < cleanText.length; i += CHUNK_SIZE) {
+                await printerCharacteristic.writeValue(encoder.encode(cleanText.substring(i, i + CHUNK_SIZE)));
+                await sleep(CHUNK_DELAY);
             }
         }
-    }
+    };
 
-    isCurrentlyPrinting = false;
-    return false;
-};
-
-// 5. Connection Keeper (Persistencia Global)
-export const startConnectionKeeper = () => {
-    if (connectionKeeperInterval) return;
-
-    connectionKeeperInterval = setInterval(async () => {
-        if (isCurrentlyPrinting) return;
-
-        const bs = getBluetoothSerial();
-        if (bs) {
-            bs.isConnected(
-                () => { /* Ya conectado */ },
-                async () => {
-                    const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
-                    if (savedAddress) {
-                        console.log("[Keeper] Reconectando a:", savedAddress);
-                        await connectToPrinter(savedAddress, true);
-                    }
-                }
-            );
+    try {
+        for (const part of parts) {
+            if (part) await sendChunk(part);
         }
-    }, KEEPER_INTERVAL_MS);
-};
-
-export const stopConnectionKeeper = () => {
-    if (connectionKeeperInterval) {
-        clearInterval(connectionKeeperInterval);
-        connectionKeeperInterval = null;
+        return true;
+    } catch (e) {
+        console.warn("Print failed. Attempting recovery...", e);
+        if (retryCount < 1) { // Solo 1 reintento para no bloquear
+            // Forzar reconexión "limpia" solo si falló la escritura
+            const reconnected = await connectToPrinter(undefined, true);
+            if (reconnected) {
+                return printText(rawText, retryCount + 1);
+            }
+        }
+        return false;
+    } finally {
+        isCurrentlyPrinting = false;
     }
 };
 
-export const disconnectPrinter = async () => {
-    const bs = getBluetoothSerial();
-    if (isNativeConnection && bs) bs.disconnect();
-    if (connectedDevice && connectedDevice.gatt.connected) connectedDevice.gatt.disconnect();
-    connectedDevice = null;
-    printerCharacteristic = null;
-    isNativeConnection = false;
-};
+export const isPrintingNow = () => isCurrentlyPrinting;
 
 export const isPrinterConnected = async (): Promise<boolean> => {
     const bs = getBluetoothSerial();
@@ -233,4 +273,40 @@ export const isPrinterConnected = async (): Promise<boolean> => {
     return !!(connectedDevice && connectedDevice.gatt.connected);
 };
 
-export const isPrintingNow = () => isCurrentlyPrinting;
+// 5. CONNECTION KEEPER (Mantiene la conexi?n viva y reconecta autom?ticamente)
+export const forceReconnect = async (): Promise<boolean> => {
+    const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+    if (!savedAddress) return false;
+    console.log("[Bluetooth] Forcing fresh reconnection...");
+    return await connectToPrinter(savedAddress, true, false);
+};
+
+export const startConnectionKeeper = () => {
+    if (connectionKeeperInterval) return;
+
+    console.log("[Bluetooth Keeper] Starting background connection keeper...");
+    connectionKeeperInterval = setInterval(async () => {
+        if (isCurrentlyPrinting) return;
+
+        const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+        if (!savedAddress) return;
+
+        try {
+            const connected = await isPrinterConnected();
+            if (!connected) {
+                console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
+                await connectToPrinter(savedAddress, false, true);
+            }
+        } catch (e) {
+            console.warn("[Bluetooth Keeper] Error checking status:", e);
+        }
+    }, KEEPER_INTERVAL_MS);
+};
+
+export const stopConnectionKeeper = () => {
+    if (connectionKeeperInterval) {
+        clearInterval(connectionKeeperInterval);
+        connectionKeeperInterval = null;
+        console.log("[Bluetooth Keeper] Stopped.");
+    }
+};
