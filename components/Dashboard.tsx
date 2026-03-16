@@ -56,13 +56,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     if (!isAdmin) return [];
     const todayDateStr = new Date().toDateString(); // Use toDateString() - same as CollectorCommission
 
+    const collectionLogsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+
+    // O(N) Pre-filtering prevents O(N*M) lagging on UI thread
+    const logsTodayBase = collectionLogsSafe.filter(log => new Date(log.date).toDateString() === todayDateStr && !log.isOpening);
+
     return visibleCollectors.map(user => {
+      const uidLower = user.id.toLowerCase();
       // Use recordedBy + same date comparison method as Auditoría Histórica
-      const logsToday = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logsToday = logsTodayBase.filter(log => {
         const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-        return logRecordedBy === user.id.toLowerCase() &&
-          new Date(log.date).toDateString() === todayDateStr &&
-          !log.isOpening;
+        return logRecordedBy === uidLower;
       });
 
       const recaudoHoy = logsToday
@@ -70,13 +76,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
-      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-        (l.collectorId?.toLowerCase() === user.id.toLowerCase() || (l as any).collector_id?.toLowerCase() === user.id.toLowerCase())
+      const assignedLoans = loansSafe.filter(l =>
+        (l.collectorId?.toLowerCase() === uidLower || (l as any).collector_id?.toLowerCase() === uidLower)
       );
       
       const clientsMappedToLoans = new Set(assignedLoans.map(l => l.clientId || (l as any).client_id));
-      const clientsAddedByThisCollector = (Array.isArray(state.clients) ? state.clients : [])
-        .filter(c => c.addedBy?.toLowerCase() === user.id.toLowerCase())
+      const clientsAddedByThisCollector = clientsSafe
+        .filter(c => c.addedBy?.toLowerCase() === uidLower)
         .map(c => c.id);
       
       const allClientIdsForCollector = new Set([...Array.from(clientsMappedToLoans), ...clientsAddedByThisCollector]);
@@ -91,7 +97,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;
       const routeCompletionRate = totalClientsCount > 0 ? (uniqueClientsVisitedToday / totalClientsCount) * 100 : 0;
       const isRouteCompleted = totalClientsCount > 0 && uniqueClientsVisitedToday >= totalClientsCount;
-      const monthlyStats = calculateMonthlyStats(state.loans, state.collectionLogs, new Date().getMonth(), new Date().getFullYear(), user.id);
+      const monthlyStats = calculateMonthlyStats(loansSafe, collectionLogsSafe, new Date().getMonth(), new Date().getFullYear(), user.id);
 
       return {
         id: user.id,

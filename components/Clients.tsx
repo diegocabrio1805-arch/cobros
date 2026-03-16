@@ -627,14 +627,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         return getDaysOverdue(l, state.settings, lp);
       }));
 
-      const daysOverdueArr = activeLoan.installments
-        .filter(i => i.status !== PaymentStatus.PAID)
-        .map(i => getDaysOverdue(i.dueDate, state.settings));
+      const safeInstallments = Array.isArray(activeLoan.installments) 
+        ? activeLoan.installments 
+        : (typeof activeLoan.installments === 'string' 
+            ? JSON.parse(activeLoan.installments) 
+            : Object.values(activeLoan.installments || {}));
+
+      const daysOverdueArr = (Array.isArray(safeInstallments) ? safeInstallments : [])
+        .filter((i: any) => i && i.status && i.status !== PaymentStatus.PAID)
+        .map((i: any) => getDaysOverdue(i.dueDate, state.settings));
       maxDaysOverdue = daysOverdueArr.length > 0 ? Math.max(...daysOverdueArr) : 0;
 
-      if (activeLoan.installments && activeLoan.installments.length > 0) {
-        const insts = activeLoan.installments;
-        lastExpiryDate = insts[insts.length - 1].dueDate;
+      if (Array.isArray(safeInstallments) && safeInstallments.length > 0) {
+        const insts = safeInstallments;
+        lastExpiryDate = insts[insts.length - 1]?.dueDate || null;
       }
       createdAt = activeLoan.createdAt;
 

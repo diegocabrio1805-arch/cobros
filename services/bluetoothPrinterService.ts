@@ -285,6 +285,24 @@ export const startConnectionKeeper = () => {
     if (connectionKeeperInterval) return;
 
     console.log("[Bluetooth Keeper] Starting background connection keeper...");
+    
+    // Configurar listener de Capacitor para reconectar INMEDIATAMENTE al volver a la app
+    try {
+        const { App: CapApp } = require('@capacitor/app');
+        CapApp.addListener('appStateChange', async (state: any) => {
+            if (state.isActive) {
+                const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+                if (savedAddress) {
+                    console.log("[Bluetooth Keeper] App resumed. Reconnecting eagerly...");
+                    const connected = await isPrinterConnected();
+                    if (!connected) await connectToPrinter(savedAddress, false, true);
+                }
+            }
+        });
+    } catch (e) {
+        console.log("Capacitor App module not available for BT keeper");
+    }
+
     connectionKeeperInterval = setInterval(async () => {
         if (isCurrentlyPrinting) return;
 

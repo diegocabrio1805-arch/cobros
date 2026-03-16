@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus } from '../types';
 import { useSync } from './useSync';
 import { supabase } from '../utils/supabaseClient';
@@ -122,91 +122,8 @@ export const useAppSyncEngine = (
       }
 
       const mappedData = { ...newData };
-      if (mappedData.collectionLogs) {
-        mappedData.collectionLogs = mappedData.collectionLogs.map(l => ({
-          ...l,
-          loanId: l.loanId || (l as any).loan_id,
-          clientId: l.clientId || (l as any).client_id,
-          branchId: l.branchId || (l as any).branch_id,
-          collectorId: l.collectorId || (l as any).collector_id,
-          recordedBy: l.recordedBy || (l as any).recorded_by,
-          receiptNumber: l.receiptNumber || (l as any).receipt_number,
-          isOpening: l.isOpening !== undefined ? l.isOpening : (l as any).is_opening,
-          isRenewal: l.isRenewal !== undefined ? l.isRenewal : (l as any).is_renewal,
-          isVirtual: l.isVirtual !== undefined ? l.isVirtual : (l as any).is_virtual,
-          notes: l.notes || (l as any).notes,
-          deletedAt: l.deletedAt || (l as any).deleted_at
-        }));
-      }
-      if (mappedData.payments) {
-        mappedData.payments = mappedData.payments.map(p => ({
-          ...p,
-          loanId: (p as any).loanId || (p as any).loan_id,
-          clientId: (p as any).clientId || (p as any).client_id,
-          branchId: (p as any).branchId || (p as any).branch_id,
-          collectorId: (p as any).collectorId || (p as any).collector_id,
-          isVirtual: (p as any).isVirtual !== undefined ? (p as any).isVirtual : (p as any).is_virtual,
-          isRenewal: (p as any).isRenewal !== undefined ? (p as any).isRenewal : (p as any).is_renewal,
-          location: (p as any).location || (p as any).location,
-          deletedAt: (p as any).deletedAt || (p as any).deleted_at
-        }));
-      }
-      if (mappedData.loans) {
-        mappedData.loans = mappedData.loans.map(lo => ({
-          ...lo,
-          clientId: (lo as any).clientId || (lo as any).client_id,
-          branchId: (lo as any).branchId || (lo as any).branch_id,
-          collectorId: (lo as any).collectorId || (lo as any).collector_id,
-          interestRate: (lo as any).interestRate || (lo as any).interest_rate,
-          totalInstallments: (lo as any).totalInstallments || (lo as any).total_installments,
-          installmentValue: (lo as any).installmentValue || (lo as any).installment_value,
-          totalAmount: (lo as any).totalAmount || (lo as any).total_amount,
-          isRenewal: (lo as any).isRenewal !== undefined ? (lo as any).isRenewal : (lo as any).is_renewal,
-          customHolidays: (lo as any).customHolidays || (lo as any).custom_holidays,
-          deletedAt: (lo as any).deletedAt || (lo as any).deleted_at
-        }));
-      }
-      if (mappedData.clients) {
-        mappedData.clients = mappedData.clients.map(c => ({
-          ...c,
-          documentId: (c as any).documentId || (c as any).document_id,
-          secondaryPhone: (c as any).secondaryPhone || (c as any).secondary_phone,
-          addedBy: (c as any).addedBy || (c as any).added_by,
-          branchId: (c as any).branchId || (c as any).branch_id,
-          profilePic: (c as any).profilePic || (c as any).profile_pic,
-          housePic: (c as any).housePic || (c as any).house_pic,
-          businessPic: (c as any).businessPic || (c as any).business_pic,
-          documentPic: (c as any).documentPic || (c as any).document_pic,
-          domicilioLocation: (c as any).domicilioLocation || (c as any).domicilio_location,
-          creditLimit: (c as any).creditLimit || (c as any).credit_limit,
-          allowCollectorLocationUpdate: (c as any).allowCollectorLocationUpdate !== undefined ? (c as any).allowCollectorLocationUpdate : (c as any).allow_collector_location_update,
-          customNoPayMessage: (c as any).customNoPayMessage || (c as any).custom_no_pay_message,
-          isActive: (c as any).isActive !== undefined ? (c as any).isActive : (c as any).is_active,
-          isHidden: (c as any).isHidden !== undefined ? (c as any).isHidden : (c as any).is_hidden,
-          deletedAt: (c as any).deletedAt || (c as any).deleted_at
-        }));
-      }
       if (mappedData.users) {
-        mappedData.users = mappedData.users
-          .map(u => ({
-            ...u,
-            managedBy: (u as any).managedBy || (u as any).managed_by,
-            expiryDate: (u as any).expiryDate || (u as any).expiry_date,
-            requiresLocation: (u as any).requiresLocation !== undefined ? (u as any).requiresLocation : (u as any).requires_location,
-            profilePic: (u as any).profilePic || (u as any).profile_pic || (u as any).photo_url,
-            homePic: (u as any).homePic || (u as any).home_pic,
-            homeLocation: (u as any).homeLocation || (u as any).home_location,
-            deletedAt: (u as any).deletedAt || (u as any).deleted_at
-          }))
-          .filter(u => !u.deletedAt);
-      }
-      if (mappedData.expenses) {
-        mappedData.expenses = mappedData.expenses.map(e => ({
-          ...e,
-          branchId: (e as any).branchId || (e as any).branch_id,
-          addedBy: (e as any).addedBy || (e as any).added_by,
-          deletedAt: (e as any).deletedAt || (e as any).deleted_at
-        }));
+        mappedData.users = mappedData.users.filter((u: any) => !u.deletedAt);
       }
 
       if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
@@ -319,7 +236,7 @@ export const useAppSyncEngine = (
     triggerEmergencySync();
 
     return () => {
-      subscription?.unsubscribe();
+      subscription?.unsubscribe?.();
     };
   }, [state.currentUser]);
 
@@ -337,7 +254,7 @@ export const useAppSyncEngine = (
     }, 1000);
 
     return () => {
-      resumeListener.then(l => l.remove());
+      resumeListener.then(l => l?.remove?.());
       clearTimeout(timer);
     };
   }, []);
