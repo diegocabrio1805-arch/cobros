@@ -253,6 +253,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const pullData = async (fullSync = false): Promise<Partial<AppState> | null> => {
         setIsSyncing(true);
         setSyncError(null);
+        let syncTimeoutId: any;
         try {
             const online = await checkConnection();
             if (!online) return null;
@@ -333,7 +334,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
+            syncTimeoutId = setTimeout(() => controller.abort(new Error("Timeout syncing data")), 120000);
 
             const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
             const profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal));
@@ -344,7 +345,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal));
             const deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal));
 
-            clearTimeout(timeoutId);
+            if (syncTimeoutId) clearTimeout(syncTimeoutId);
 
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
             localStorage.setItem('last_sync_timestamp_v8', new Date().toISOString());
@@ -393,6 +394,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setSyncError(`Error Descarga: ${err.message || 'Error'}`);
             return null;
         } finally {
+            if (syncTimeoutId) clearTimeout(syncTimeoutId);
             setIsSyncing(false);
             if (fullSync) setIsFullSyncing(false);
         }

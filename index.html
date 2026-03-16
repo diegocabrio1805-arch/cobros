@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Anexo Cobro v6.4.0-STABLE</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -99,8 +99,19 @@
         }
       };
 
-      window.addEventListener('error', (e) => handlePanic(e.message));
-      window.addEventListener('unhandledrejection', (e) => handlePanic(e.reason?.message || "Error Desconocido"));
+      window.addEventListener('error', (e) => {
+        const msg = e.message || '';
+        if (msg.includes('Failed to register a ServiceWorker')) return;
+        handlePanic(msg);
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        const msg = e.reason?.message || "Error Desconocido";
+        if (msg.includes('Failed to register a ServiceWorker')) {
+          e.preventDefault();
+          return;
+        }
+        handlePanic(msg);
+      });
     })();
   </script>
   <div id="root"></div>
