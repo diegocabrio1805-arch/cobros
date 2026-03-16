@@ -373,6 +373,7 @@ export const useAppSyncEngine = (
 
   return {
     ...sync,
+    handleRealtimeData,
     handleForceSync,
     handleDeepReset,
     filteredState,
