@@ -227,6 +227,26 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         processQueue();
     };
 
+    const addToQueueBulk = (items: { operation: string, data: any }[]) => {
+        if (items.length === 0) return;
+        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+        
+        const now = Date.now();
+        const newItems = items.map(item => ({
+            _id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+            operation: item.operation,
+            data: item.data,
+            timestamp: now,
+            retryCount: 0
+        }));
+
+        queue = [...queue, ...newItems];
+        localStorage.setItem('syncQueue', JSON.stringify(queue));
+        setQueueLength(queue.length);
+
+        // Do not trigger processQueue automatically here, let the caller decide when to trigger
+    };
+
     const forceSync = () => processQueue(true);
     const forceFullSync = () => processQueue(true, true);
 
@@ -416,132 +436,154 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setIsSyncing(true);
             const processedIds = new Set<string>();
 
-            // PROCESAMIENTO ESTRICTAMENTE SERIAL (1 a 1)
-            // Esto resuelve el error 500 por saturación y el error 21000 por duplicados en lote.
+            // AGRUPAR OPERACIONES POR TABLA Y TIPO PARA ENVÍO EN LOTE
+            const batches: Record<string, { items: any[], table: string, isDelete: boolean, mapper: (d: any) => any }> = {
+                'ADD_PROFILE': { items: [], table: 'profiles', isDelete: false, mapper: (d) => ({
+                    id: d.id, name: d.name, username: d.username, password: d.password,
+                    role: d.role, blocked: d.blocked, expiry_date: d.expiryDate || null,
+                    managed_by: d.managedBy || null, profile_pic: d.profilePic,
+                    home_pic: d.homePic, home_location: d.homeLocation,
+                    requires_location: d.requiresLocation, deleted_at: d.deletedAt || null,
+                    updated_at: new Date().toISOString()
+                })},
+                'ADD_CLIENT': { items: [], table: 'clients', isDelete: false, mapper: (d) => {
+                    const { id, documentId, name, phone, secondaryPhone, address, addedBy, branchId, location, domicilioLocation, creditLimit, allowCollectorLocationUpdate, customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt, capital, currentBalance, profilePic, housePic, businessPic, documentPic, raw_data, ...other } = d;
+                    return {
+                        id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
+                        profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
+                        domicilio_location: domicilioLocation, location, credit_limit: creditLimit,
+                        allow_collector_location_update: allowCollectorLocationUpdate, added_by: addedBy, branch_id: branchId,
+                        is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
+                        deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
+                        capital, current_balance: currentBalance, raw_data: { ...raw_data, ...other }
+                    };
+                }},
+                'ADD_LOAN': { items: [], table: 'loans', isDelete: false, mapper: (d) => {
+                    const { id, clientId, collectorId, branchId, principal, interestRate, totalInstallments, installmentValue, totalAmount, status, createdAt, installments, frequency, isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance, raw_data, ...other } = d;
+                    return {
+                        id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
+                        principal, interest_rate: interestRate, total_installments: totalInstallments,
+                        installment_value: installmentValue, total_amount: totalAmount, status,
+                        created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
+                        custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
+                        updated_at: new Date().toISOString(), total_paid: totalPaid, balance: balance,
+                        raw_data: { ...raw_data, ...other }
+                    };
+                }},
+                'ADD_PAYMENT': { items: [], table: 'payments', isDelete: false, mapper: (d) => ({
+                    id: d.id, loan_id: d.loanId, client_id: d.clientId, collector_id: d.collectorId,
+                    branch_id: d.branchId, amount: d.amount, date: d.date,
+                    installment_number: d.installmentNumber, location: d.location,
+                    is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false,
+                    deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                })},
+                'ADD_LOG': { items: [], table: 'collection_logs', isDelete: false, mapper: (d) => ({
+                    id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
+                    recorded_by: d.recordedBy, amount: d.amount, type: d.type, date: d.date,
+                    location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
+                    is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
+                    deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                })},
+                'ADD_EXPENSE': { items: [], table: 'expenses', isDelete: false, mapper: (d) => ({
+                    id: d.id, description: d.description, amount: d.amount, category: d.category,
+                    date: d.date, branch_id: d.branchId, added_by: d.addedBy,
+                    deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                })},
+                'UPDATE_SETTINGS': { items: [], table: 'branch_settings', isDelete: false, mapper: (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() }) },
+                'DELETE_LOG': { items: [], table: 'collection_logs', isDelete: true, mapper: (d) => d },
+                'DELETE_PAYMENT': { items: [], table: 'payments', isDelete: true, mapper: (d) => d },
+                'DELETE_LOAN': { items: [], table: 'loans', isDelete: true, mapper: (d) => d },
+                'DELETE_CLIENT': { items: [], table: 'clients', isDelete: true, mapper: (d) => d },
+                'DELETE_EXPENSE': { items: [], table: 'expenses', isDelete: true, mapper: (d) => d },
+            };
+
+            // Clasificar la cola
             for (const item of queue) {
-                const { operation, data, _id } = item;
-                
-                try {
-                    let table = '';
-                    let mapper: (d: any) => any = (d) => d;
-                    let isDelete = false;
+                if (batches[item.operation]) {
+                    batches[item.operation].items.push(item);
+                }
+            }
 
-                    switch (operation) {
-                        case 'ADD_PROFILE':
-                            table = 'profiles';
-                            mapper = (d) => ({
-                                id: d.id, name: d.name, username: d.username, password: d.password,
-                                role: d.role, blocked: d.blocked, expiry_date: d.expiryDate || null,
-                                managed_by: d.managedBy || null, profile_pic: d.profilePic,
-                                home_pic: d.homePic, home_location: d.homeLocation,
-                                requires_location: d.requiresLocation, deleted_at: d.deletedAt || null,
-                                updated_at: new Date().toISOString()
-                            });
-                            break;
-                        case 'ADD_CLIENT':
-                            table = 'clients';
-                            mapper = (d) => {
-                                const { id, documentId, name, phone, secondaryPhone, address, addedBy, branchId, location, domicilioLocation, creditLimit, allowCollectorLocationUpdate, customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt, capital, currentBalance, profilePic, housePic, businessPic, documentPic, raw_data, ...other } = d;
-                                return {
-                                    id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
-                                    profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
-                                    domicilio_location: domicilioLocation, location, credit_limit: creditLimit,
-                                    allow_collector_location_update: allowCollectorLocationUpdate, added_by: addedBy, branch_id: branchId,
-                                    is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
-                                    deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
-                                    capital, current_balance: currentBalance, raw_data: { ...raw_data, ...other }
-                                };
-                            };
-                            break;
-                        case 'ADD_LOAN':
-                            table = 'loans';
-                            mapper = (d) => {
-                                const { id, clientId, collectorId, branchId, principal, interestRate, totalInstallments, installmentValue, totalAmount, status, createdAt, installments, frequency, isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance, raw_data, ...other } = d;
-                                return {
-                                    id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
-                                    principal, interest_rate: interestRate, total_installments: totalInstallments,
-                                    installment_value: installmentValue, total_amount: totalAmount, status,
-                                    created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
-                                    custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
-                                    updated_at: new Date().toISOString(), total_paid: totalPaid, balance: balance,
-                                    raw_data: { ...raw_data, ...other }
-                                };
-                            };
-                            break;
-                        case 'ADD_PAYMENT':
-                            table = 'payments';
-                            mapper = (d) => ({
-                                id: d.id, loan_id: d.loanId, client_id: d.clientId, collector_id: d.collectorId,
-                                branch_id: d.branchId, amount: d.amount, date: d.date,
-                                installment_number: d.installmentNumber, location: d.location,
-                                is_virtual: d.isVirtual || false, is_renewal: d.isRenewal || false,
-                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
-                            });
-                            break;
-                        case 'ADD_LOG':
-                            table = 'collection_logs';
-                            mapper = (d) => ({
-                                id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
-                                recorded_by: d.recordedBy, amount: d.amount, type: d.type, date: d.date,
-                                location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
-                                is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
-                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
-                            });
-                            break;
-                        case 'ADD_EXPENSE':
-                            table = 'expenses';
-                            mapper = (d) => ({
-                                id: d.id, description: d.description, amount: d.amount, category: d.category,
-                                date: d.date, branch_id: d.branchId, added_by: d.addedBy,
-                                deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
-                            });
-                            break;
-                        case 'UPDATE_SETTINGS':
-                            table = 'branch_settings';
-                            mapper = (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() });
-                            break;
-                        case 'DELETE_LOG': table = 'collection_logs'; isDelete = true; break;
-                        case 'DELETE_PAYMENT': table = 'payments'; isDelete = true; break;
-                        case 'DELETE_LOAN': table = 'loans'; isDelete = true; break;
-                        case 'DELETE_CLIENT': table = 'clients'; isDelete = true; break;
-                        case 'DELETE_EXPENSE': table = 'expenses'; isDelete = true; break;
-                    }
+            // FUNCIÓN HELPER PARA PROCESAR EN PARALELO (MAX N CONCURRENTES)
+            const processInChunks = async (items: any[], chunkSize: number, processFn: (chunk: any[]) => Promise<void>) => {
+                for (let i = 0; i < items.length; i += chunkSize) {
+                    const chunk = items.slice(i, i + chunkSize);
+                    await processFn(chunk);
+                }
+            };
 
-                    if (table) {
-                        if (isDelete) {
+            // PROCESAR POR LOTES
+            for (const opKey of Object.keys(batches)) {
+                const batch = batches[opKey];
+                if (batch.items.length === 0) continue;
+
+                const { table, isDelete, mapper } = batch;
+
+                if (isDelete) {
+                    // Procesar Deletes
+                    for (const item of batch.items) {
+                        try {
                             const { data: { session: currentSession } } = await supabase.auth.getSession();
                             if (currentSession) {
                                 const bId = (currentSession.user as any).user_metadata?.branchId || currentSession.user.id;
                                 await supabase.from('deleted_items').insert({
-                                    table_name: table, record_id: data.id, branch_id: bId,
+                                    table_name: table, record_id: item.data.id, branch_id: bId,
                                     deleted_at: new Date().toISOString()
                                 });
                             }
-                            const { error } = await supabase.from(table).delete().eq('id', data.id);
+                            const { error } = await supabase.from(table).delete().eq('id', item.data.id);
                             if (error) throw error;
-                        } else {
-                            const { error } = await supabase.from(table).upsert(mapper(data));
-                            if (error) throw error;
+                            processedIds.add(item._id);
+                            setQueueLength(prev => Math.max(0, prev - 1));
+                        } catch (err) {
+                            console.error(`Error de sincronización (DELETE ${table}):`, err);
+                            item.retryCount = (item.retryCount || 0) + 1;
+                            if (item.retryCount > 3) {
+                                processedIds.add(item._id);
+                                const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                failedItems.push({ ...item, lastError: String(err), fatal: true });
+                                localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                            }
                         }
                     }
-
-                    processedIds.add(_id);
-                    setQueueLength(prev => Math.max(0, prev - 1));
-
-                    // Pausa de seguridad para no saturar 1 a 1
-                    await new Promise(r => setTimeout(r, 100));
-
-                } catch (err) {
-                    console.error(`Error de sincronización individual en ${operation}:`, err);
-                    item.retryCount = (item.retryCount || 0) + 1;
-                    if (item.retryCount > 3) {
-                         processedIds.add(_id);
-                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
-                         failedItems.push({ ...item, lastError: String(err), fatal: true });
-                         localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
-                    } else {
-                        break; 
-                    }
+                } else {
+                    // Procesar Upserts Masivos en bloques para evitar error 21000 de Supabase (Trigger limitation on single row insertions or large payload size)
+                    // Configurable chunk size. Using smaller chunk (e.g. 10) prevents heavy DB locks and solves 21000 error typically caused by row-level triggers.
+                    await processInChunks(batch.items, 10, async (chunkItems) => {
+                        try {
+                            const payload = chunkItems.map(i => mapper(i.data));
+                            const { error } = await supabase.from(table).upsert(payload);
+                            if (error) {
+                                // Fallback a 1 por 1 si el chunk de 10 falla
+                                throw error;
+                            } else {
+                                chunkItems.forEach(i => {
+                                    processedIds.add(i._id);
+                                    setQueueLength(prev => Math.max(0, prev - 1));
+                                });
+                            }
+                        } catch (chunkErr) {
+                            // FAST-FALLBACK: Si falla el bulk, metemos 1 a 1 para salvar lo posible.
+                            console.warn(`Error en Bulk Upsert (${table}). Reintentando 1 a 1... Detalle:`, chunkErr);
+                            for (const item of chunkItems) {
+                                try {
+                                    const { error } = await supabase.from(table).upsert(mapper(item.data));
+                                    if (error) throw error;
+                                    processedIds.add(item._id);
+                                    setQueueLength(prev => Math.max(0, prev - 1));
+                                } catch (singleErr) {
+                                    console.error(`Error de sincronización individual en ${table}:`, singleErr);
+                                    item.retryCount = (item.retryCount || 0) + 1;
+                                    if (item.retryCount > 3) {
+                                        processedIds.add(item._id); // Skip after 3 failures
+                                        const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                        failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
+                                        localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
             }
 
@@ -576,6 +618,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         return true;
     };
 
+    const pushBulk = async (clients: Client[], loans: Loan[], payments: PaymentRecord[], logs: CollectionLog[]): Promise<boolean> => {
+        const items = [
+            ...clients.map(c => ({ operation: 'ADD_CLIENT', data: c })),
+            ...loans.map(l => ({ operation: 'ADD_LOAN', data: l })),
+            ...payments.map(p => ({ operation: 'ADD_PAYMENT', data: p })),
+            ...logs.map(l => ({ operation: 'ADD_LOG', data: l }))
+        ];
+        addToQueueBulk(items);
+        return true;
+    };
+
     const deleteRemoteLog = async (logId: string) => addToQueue('DELETE_LOG', { id: logId });
     const deleteRemotePayment = async (paymentId: string) => addToQueue('DELETE_PAYMENT', { id: paymentId });
     const deleteRemoteLoan = async (loanId: string) => addToQueue('DELETE_LOAN', { id: loanId });
@@ -585,7 +638,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     return {
         isSyncing, isFullSyncing, syncError, showSuccess, successMessage, setSuccessMessage, isOnline,
         processQueue, forceSync, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog,
-        pushUser, pushSettings, clearQueue, deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment,
-        deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, lastErrors, setLastErrors
+        pushUser, pushSettings, pushBulk, clearQueue, deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment,
+        deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };

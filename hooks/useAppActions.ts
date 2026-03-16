@@ -11,7 +11,7 @@ export const useAppActions = (
   setActiveTab: (tab: string) => void,
   sync: any // From useAppSyncEngine
 ) => {
-  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue } = sync;
+  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk } = sync;
 
   const handleLogin = (user: User) => {
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
@@ -430,16 +430,13 @@ export const useAppActions = (
         collectionLogs: [...prev.collectionLogs, ...newLogs]
     }));
 
-    // 2. Persistir en cola de sincronización
-    for (const c of newClients) pushClient(c);
-    for (const l of updatedLoansWithPayments) pushLoan(l);
-    for (const log of newLogs) pushLog(log);
-    for (const p of allNewPayments) pushPayment(p);
+    // 2. Persistir en cola de sincronización (BULK para evitar O(N^2))
+    pushBulk(newClients, updatedLoansWithPayments, allNewPayments, newLogs);
 
     // 3. Disparar sincronización forzada después de un breve delay
     setTimeout(() => {
         handleForceSync(false, "Importación masiva enviada a la nube");
-    }, 1500);
+    }, 500);
 
     return {
         clientsCount: newClients.length,
