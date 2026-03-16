@@ -194,8 +194,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             clearInterval(interval);
             clearInterval(healthCheckInterval);
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            handlerPromise.then(h => h?.remove?.());
-            appHandlerPromise.then(h => h?.remove?.());
+            Promise.resolve(handlerPromise).then(h => h?.remove?.()).catch(() => {});
+            Promise.resolve(appHandlerPromise).then(h => h?.remove?.()).catch(() => {});
             if (channel) supabase.removeChannel(channel);
         };
     }, []);

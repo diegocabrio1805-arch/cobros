@@ -254,7 +254,7 @@ export const useAppSyncEngine = (
     }, 1000);
 
     return () => {
-      resumeListener.then(l => l?.remove?.());
+      Promise.resolve(resumeListener).then(l => l?.remove?.()).catch(() => {});
       clearTimeout(timer);
     };
   }, []);

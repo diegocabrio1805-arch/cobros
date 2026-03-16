@@ -499,6 +499,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [globalSearch]);
   const [isSharing, setIsSharing] = useState(false);
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(50);
 
   useEffect(() => {
     if (showLegajo && fetchClientPhotos && updateClient) {
@@ -703,6 +704,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   // RESETEAR PAGINA AL FILTRAR
   useEffect(() => {
     setCurrentPage(1);
+    setDisplayLimit(50);
   }, [viewMode, debouncedSearch, selectedCollector]);
 
   const paginatedClients = useMemo(() => {
@@ -1212,7 +1214,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         // Attempt Automatic Print (Silent)
         const { printText } = await import('../services/bluetoothPrinterService');
-        printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
+        try {
+          await printText(receiptText);
+        } catch (err) {
+          console.warn("Auto-print failed:", err);
+        }
 
         // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
         setTimeout(() => {
@@ -2170,7 +2176,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                    {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).map(client => (
+                    {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).slice(0, displayLimit).map(client => (
                       <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 uppercase text-slate-500">{client._metrics.activeLoan?.createdAt ? new Date(client._metrics.activeLoan.createdAt).toLocaleDateString() : '---'}</td>
                         <td className="px-6 py-4">
@@ -2206,6 +2212,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tbody>
                 </table>
               </div>
+              {nuevosExcelData.length > displayLimit && (
+                <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({nuevosExcelData.length - displayLimit} restantes)</button>
+                </div>
+              )}
             </div>
           )
         }
@@ -2227,7 +2238,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                    {(Array.isArray(renovacionesExcelData) ? renovacionesExcelData : []).map(item => (
+                    {(Array.isArray(renovacionesExcelData) ? renovacionesExcelData : []).slice(0, displayLimit).map(item => (
                       <tr key={item._loan!.id} className="hover:bg-orange-50 transition-colors">
                         <td className="px-6 py-4 uppercase text-slate-500">{new Date(item._loan!.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">
@@ -2262,6 +2273,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tbody>
                 </table>
               </div>
+              {renovacionesExcelData.length > displayLimit && (
+                <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({renovacionesExcelData.length - displayLimit} restantes)</button>
+                </div>
+              )}
             </div>
           )
         }
@@ -2299,7 +2315,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                    {(Array.isArray(carteraExcelData) ? carteraExcelData : []).map(client => (
+                    {(Array.isArray(carteraExcelData) ? carteraExcelData : []).slice(0, displayLimit).map(client => (
                       <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                         <td className="px-6 py-4">
@@ -2347,6 +2363,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tbody>
                 </table>
               </div>
+              {carteraExcelData.length > displayLimit && (
+                <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({carteraExcelData.length - displayLimit} restantes)</button>
+                </div>
+              )}
             </div>
           )
         }
@@ -2366,7 +2387,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                    {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).map(client => (
+                    {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).slice(0, displayLimit).map(client => (
                       <tr key={client.id} className="hover:bg-red-50 transition-colors">
                         <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                         <td className="px-6 py-4">
@@ -2400,6 +2421,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </tbody>
                 </table>
               </div>
+              {ocultosExcelData.length > displayLimit && (
+                <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({ocultosExcelData.length - displayLimit} restantes)</button>
+                </div>
+              )}
             </div>
           )
         }
