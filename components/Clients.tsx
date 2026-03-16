@@ -6,7 +6,6 @@ import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
 import PullToRefresh from './PullToRefresh';
-import { useSync } from '../hooks/useSync';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
@@ -219,7 +218,6 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
 };
 
 const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData }) => {
-  const { forceSync } = useSync();
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
@@ -1985,7 +1983,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   return (
     <>
-      <PullToRefresh onRefresh={async () => { await forceSync(); }}>
+      <PullToRefresh onRefresh={async () => { if (onForceSync) await onForceSync(true, 'Actualizando clientes...', true); }}>
         <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
         <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
           <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> REGISTROS</button>
