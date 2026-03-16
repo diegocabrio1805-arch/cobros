@@ -643,6 +643,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue, totalInstallments: 0, paidInstallments: 0 };
   };
 
+  const clientMetricsMap = useMemo(() => {
+    const metricsMap: Record<string, ReturnType<typeof getClientMetrics>> = {};
+    const clientsToMap = Array.isArray(state.clients) ? state.clients : [];
+    
+    // Solo calculamos para los clientes que no están eliminados para ahorrar memoria
+    clientsToMap.forEach(client => {
+      if (!client.deletedAt) {
+        metricsMap[client.id] = getClientMetrics(client);
+      }
+    });
+    return metricsMap;
+  }, [state.clients, state.loans, state.collectionLogs, state.settings]);
+
   const filteredClients = useMemo(() => {
     // La lista BASE debe ser TODOS los clientes activos de esta sucursal (ya filtrados en App.tsx vía state.clients)
     let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.deletedAt);
@@ -731,10 +744,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         if (!matchesCollector) return null;
       }
 
-      const metrics = getClientMetrics(client);
+      const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan?.createdAt || b.createdAt).getTime() - new Date(a._metrics.activeLoan?.createdAt || a.createdAt).getTime());
-  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans]);
+  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans, clientMetricsMap]);
 
   const renovacionesExcelData = useMemo(() => {
     if (viewMode !== 'renovaciones') return [];
@@ -766,11 +779,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       return {
         ...client,
         _loan: loan,
-        _metrics: getClientMetrics(client),
+        _metrics: clientMetricsMap[client.id] || getClientMetrics(client),
         _sortDate: new Date(loan.createdAt).getTime()
       };
     }).filter(Boolean).sort((a: any, b: any) => b._sortDate - a._sortDate);
-  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch]);
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch, clientMetricsMap]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
@@ -804,7 +817,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       return true;
     }).map(client => {
-      const metrics = getClientMetrics(client);
+      const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).sort((a, b) => {
       if (carteraSortBy === 'renovaciones') {
@@ -824,7 +837,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch, filterStartDate, filterEndDate]);
+  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch, filterStartDate, filterEndDate, clientMetricsMap]);
 
   const ocultosExcelData = useMemo(() => {
     if (viewMode !== 'ocultos') return [];
@@ -849,14 +862,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       return true;
     }).map(client => {
-      const metrics = getClientMetrics(client);
+      const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [state.clients, state.loans, viewMode, selectedCollector, debouncedSearch]);
+  }, [state.clients, state.loans, viewMode, selectedCollector, debouncedSearch, clientMetricsMap]);
 
   const handleRestoreClient = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
@@ -2069,7 +2082,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </div>
                 )}
                 {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
-                  const m = getClientMetrics(client);
+                  const m = clientMetricsMap[client.id] || getClientMetrics(client);
                   return (
                     <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
                       <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
