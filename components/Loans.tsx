@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
