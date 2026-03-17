@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: './', // CRITICAL for GitHub Pages (subpath /cobros/) and relative asset loading
     server: {
-      port: 5175,
+      port: 5176,
+      strictPort: true,
       host: '0.0.0.0',
     },
     plugins: [

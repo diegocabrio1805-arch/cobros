@@ -356,7 +356,12 @@ export const useAppSyncEngine = (
     );
 
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
-      if (user.role === Role.ADMIN) return true;
+      if (u.deletedAt || (u as any).deleted_at) return false;
+      
+      const excludedNames = ['FABIAN PEDROZO', 'ANEXO COBRADOR DE PRUEBA', 'ALTERFINZONA01']; 
+      if (excludedNames.includes((u.name || '').trim().toUpperCase())) return false;
+
+      // By user request, Admins should only see themselves and their direct reports (cobradores)
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);

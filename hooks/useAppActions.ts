@@ -309,7 +309,27 @@ export const useAppActions = (
     }
 
     try {
+      // --- NEW IMPLEMENTATION: Audit Log for Deleted Payments ---
+      let newAuditLog: CollectionLog | null = null;
+      if (logToDelete.type === CollectionLogType.PAYMENT) {
+        newAuditLog = {
+          id: crypto.randomUUID(),
+          loanId: logToDelete.loanId,
+          clientId: logToDelete.clientId,
+          branchId: state.currentUser?.managedBy || state.currentUser?.id,
+          type: CollectionLogType.DELETED_PAYMENT,
+          amount: logToDelete.amount || 0,
+          date: new Date().toISOString(),
+          location: { lat: 0, lng: 0 },
+          recordedBy: state.currentUser?.id,
+          collectorId: logToDelete.collectorId || logToDelete.recordedBy,
+          notes: `[ORIGIN:${logToDelete.date}]`
+        };
+      }
+
       const updatedLogs = state.collectionLogs.filter(l => l.id !== logId);
+      if (newAuditLog) updatedLogs.push(newAuditLog);
+      
       const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
 
       setState(prev => ({ ...prev, collectionLogs: updatedLogs, payments: updatedPayments }));
@@ -321,6 +341,10 @@ export const useAppActions = (
       deleteRemoteLog(logId);
       const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
       for (const p of related) deleteRemotePayment(p.id);
+
+      if (newAuditLog) {
+        pushLog(newAuditLog);
+      }
 
     } catch (err: any) {
       console.error("Critical error deleting log:", err);

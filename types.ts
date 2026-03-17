@@ -35,7 +35,8 @@ export enum ExpenseCategory {
 export enum CollectionLogType {
   PAYMENT = 'PAGO',
   NO_PAGO = 'NO_PAGO',
-  OPENING = 'APERTURA'
+  OPENING = 'APERTURA',
+  DELETED_PAYMENT = 'PAGO_ELIMINADO'
 }
 
 export type Language = 'es' | 'en' | 'pt' | 'fr';

@@ -4,7 +4,7 @@ import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculate
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
-import { generateAuditPDF } from '../utils/auditReportGenerator';
+import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
 import PullToRefresh from './PullToRefresh';
 
 interface DashboardProps {
@@ -133,6 +133,33 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const [auditCollector, setAuditCollector] = useState<string>('all');
   const [auditStartDate, setAuditStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
   const [auditEndDate, setAuditEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+
+  // --- LÓGICA HISTORIAL ELIMINADOS VISUAL ---
+  const [deletedStartDate, setDeletedStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [deletedEndDate, setDeletedEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [deletedPage, setDeletedPage] = useState(1);
+  const DELETED_PER_PAGE = 5;
+
+  const deletedLogsList = useMemo(() => {
+    const start = new Date(deletedStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(deletedEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+      .filter(log => {
+        if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
+        const logDate = new Date(log.date);
+        return logDate >= start && logDate <= end;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [deletedStartDate, deletedEndDate, state.collectionLogs]);
+
+  const totalDeletedPages = Math.ceil(deletedLogsList.length / DELETED_PER_PAGE);
+  const paginatedDeletedLogs = useMemo(() => {
+    const startIdx = (deletedPage - 1) * DELETED_PER_PAGE;
+    return deletedLogsList.slice(startIdx, startIdx + DELETED_PER_PAGE);
+  }, [deletedLogsList, deletedPage]);
 
   const auditMetrics = useMemo(() => {
     const start = new Date(auditStartDate);
@@ -365,6 +392,36 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
   };
 
+  const handleGenerateDeletedPaymentsPDF = () => {
+    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
+    const start = new Date(auditStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(auditEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    const deletedLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= start && logDate <= end;
+      if (!matchesDate) return false;
+
+      if (auditCollector === 'all') return true;
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      const logCollectorId = (log.collectorId || (log as any).collector_id)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase() || logCollectorId === auditCollector.toLowerCase();
+    });
+
+    generateDeletedPaymentsPDF({
+      collectorName,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
+      logs: deletedLogs,
+      settings: state.settings,
+      users: state.users,
+      clients: state.clients
+    });
+  };
+
   const chartData = [
     { name: 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
     { name: 'Ingresos', value: totalProfit, color: '#10b981' },
@@ -507,7 +564,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
                              <span>Rendimiento</span>
-                             <span>{Math.round(stat.routeCompletion)}%</span>
+                             <span>{stat.visitados} / {stat.clientes}</span>
                           </div>
                           <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
                             <div
@@ -653,11 +710,146 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               className="w-full py-3 premium-gradient text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
             >
               <i className="fa-solid fa-file-export text-sm"></i>
-              Descargar PDF
+              AUDITORÍA GENERAL
+            </button>
+            <button
+              onClick={handleGenerateDeletedPaymentsPDF}
+              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              <i className="fa-solid fa-trash-can-arrow-up text-sm"></i>
+              Auditoría Eliminados
             </button>
           </div>
         </div>
       </div>
+
+      {/* HISTORIAL DE PAPELERA (PAGOS ELIMINADOS) */}
+      {isAdmin && (
+        <div className="bg-white rounded-3xl border border-rose-100 shadow-xl overflow-hidden flex flex-col transition-all mt-6">
+          <div className="p-6 border-b border-rose-50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-rose-50/50">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-md shadow-rose-500/20">
+                <i className="fa-solid fa-trash-can-arrow-up text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Historial de Eliminados</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                  Auditoría Visual de Pagos Borrados
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Desde:</label>
+                <input
+                  type="date"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
+                  value={deletedStartDate}
+                  onChange={(e) => { setDeletedStartDate(e.target.value); setDeletedPage(1); }}
+                />
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Hasta:</label>
+                <input
+                  type="date"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
+                  value={deletedEndDate}
+                  onChange={(e) => { setDeletedEndDate(e.target.value); setDeletedPage(1); }}
+                />
+              </div>
+              
+              <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block shrink-0"></div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  disabled={deletedPage === 1}
+                  onClick={() => setDeletedPage(p => p - 1)}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                >
+                  <i className="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+                  {deletedPage} / {Math.max(1, totalDeletedPages)}
+                </span>
+                <button
+                  disabled={deletedPage === totalDeletedPages || totalDeletedPages === 0}
+                  onClick={() => setDeletedPage(p => p + 1)}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                >
+                  <i className="fa-solid fa-chevron-right text-sm"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  <th className="p-4 pl-6 whitespace-nowrap">Fecha y Hora</th>
+                  <th className="p-4 whitespace-nowrap">Cliente Afectado</th>
+                  <th className="p-4 whitespace-nowrap">Cobrador Original</th>
+                  <th className="p-4 whitespace-nowrap">Eliminado Por</th>
+                  <th className="p-4 pr-6 text-right whitespace-nowrap">Monto Anulado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {paginatedDeletedLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-400 font-medium text-sm">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <i className="fa-solid fa-file-circle-check text-4xl text-slate-200"></i>
+                        <p>No se encontraron pagos eliminados en este rango de fechas.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedDeletedLogs.map(log => {
+                    const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                    const clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name || 'Desconocido';
+                    const adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
+                    const collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
+                    
+                    return (
+                      <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
+                        <td className="p-4 pl-6">
+                          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{elimDate}</span>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-sm font-bold text-slate-800">{clientName.toUpperCase()}</span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                              {collName.substring(0,1).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-600">{collName.toUpperCase()}</span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-bold text-rose-600">
+                              {adminName.substring(0,1).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-rose-600">{adminName.toUpperCase()}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 pr-6 text-right">
+                          <span className="text-sm font-bold text-rose-500 font-mono tracking-tight">
+                            {formatCurrency(log.amount || 0, state.settings)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

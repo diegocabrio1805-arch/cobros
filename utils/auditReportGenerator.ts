@@ -325,3 +325,124 @@ export const generateAuditPDF = (data: AuditData) => {
 
     doc.save(`AUDITORIA_${collectorName.replace(/\s+/g, '_')}_${startDate}.pdf`);
 };
+
+export const generateDeletedPaymentsPDF = (data: any) => {
+    const doc = new jsPDF();
+    const dateStr = new Date().toLocaleDateString();
+    const { collectorName, startDate, endDate, logs, settings, users, clients } = data;
+
+    // --- HEADER ---
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, 210, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AUDITORÍA DE PAGOS ELIMINADOS', 105, 20, { align: 'center' });
+
+    // --- INFO DEL FILTRO ---
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`COBRADOR FILTRADO: ${collectorName.toUpperCase()}`, 20, 55);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`PERIODO DE ELIMINACIÓN: ${startDate} al ${endDate}`, 20, 62);
+    doc.text(`FECHA DE REPORTE: ${dateStr}`, 20, 67);
+
+    // --- TABLA DE PAGOS ELIMINADOS ---
+    doc.setDrawColor(203, 213, 225);
+    doc.line(20, 75, 190, 75);
+
+    let nextY = 85;
+    
+    doc.setFillColor(241, 245, 249);
+    doc.rect(20, nextY, 170, 8, 'F');
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+
+    doc.text("FECHA ELIM.", 22, nextY + 5);
+    doc.text("CLIENTE", 55, nextY + 5);
+    doc.text("ELIMINADO POR", 110, nextY + 5);
+    doc.text("COBRADOR ORIG.", 145, nextY + 5);
+    doc.text("MONTO", 185, nextY + 5, { align: 'right' });
+
+    nextY += 12;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+
+    let totalDeleted = 0;
+
+    if (!logs || logs.length === 0) {
+        doc.setFont('helvetica', 'italic');
+        doc.text("NO SE ENCONTRARON PAGOS ELIMINADOS EN ESTE PERIODO.", 105, nextY, { align: 'center' });
+    } else {
+        logs.forEach((log: any, index: number) => {
+            totalDeleted += (log.amount || 0);
+
+            if (nextY > 270) {
+                doc.addPage();
+                nextY = 20;
+                doc.setFillColor(241, 245, 249);
+                doc.rect(20, nextY, 170, 8, 'F');
+                doc.setTextColor(71, 85, 105);
+                doc.setFont('helvetica', 'bold');
+                doc.text("FECHA ELIM.", 22, nextY + 5);
+                doc.text("CLIENTE", 55, nextY + 5);
+                doc.text("ELIMINADO POR", 110, nextY + 5);
+                doc.text("COBRADOR ORIG.", 145, nextY + 5);
+                doc.text("MONTO", 185, nextY + 5, { align: 'right' });
+                nextY += 12;
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(30, 41, 59);
+            }
+
+            if (index % 2 !== 0) {
+                doc.setFillColor(248, 250, 252);
+                doc.rect(20, nextY - 4, 170, 8, 'F');
+            }
+
+            const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            const clientName = clients?.find((c: any) => c.id === log.clientId)?.name || 'Desconocido';
+            const adminName = users?.find((u: any) => u.id === log.recordedBy)?.name || 'Admin';
+            const collName = users?.find((u: any) => u.id === log.collectorId)?.name || 'Desconocido';
+
+            doc.text(elimDate, 22, nextY);
+            doc.text(clientName.length > 25 ? clientName.substring(0, 25) + '...' : clientName, 55, nextY);
+            doc.text(adminName.length > 15 ? adminName.substring(0, 15) + '...' : adminName, 110, nextY);
+            doc.text(collName.length > 15 ? collName.substring(0, 15) + '...' : collName, 145, nextY);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(239, 68, 68); // Red
+            doc.text(formatCurrency(log.amount, settings), 185, nextY, { align: 'right' });
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(30, 41, 59);
+
+            nextY += 8;
+        });
+
+        nextY += 4;
+        doc.setDrawColor(203, 213, 225);
+        doc.line(20, nextY, 190, nextY);
+        nextY += 8;
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text("TOTAL DINERO ANULADO:", 110, nextY);
+        doc.setTextColor(239, 68, 68);
+        doc.text(formatCurrency(totalDeleted, settings), 185, nextY, { align: 'right' });
+    }
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Auditoría Interna de Seguridad - Anexo Cobro", 105, 285, { align: 'center' });
+        doc.text(`Página ${i} de ${pageCount}`, 190, 285, { align: 'right' });
+    }
+
+    doc.save(`PAGOS_ELIMINADOS_${collectorName.replace(/\s+/g, '_')}_${startDate}.pdf`);
+};

@@ -30,7 +30,7 @@
 
   <script>
     (function () {
-      const CURRENT_VERSION = '6.3.8-STABLE';
+      const CURRENT_VERSION = '6.4.4-STABLE';
       var storedVersion = localStorage.getItem('pwa_app_version');
       if (storedVersion !== CURRENT_VERSION) {
         localStorage.setItem('pwa_app_version', CURRENT_VERSION);
@@ -115,6 +115,18 @@
     })();
   </script>
   <div id="root"></div>
+  <script>
+    (function() {
+      if (!localStorage.getItem('ghost_cleared_v3')) {
+        localStorage.setItem('ghost_cleared_v3', 'true');
+        const req = indexedDB.deleteDatabase('_ionickv');
+        req.onsuccess = function () {
+          console.log("[Auto-Fix] Ghost login cleared.");
+          window.location.reload(true);
+        };
+      }
+    })();
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 
