@@ -194,6 +194,15 @@ export const useAppSyncEngine = (
       const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
       if (value) {
         try {
+          if (navigator.onLine) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              console.log("No valid Supabase session on recover. Forcing logout.");
+              await Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+              setState((prev: AppState) => ({ ...prev, currentUser: null }));
+              return;
+            }
+          }
           const user = JSON.parse(value);
           setState((prev: AppState) => ({ ...prev, currentUser: user }));
           setTimeout(() => handleForceSync(true), 1000);
