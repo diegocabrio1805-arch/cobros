@@ -382,14 +382,22 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 text: `Hola ${client.name}, adjunto el soporte de la gestión realizada hoy.`
               });
             } else {
-              // Fallback: Descarga y link directo WhatsApp
-              const link = document.createElement('a');
-              link.href = URL.createObjectURL(blob);
-              link.download = fileName;
-              link.click();
+              // Fallback for Desktop: Copy to clipboard and open WhatsApp Web
+              try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+                alert("¡Imagen copiada al portapapeles!\nEn la ventana de WhatsApp que se abrirá, presiona 'Strg + V' o 'Ctrl + V' para pegar y enviar la imagen.");
+              } catch (clipErr) {
+                console.warn("No se pudo copiar al portapapeles:", clipErr);
+                // Standard download fallback if clipboard fails
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+              }
 
               const phone = client.phone.replace(/\D/g, '');
-              const waText = encodeURIComponent(`Hola ${client.name}, le adjunto su estado de cuenta actualizado.`);
+              const waText = encodeURIComponent(`Hola ${client.name}, le adjunto su soporte actualizado. Clic aquí para descargar la app o revisar el adjunto.`);
               window.open(`https://wa.me/${phone}?text=${waText}`, '_blank');
             }
           }, 'image/png');
