@@ -358,16 +358,12 @@ export const useAppSyncEngine = (
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.deletedAt || (u as any).deleted_at) return false;
       
-      const excludedNames = ['FABIAN PEDROZO', 'ANEXO COBRADOR DE PRUEBA', 'ALTERFINZONA01']; 
-      
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
       if (user.role === Role.ADMIN) {
-        return true; // Admins download ALL users globally so they can manage them in "Managers.tsx"
+        return true; 
       }
-
-      if (excludedNames.includes((u.name || '').trim().toUpperCase())) return false;
       
       return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
     });
