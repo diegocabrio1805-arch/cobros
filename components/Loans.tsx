@@ -343,19 +343,24 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
+        const client = state.clients.find(c => c.id === loan.clientId);
+        if (!client) return;
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         const currentBalance = loan.totalAmount - totalPaid;
         const overdueDays = getDaysOverdue(loan, state.settings);
 
-        const msg = await generateNoPaymentAIReminder(
+        const msg = client.customNoPayMessage || await generateNoPaymentAIReminder(
           loan,
-          state.clients.find(c => c.id === loan.clientId)!,
+          client,
           overdueDays,
           state.settings,
           currentBalance
         );
-        const cleanMsg = convertReceiptForWhatsApp(msg);
-        window.open(`https://wa.me/${state.clients.find(c => c.id === loan.clientId)?.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        
+        setTimeout(() => {
+          const cleanMsg = convertReceiptForWhatsApp(msg);
+          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        }, 2000);
         resetUI();
       }
     } catch (e) {
