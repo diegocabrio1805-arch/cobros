@@ -364,6 +364,13 @@ export const useAppSyncEngine = (
       // By user request, Admins should only see themselves and their direct reports (cobradores)
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      
+      if (user.role === Role.ADMIN) {
+        if (uId === myIdLower) return true;
+        if (u.role === Role.ADMIN || u.role === Role.MANAGER) return true; // Admins CAN see other Managers/Admins
+        return uManagedBy === branchIdLower; // But only their OWN collectors
+      }
+      
       return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
     });
 
