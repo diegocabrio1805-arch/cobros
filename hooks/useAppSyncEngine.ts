@@ -272,7 +272,7 @@ export const useAppSyncEngine = (
     let lastFocusSync = 0;
     const handleFocus = () => {
       const now = Date.now();
-      if (now - lastFocusSync > 120000) {
+      if (now - lastFocusSync > 30000) { // Reduced to 30s for snappier cross-browser sync
         lastFocusSync = now;
         sync.pullData();
       }
@@ -283,6 +283,14 @@ export const useAppSyncEngine = (
 
   useEffect(() => {
     const intervalTime = sync.queueLength > 0 ? 2000 : 300000;
+    const healthCheckInterval = setInterval(() => {
+        // If not recently synced, pull fresh data to compensate for potential stale Realtime connection
+        const lastSyncMs = parseInt(localStorage.getItem('last_sync_timestamp_ms') || '0', 10);
+        const msSinceLastSync = Date.now() - lastSyncMs;
+        if (msSinceLastSync > 60000 && !sync.isSyncing && sync.isOnline) {
+            sync.pullData();
+        }
+    }, 30000); // Health check every 30s
     const syncInterval = setInterval(() => {
       if (!sync.isSyncing && sync.isOnline && !isPrintingNow()) {
         handleForceSync(true);
@@ -294,6 +302,7 @@ export const useAppSyncEngine = (
 
     return () => {
       clearInterval(syncInterval);
+      clearInterval(healthCheckInterval);
       window.removeEventListener('online', handleOnline);
     };
   }, [sync.isSyncing, sync.isOnline, sync.queueLength]);
