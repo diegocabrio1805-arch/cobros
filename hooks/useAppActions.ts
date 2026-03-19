@@ -387,6 +387,9 @@ export const useAppActions = (
         pushLog(newAuditLog);
       }
 
+      // CRITICAL: Force sync so deletions are pushed to the server immediately
+      await handleForceSync(true, "Pago eliminado y sincronizado");
+
     } catch (err: any) {
       console.error("Critical error deleting log:", err);
       alert("Error al eliminar el registro.");
