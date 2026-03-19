@@ -145,18 +145,30 @@ export const useAppActions = (
     const client = state.clients.find(c => c.id === clientId);
     if (!client) return;
 
+    const clientLoans = state.loans.filter(l => l.clientId === clientId);
+    const totalCapital = clientLoans.reduce((sum, l) => sum + l.principal, 0);
+    const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
+
     const newAuditLog: CollectionLog = {
       id: crypto.randomUUID(),
       loanId: 'deleted-client',
       clientId: client.id,
       branchId: state.currentUser?.managedBy || state.currentUser?.id,
       type: CollectionLogType.DELETED_PAYMENT,
-      amount: 0,
+      amount: totalCapital,
       date: new Date().toISOString(),
       location: { lat: 0, lng: 0 },
       recordedBy: state.currentUser?.id,
       collectorId: state.currentUser?.id,
-      notes: `[CLIENT_DELETED] Cliente: ${client.name}`
+      notes: JSON.stringify({
+        tipo: 'CLIENTE_ELIMINADO',
+        clienteNombre: client.name,
+        clienteTelefono: client.phone || '',
+        clienteDireccion: client.address || '',
+        eliminadoPorNombre: deletedByUser?.name || 'Administrador',
+        capitalTotal: totalCapital,
+        creditosEliminados: clientLoans.length
+      })
     };
 
     const updatedClient = { ...client, deletedAt: new Date().toISOString() };
@@ -239,6 +251,8 @@ export const useAppActions = (
     if (!loan) return;
 
     const client = state.clients.find(c => c.id === loan.clientId);
+    const collector = state.users.find(u => u.id === loan.collectorId);
+    const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
     
     const newAuditLog: CollectionLog = {
       id: crypto.randomUUID(),
@@ -246,12 +260,23 @@ export const useAppActions = (
       clientId: loan.clientId,
       branchId: state.currentUser?.managedBy || state.currentUser?.id,
       type: CollectionLogType.DELETED_PAYMENT,
-      amount: loan.totalAmount, // Monto del credito
+      amount: loan.totalAmount,
       date: new Date().toISOString(),
       location: { lat: 0, lng: 0 },
       recordedBy: state.currentUser?.id,
       collectorId: loan.collectorId,
-      notes: `[LOAN_DELETED] Cliente: ${client ? client.name : 'Desconocido'}`
+      notes: JSON.stringify({
+        tipo: 'CREDITO_ELIMINADO',
+        clienteNombre: client ? client.name : 'Desconocido',
+        cobradorNombre: collector ? collector.name : 'Desconocido',
+        eliminadoPorNombre: deletedByUser?.name || 'Administrador',
+        montoTotal: loan.totalAmount,
+        capital: loan.principal,
+        cuotas: loan.totalInstallments,
+        frecuencia: loan.frequency,
+        estado: loan.status,
+        fechaCredito: loan.createdAt
+      })
     };
 
     setState(prev => ({ 
@@ -350,9 +375,14 @@ export const useAppActions = (
     }
 
     try {
-      // --- NEW IMPLEMENTATION: Audit Log for Deleted Payments ---
+      // --- Guardado de Auditoría Completa para Pagos Eliminados ---
       let newAuditLog: CollectionLog | null = null;
       if (logToDelete.type === CollectionLogType.PAYMENT) {
+        const client = state.clients.find(c => c.id === logToDelete.clientId);
+        const collector = state.users.find(u => u.id === (logToDelete.collectorId || logToDelete.recordedBy));
+        const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
+        const loan = state.loans.find(l => l.id === logToDelete.loanId);
+
         newAuditLog = {
           id: crypto.randomUUID(),
           loanId: logToDelete.loanId,
@@ -364,7 +394,16 @@ export const useAppActions = (
           location: { lat: 0, lng: 0 },
           recordedBy: state.currentUser?.id,
           collectorId: logToDelete.collectorId || logToDelete.recordedBy,
-          notes: `[ORIGIN:${logToDelete.date}]`
+          notes: JSON.stringify({
+            tipo: 'PAGO_ELIMINADO',
+            clienteNombre: client ? client.name : 'Desconocido',
+            cobradorNombre: collector ? collector.name : 'Desconocido',
+            eliminadoPorNombre: deletedByUser?.name || 'Administrador',
+            montoPago: logToDelete.amount || 0,
+            fechaOriginalPago: logToDelete.date,
+            creditoId: logToDelete.loanId,
+            capitalCredito: loan ? loan.principal : 0
+          })
         };
       }
 

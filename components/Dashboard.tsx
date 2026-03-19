@@ -789,6 +789,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <thead>
                 <tr className="bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                   <th className="p-4 pl-6 whitespace-nowrap">Fecha y Hora</th>
+                  <th className="p-4 whitespace-nowrap">Tipo</th>
                   <th className="p-4 whitespace-nowrap">Cliente Afectado</th>
                   <th className="p-4 whitespace-nowrap">Cobrador Original</th>
                   <th className="p-4 whitespace-nowrap">Eliminado Por</th>
@@ -808,31 +809,64 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 ) : (
                   paginatedDeletedLogs.map(log => {
                     const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-                    let clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name;
-                    let deletedType = 'PAGO';
-                    if (log.notes?.includes('[CLIENT_DELETED]')) {
-                      deletedType = 'CLIENTE';
-                      if (!clientName) clientName = log.notes.replace('[CLIENT_DELETED] Cliente: ', '');
-                    } else if (log.notes?.includes('[LOAN_DELETED]')) {
-                      deletedType = 'CRÉDITO';
-                      if (!clientName) clientName = log.notes.replace('[LOAN_DELETED] Cliente: ', '');
+
+                    // Parse JSON notes (new format) or fallback to legacy text format
+                    let parsed: any = null;
+                    try { parsed = log.notes ? JSON.parse(log.notes) : null; } catch (_) { parsed = null; }
+
+                    let clientName: string;
+                    let collName: string;
+                    let adminName: string;
+                    let deletedType: 'PAGO_ELIMINADO' | 'CREDITO_ELIMINADO' | 'CLIENTE_ELIMINADO';
+                    let extraInfo: string | null = null;
+
+                    if (parsed && parsed.tipo) {
+                      // New JSON format
+                      deletedType = parsed.tipo;
+                      clientName = parsed.clienteNombre || 'Desconocido';
+                      collName = parsed.cobradorNombre || 'Desconocido';
+                      adminName = parsed.eliminadoPorNombre || 'Administrador';
+                      if (parsed.tipo === 'PAGO_ELIMINADO' && parsed.fechaOriginalPago) {
+                        extraInfo = `Pago orig: ${new Date(parsed.fechaOriginalPago).toLocaleDateString()}`;
+                      } else if (parsed.tipo === 'CREDITO_ELIMINADO') {
+                        extraInfo = `${parsed.cuotas} cuotas · ${parsed.frecuencia}`;
+                      } else if (parsed.tipo === 'CLIENTE_ELIMINADO') {
+                        extraInfo = `${parsed.creditosEliminados} crédito(s) eliminado(s)`;
+                      }
+                    } else {
+                      // Legacy format
+                      deletedType = 'PAGO_ELIMINADO';
+                      clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name || 'Desconocido';
+                      if (log.notes?.includes('[CLIENT_DELETED]')) {
+                        deletedType = 'CLIENTE_ELIMINADO';
+                        clientName = log.notes.replace('[CLIENT_DELETED] Cliente: ', '') || clientName;
+                      } else if (log.notes?.includes('[LOAN_DELETED]')) {
+                        deletedType = 'CREDITO_ELIMINADO';
+                        clientName = log.notes.replace('[LOAN_DELETED] Cliente: ', '') || clientName;
+                      }
+                      adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
+                      collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
                     }
-                    if (!clientName) clientName = 'Desconocido';
-                    const adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
-                    const collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
-                    
+
+                    const typeBadge = {
+                      'PAGO_ELIMINADO':    { label: 'Monto Eliminado',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
+                      'CREDITO_ELIMINADO': { label: 'Crédito Eliminado', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                      'CLIENTE_ELIMINADO': { label: 'Cliente Eliminado', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+                    }[deletedType];
+
                     return (
                       <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
                         <td className="p-4 pl-6">
                           <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{elimDate}</span>
                         </td>
                         <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${typeBadge.color}`}>
+                            {typeBadge.label}
+                          </span>
+                          {extraInfo && <span className="block mt-1 text-[10px] text-slate-400 font-medium">{extraInfo}</span>}
+                        </td>
+                        <td className="p-4">
                           <span className="text-sm font-bold text-slate-800">{clientName.toUpperCase()}</span>
-                          {deletedType !== 'PAGO' && (
-                            <span className="block mt-1 w-fit px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600">
-                              {deletedType} ELIMINADO
-                            </span>
-                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
