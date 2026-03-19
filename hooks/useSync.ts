@@ -49,7 +49,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
         initNetwork();
 
-        // Check periodically (every 10s instead of 30s) for aggressive sync
+        // Check periodically (every 5s instead of 10s) for aggressive sync
         const interval = setInterval(async () => {
             const online = await checkConnection();
             if (online !== isOnline) setIsOnline(online);
@@ -59,7 +59,22 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     processQueue();
                 }
             }
-        }, 10000);
+        }, 5000);
+
+        const handleNativeOnline = async () => {
+            console.log('Network online (Window Event)');
+            setIsOnline(true);
+            setTimeout(() => processQueue(), 200);
+        };
+        const handleNativeOffline = () => {
+            console.log('Network offline (Window Event)');
+            setIsOnline(false);
+        };
+        
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', handleNativeOnline);
+            window.addEventListener('offline', handleNativeOffline);
+        }
 
         const setupListener = async () => {
             const handler = await Network.addListener('networkStatusChange', async (status) => {

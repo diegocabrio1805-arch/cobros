@@ -12,11 +12,11 @@ let connectionKeeperInterval: any = null; // Interval ID for keep-alive
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
 
 // Configuración OPTIMIZADA
-const CHUNK_SIZE = 200; // Aumentado para menos iteraciones
-const CHUNK_DELAY = 15; // Reducido drásticamente (antes 100ms) para velocidad
-const CONNECTION_RETRIES = 3; // Menos reintentos pero más rápidos
+const CHUNK_SIZE = 200; // Mantenido a 200
+const CHUNK_DELAY = 25; // Aumentado (antes 15ms) para no saturar buffer de impresoras baratas
+const CONNECTION_RETRIES = 5; // Aumentado para mayor tolerancia a fallos
 const RETRY_DELAY = 500; // 500ms entre intentos iniciales
-const KEEPER_INTERVAL_MS = 5000; // 5s: Reconexión más agresiva solicitada por el usuario
+const KEEPER_INTERVAL_MS = 3000; // 3s: Reconexión más agresiva para cortes cortos
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {
@@ -128,7 +128,7 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
         if (forceReconnect) {
             try {
                 await new Promise<void>(r => bs.disconnect(() => r(), () => r()));
-                await sleep(300); // Reduce wait time
+                await sleep(500); // Increased wait time for complete hardware reset
             } catch (e) {
                 if (!silent) console.log('[Bluetooth] No previous connection to clear');
             }
