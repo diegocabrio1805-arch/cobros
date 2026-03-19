@@ -49,7 +49,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
         initNetwork();
 
-        // Check periodically (every 5s instead of 10s) for aggressive sync
+        // Fallback check periodically (every 60s instead of 5s) to save battery/data on mobile
+        // Native window 'online' events already handle instant reconnections.
         const interval = setInterval(async () => {
             const online = await checkConnection();
             if (online !== isOnline) setIsOnline(online);
@@ -59,7 +60,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     processQueue();
                 }
             }
-        }, 5000);
+        }, 60000);
 
         const handleNativeOnline = async () => {
             console.log('Network online (Window Event)');
