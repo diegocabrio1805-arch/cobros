@@ -141,10 +141,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const DELETED_PER_PAGE = 5;
 
   const deletedLogsList = useMemo(() => {
-    const start = new Date(deletedStartDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(deletedEndDate);
-    end.setHours(23, 59, 59, 999);
+    const [sYear, sMonth, sDay] = deletedStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = deletedEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
 
     return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(log => {
@@ -162,10 +162,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   }, [deletedLogsList, deletedPage]);
 
   const auditMetrics = useMemo(() => {
-    const start = new Date(auditStartDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(auditEndDate);
-    end.setHours(23, 59, 59, 999);
+    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
 
     const logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       const logDate = new Date(log.date);
@@ -808,7 +808,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 ) : (
                   paginatedDeletedLogs.map(log => {
                     const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-                    const clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name || 'Desconocido';
+                    let clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name;
+                    let deletedType = 'PAGO';
+                    if (log.notes?.includes('[CLIENT_DELETED]')) {
+                      deletedType = 'CLIENTE';
+                      if (!clientName) clientName = log.notes.replace('[CLIENT_DELETED] Cliente: ', '');
+                    } else if (log.notes?.includes('[LOAN_DELETED]')) {
+                      deletedType = 'CRÉDITO';
+                      if (!clientName) clientName = log.notes.replace('[LOAN_DELETED] Cliente: ', '');
+                    }
+                    if (!clientName) clientName = 'Desconocido';
                     const adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
                     const collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
                     
@@ -819,6 +828,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         </td>
                         <td className="p-4">
                           <span className="text-sm font-bold text-slate-800">{clientName.toUpperCase()}</span>
+                          {deletedType !== 'PAGO' && (
+                            <span className="block mt-1 w-fit px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-600">
+                              {deletedType} ELIMINADO
+                            </span>
+                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">

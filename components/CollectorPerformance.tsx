@@ -11,7 +11,16 @@ interface CollectorPerformanceProps {
 }
 
 const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) => {
-  const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
+  const collectors = useMemo(() => {
+    return (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (u.role !== Role.COLLECTOR) return false;
+      if (state.currentUser?.role === Role.COLLECTOR) {
+        return u.id === state.currentUser?.id;
+      }
+      const mId = (u.managedBy || (u as any).managed_by);
+      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
+    });
+  }, [state.users, state.currentUser]);
   const t = getTranslation(state.settings.language);
 
   const currentMonth = new Date().getMonth();

@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
 import { formatCurrency, getDaysOverdue } from '../utils/helpers';
@@ -36,7 +36,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const lastMapUpdate = useRef<number>(0);
    const lastManualAction = useRef<number>(0); // Para saber si el cambio fue por el usuario
 
-   const collectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
+   const collectors = useMemo(() => {
+      return (Array.isArray(state.users) ? state.users : []).filter(u => {
+         if (u.role !== Role.COLLECTOR) return false;
+         if (state.currentUser?.role === Role.COLLECTOR) {
+            return u.id === state.currentUser?.id;
+         }
+         const mId = (u.managedBy || (u as any).managed_by);
+         return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
+      });
+   }, [state.users, state.currentUser]);
 
    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const R = 6371;

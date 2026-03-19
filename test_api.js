@@ -1,51 +1,35 @@
-const https = require('https');
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const data = JSON.stringify({
-    id: "test-" + Date.now(),
-    loan_id: "00000000-0000-0000-0000-000000000000",
-    client_id: "00000000-0000-0000-0000-000000000000",
-    collector_id: "00000000-0000-0000-0000-000000000000",
-    branch_id: "00000000-0000-0000-0000-000000000000",
-    amount: 10,
-    date: new Date().toISOString(),
-    installment_number: 1,
-    location: null,
-    is_virtual: false,
-    is_renewal: false,
-    deleted_at: null,
-    updated_at: new Date().toISOString()
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Read .env manually
+const envContent = fs.readFileSync('c:/Users/HP/Desktop/cobros/.env', 'utf-8');
+const env = {};
+envContent.split('\n').forEach(line => {
+  const [key, ...vals] = line.split('=');
+  if (key && vals.length) {
+    env[key.trim()] = vals.join('=').trim().replace(/['"]/g, '');
+  }
 });
 
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbWdwbmN6bHpueW5uZmhqamZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNjU1NjQsImV4cCI6MjA4Nzc0MTU2NH0.AV1Z-QlltfPp8am-_ALlgopoGB8WhOrle83TNZrjqTE';
-
-const options = {
-    hostname: 'samgpnczlznynnfhjjff.supabase.co',
-    port: 443,
-    path: '/rest/v1/payments',
-    method: 'POST',
-    headers: {
-        'apikey': anonKey,
-        'Authorization': `Bearer ${anonKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': data.length,
-        'Prefer': 'return=representation'
-    }
-};
-
-const req = https.request(options, res => {
-    let body = '';
-    res.on('data', d => body += d);
-    res.on('end', () => {
-        console.log("STATUS:", res.statusCode);
-        console.log("BODY:", body);
-        process.exit(0);
+async function run() {
+  try {
+    const res = await fetch(env.VITE_SUPABASE_URL + '/rest/v1/clients?select=id,document_id,name,phone,secondary_phone,address,added_by,branch_id,location,domicilio_location,credit_limit,allow_collector_location_update,custom_no_pay_message,is_active,is_hidden,created_at,updated_at,deleted_at,capital,current_balance,raw_data', {
+      headers: {
+        'apikey': env.VITE_SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + env.VITE_SUPABASE_ANON_KEY,
+      }
     });
-});
+    
+    const text = await res.text();
+    fs.writeFileSync(join(__dirname, 'api_output_clients.txt'), text);
+    console.log("CLIENTS DONE");
+  } catch (e) {
+    fs.writeFileSync(join(__dirname, 'api_output_clients.txt'), e.toString());
+  }
+}
 
-req.on('error', error => {
-    console.error(error);
-    process.exit(1);
-});
-
-req.write(data);
-req.end();
+run();

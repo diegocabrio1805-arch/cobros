@@ -3,8 +3,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency } from '../utils/helpers';
 import { connectToPrinter } from '../services/bluetoothPrinterService';
-import { getBranchId } from '../utils/settingsHierarchy';
-
+import React from 'react';
 export const useAppActions = (
   state: AppState,
   setState: React.Dispatch<React.SetStateAction<AppState>>,
@@ -145,8 +144,28 @@ export const useAppActions = (
   const deleteClient = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
     if (!client) return;
+
+    const newAuditLog: CollectionLog = {
+      id: crypto.randomUUID(),
+      loanId: 'deleted-client',
+      clientId: client.id,
+      branchId: state.currentUser?.managedBy || state.currentUser?.id,
+      type: CollectionLogType.DELETED_PAYMENT,
+      amount: 0,
+      date: new Date().toISOString(),
+      location: { lat: 0, lng: 0 },
+      recordedBy: state.currentUser?.id,
+      collectorId: state.currentUser?.id,
+      notes: `[CLIENT_DELETED] Cliente: ${client.name}`
+    };
+
     const updatedClient = { ...client, deletedAt: new Date().toISOString() };
+    setState(prev => ({ 
+      ...prev, 
+      collectionLogs: [newAuditLog, ...prev.collectionLogs] 
+    }));
     await updateClient(updatedClient);
+    pushLog(newAuditLog);
     handleForceSync(false);
   };
 
@@ -218,8 +237,30 @@ export const useAppActions = (
   const deleteLoan = async (loanId: string) => {
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
-    setState(prev => ({ ...prev, loans: prev.loans.filter(l => l.id !== loanId) }));
+
+    const client = state.clients.find(c => c.id === loan.clientId);
+    
+    const newAuditLog: CollectionLog = {
+      id: crypto.randomUUID(),
+      loanId: loan.id,
+      clientId: loan.clientId,
+      branchId: state.currentUser?.managedBy || state.currentUser?.id,
+      type: CollectionLogType.DELETED_PAYMENT,
+      amount: loan.totalAmount, // Monto del credito
+      date: new Date().toISOString(),
+      location: { lat: 0, lng: 0 },
+      recordedBy: state.currentUser?.id,
+      collectorId: loan.collectorId,
+      notes: `[LOAN_DELETED] Cliente: ${client ? client.name : 'Desconocido'}`
+    };
+
+    setState(prev => ({ 
+      ...prev, 
+      loans: prev.loans.filter(l => l.id !== loanId),
+      collectionLogs: [newAuditLog, ...prev.collectionLogs]
+    }));
     deleteRemoteLoan(loanId);
+    pushLog(newAuditLog);
     handleForceSync(false);
   };
 
@@ -508,11 +549,33 @@ export const useAppActions = (
   };
 
   const deleteRemoteClientAction = async (clientId: string) => {
+    const client = state.clients.find(c => c.id === clientId);
+    if (client) {
+      const newAuditLog: CollectionLog = {
+        id: crypto.randomUUID(),
+        loanId: 'deleted-client',
+        clientId: client.id,
+        branchId: state.currentUser?.managedBy || state.currentUser?.id,
+        type: CollectionLogType.DELETED_PAYMENT,
+        amount: 0,
+        date: new Date().toISOString(),
+        location: { lat: 0, lng: 0 },
+        recordedBy: state.currentUser?.id,
+        collectorId: state.currentUser?.id,
+        notes: `[CLIENT_DELETED] Cliente: ${client.name}`
+      };
+      pushLog(newAuditLog);
+      setState(prev => ({
+        ...prev,
+        collectionLogs: [...prev.collectionLogs.filter(l => l.clientId !== clientId), newAuditLog]
+      }));
+    }
+
     setState(prev => ({
       ...prev,
       clients: prev.clients.filter(c => c.id !== clientId),
       loans: prev.loans.filter(l => l.clientId !== clientId),
-      collectionLogs: prev.collectionLogs.filter(l => l.clientId !== clientId),
+      // ya lo agregamos arriba para mantener el log
     }));
     await deleteRemoteClient(clientId);
     await handleForceSync(true);

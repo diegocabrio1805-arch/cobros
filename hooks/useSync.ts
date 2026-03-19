@@ -377,7 +377,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 collectionLogs: (logsResult.data || []).map((cl: any) => ({
                     ...cl, loanId: cl.loan_id, clientId: cl.client_id, branchId: cl.branch_id,
                     isVirtual: cl.is_virtual, isRenewal: cl.is_renewal, isOpening: cl.is_opening,
-                    recordedBy: cl.recorded_by, deletedAt: cl.deleted_at
+                    recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
                 })) as CollectionLog[],
                 expenses: (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[],
                 users: (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location })) as unknown as User[],
@@ -481,7 +481,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 })},
                 'ADD_LOG': { items: [], table: 'collection_logs', isDelete: false, mapper: (d) => ({
                     id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
-                    recorded_by: d.recordedBy, amount: d.amount, type: d.type, date: d.date,
+                    recorded_by: d.recordedBy, collector_id: d.collectorId, amount: d.amount, type: d.type, date: d.date,
                     location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
                     is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
                     deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()

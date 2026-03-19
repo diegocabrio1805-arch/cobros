@@ -358,6 +358,10 @@ export const useAppSyncEngine = (
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.deletedAt || (u as any).deleted_at) return false;
       
+      const uName = (u.name || '').toUpperCase().trim();
+      const excludedNames = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'];
+      if (excludedNames.includes(uName)) return false;
+
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
