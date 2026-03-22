@@ -577,8 +577,8 @@ export const useAppActions = (
 
       const newAuditLog: CollectionLog = {
         id: crypto.randomUUID(),
-        loanId: 'deleted-client',
-        clientId: client.id,
+        loanId: null as any,
+        clientId: null as any,
         branchId: state.currentUser?.managedBy || state.currentUser?.id,
         type: CollectionLogType.DELETED_PAYMENT,
         amount: totalCapital,
