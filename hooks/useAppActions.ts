@@ -186,36 +186,50 @@ export const useAppActions = (
   };
 
   const recalculateLoanStatus = async (loanId: string, providedLogs?: CollectionLog[]) => {
-    const loan = state.loans.find(l => l.id === loanId);
-    if (!loan) return null;
+    let finalUpdatedLoan: Loan | null = null;
+    
+    setState(prev => {
+      const loan = prev.loans.find(l => l.id === loanId);
+      if (!loan) return prev;
 
-    const useLogs = providedLogs || state.collectionLogs;
-    const totalPaid = calculateTotalPaidFromLogs(loan, useLogs);
-    const balance = Math.max(0, loan.totalAmount - totalPaid);
+      const useLogs = providedLogs || prev.collectionLogs;
+      const totalPaid = calculateTotalPaidFromLogs(loan, useLogs);
+      const balance = Math.round(Math.max(0, loan.totalAmount - totalPaid) * 100) / 100;
 
-    const isPaid = balance <= 0.01;
-    let newStatus = loan.status;
-    if (isPaid) {
-      newStatus = LoanStatus.PAID;
-    } else if (loan.status === LoanStatus.PAID) {
-      newStatus = LoanStatus.ACTIVE;
+      const newInstallments = (loan.installments || []).map(i => ({ ...i, paidAmount: 0, status: PaymentStatus.PENDING }));
+      let totalToApply = totalPaid;
+      for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
+        const inst = newInstallments[i];
+        const appliedToInst = Math.round(Math.min(totalToApply, inst.amount) * 100) / 100;
+        inst.paidAmount = appliedToInst;
+        totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
+        inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : (inst.paidAmount > 0 ? PaymentStatus.PARTIAL : PaymentStatus.PENDING);
+      }
+
+      const isPaid = balance <= 0.01;
+      let newStatus = loan.status;
+      if (isPaid) {
+        newStatus = LoanStatus.PAID;
+      } else if (loan.status === LoanStatus.PAID) {
+        newStatus = LoanStatus.ACTIVE;
+      }
+
+      finalUpdatedLoan = {
+        ...loan,
+        totalPaid,
+        balance,
+        installments: newInstallments,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      return { ...prev, loans: prev.loans.map(l => l.id === loanId ? finalUpdatedLoan! : l) };
+    });
+
+    if (finalUpdatedLoan) {
+      await pushLoan(finalUpdatedLoan);
     }
-
-    const updatedLoan = {
-      ...loan,
-      totalPaid,
-      balance,
-      status: newStatus,
-      updatedAt: new Date().toISOString()
-    };
-
-    const updatedLoans = state.loans.map(l => l.id === loanId ? updatedLoan : l);
-    setState(prev => ({ ...prev, loans: updatedLoans }));
-
-    if (newStatus !== loan.status) {
-      await pushLoan(updatedLoan);
-    }
-    return updatedLoan;
+    return finalUpdatedLoan;
   };
 
   const deleteLoan = async (loanId: string) => {
@@ -267,10 +281,8 @@ export const useAppActions = (
 
     pushLog(newLog);
 
-    let updatedLoans = [...state.loans];
     let updatedPayments = [...state.payments];
     const newPaymentsForSync: PaymentRecord[] = [];
-    const loansToSync: Loan[] = [];
 
     if (newLog.type === CollectionLogType.OPENING) {
       setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
@@ -278,56 +290,55 @@ export const useAppActions = (
       return;
     }
 
-    if (newLog.type === CollectionLogType.PAYMENT && newLog.amount) {
+    if (newLog.type === CollectionLogType.PAYMENT && newLog.amount && newLog.loanId) {
       let totalToApply = Math.round(newLog.amount * 100) / 100;
-      updatedLoans = updatedLoans.map(loan => {
-        if (loan.id === newLog.loanId) {
-          const newInstallments = (loan.installments || []).map(i => ({ ...i }));
+      const loan = state.loans.find(l => l.id === newLog.loanId);
+      
+      if (loan) {
+        const newInstallments = (loan.installments || []).map(i => ({ ...i }));
 
-          for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
-            const inst = newInstallments[i];
-            if (inst.status === PaymentStatus.PAID) continue;
+        for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
+          const inst = newInstallments[i];
+          if (inst.status === PaymentStatus.PAID) continue;
 
-            const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
-            const appliedToInst = Math.min(totalToApply, remainingInInst);
-            inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
-            totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
-            inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
+          const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
+          const appliedToInst = Math.min(totalToApply, remainingInInst);
+          inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
+          totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
+          inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
 
-            const pRec: PaymentRecord = {
-              id: `pay-${newLog.id}-${inst.number}`,
-              loanId: newLog.loanId,
-              clientId: newLog.clientId,
-              collectorId: state.currentUser?.id,
-              branchId: loan.branchId || branchId,
-              amount: appliedToInst,
-              date: newLog.date,
-              installmentNumber: inst.number,
-              isVirtual: newLog.isVirtual || false,
-              isRenewal: newLog.isRenewal || false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
+          const pRec: PaymentRecord = {
+            id: `pay-${newLog.id}-${inst.number}`,
+            loanId: newLog.loanId,
+            clientId: newLog.clientId,
+            collectorId: state.currentUser?.id,
+            branchId: loan.branchId || branchId,
+            amount: appliedToInst,
+            date: newLog.date,
+            installmentNumber: inst.number,
+            isVirtual: newLog.isVirtual || false,
+            isRenewal: newLog.isRenewal || false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
 
-            newPaymentsForSync.push(pRec);
-            updatedPayments.push(pRec);
-          }
-
-          const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
-          const updatedLoan = { ...loan, installments: newInstallments, status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE, updated_at: new Date().toISOString() };
-          loansToSync.push(updatedLoan);
-          return updatedLoan;
+          newPaymentsForSync.push(pRec);
+          updatedPayments.push(pRec);
         }
-        return loan;
-      });
+      }
     }
 
-    setState(prev => ({ ...prev, loans: updatedLoans, payments: updatedPayments, collectionLogs: [newLog, ...prev.collectionLogs] }));
+    // Actualizar logs e historiales EN EL ESTADO
+    setState(prev => ({ ...prev, payments: updatedPayments, collectionLogs: [newLog, ...prev.collectionLogs] }));
 
-    if (newPaymentsForSync.length > 0 || loansToSync.length > 0) {
+    if (newPaymentsForSync.length > 0) {
       for (const p of newPaymentsForSync) pushPayment(p);
-      for (const l of loansToSync) pushLoan(l);
-      pushLog(newLog);
+    }
+    pushLog(newLog);
+
+    // Delegar el cálculo numérico total del balance a la rutina blindada
+    if (newLog.loanId) {
+      setTimeout(() => recalculateLoanStatus(newLog.loanId!), 0);
     }
 
     if (!skipSync) handleForceSync(true);
