@@ -576,6 +576,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
                                 currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                currentQueue[indexToUpdate].lastError = String(err);
                                 localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                             }
                             
@@ -621,6 +622,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                                     if (indexToUpdate !== -1) {
                                         currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                        currentQueue[indexToUpdate].lastError = String(singleErr);
                                         localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                                     }
 
