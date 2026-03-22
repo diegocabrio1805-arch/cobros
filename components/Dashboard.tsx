@@ -440,7 +440,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           <div>
             <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Resumen <span className="text-emerald-500">Operativo</span></h2>
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v6.4</span>
+              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v6.6.24</span>
               <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 En Vivo

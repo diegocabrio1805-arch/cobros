@@ -570,6 +570,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         } catch (err) {
                             console.error(`Error de sincronización (DELETE ${table}):`, err);
                             item.retryCount = (item.retryCount || 0) + 1;
+                            
+                            // update local storage so retry count persists
+                            const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                            const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
+                            if (indexToUpdate !== -1) {
+                                currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                            }
+                            
                             if (item.retryCount > 3) {
                                 processedIds.add(item._id);
                                 const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
@@ -606,6 +615,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 } catch (singleErr) {
                                     console.error(`Error de sincronización individual en ${table}:`, singleErr);
                                     item.retryCount = (item.retryCount || 0) + 1;
+                                    
+                                    // update local storage so retry count persists
+                                    const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                                    const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
+                                    if (indexToUpdate !== -1) {
+                                        currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                        localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                                    }
+
                                     if (item.retryCount > 3) {
                                         processedIds.add(item._id); // Skip after 3 failures
                                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
