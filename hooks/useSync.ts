@@ -317,14 +317,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 return { data: allData, error: null };
             };
 
-            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance, raw_data');
-            let loansQuery = supabase.from('loans').select('*');
-            let paymentsQuery = supabase.from('payments').select('*');
-            let logsQuery = supabase.from('collection_logs').select('*');
-            let profilesQuery = supabase.from('profiles').select('*');
-            let settingsQuery = supabase.from('branch_settings').select('*');
-            let expensesQuery = supabase.from('expenses').select('*');
-            let deletedItemsQuery = supabase.from('deleted_items').select('*');
+            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance, raw_data').order('updated_at', { ascending: true });
+            let loansQuery = supabase.from('loans').select('*').order('updated_at', { ascending: true });
+            let paymentsQuery = supabase.from('payments').select('*').order('updated_at', { ascending: true });
+            let logsQuery = supabase.from('collection_logs').select('*').order('updated_at', { ascending: true });
+            let profilesQuery = supabase.from('profiles').select('*').order('updated_at', { ascending: true });
+            let settingsQuery = supabase.from('branch_settings').select('*').order('updated_at', { ascending: true });
+            let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
+            let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {

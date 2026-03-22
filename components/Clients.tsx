@@ -574,7 +574,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     // Get collection logs
     const logs = (state.collectionLogs || [])
-      .filter(log => log.clientId === showLegajo && !log.deletedAt)
+      .filter(log => log.clientId === showLegajo && !log.deletedAt && log.type !== CollectionLogType.DELETED_PAYMENT)
       .map(log => ({ ...log, itemType: 'log' as const }));
 
     // Get loan grants (créditos otorgados)
@@ -2855,9 +2855,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         <td className="px-4 py-3 text-center">
                                           {isAdminOrManager && !isLoanGrant && (
                                             <div className="flex items-center justify-center gap-1">
-                                              {log.type === CollectionLogType.PAYMENT && (
-                                                <button onClick={() => handleEditLog(log)} className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-sm" title="Editar Pago"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                                              )}
                                               <button onClick={() => {
                                                 if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) {
                                                   deleteCollectionLog?.(log.id);

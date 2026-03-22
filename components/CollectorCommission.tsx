@@ -136,7 +136,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
     return (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       // 1. Basic Validity Checks (Clean up "---" rows)
-      if (log.isOpening || log.deletedAt) return false;
+      if (log.isOpening || log.deletedAt || log.type === CollectionLogType.DELETED_PAYMENT) return false;
       if (!log.clientId) return false; // Exclude logs with no associated client
 
       // 2. Activity Check (Exclude 0 amount unless it's a valid non-monetary interaction)

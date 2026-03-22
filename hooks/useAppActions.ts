@@ -145,40 +145,12 @@ export const useAppActions = (
     const client = state.clients.find(c => c.id === clientId);
     if (!client) return;
 
-    const clientLoans = state.loans.filter(l => l.clientId === clientId);
-    const totalCapital = clientLoans.reduce((sum, l) => sum + l.principal, 0);
-    const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
-
-    const newAuditLog: CollectionLog = {
-      id: crypto.randomUUID(),
-      loanId: 'deleted-client',
-      clientId: client.id,
-      branchId: state.currentUser?.managedBy || state.currentUser?.id,
-      type: CollectionLogType.DELETED_PAYMENT,
-      amount: totalCapital,
-      date: new Date().toISOString(),
-      location: { lat: 0, lng: 0 },
-      recordedBy: state.currentUser?.id,
-      collectorId: state.currentUser?.id,
-      notes: JSON.stringify({
-        tipo: 'CLIENTE_ELIMINADO',
-        clienteNombre: client.name,
-        clienteTelefono: client.phone || '',
-        clienteDireccion: client.address || '',
-        eliminadoPorNombre: deletedByUser?.name || 'Administrador',
-        capitalTotal: totalCapital,
-        creditosEliminados: clientLoans.length
-      })
-    };
-
     const updatedClient = { ...client, deletedAt: new Date().toISOString() };
-    setState(prev => ({ 
-      ...prev, 
-      collectionLogs: [newAuditLog, ...prev.collectionLogs] 
-    }));
     await updateClient(updatedClient);
-    pushLog(newAuditLog);
-    handleForceSync(false);
+    
+    // Trigger the actual remote deletion to ensure it's removed from the backend
+    // This action also creates the necessary audit logs
+    await deleteRemoteClientAction(clientId);
   };
 
   const updateLoan = async (updatedLoan: Loan) => {
@@ -407,15 +379,21 @@ export const useAppActions = (
         };
       }
 
-      const updatedLogs = state.collectionLogs.filter(l => l.id !== logId);
-      if (newAuditLog) updatedLogs.push(newAuditLog);
-      
-      const updatedPayments = state.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
+      let logsForRecalc: CollectionLog[] = [];
 
-      setState(prev => ({ ...prev, collectionLogs: updatedLogs, payments: updatedPayments }));
+      setState(prev => {
+        const updatedLogs = prev.collectionLogs.filter(l => l.id !== logId);
+        if (newAuditLog) updatedLogs.push(newAuditLog);
+        logsForRecalc = updatedLogs;
+
+        const updatedPayments = prev.payments.filter(p => !p.id.startsWith(`pay-${logId}-`));
+
+        return { ...prev, collectionLogs: updatedLogs, payments: updatedPayments };
+      });
 
       if (logToDelete.loanId) {
-        await recalculateLoanStatus(logToDelete.loanId, updatedLogs);
+        // Ejecución asíncrona, no bloquea el setState
+        setTimeout(() => recalculateLoanStatus(logToDelete.loanId!, logsForRecalc), 0);
       }
 
       deleteRemoteLog(logId);
@@ -593,19 +571,32 @@ export const useAppActions = (
   const deleteRemoteClientAction = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
     if (client) {
+      const clientLoans = state.loans.filter(l => l.clientId === clientId);
+      const totalCapital = clientLoans.reduce((sum, l) => sum + l.principal, 0);
+      const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
+
       const newAuditLog: CollectionLog = {
         id: crypto.randomUUID(),
         loanId: 'deleted-client',
         clientId: client.id,
         branchId: state.currentUser?.managedBy || state.currentUser?.id,
         type: CollectionLogType.DELETED_PAYMENT,
-        amount: 0,
+        amount: totalCapital,
         date: new Date().toISOString(),
         location: { lat: 0, lng: 0 },
         recordedBy: state.currentUser?.id,
         collectorId: state.currentUser?.id,
-        notes: `[CLIENT_DELETED] Cliente: ${client.name}`
+        notes: JSON.stringify({
+          tipo: 'CLIENTE_ELIMINADO',
+          clienteNombre: client.name,
+          clienteTelefono: client.phone || '',
+          clienteDireccion: client.address || '',
+          eliminadoPorNombre: deletedByUser?.name || 'Administrador',
+          capitalTotal: totalCapital,
+          creditosEliminados: clientLoans.length
+        })
       };
+      
       pushLog(newAuditLog);
       setState(prev => ({
         ...prev,
