@@ -92,7 +92,16 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     return false;
   });
 
-  return validLogs.reduce((acc: number, log: any) => acc + (Number(log.amount) || 0), 0);
+  const seenMigs = new Set<string>();
+  return validLogs.reduce((acc: number, log: any) => {
+    const id = String(log.id || '');
+    if (id.startsWith('LOG-MIG-')) {
+        const lId = String(log.loanId || log.loan_id || '').trim();
+        if (seenMigs.has(lId)) return acc; // Ignorar logs de migración duplicados
+        seenMigs.add(lId);
+    }
+    return acc + (Number(log.amount) || 0);
+  }, 0);
 };
 
 export const calculateMonthlyStats = (

@@ -395,7 +395,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
                     if (loanInitialPaid > 0) {
                         logs.push({
-                            id: `LOG-MIG-${loanId}-${Date.now()}`,
+                            id: `LOG-MIG-${loanId}`, // ID DETERMINÍSTICO PARA EVITAR DUPLICADOS EN RE-IMPORTACIONES
                             loanId: loanId,
                             clientId: clientId,
                             collectorId: collectorId,

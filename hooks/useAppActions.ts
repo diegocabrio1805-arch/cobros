@@ -534,12 +534,19 @@ export const useAppActions = (
             else mergedLoans.push(nl);
         });
 
+        const mergedLogs = [...prev.collectionLogs];
+        newLogs.forEach(nl => {
+            const idx = mergedLogs.findIndex(l => l.id === nl.id);
+            if (idx >= 0) mergedLogs[idx] = nl;
+            else mergedLogs.push(nl);
+        });
+
         return {
             ...prev,
             clients: mergedClients,
             loans: mergedLoans,
             payments: [...prev.payments, ...allNewPayments],
-            collectionLogs: [...prev.collectionLogs, ...newLogs]
+            collectionLogs: mergedLogs
         };
     });
 

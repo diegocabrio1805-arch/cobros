@@ -1,0 +1,2 @@
+Columns found in first row:
+id, loan_id, client_id, branch_id, type, amount, date, location, recorded_by, notes, raw_data, is_virtual, is_renewal, is_opening, updated_at, deleted_at
