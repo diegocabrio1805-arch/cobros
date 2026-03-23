@@ -215,8 +215,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE"]),
                     instValue: findCol(["VALOR CUOTA", "CUOTA", "INSTVALUE", "VAL. CUOTA", "VALCUOTA"]),
                     totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
-                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAIDINST", "CTA. PAG", "CTAPAG"]),
-                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "SALDO", "BALANCE"]),
+                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAIDINST", "CTA. PAG", "CTAPAG", "COBRADO"]),
+                    pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND"]),
+                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO"]),
                     date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES"])
                 };
 
@@ -267,7 +268,10 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let instValue = Math.round(parseAmount(row[idxs.instValue ?? -1]));
                     let totalInst = Math.round(parseAmount(row[idxs.totalInst ?? -1]));
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
-                    let pendInst = Math.max(0, totalInst - paidInst);
+                    let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
+                    if (totalInst === 0 && pendInst === 0) {
+                        pendInst = Math.max(0, totalInst - paidInst);
+                    }
                     let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
 
                     if (name.includes("GOMEZ") || name.includes("JACINTO") || name.includes("MILNER") || name.includes("CHAPARRO")) {
