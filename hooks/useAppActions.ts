@@ -517,14 +517,30 @@ export const useAppActions = (
       };
     });
 
-    // 1. Actualizar estado UI de un golpe
-    setState(prev => ({
-        ...prev,
-        clients: [...prev.clients, ...newClients],
-        loans: [...prev.loans, ...updatedLoansWithPayments],
-        payments: [...prev.payments, ...allNewPayments],
-        collectionLogs: [...prev.collectionLogs, ...newLogs]
-    }));
+    // 1. Actualizar estado UI de un golpe de manera segura (Merge para no duplicar si los IDs ya existen)
+    setState(prev => {
+        const mergedClients = [...prev.clients];
+        newClients.forEach(nc => {
+            const idx = mergedClients.findIndex(c => c.id === nc.id);
+            if (idx >= 0) mergedClients[idx] = nc;
+            else mergedClients.push(nc);
+        });
+
+        const mergedLoans = [...prev.loans];
+        updatedLoansWithPayments.forEach(nl => {
+            const idx = mergedLoans.findIndex(l => l.id === nl.id);
+            if (idx >= 0) mergedLoans[idx] = nl;
+            else mergedLoans.push(nl);
+        });
+
+        return {
+            ...prev,
+            clients: mergedClients,
+            loans: mergedLoans,
+            payments: [...prev.payments, ...allNewPayments],
+            collectionLogs: [...prev.collectionLogs, ...newLogs]
+        };
+    });
 
     // 2. Persistir en cola de sincronización (BULK para evitar O(N^2))
     pushBulk(newClients, updatedLoansWithPayments, allNewPayments, newLogs);

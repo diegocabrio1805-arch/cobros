@@ -110,7 +110,7 @@ export interface ImportError {
     reason: string;
 }
 
-export const processExcelImport = (file: File, collectorId: string, branchId: string, sellerCode: string, country: string = 'CO'): Promise<{ 
+export const processExcelImport = (file: File, collectorId: string, branchId: string, sellerCode: string, country: string = 'CO', existingClients: Client[] = [], existingLoans: Loan[] = []): Promise<{ 
     clients: Client[], 
     loans: Loan[], 
     logs: CollectionLog[],
@@ -252,7 +252,16 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     }
                     consecutiveEmpty = 0;
 
-                    const clientId = generateUUID();
+                    const docIdRaw = String(row[idxs.docId ?? -1] || '---');
+
+                    // REUSE EXISTING CLIENT AND LOAN UUIDS TO ENABLE UPSERT
+                    const existingClient = existingClients.find(c => 
+                        (c.documentId && c.documentId !== '---' && c.documentId === docIdRaw) || 
+                        (c.name && c.name.toUpperCase() === name.toUpperCase())
+                    );
+                    const clientId = existingClient ? existingClient.id : generateUUID();
+                    const activeLoan = existingClient ? existingLoans.find(l => l.clientId === clientId && (l.status === LoanStatus.ACTIVE || l.balance > 0)) : null;
+                    const loanId = activeLoan ? activeLoan.id : `L-${clientId}`;
                     let principal = Math.round(parseAmount(row[idxs.principal ?? -1]));
                     let totalAmount = Math.round(parseAmount(row[idxs.totalAmt ?? -1]));
                     let instValue = Math.round(parseAmount(row[idxs.instValue ?? -1]));
@@ -338,7 +347,6 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         createdAt: new Date().toISOString()
                     });
 
-                    const loanId = `L-${clientId}`;
                     const loanInitialPaid = Math.round(totalPaidFromPag || Math.max(0, totalAmount - balance));
 
                     // CALCULAR TASA DE INTERÉS VIRTUAL PARA QUE LA TABLA COINCIDA CON EL MONTO TOTAL
@@ -383,7 +391,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
                     if (loanInitialPaid > 0) {
                         logs.push({
-                            id: `LOG-MIG-${loanId}`,
+                            id: `LOG-MIG-${loanId}-${Date.now()}`,
                             loanId: loanId,
                             clientId: clientId,
                             collectorId: collectorId,
@@ -391,7 +399,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                             amount: Math.round(loanInitialPaid),
                             type: CollectionLogType.PAYMENT,
                             date: loanDate,
-                            location: { lat: 0, lng: 0 }, // LOCATION ES REQUERIDA POR LA INTERFAZ
+                            location: { lat: 0, lng: 0 },
                             notes: "MIGRACIÓN EXCEL - SALDO INICIAL",
                             isOpening: false,
                             recordedBy: collectorId,

@@ -1952,7 +1952,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
       const country = state.settings.country || 'CO';
 
-      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country);
+      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, state.clients, state.loans);
       setPreviewData(data);
     } catch (err) {
       console.error(err);
