@@ -161,7 +161,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                 const STRICT_KEYWORDS = [
                     "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", // Plantilla Actual
-                    "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL" // JSON / Bot Viejo
+                    "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
+                    "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "MONTOCOBRADO", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR" // Cartera nativa
                 ];
                 
                 // 1. Detect Header Row
@@ -206,17 +207,17 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 };
 
                 const idxs = {
-                    name: findCol(["NOMBRE COMPLETO", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME"]),
-                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID"]),
+                    name: findCol(["NOMBRE COMPLETO", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME", "NOMBRE", "NOMBRERAZONSOCIAL", "NOMBRE / RAZON SOCIAL"]),
+                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº"]),
                     phone: findCol(["TELEFONO", "CELULAR", "PHONE"]),
-                    addr: findCol(["DIRECCION", "DOMICILIO", "ADDR"]),
+                    addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD"]),
                     principal: findCol(["MONTO PRESTADO", "CAPITAL", "MONTO", "PRINCIPAL"]),
-                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE"]),
-                    instValue: findCol(["VALOR CUOTA", "CUOTA", "INSTVALUE"]),
-                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOTALINST"]),
-                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAIDINST"]),
+                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE"]),
+                    instValue: findCol(["VALOR CUOTA", "CUOTA", "INSTVALUE", "VAL. CUOTA", "VALCUOTA"]),
+                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
+                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAIDINST", "CTA. PAG", "CTAPAG"]),
                     balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "SALDO", "BALANCE"]),
-                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES"])
+                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES"])
                 };
 
                 const discoveryMeta: Record<string, string> = {};
