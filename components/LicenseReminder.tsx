@@ -39,6 +39,9 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
         if (items.length > 0) {
             setExpiringItems(items);
             setShowModal(true);
+        } else {
+            setExpiringItems([]);
+            setShowModal(false);
         }
     }, [currentUser, users]);
 

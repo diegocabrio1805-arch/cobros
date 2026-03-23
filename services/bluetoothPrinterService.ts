@@ -16,7 +16,7 @@ const CHUNK_SIZE = 200; // Mantenido a 200
 const CHUNK_DELAY = 25; // Aumentado (antes 15ms) para no saturar buffer de impresoras baratas
 const CONNECTION_RETRIES = 5; // Aumentado para mayor tolerancia a fallos
 const RETRY_DELAY = 500; // 500ms entre intentos iniciales
-const KEEPER_INTERVAL_MS = 3000; // 3s: Reconexión más agresiva para cortes cortos
+const KEEPER_INTERVAL_MS = 15000; // 15s: Envío de ping real (DLE EOT 1) para evitar sleep
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {
@@ -314,6 +314,20 @@ export const startConnectionKeeper = () => {
             if (!connected) {
                 console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
                 await connectToPrinter(savedAddress, false, true);
+            } else {
+                // Ping activo (DLE EOT 1 - Real-time status) para evitar que la impresora entre en auto-sleep.
+                // Es un comando invisible que NO avanza el papel.
+                const bs = getBluetoothSerial();
+                if (isNativeConnection && bs) {
+                    const pingCmd = '\x10\x04\x01';
+                    bs.write(pingCmd, 
+                        () => { /* Ping OK, hardware despierto */ }, 
+                        () => {
+                            console.log("[Bluetooth Keeper] Ping failed, socket dead. Reconnecting...");
+                            connectToPrinter(savedAddress, true, true);
+                        }
+                    );
+                }
             }
         } catch (e) {
             console.warn("[Bluetooth Keeper] Error checking status:", e);
