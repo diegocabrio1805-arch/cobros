@@ -344,7 +344,7 @@ const App: React.FC = () => {
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
           </div>
         </main>
-        {isPowerUser && <LicenseReminder currentUser={state.currentUser} users={state.users} />}
+        {isPowerUser && <LicenseReminder currentUser={state.currentUser} users={filteredState.users} />}
       </div>
     </ErrorBoundary>
   );
