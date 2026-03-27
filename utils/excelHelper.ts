@@ -294,38 +294,51 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                     // AUTO-DETECT: Si PAG o PEN contienen montos de dinero en lugar de cantidad de cuotas
                     // (sucede en planillas donde PAG = "monto cobrado" en vez de "cuotas pagadas")
-                    // Heurística: si paidInst > 500 es casi seguro un monto de dinero, no un conteo
                     let totalPaidMoney = 0;
                     if (paidInst > 500 && instValue > 0) {
-                        // PAG es monto en dinero → convertir a cantidad de cuotas
                         totalPaidMoney = paidInst;
                         paidInst = Math.round(paidInst / instValue);
-                        console.log(`[FORENSIC] PAG era monto de dinero: ${totalPaidMoney} → ${paidInst} cuotas`);
                     } else {
                         totalPaidMoney = paidInst * instValue;
                     }
-                    
-                    // Similar para pendInst
                     if (pendInst > 500 && instValue > 0) {
                         pendInst = Math.round(pendInst / instValue);
                     }
 
                     if (totalInst === 0) totalInst = paidInst + pendInst;
-                    
+
+                    // =====================================================================
+                    // DETECCIÓN CLAVE: ¿La columna MONTO contiene el cobrado (no el total)?
+                    // En formatos como Eligia: MONTO = plata ya cobrada, TOT×V.CUOTA = total real
+                    // Señal: si MONTO < (TOT × V.CUOTA × 0.95), MONTO = cobrado, no total
+                    // =====================================================================
+                    if (totalInst > 1 && instValue > 0 && totalAmount > 0) {
+                        const calculatedMaxTotal = totalInst * instValue;
+                        if (totalAmount < calculatedMaxTotal * 0.95) {
+                            // MONTO = monto cobrado. El total real es TOT × V.CUOTA
+                            const montoCobrado = totalAmount;
+                            totalAmount = calculatedMaxTotal;
+                            // Usar el cobrado como base del totalPaidFromPag
+                            totalPaidMoney = montoCobrado;
+                            // Recalcular cuotas pagadas desde el monto cobrado
+                            paidInst = Math.round(montoCobrado / instValue);
+                            console.log(`[FORENSIC] MONTO detectado como cobrado: cobrado=${montoCobrado}, totalReal=${calculatedMaxTotal}, paidInst=${paidInst}`);
+                        }
+                    }
+
                     const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
                     const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
-                    
+
                     if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-                    
+
                     const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
                     const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
 
-                    // PRIORIDAD: Si el Excel tiene saldo explícito, SIEMPRE usarlo como base
+                    // PRIORIDAD: Si el Excel tiene saldo explícito y positivo, usarlo
                     if (hasExplicitBalance && excelBalance > 0) {
                         balance = excelBalance;
                     } else if (totalPaidFromPag > 0 || paidInst > 0) {
                         balance = Math.max(0, totalAmount - totalPaidFromPag);
-                        // SAFETY NET
                         if (balance === 0 && excelBalance > 0) {
                              balance = excelBalance;
                              totalAmount = totalPaidFromPag + excelBalance;
@@ -333,14 +346,13 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     } else if (balance === 0 && pendInst > 0 && instValue > 0) {
                         balance = pendInst * instValue;
                     } else {
-                        // Si no hay información de pagos ni info explícita de saldo en "0", 
-                        // asumimos que es un crédito activo con saldo COMPLETO. 
-                        // (Evita que saldo=0 dispare un auto-pago total)
+                        // Sin datos de pago → crédito activo con saldo completo
                         balance = totalAmount;
                     }
 
                     if (instValue === 0 && totalAmount > 0 && totalInst > 0) instValue = Math.round(totalAmount / totalInst);
-                    if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15); 
+                    if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15);
+
 
                     // AUDITORÍA MATEMÁTICA Y SEMÁFORO
                     let isRowValid = true;
