@@ -292,30 +292,46 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         });
                     }
 
-                    // MATH FORENSICS - PRIORIDAD AL DATO PAG
+                    // AUTO-DETECT: Si PAG o PEN contienen montos de dinero en lugar de cantidad de cuotas
+                    // (sucede en planillas donde PAG = "monto cobrado" en vez de "cuotas pagadas")
+                    // Heurística: si paidInst > 500 es casi seguro un monto de dinero, no un conteo
+                    let totalPaidMoney = 0;
+                    if (paidInst > 500 && instValue > 0) {
+                        // PAG es monto en dinero → convertir a cantidad de cuotas
+                        totalPaidMoney = paidInst;
+                        paidInst = Math.round(paidInst / instValue);
+                        console.log(`[FORENSIC] PAG era monto de dinero: ${totalPaidMoney} → ${paidInst} cuotas`);
+                    } else {
+                        totalPaidMoney = paidInst * instValue;
+                    }
+                    
+                    // Similar para pendInst
+                    if (pendInst > 500 && instValue > 0) {
+                        pendInst = Math.round(pendInst / instValue);
+                    }
+
                     if (totalInst === 0) totalInst = paidInst + pendInst;
                     
-                    // Cálculo de lo ya pagado basado en PAG y VALOR CUOTA
-                    const totalPaidFromPag = paidInst * instValue;
+                    const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
                     const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
                     
                     if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
                     
-                    // El saldo es lo que falta (Monto Total - Lo ya pagado)
                     const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
                     const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
 
-                    if (totalPaidFromPag > 0 || paidInst > 0) {
+                    // PRIORIDAD: Si el Excel tiene saldo explícito, SIEMPRE usarlo como base
+                    if (hasExplicitBalance && excelBalance > 0) {
+                        balance = excelBalance;
+                    } else if (totalPaidFromPag > 0 || paidInst > 0) {
                         balance = Math.max(0, totalAmount - totalPaidFromPag);
-                        // SAFETY NET: Si el cálculo dice 0 pero el Excel dice que hay saldo, confiamos en el Excel
-                        if (balance === 0 && excelBalance > 0 && totalAmount === totalPaidFromPag) {
+                        // SAFETY NET
+                        if (balance === 0 && excelBalance > 0) {
                              balance = excelBalance;
                              totalAmount = totalPaidFromPag + excelBalance;
                         }
                     } else if (balance === 0 && pendInst > 0 && instValue > 0) {
                         balance = pendInst * instValue;
-                    } else if (hasExplicitBalance) {
-                        balance = excelBalance;
                     } else {
                         // Si no hay información de pagos ni info explícita de saldo en "0", 
                         // asumimos que es un crédito activo con saldo COMPLETO. 
