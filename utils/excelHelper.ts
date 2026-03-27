@@ -308,21 +308,39 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     if (totalInst === 0) totalInst = paidInst + pendInst;
 
                     // =====================================================================
-                    // DETECCIÓN CLAVE: ¿La columna MONTO contiene el cobrado (no el total)?
-                    // En formatos como Eligia: MONTO = plata ya cobrada, TOT×V.CUOTA = total real
-                    // Señal: si MONTO < (TOT × V.CUOTA × 0.95), MONTO = cobrado, no total
+                    // DETECCIÓN PRECISA: ¿MONTO = monto ya cobrado (PAG × V.CUOTA)?
+                    //
+                    // En planillas como Eligia:
+                    //   MONTO = lo que ya cobró (PAG cuotas × V.CUOTA)
+                    //   El total real = TOT × V.CUOTA
+                    //
+                    // CHEQUEO PRIMARIO: si MONTO ≈ paidInst × instValue (±2%), es cobrado
+                    // CHEQUEO SECUNDARIO (backup): si MONTO < TOT×V.CUOTA en más de un 5%
                     // =====================================================================
-                    if (totalInst > 1 && instValue > 0 && totalAmount > 0) {
+                    let montoCobradoDetected = false;
+
+                    // PRIMARIO: MONTO ≈ PAG × V.CUOTA
+                    if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
+                        const expectedCobrado = paidInst * instValue;
+                        const diff = Math.abs(totalAmount - expectedCobrado);
+                        if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
+                            const montoCobrado = totalAmount;
+                            totalAmount = totalInst * instValue;
+                            totalPaidMoney = montoCobrado;
+                            montoCobradoDetected = true;
+                            console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}, paidInst=${paidInst}`);
+                        }
+                    }
+
+                    // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5% (clientes con más pagos pendientes)
+                    if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
                         const calculatedMaxTotal = totalInst * instValue;
                         if (totalAmount < calculatedMaxTotal * 0.95) {
-                            // MONTO = monto cobrado. El total real es TOT × V.CUOTA
                             const montoCobrado = totalAmount;
                             totalAmount = calculatedMaxTotal;
-                            // Usar el cobrado como base del totalPaidFromPag
                             totalPaidMoney = montoCobrado;
-                            // Recalcular cuotas pagadas desde el monto cobrado
                             paidInst = Math.round(montoCobrado / instValue);
-                            console.log(`[FORENSIC] MONTO detectado como cobrado: cobrado=${montoCobrado}, totalReal=${calculatedMaxTotal}, paidInst=${paidInst}`);
+                            console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}, paidInst=${paidInst}`);
                         }
                     }
 
