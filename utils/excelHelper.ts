@@ -160,9 +160,10 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const normalizeHeader = (s: string) => String(s || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "").trim();
 
                 const STRICT_KEYWORDS = [
-                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", // Plantilla Actual
+                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
-                    "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "MONTOCOBRADO", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR" // Cartera nativa
+                    "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "MONTOCOBRADO", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
+                    "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL" // Comunes
                 ];
                 
                 // 1. Detect Header Row
@@ -208,18 +209,23 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                 const idxs = {
                     name: findCol(["NOMBRE COMPLETO", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME", "NOMBRE", "NOMBRERAZONSOCIAL", "NOMBRE / RAZON SOCIAL"]),
-                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº"]),
-                    phone: findCol(["TELEFONO", "CELULAR", "PHONE"]),
-                    addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD"]),
-                    principal: findCol(["MONTO PRESTADO", "CAPITAL", "MONTO", "PRINCIPAL"]),
-                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE"]),
-                    instValue: findCol(["VALOR CUOTA", "CUOTA", "INSTVALUE", "VAL. CUOTA", "VALCUOTA"]),
-                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
-                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAIDINST", "CTA. PAG", "CTAPAG", "COBRADO"]),
-                    pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND"]),
-                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO"]),
-                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES"])
+                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº", "ID"]),
+                    phone: findCol(["TELEFONO", "CELULAR", "PHONE", "TEL"]),
+                    addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD", "CIUDAD"]),
+                    principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO"]), // MONTO al final como fallback
+                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE", "MONTO"]), // MONTO al final como fallback
+                    instValue: findCol(["VALOR CUOTA", "CUOTA", "V. CUOTA", "VCUOTA", "V CUOTA", "VALCUOTA", "VAL. CUOTA", "INSTVALUE"]),
+                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOT", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
+                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAG", "PAIDINST", "CTA. PAG", "CTAPAG", "COBRADO"]),
+                    pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "PEN", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND"]),
+                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO", "DEUDA"]),
+                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI"])
                 };
+
+                console.log("[FORENSIC] Column Mapping Identified:", {
+                    headers: Object.keys(colMap),
+                    detectedIdxs: idxs
+                });
 
                 const discoveryMeta: Record<string, string> = {};
 
@@ -274,10 +280,12 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     }
                     let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
 
-                    if (name.includes("GOMEZ") || name.includes("JACINTO") || name.includes("MILNER") || name.includes("CHAPARRO")) {
-                        console.log(`[FORENSIC] Analizando fila: ${name}`, {
+                    if (name.includes("GOMEZ") || name.includes("JACINTO") || name.includes("MILNER") || name.includes("CHAPARRO") || i < clientHeaderRow + 5) {
+                        console.log(`[FORENSIC] Analizando fila ${i}: ${name}`, {
                             rawTotal: row[idxs.totalAmt ?? -1],
                             rawBalance: row[idxs.balance ?? -1],
+                            rawInstValue: row[idxs.instValue ?? -1],
+                            rawPaid: row[idxs.paidInst ?? -1],
                             parsedTotal: totalAmount,
                             parsedBalance: balance,
                             rawPrincipal: row[idxs.principal ?? -1]
