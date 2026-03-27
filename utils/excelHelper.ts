@@ -273,14 +273,15 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     const loanId = activeLoan ? activeLoan.id : `L-${clientId}`;
                     let principal = Math.round(parseAmount(row[idxs.principal ?? -1]));
                     let totalAmount = Math.round(parseAmount(row[idxs.totalAmt ?? -1]));
+                    let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
                     let instValue = Math.round(parseAmount(row[idxs.instValue ?? -1]));
                     let totalInst = Math.round(parseAmount(row[idxs.totalInst ?? -1]));
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
                     let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
+
                     if (totalInst === 0 && pendInst === 0) {
                         pendInst = Math.max(0, totalInst - paidInst);
                     }
-                    let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
 
                     if (name.includes("GOMEZ") || name.includes("JACINTO") || name.includes("MILNER") || name.includes("CHAPARRO") || i < clientHeaderRow + 5) {
                         console.log(`[FORENSIC] Analizando fila ${i}: ${name}`, {
@@ -373,16 +374,48 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                                 balance = excelBalance;
                                 totalAmount = totalPaidFromPag + excelBalance;
                             }
-                        } else if (balance === 0 && pendInst > 0 && instValue > 0) {
-                            balance = pendInst * instValue;
                         } else {
                             balance = totalAmount;
                         }
                     }
 
-                    if (instValue === 0 && totalAmount > 0 && totalInst > 0) instValue = Math.round(totalAmount / totalInst);
-                    if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15);
+                    // --- RECONSTRUCCIÓN ROBUSTA DE DATOS FALTANTES (POST-HOC) ---
+                    // Si totalAmount es 0, intentamos reconstruirlo
+                    if (totalAmount === 0) {
+                        if (instValue > 0 && totalInst > 0) {
+                            totalAmount = instValue * totalInst;
+                        } else if (balance > 0) {
+                            totalAmount = balance + totalPaidMoney;
+                        } else if (principal > 0) {
+                            totalAmount = Math.round(principal * 1.25); // Fallback razonable: 25% interés
+                        }
+                    }
 
+                    // Si totalInst es 0, intentamos reconstruirlo o asumir default
+                    if (totalInst === 0) {
+                        if (totalAmount > 0 && instValue > 0) {
+                            totalInst = Math.round(totalAmount / instValue);
+                        } else {
+                            totalInst = 24; // Default para evitar división por cero o errores de métricas
+                        }
+                    }
+
+                    // Si instValue es 0, intentamos reconstruirlo
+                    if (instValue === 0 && totalAmount > 0 && totalInst > 0) {
+                        instValue = Math.round(totalAmount / totalInst);
+                    }
+                    
+                    // Si el saldo es 0 pero totalAmount es positivo y no hay cobrado explícito igual al total
+                    if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) {
+                        // Heurística de emergencia: si el saldo falló en detectarse pero hay cuotas pendientes
+                        if (pendInst > 0 && instValue > 0) {
+                            balance = pendInst * instValue;
+                        } else if (totalInst > paidInst && instValue > 0) {
+                            balance = (totalInst - paidInst) * instValue;
+                        }
+                    }
+
+                    if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15);
 
                     // AUDITORÍA MATEMÁTICA Y SEMÁFORO
                     let isRowValid = true;
@@ -398,6 +431,14 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     } else if (Number.isNaN(balance) || Number.isNaN(totalAmount)) {
                         errors.push({ row: i + 1, clientName: name, reason: "Contiene valores de texto donde van números." });
                         isRowValid = false;
+                    }
+ 
+                    if (!isRowValid) {
+                        console.error(`[IMPORT ERROR] Fila ${i + 1}: ${name} descartada. Motivo: ${errors[errors.length - 1]?.reason}`, {
+                            principal, totalAmount, instValue, totalInst, balance, totalPaidMoney
+                        });
+                        consecutiveEmpty++;
+                        continue;
                     }
 
                     clients.push({
