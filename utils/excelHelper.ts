@@ -160,9 +160,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const normalizeHeader = (s: string) => String(s || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "").trim();
 
                 const STRICT_KEYWORDS = [
-                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", // Plantilla Actual
+                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
-                    "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "MONTOCOBRADO", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
+                    "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
                     "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL" // Comunes
                 ];
                 
@@ -212,11 +212,13 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº", "ID"]),
                     phone: findCol(["TELEFONO", "CELULAR", "PHONE", "TEL"]),
                     addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD", "CIUDAD"]),
-                    principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO"]), // MONTO al final como fallback
-                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE", "MONTO"]), // MONTO al final como fallback
+                    principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO"]),
+                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE", "MONTO"]),
+                    // COLUMNA EXPLÍCITA DE MONTO COBRADO - MÁXIMA PRIORIDAD PARA CALCULAR SALDO
+                    cobrado: findCol(["MONTO COBRADO", "MONTOCOBRADO", "YA COBRADO", "COBRADO", "IMPORTE COBRADO"]),
                     instValue: findCol(["VALOR CUOTA", "CUOTA", "V. CUOTA", "VCUOTA", "V CUOTA", "VALCUOTA", "VAL. CUOTA", "INSTVALUE"]),
                     totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOT", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
-                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAG", "PAIDINST", "CTA. PAG", "CTAPAG", "COBRADO"]),
+                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAG", "PAIDINST", "CTA. PAG", "CTAPAG"]),
                     pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "PEN", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND"]),
                     balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO", "DEUDA"]),
                     date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI"])
@@ -292,80 +294,90 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         });
                     }
 
-                    // AUTO-DETECT: Si PAG o PEN contienen montos de dinero en lugar de cantidad de cuotas
-                    // (sucede en planillas donde PAG = "monto cobrado" en vez de "cuotas pagadas")
+                    // ==========================================================================
+                    // PASO 1: MONTO COBRADO EXPLÍCITO (máxima prioridad, termina el análisis)
+                    // Si existe columna "MONTO COBRADO", úsala directamente. Sin heurísticas.
+                    // ==========================================================================
                     let totalPaidMoney = 0;
-                    if (paidInst > 500 && instValue > 0) {
-                        totalPaidMoney = paidInst;
-                        paidInst = Math.round(paidInst / instValue);
+
+                    const cobradoRaw = idxs.cobrado !== undefined ? parseAmount(row[idxs.cobrado ?? -1]) : 0;
+                    const hasCobradoColumn = idxs.cobrado !== undefined && cobradoRaw > 0;
+
+                    if (hasCobradoColumn) {
+                        // CAMINO LIMPIO: MONTO COBRADO - IMPORTE A PAGAR = SALDO
+                        totalPaidMoney = Math.round(cobradoRaw);
+                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+                        balance = Math.max(0, totalAmount - totalPaidMoney);
+                        paidInst = instValue > 0 ? Math.round(totalPaidMoney / instValue) : paidInst;
+                        console.log(`[FORENSIC] MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
                     } else {
-                        totalPaidMoney = paidInst * instValue;
-                    }
-                    if (pendInst > 500 && instValue > 0) {
-                        pendInst = Math.round(pendInst / instValue);
-                    }
+                        // ==========================================================================
+                        // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
+                        // ==========================================================================
 
-                    if (totalInst === 0) totalInst = paidInst + pendInst;
-
-                    // =====================================================================
-                    // DETECCIÓN PRECISA: ¿MONTO = monto ya cobrado (PAG × V.CUOTA)?
-                    //
-                    // En planillas como Eligia:
-                    //   MONTO = lo que ya cobró (PAG cuotas × V.CUOTA)
-                    //   El total real = TOT × V.CUOTA
-                    //
-                    // CHEQUEO PRIMARIO: si MONTO ≈ paidInst × instValue (±2%), es cobrado
-                    // CHEQUEO SECUNDARIO (backup): si MONTO < TOT×V.CUOTA en más de un 5%
-                    // =====================================================================
-                    let montoCobradoDetected = false;
-
-                    // PRIMARIO: MONTO ≈ PAG × V.CUOTA
-                    if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
-                        const expectedCobrado = paidInst * instValue;
-                        const diff = Math.abs(totalAmount - expectedCobrado);
-                        if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
-                            const montoCobrado = totalAmount;
-                            totalAmount = totalInst * instValue;
-                            totalPaidMoney = montoCobrado;
-                            montoCobradoDetected = true;
-                            console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}, paidInst=${paidInst}`);
+                        // Si PAG contiene monto de dinero (>500) en vez de cantidad de cuotas
+                        if (paidInst > 500 && instValue > 0) {
+                            totalPaidMoney = paidInst;
+                            paidInst = Math.round(paidInst / instValue);
+                        } else {
+                            totalPaidMoney = paidInst * instValue;
                         }
-                    }
-
-                    // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5% (clientes con más pagos pendientes)
-                    if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
-                        const calculatedMaxTotal = totalInst * instValue;
-                        if (totalAmount < calculatedMaxTotal * 0.95) {
-                            const montoCobrado = totalAmount;
-                            totalAmount = calculatedMaxTotal;
-                            totalPaidMoney = montoCobrado;
-                            paidInst = Math.round(montoCobrado / instValue);
-                            console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}, paidInst=${paidInst}`);
+                        if (pendInst > 500 && instValue > 0) {
+                            pendInst = Math.round(pendInst / instValue);
                         }
-                    }
 
-                    const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
-                    const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
+                        if (totalInst === 0) totalInst = paidInst + pendInst;
 
-                    if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-
-                    const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
-                    const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
-
-                    // PRIORIDAD: Si el Excel tiene saldo explícito y positivo, usarlo
-                    if (hasExplicitBalance && excelBalance > 0) {
-                        balance = excelBalance;
-                    } else if (totalPaidFromPag > 0 || paidInst > 0) {
-                        balance = Math.max(0, totalAmount - totalPaidFromPag);
-                        if (balance === 0 && excelBalance > 0) {
-                             balance = excelBalance;
-                             totalAmount = totalPaidFromPag + excelBalance;
+                        // PRIMARIO: si MONTO ≈ PAG × V.CUOTA (±2%), MONTO = cobrado
+                        let montoCobradoDetected = false;
+                        if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
+                            const expectedCobrado = paidInst * instValue;
+                            const diff = Math.abs(totalAmount - expectedCobrado);
+                            if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
+                                const montoCobrado = totalAmount;
+                                totalAmount = totalInst * instValue;
+                                totalPaidMoney = montoCobrado;
+                                montoCobradoDetected = true;
+                                console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                            }
                         }
-                    } else if (balance === 0 && pendInst > 0 && instValue > 0) {
-                        balance = pendInst * instValue;
-                    } else {
-                        // Sin datos de pago → crédito activo con saldo completo
-                        balance = totalAmount;
+
+                        // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5%
+                        if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
+                            const calculatedMaxTotal = totalInst * instValue;
+                            if (totalAmount < calculatedMaxTotal * 0.95) {
+                                const montoCobrado = totalAmount;
+                                totalAmount = calculatedMaxTotal;
+                                totalPaidMoney = montoCobrado;
+                                paidInst = Math.round(montoCobrado / instValue);
+                                console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                            }
+                        }
+
+                        if (totalInst === 0) totalInst = paidInst + pendInst;
+
+                        const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
+                        const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
+
+                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+
+                        const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
+                        const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
+
+                        // PRIORIDAD: saldo explícito en Excel
+                        if (hasExplicitBalance && excelBalance > 0) {
+                            balance = excelBalance;
+                        } else if (totalPaidFromPag > 0 || paidInst > 0) {
+                            balance = Math.max(0, totalAmount - totalPaidFromPag);
+                            if (balance === 0 && excelBalance > 0) {
+                                balance = excelBalance;
+                                totalAmount = totalPaidFromPag + excelBalance;
+                            }
+                        } else if (balance === 0 && pendInst > 0 && instValue > 0) {
+                            balance = pendInst * instValue;
+                        } else {
+                            balance = totalAmount;
+                        }
                     }
 
                     if (instValue === 0 && totalAmount > 0 && totalInst > 0) instValue = Math.round(totalAmount / totalInst);
@@ -405,7 +417,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         createdAt: new Date().toISOString()
                     });
 
-                    const loanInitialPaid = Math.round(totalPaidFromPag || Math.max(0, totalAmount - balance));
+                    const loanInitialPaid = Math.round(totalPaidMoney || Math.max(0, totalAmount - balance));
+
 
                     // CALCULAR TASA DE INTERÉS VIRTUAL PARA QUE LA TABLA COINCIDA CON EL MONTO TOTAL
                     const virtualInterestRate = principal > 0 ? ((totalAmount / principal) - 1) * 100 : 0;
@@ -478,7 +491,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 export const downloadExcelTemplate = () => {
     const headers = [
         "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION", 
-        "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", 
+        "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", "MONTO COBRADO",
         "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS", 
         "FECHA INICIO", "VENDEDOR"
     ];
@@ -487,7 +500,7 @@ export const downloadExcelTemplate = () => {
     const exampleData = [
         [
             "1234567", "JUAN PEREZ", "0981123456", "CALLE FALSA 123", 
-            2000000, 100000, 2400000,
+            2000000, 100000, 2400000, 1200000,
             1200000, 24, 12,
             "13/03/2026", "VEND-01"
         ]
