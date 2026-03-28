@@ -637,6 +637,7 @@ export const parseAmount = (input: string | number): number => {
   if (!input) return 0;
 
   let str = String(input).trim();
+  if (str === '-' || str === '--') return 0;
   
   // Si tiene puntos y comas, asumimos que el último es el decimal
   const clean = str.replace(/[^\d.,-]/g, '');

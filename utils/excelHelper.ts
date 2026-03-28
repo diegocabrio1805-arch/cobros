@@ -302,15 +302,15 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let totalPaidMoney = 0;
 
                     const cobradoRaw = idxs.cobrado !== undefined ? parseAmount(row[idxs.cobrado ?? -1]) : 0;
-                    const hasCobradoColumn = idxs.cobrado !== undefined && cobradoRaw > 0;
+                    const isCobradoMapped = idxs.cobrado !== undefined;
 
-                    if (hasCobradoColumn) {
-                        // CAMINO LIMPIO: MONTO COBRADO - IMPORTE A PAGAR = SALDO
+                    if (isCobradoMapped) {
+                        // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
                         totalPaidMoney = Math.round(cobradoRaw);
                         if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
                         balance = Math.max(0, totalAmount - totalPaidMoney);
                         paidInst = instValue > 0 ? Math.round(totalPaidMoney / instValue) : paidInst;
-                        console.log(`[FORENSIC] MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
+                        console.log(`[FORENSIC] MONTO COBRADO explícito (mapeado): cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
                     } else {
                         // ==========================================================================
                         // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
