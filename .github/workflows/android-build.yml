@@ -70,28 +70,35 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Rename and Zip APK
+      - name: Rename and Zip APKs
         run: |
           VERSION=${{ steps.package-version.outputs.version }}
+          # Debug APK
           cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v${VERSION}_Debug.apk
-          zip Anexo_Cobro_v${VERSION}_Debug.zip Anexo_Cobro_v${VERSION}_Debug.apk
+          # Release APK (Optimized)
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk Anexo_Cobro_v${VERSION}_Optimized.apk
+          fi
+          zip Anexo_Cobro_v${VERSION}_APK_Bundle.zip Anexo_Cobro_v${VERSION}_*.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.package-version.outputs.version }}-LATEST
-          name: v${{ steps.package-version.outputs.version }} - Excel & UI Update
+          name: v${{ steps.package-version.outputs.version }} - Optimized for Samsung/Xiaomi
           body: |
-            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Versión Actualizada
+            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Versión Optimizada
             
-            **Mejoras en esta versión:**
+            **Mejoras de Rendimiento y Estabilidad:**
+            - 🚀 **Optimizado para Samsung/Xiaomi**: Mejoras específicas para dispositivos de gama baja.
+            - 📁 **Carga Local**: Ahora la app carga instantáneamente desde el dispositivo (evita cierres por red lenta).
+            - 🛠️ **R8/ProGuard**: Código optimizado y comprimido para menor consumo de RAM.
             - 📊 **Excel Profesional**: Importación y exportación masiva funcional (45 columnas).
-            - 🚀 **Nueva Interfaz de Modals**: Ventanas emergentes ahora aparecen en la parte superior para mejor visibilidad.
-            - 📖 **Manual Integrado**: Documentación detallada en la carpeta de informes.
-            - 🛠️ **Corrección de Errores**: Resueltos problemas de redeclaración e importación de dependencias.
+            - 🏠 **Interfaz Superior**: Modals y ventanas emergentes corregidas.
           files: |
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.zip
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Optimized.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_APK_Bundle.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

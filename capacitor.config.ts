@@ -10,9 +10,7 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   server: {
-    // URL de Puesta en Producción (GitHub Pages)
-    url: 'https://diegocabrio1805-arch.github.io/cobros/',
-    cleartext: true
+    androidScheme: 'https'
   },
   plugins: {
     SplashScreen: {
