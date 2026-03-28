@@ -52,14 +52,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
-    const todayDateStr = new Date().toDateString(); // Use toDateString() - same as CollectorCommission
+    const todayDateStr = getLocalDateStringForCountry(state.settings.country); // Fix: use country timezone
 
     const collectionLogsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
     const loansSafe = Array.isArray(state.loans) ? state.loans : [];
     const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
 
-    // O(N) Pre-filtering prevents O(N*M) lagging on UI thread
-    const logsTodayBase = collectionLogsSafe.filter(log => new Date(log.date).toDateString() === todayDateStr && !log.isOpening);
+    // O(N) Pre-filtering: compare YYYY-MM-DD strings in country timezone to avoid UTC shift bugs
+    const logsTodayBase = collectionLogsSafe.filter(log => {
+      if (log.isOpening) return false;
+      const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
+      return logDateStr === todayDateStr;
+    });
 
     return visibleCollectors.map(user => {
       const uidLower = user.id.toLowerCase();
