@@ -52,13 +52,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
-    const todayDateStr = getLocalDateStringForCountry(state.settings.country); // Fix: use country timezone
+    const todayDateStr = getLocalDateStringForCountry(state.settings.country); 
 
     const collectionLogsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
     const loansSafe = Array.isArray(state.loans) ? state.loans : [];
     const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
 
-    // O(N) Pre-filtering: compare YYYY-MM-DD strings in country timezone to avoid UTC shift bugs
+    // Filter using country's YYYY-MM-DD
     const logsTodayBase = collectionLogsSafe.filter(log => {
       if (log.isOpening) return false;
       const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
