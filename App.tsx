@@ -55,10 +55,7 @@ const App: React.FC = () => {
     handleSyncUser, deleteRemoteClientAction 
   } = actions;
 
-  // Global Bluetooth Keeper
-  useEffect(() => {
-    startConnectionKeeper();
-  }, []);
+  // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
   // Pull to Refresh Handlers
   const handleTouchStart = (e: React.TouchEvent) => {

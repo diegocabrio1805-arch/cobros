@@ -40,65 +40,85 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 1. Verificar estado y activar Bluetooth
 export const checkBluetoothEnabled = async (): Promise<boolean> => {
-    await waitForPlugin();
-    const bs = getBluetoothSerial();
-    if (!bs) return false;
+    try {
+        await waitForPlugin();
+        const bs = getBluetoothSerial();
+        if (!bs) return false;
 
-    return new Promise((resolve) => {
-        bs.isEnabled(
-            () => resolve(true),
-            () => resolve(false)
-        );
-    });
+        return new Promise((resolve) => {
+            bs.isEnabled(
+                () => resolve(true),
+                () => resolve(false)
+            );
+        });
+    } catch (e) {
+        console.warn("Exception checkBluetoothEnabled:", e);
+        return false;
+    }
 };
 
 export const enableBluetooth = async (): Promise<boolean> => {
-    await waitForPlugin();
-    const bs = getBluetoothSerial();
-    if (!bs) return false;
+    try {
+        await waitForPlugin();
+        const bs = getBluetoothSerial();
+        if (!bs) return false;
 
-    return new Promise((resolve) => {
-        bs.enable(
-            () => resolve(true),
-            () => resolve(false)
-        );
-    });
+        return new Promise((resolve) => {
+            bs.enable(
+                () => resolve(true),
+                () => resolve(false)
+            );
+        });
+    } catch (e) {
+        console.warn("Exception enableBluetooth:", e);
+        return false;
+    }
 };
 
 // 2. Listar dispositivos pareados (Solo Nativo)
 export const listBondedDevices = async (): Promise<any[]> => {
-    await waitForPlugin();
-    const bs = getBluetoothSerial();
-    if (!bs) return [];
+    try {
+        await waitForPlugin();
+        const bs = getBluetoothSerial();
+        if (!bs) return [];
 
-    return new Promise((resolve, reject) => {
-        bs.list(
-            (devices: any[]) => resolve(devices),
-            (err: any) => reject(err)
-        );
-    });
+        return new Promise((resolve, reject) => {
+            bs.list(
+                (devices: any[]) => resolve(devices),
+                (err: any) => reject(err)
+            );
+        });
+    } catch (e) {
+        console.warn("Exception listBondedDevices:", e);
+        return [];
+    }
 };
 
 // 3. Conexión Genérica Robusta
 const attemptNativeConnection = async (address: string, attemptNumber = 1, silent = false): Promise<boolean> => {
-    const bs = getBluetoothSerial();
-    return new Promise((resolve) => {
-        if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
-        bs.connect(
-            address,
-            () => {
-                if (!silent) console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
-                isNativeConnection = true;
-                connectedDevice = { address };
-                localStorage.setItem(PRINTER_STORAGE_KEY, address);
-                resolve(true);
-            },
-            (err: any) => {
-                if (!silent) console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
-                resolve(false);
-            }
-        );
-    });
+    try {
+        const bs = getBluetoothSerial();
+        return new Promise((resolve) => {
+            if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
+            bs.connect(
+                address,
+                () => {
+                    if (!silent) console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
+                    isNativeConnection = true;
+                    connectedDevice = { address };
+                    localStorage.setItem(PRINTER_STORAGE_KEY, address);
+                    resolve(true);
+                },
+                (err: any) => {
+                    if (!silent) console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
+                    resolve(false);
+                }
+            );
+        });
+    } catch (e) {
+        console.warn(`[Bluetooth] Exception in attemptNativeConnection ${attemptNumber}:`, e);
+        return false;
+    }
 };
 
 export const connectToPrinter = async (addressOrId?: string, forceReconnect = false, silent = false): Promise<boolean> => {
@@ -112,6 +132,8 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
             if (!silent) console.log("No address provided and none saved.");
             return false;
         }
+
+        try {
 
         // FAST PATH: Verificar si ya está conectado al dispositivo correcto
         if (!forceReconnect) {
@@ -150,6 +172,10 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
             }
         }
         return false;
+        } catch (err) {
+            if (!silent) console.warn("[Bluetooth] Exception in connectToPrinter:", err);
+            return false;
+        }
     }
 
     // B. Fallback Web Bluetooth (si no hay plugin)
@@ -264,13 +290,18 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
 export const isPrintingNow = () => isCurrentlyPrinting;
 
 export const isPrinterConnected = async (): Promise<boolean> => {
-    const bs = getBluetoothSerial();
-    if (isNativeConnection && bs) {
-        return new Promise((resolve) => {
-            bs.isConnected(() => resolve(true), () => resolve(false));
-        });
+    try {
+        const bs = getBluetoothSerial();
+        if (isNativeConnection && bs) {
+            return new Promise((resolve) => {
+                bs.isConnected(() => resolve(true), () => resolve(false));
+            });
+        }
+        return !!(connectedDevice && connectedDevice.gatt.connected);
+    } catch (e) {
+        console.warn("Error in isPrinterConnected:", e);
+        return false;
     }
-    return !!(connectedDevice && connectedDevice.gatt.connected);
 };
 
 // 5. CONNECTION KEEPER (Mantiene la conexi?n viva y reconecta autom?ticamente)
@@ -284,6 +315,12 @@ export const forceReconnect = async (): Promise<boolean> => {
 export const startConnectionKeeper = () => {
     if (connectionKeeperInterval) return;
 
+    const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+    if (!savedAddress) {
+        console.log("[Bluetooth Keeper] No printer saved. Keeper will not start.");
+        return;
+    }
+
     console.log("[Bluetooth Keeper] Starting background connection keeper...");
     
     // Configurar listener de Capacitor para reconectar INMEDIATAMENTE al volver a la app
@@ -291,11 +328,15 @@ export const startConnectionKeeper = () => {
         const { App: CapApp } = require('@capacitor/app');
         CapApp.addListener('appStateChange', async (state: any) => {
             if (state.isActive) {
-                const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
-                if (savedAddress) {
+                const currentSavedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+                if (currentSavedAddress) {
                     console.log("[Bluetooth Keeper] App resumed. Reconnecting eagerly...");
-                    const connected = await isPrinterConnected();
-                    if (!connected) await connectToPrinter(savedAddress, false, true);
+                    try {
+                        const connected = await isPrinterConnected();
+                        if (!connected) await connectToPrinter(currentSavedAddress, false, true);
+                    } catch (err) {
+                        console.warn("[Bluetooth Keeper] Eager reconnect error:", err);
+                    }
                 }
             }
         });
