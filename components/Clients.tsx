@@ -68,6 +68,9 @@ interface ClientsProps {
   recalculateLoanStatus?: (loanId: string) => void;
   deleteClient?: (clientId: string) => void;
   addBulkData?: (clients: Client[], loans: Loan[], logs: CollectionLog[]) => Promise<void> | void;
+  renewLoan?: (newLoan: Loan, previousLoanIds: string[]) => Promise<void>;
+  setState?: React.Dispatch<React.SetStateAction<AppState>>;
+  pushLoan?: (loan: Loan) => Promise<boolean>;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -217,7 +220,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
@@ -1654,13 +1657,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       installments: generateAmortizationTable(p, i, inst, renewForm.frequency, new Date(), state.settings.country),
       isRenewal: true
     };
-    addLoan(newLoan);
 
-    // Cerrar cualquier crédito activo previo (Liquidación por renovación)
     const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-    previousActiveLoans.forEach(ol => {
-      if (updateLoan) updateLoan({ ...ol, status: LoanStatus.PAID });
-    });
+    const previousLoanIds = previousActiveLoans.map(l => l.id);
+
+    if (renewLoan) {
+      renewLoan(newLoan, previousLoanIds);
+    } else {
+      // Fallback si no está definida (aunque debería estarlo)
+      if (addLoan) addLoan(newLoan);
+      previousActiveLoans.forEach(ol => {
+        if (updateLoan) updateLoan({ ...ol, status: LoanStatus.PAID });
+      });
+    }
 
     setShowRenewModal(false);
     if (onForceSync) onForceSync(false, "RENOVACIÓN REALIZADA CORRECTAMENTE");

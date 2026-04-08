@@ -39,7 +39,7 @@ export const useAppInitialization = () => {
   useEffect(() => {
     const checkForUpdates = async () => {
       try {
-        const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(window.location.pathname + '?t=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) return;
         const text = await res.text();
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);

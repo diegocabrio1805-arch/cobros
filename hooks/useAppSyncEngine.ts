@@ -220,7 +220,7 @@ export const useAppSyncEngine = (
 
     const triggerEmergencySync = async () => {
       const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
-      const syncKey = 'emergency_sync_v639_FINAL_COMPLETE';
+      const syncKey = 'emergency_sync_v640_STABLE';
       
       if (lastSyncKey !== syncKey && state.currentUser) {
         console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
@@ -404,6 +404,7 @@ export const useAppSyncEngine = (
     handleRealtimeData,
     handleForceSync,
     handleDeepReset,
+    pushRenewal: sync.pushRenewal,
     filteredState,
     getBranchId
   };

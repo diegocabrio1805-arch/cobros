@@ -27,6 +27,7 @@ import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
+import AutoUpdater from './components/AutoUpdater';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -52,7 +53,7 @@ const App: React.FC = () => {
     recalculateLoanStatus, deleteLoan: deleteLoanAction, addCollectionAttempt, 
     deleteCollectionLog, updateCollectionLog, addBulkData, updateCollectionLogNotes, 
     addExpense, removeExpense, updateInitialCapital, updateCommissionBrackets, 
-    handleSyncUser, deleteRemoteClientAction 
+    handleSyncUser, deleteRemoteClientAction, renewLoan 
   } = actions;
 
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
@@ -116,6 +117,7 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
+      <AutoUpdater />
       <LocationEnforcer isRequired={!!state.currentUser.requiresLocation} onLocationEnabled={() => { }} />
       <div
         className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden"
@@ -258,6 +260,7 @@ const App: React.FC = () => {
                 fetchClientPhotos={sync.fetchClientPhotos}
                 deleteClient={deleteClient}
                 addBulkData={addBulkData}
+                renewLoan={renewLoan}
                 setState={setState}
                 pushLoan={sync.pushLoan}
               />

@@ -527,6 +527,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'DELETE_LOAN': { items: [], table: 'loans', isDelete: true, mapper: (d) => d },
                 'DELETE_CLIENT': { items: [], table: 'clients', isDelete: true, mapper: (d) => d },
                 'DELETE_EXPENSE': { items: [], table: 'expenses', isDelete: true, mapper: (d) => d },
+                'RENEW_LOAN': { items: [], table: 'loans', isDelete: false, mapper: (d) => d },
             };
 
             // Clasificar la cola
@@ -572,6 +573,56 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             item.retryCount = (item.retryCount || 0) + 1;
                             
                             // update local storage so retry count persists
+                            const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                            const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
+                            if (indexToUpdate !== -1) {
+                                currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                currentQueue[indexToUpdate].lastError = String(err);
+                                localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                            }
+                            
+                            if (item.retryCount > 3) {
+                                processedIds.add(item._id);
+                                const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                failedItems.push({ ...item, lastError: String(err), fatal: true });
+                                localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                            }
+                        }
+                    }
+                } else if (opKey === 'RENEW_LOAN') {
+                    // Procesar Renovaciones Manualmente (Workaround para el error text = uuid de RPC)
+                    for (const item of batch.items) {
+                        try {
+                            const d = item.data;
+                            
+                            // 1. Actualizar prestamos anteriores a 'Renovado'
+                            if (d.previousLoanIds && d.previousLoanIds.length > 0) {
+                                const { error: updateErr } = await supabase.from('loans')
+                                    .update({ status: 'Renovado', updated_at: new Date().toISOString() })
+                                    .in('id', d.previousLoanIds);
+                                if (updateErr) throw updateErr;
+                            }
+
+                            // 2. Insertar nuevo préstamo
+                            const { error: insertErr } = await supabase.from('loans').upsert({
+                                id: d.newLoan.id, client_id: d.newLoan.clientId, collector_id: d.newLoan.collectorId, branch_id: d.newLoan.branchId,
+                                principal: d.newLoan.principal, interest_rate: d.newLoan.interestRate, total_installments: d.newLoan.totalInstallments,
+                                installment_value: d.newLoan.installmentValue, total_amount: d.newLoan.totalAmount, status: d.newLoan.status,
+                                created_at: d.newLoan.createdAt, installments: d.newLoan.installments, frequency: d.newLoan.frequency, is_renewal: true,
+                                custom_holidays: d.newLoan.customHolidays || [], deleted_at: d.newLoan.deletedAt || null,
+                                updated_at: new Date().toISOString(), total_paid: d.newLoan.totalPaid, balance: d.newLoan.balance,
+                                raw_data: d.newLoan.raw_data || {}
+                            });
+                            
+                            if (insertErr) throw insertErr;
+
+                            processedIds.add(item._id);
+                            setQueueLength(prev => Math.max(0, prev - 1));
+                        } catch (err) {
+                            console.error(`Error de sincronización (RENEW_LOAN):`, err);
+                            item.retryCount = (item.retryCount || 0) + 1;
+                            
+                            // Aumentamos persistencia del retry
                             const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
@@ -664,6 +715,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const pushPayment = async (payment: PaymentRecord): Promise<boolean> => { addToQueue('ADD_PAYMENT', payment); return true; };
     const pushLog = async (log: CollectionLog): Promise<boolean> => { addToQueue('ADD_LOG', log); return true; };
     const pushUser = async (user: User): Promise<boolean> => { addToQueue('ADD_PROFILE', user); return true; };
+    const pushRenewal = async (newLoan: Loan, previousLoanIds: string[]): Promise<boolean> => {
+        addToQueue('RENEW_LOAN', { newLoan, previousLoanIds });
+        return true;
+    };
 
     const pushSettings = async (branchId: string, settings: AppSettings): Promise<boolean> => {
         addToQueue('UPDATE_SETTINGS', { branchId, settings });
@@ -690,7 +745,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     return {
         isSyncing, isFullSyncing, syncError, showSuccess, successMessage, setSuccessMessage, isOnline,
         processQueue, forceSync, forceFullSync, pullData, pushClient, pushLoan, pushPayment, pushLog,
-        pushUser, pushSettings, pushBulk, clearQueue, deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment,
+        pushUser, pushSettings, pushBulk, pushRenewal, clearQueue, deleteRemoteLoan, deleteRemoteLog, deleteRemotePayment,
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };

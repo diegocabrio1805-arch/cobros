@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: './', // CRITICAL for GitHub Pages (subpath /cobros/) and relative asset loading
     server: {
-      port: 5176,
-      strictPort: true,
+      port: 5177,
+      strictPort: false,
       host: '0.0.0.0',
       watch: {
         ignored: ['**/android/**'],
@@ -23,7 +23,9 @@ export default defineConfig(({ mode }) => {
         additionalLegacyPolyfills: ['regenerator-runtime/runtime']
       }),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
+        base: '/cobros/',
+        scope: '/cobros/',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'maskable-icon.png'],
         manifest: {
           name: 'Anexo Cobro',

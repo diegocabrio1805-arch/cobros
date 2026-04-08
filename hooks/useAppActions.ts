@@ -10,7 +10,7 @@ export const useAppActions = (
   setActiveTab: (tab: string) => void,
   sync: any // From useAppSyncEngine
 ) => {
-  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk } = sync;
+  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk, pushRenewal } = sync;
 
   const handleLogin = (user: User) => {
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
@@ -158,6 +158,32 @@ export const useAppActions = (
     setState(prev => ({ ...prev, loans: prev.loans.map(l => l.id === loanWithStamp.id ? loanWithStamp : l) }));
     pushLoan(loanWithStamp);
     handleForceSync(false);
+  };
+
+  const renewLoan = async (newLoan: Loan, previousLoanIds: string[]) => {
+    const branchId = internalGetBranchId(state.currentUser);
+    const stampedNewLoan = { 
+      ...newLoan, 
+      branchId, 
+      updated_at: new Date().toISOString() 
+    };
+
+    // 1. Actualización Local (Optimistic UI)
+    setState(prev => ({
+      ...prev,
+      loans: [
+        stampedNewLoan,
+        ...prev.loans.map(l => 
+          previousLoanIds.includes(l.id) ? { ...l, status: LoanStatus.PAID, updated_at: new Date().toISOString() } : l
+        )
+      ]
+    }));
+
+    // 2. Sincronización Blindada (Atómica)
+    await pushRenewal(stampedNewLoan, previousLoanIds);
+    
+    // 3. Forzar sincronización
+    handleForceSync(false, "RENOVACIÓN BLINDADA PROCESADA");
   };
 
   const recalculateAllLoansBalances = async () => {
@@ -654,6 +680,7 @@ export const useAppActions = (
     addClient, addLoan, updateClient, deleteClient, updateLoan, recalculateAllLoansBalances,
     recalculateLoanStatus, deleteLoan, addCollectionAttempt, deleteCollectionLog,
     updateCollectionLog, addBulkData, updateCollectionLogNotes, addExpense, removeExpense,
-    updateInitialCapital, updateCommissionBrackets, handleSyncUser, deleteRemoteClientAction
+    updateInitialCapital, updateCommissionBrackets, handleSyncUser, deleteRemoteClientAction,
+    renewLoan
   };
 };
