@@ -347,6 +347,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
                 expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
+            } else {
+                // PROTECCIÓN: Durante un fullSync o recarga total, no descargar el historial completo de borrados
+                // Solo cargar lo de los últimos 7 días para evitar colapsos por exceso de datos
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                deletedItemsQuery = deletedItemsQuery.gt('deleted_at', sevenDaysAgo);
             }
 
             // PARALLEL FETCH: All 8 tables fetched simultaneously for maximum speed on mobile

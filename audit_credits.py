@@ -3,7 +3,7 @@ import json
 
 def audit_credits():
     # Use the absolute path to the generated output file
-    file_path = r'C:\Users\DANIEL\.gemini\antigravity\brain\06e83451-225f-47a8-a110-f008ad92385a\.system_generated\steps\24140\output.txt'
+    file_path = r'C:\Users\HP\.gemini\antigravity\brain\06e83451-225f-47a8-a110-f008ad92385a\.system_generated\steps\24140\output.txt'
     
     with open(file_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
@@ -119,7 +119,7 @@ def audit_credits():
                     'details': f'DB balance {db_bal} vs Loan aggregate {calc_bal}'
                 })
 
-    with open(r'C:\Users\DANIEL\Desktop\cobros\audit_results.json', 'w', encoding='utf-8') as f:
+    with open(r'C:\Users\HP\Desktop\audit_results.json', 'w', encoding='utf-8') as f:
         json.dump(errors, f, indent=2)
 
     print(f"Audit finished. Found {len(errors)} potential errors.")

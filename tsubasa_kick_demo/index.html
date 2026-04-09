@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsubasa Kick Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        body { margin: 0; background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+        #game-container { border: 4px solid #4a90e2; border-radius: 12px; box-shadow: 0 0 30px rgba(74, 144, 226, 0.4); }
+        .controls { margin-top: 20px; }
+        button { background: linear-gradient(135deg, #4a90e2, #357abd); border: none; color: white; padding: 15px 32px; text-align: center; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        button:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(74, 144, 226, 0.6); }
+        button:active { transform: scale(0.95); }
+        h1 { margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <h1>DRIVE SHOT DEMO</h1>
+    <div id="game-container"></div>
+    <div class="controls">
+        <button id="kick-btn">CHUTAR (DRIVE SHOT)</button>
+    </div>
+
+    <script>
+    const config = {
+        type: Phaser.AUTO,
+        width: 600,
+        height: 400,
+        parent: 'game-container',
+        backgroundColor: '#f0f0f0',
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+
+    const game = new Phaser.Game(config);
+    let tsubasa;
+
+    function preload() {
+        // La IA genera imágenes de 1024x1024 por defecto. 
+        // Con un grid de 3x3, cada frame mide 341.33px.
+        this.load.spritesheet('tsubasa', 'file:///C:/Users/HP/.gemini/antigravity/brain/3355ff5b-cdc5-45f0-8374-ce7f5377aca8/tsubasa_kick_spritesheet_1775435379599.png', {
+            frameWidth: 341,
+            frameHeight: 341
+        });
+        this.load.image('ball', 'https://labs.phaser.io/assets/sprites/football.png');
+    }
+
+    function create() {
+        // Fondo de campo de fútbol simple
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0x27ae60, 1);
+        graphics.fillRect(0, 300, 600, 100);
+        graphics.fillStyle(0x2ecc71, 1);
+        graphics.fillRect(0, 0, 600, 300);
+
+        // Crear animaciones
+        this.anims.create({
+            key: 'kick_anim',
+            frames: this.anims.generateFrameNumbers('tsubasa', { start: 0, end: 8 }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'idle',
+            frames: [{ key: 'tsubasa', frame: 0 }],
+            frameRate: 1
+        });
+
+        // Personaje
+        tsubasa = this.add.sprite(300, 200, 'tsubasa').setScale(0.8);
+        tsubasa.play('idle');
+
+        // Botón interactivo
+        document.getElementById('kick-btn').addEventListener('click', () => {
+            tsubasa.play('kick_anim');
+            
+            // Efecto de pantalla
+            this.cameras.main.shake(200, 0.01);
+            
+            // Efecto de "velocidad"
+            const flash = this.add.rectangle(300, 200, 600, 400, 0xffffff, 0.5);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => flash.destroy()
+            });
+
+            // Sonido visual (texto)
+            const text = this.add.text(300, 100, 'DRIVE SHOT!!', {
+                fontSize: '48px',
+                fontStyle: 'bold',
+                color: '#ff0000',
+                stroke: '#ffffff',
+                strokeThickness: 8
+            }).setOrigin(0.5).setScale(0);
+
+            this.tweens.add({
+                targets: text,
+                scale: 1,
+                alpha: 1,
+                duration: 300,
+                ease: 'Back.out',
+                onComplete: () => {
+                    this.tweens.add({
+                        targets: text,
+                        alpha: 0,
+                        y: 50,
+                        duration: 1000,
+                        delay: 500,
+                        onComplete: () => text.destroy()
+                    });
+                }
+            });
+        });
+    }
+
+    function update() {
+        // Lógica adicional si es necesaria
+    }
+    </script>
+</body>
+</html>
