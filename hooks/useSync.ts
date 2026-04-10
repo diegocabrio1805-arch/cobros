@@ -328,7 +328,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {
-                const safetyMargin = 120000;
+                // MARGEN AMPLIADO: 10 minutos (antes 2 min) para cubrir retrasos del servidor Supabase
+                // y diferencias de reloj entre el celular y el servidor.
+                const safetyMargin = 600000;
                 const parsedDate = new Date(lastSyncTime);
                 if (!isNaN(parsedDate.getTime())) {
                     adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();

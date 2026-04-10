@@ -34,6 +34,7 @@
     "cordova-plugin-bluetooth-serial": "^0.4.7",
     "dotenv": "^17.2.3",
     "html2canvas": "1.4.1",
+    "jimp": "^1.6.1",
     "jspdf": "2.5.1",
     "localforage": "^1.10.0",
     "lucide-react": "^0.564.0",

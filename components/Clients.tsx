@@ -23,7 +23,7 @@ const BANCA_CLIENT_TYPES = [
   { code: '240', label: 'ASALARIADOS DEPENDIENTES' },
   { code: '242', label: 'ASALARIADOS CON IVA' },
   { code: '243', label: 'JUBILADOS' },
-  { code: '300', label: 'FUNCIONARIOS ALTERFIN' },
+  { code: '300', label: 'FUNCIONARIO DE LA EMPRESA' },
   { code: '500', label: 'ASOCIACIONES' }
 ];
 
@@ -37,6 +37,7 @@ const COLLECTOR_SELLER_CODES: Record<string, string> = {
 const OPERATION_TYPES = [
   { code: '114', label: 'ASOCIACIONES' },
   { code: '202', label: 'PRESTAMO DIARIO' },
+  { code: '113', label: 'PRESTAMO SEMANAL' },
   { code: '201', label: 'PRESTAMO MENSUAL' },
   { code: '204', label: 'RENOVACION- REFINANCIACION' },
   { code: '205', label: 'RENOVACION NORMAL' },
@@ -2598,7 +2599,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <div className="flex border-b border-r border-slate-200">
                               <div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">
                                 Operación
-                                <button type="button" onClick={() => alert("TIPS CLSIFICACIÓN CRÉDITO:\n114: ASOCIACIONES\n202: PRESTAMO DIARIO\n201: PRESTAMO MENSUAL\n204: RENOVACION- REFINANCIACION\n205: RENOVACION NORMAL\n206: COMERCIO ADHERIDO\n207: TASA ESPECIAL\n208: AMORTIZACION MANUAL\n210: PLAZO FIJO TAZA 0\n211: CLIENTES NUEVOS A UN SOLO VTO\n260: CESION DE CREDITOS\n261: ANTICIPO DE PAGOS\n401: DESCUENTO DE CHEQUE")} className="ml-1 text-white/50"><Info size={10} /></button>
+                                <button type="button" onClick={() => alert("TIPS CLSIFICACIÓN CRÉDITO:\n114: ASOCIACIONES\n202: PRESTAMO DIARIO\n113: PRESTAMO SEMANAL\n201: PRESTAMO MENSUAL\n204: RENOVACION- REFINANCIACION\n205: RENOVACION NORMAL\n206: COMERCIO ADHERIDO\n207: TASA ESPECIAL\n208: AMORTIZACION MANUAL\n210: PLAZO FIJO TAZA 0\n211: CLIENTES NUEVOS A UN SOLO VTO\n260: CESION DE CREDITOS\n261: ANTICIPO DE PAGOS\n401: DESCUENTO DE CHEQUE")} className="ml-1 text-white/50"><Info size={10} /></button>
                               </div>
                               <select
                                 value={initialLoan.operationTypeCode}

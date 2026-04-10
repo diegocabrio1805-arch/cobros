@@ -282,15 +282,42 @@ export const useAppSyncEngine = (
   }, []);
 
   useEffect(() => {
+    // Contador de ciclos para deep-sync periódico
+    let syncCycleCount = 0;
+
     const intervalTime = sync.queueLength > 0 ? 2000 : 300000;
     const healthCheckInterval = setInterval(() => {
-        // If not recently synced, pull fresh data to compensate for potential stale Realtime connection
+        // Si no hubo sync reciente, descargar datos frescos para compensar posibles
+        // caídas de la conexión Realtime
         const lastSyncMs = parseInt(localStorage.getItem('last_sync_timestamp_ms') || '0', 10);
         const msSinceLastSync = Date.now() - lastSyncMs;
+
+        // DEEP-SYNC AUTOMÁTICO: Cada hora, borrar timestamps para forzar
+        // una revisión amplia (como la Opción 4, pero silenciosa y sin borrar nada).
+        // Cubre el caso donde un pago quedó justo fuera del margen de delta-sync.
+        const lastDeepSyncMs = parseInt(localStorage.getItem('last_deep_sync_ms') || '0', 10);
+        const msSinceDeepSync = Date.now() - lastDeepSyncMs;
+        const shouldDeepSync = msSinceDeepSync > 3600000; // cada 1 hora
+
+        syncCycleCount++;
+        const isTenthCycle = syncCycleCount % 10 === 0;
+
+        if ((shouldDeepSync || isTenthCycle) && !sync.isSyncing && sync.isOnline) {
+            console.log('[AutoRepair] Ejecutando deep-sync silencioso. Ciclo:', syncCycleCount);
+            const keys = [
+                'last_sync_timestamp_ms',
+                'last_sync_timestamp_v8',
+            ];
+            keys.forEach(k => localStorage.removeItem(k));
+            localStorage.setItem('last_deep_sync_ms', Date.now().toString());
+            sync.pullData(false);
+            return;
+        }
+
         if (msSinceLastSync > 60000 && !sync.isSyncing && sync.isOnline) {
             sync.pullData();
         }
-    }, 30000); // Health check every 30s
+    }, 30000); // Health check cada 30s
     const syncInterval = setInterval(() => {
       if (!sync.isSyncing && sync.isOnline && !isPrintingNow()) {
         handleForceSync(true);
