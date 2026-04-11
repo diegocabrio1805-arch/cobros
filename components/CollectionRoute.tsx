@@ -252,14 +252,33 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
       let currentLocation = { lat: 0, lng: 0 };
       try {
-        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
+        // Intentar GPS de alta precision (5s en vez de 2s para móviles lentos)
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 });
         currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+        // Guardar en cache para usar como fallback si GPS falla en próximo registro
+        localStorage.setItem('last_known_gps', JSON.stringify({ ...currentLocation, ts: Date.now() }));
       } catch (geoErr) {
         try {
-          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+          // Fallback: GPS baja precision con mayor tolerancia de edad (5 minutos)
+          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 });
           currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+          localStorage.setItem('last_known_gps', JSON.stringify({ ...currentLocation, ts: Date.now() }));
         } catch (fallbackErr) {
-          console.warn("Could not get real-time GPS, using defaults:", fallbackErr);
+          // Ultimo recurso: usar la última posición conocida cacheada (max 4 horas)
+          // Esto garantiza que el pago aparece en el mapa aunque el GPS esté lento
+          try {
+            const cached = localStorage.getItem('last_known_gps');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              const age = Date.now() - (parsed.ts || 0);
+              if (age < 4 * 60 * 60 * 1000 && parsed.lat && parsed.lng && (parsed.lat !== 0 || parsed.lng !== 0)) {
+                currentLocation = { lat: parsed.lat, lng: parsed.lng };
+                console.log('[GPS] Usando última ubicación conocida (age:', Math.round(age/60000), 'min)');
+              } else {
+                console.warn('[GPS] Cache expirada o inválida, usando 0,0');
+              }
+            }
+          } catch (cacheErr) { /* ignore */ }
         }
       }
 

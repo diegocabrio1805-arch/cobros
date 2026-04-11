@@ -305,13 +305,15 @@ export const useAppActions = (
     const branchId = internalGetBranchId(state.currentUser);
     const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
 
-    pushLog(newLog);
+    // NO llamar pushLog aqui todavía - se llama abajo después del setState para garantizar
+    // que el estado local esté actualizado antes de intentar sincronizar
 
     let updatedPayments = [...state.payments];
     const newPaymentsForSync: PaymentRecord[] = [];
 
     if (newLog.type === CollectionLogType.OPENING) {
       setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
+      pushLog(newLog); // Solo para OPENING que retorna inmediatamente
       if (!skipSync) handleForceSync(true);
       return;
     }
