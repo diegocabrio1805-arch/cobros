@@ -14,9 +14,10 @@ interface CollectionRouteProps {
   updateClient?: (client: Client) => void;
   deleteClient?: (clientId: string) => void;
   onForceSync?: (silent?: boolean, message?: string, fullSync?: boolean, skipPull?: boolean) => Promise<void>;
+  activeLocation?: { lat: number, lng: number, timestamp: number } | null;
 }
 
-const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync }) => {
+const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync, activeLocation }) => {
   const [viewMode, setViewMode] = useState<'active' | 'hidden'>('active');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState<string>('0');
@@ -64,6 +65,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     }
     return loans;
   }, [state.loans, selectedCollectorFilter, isAdminOrManager]);
+
+  const gpsStatus = useMemo(() => {
+    if (!activeLocation) return { text: 'GPS Inactivo', color: 'bg-red-500', textColor: 'text-red-500', animate: '' };
+    const age = Date.now() - activeLocation.timestamp;
+    if (age < 30000) return { text: 'Rastreo Activo', color: 'bg-emerald-500', textColor: 'text-emerald-500', animate: 'animate-pulse' };
+    if (age < 120000) return { text: 'Buscando Señal', color: 'bg-amber-500', textColor: 'text-amber-500', animate: 'animate-pulse' };
+    return { text: 'GPS Estancado', color: 'bg-red-500', textColor: 'text-red-500', animate: '' };
+  }, [activeLocation]);
 
   const handleRecoverClient = (client: Client) => {
     if (updateClient && confirm(`¿RECUPERAR CLIENTE ${client.name.toUpperCase()} A LA RUTA ACTIVA?`)) {
@@ -251,34 +260,40 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       const logId = generateUUID();
 
       let currentLocation = { lat: 0, lng: 0 };
-      try {
-        // Intentar GPS de alta precision (5s en vez de 2s para móviles lentos)
-        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 });
-        currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-        // Guardar en cache para usar como fallback si GPS falla en próximo registro
-        localStorage.setItem('last_known_gps', JSON.stringify({ ...currentLocation, ts: Date.now() }));
-      } catch (geoErr) {
+      const freshness = activeLocation ? Date.now() - activeLocation.timestamp : Infinity;
+
+      // Usar ubicación pre-capturada si tiene menos de 45 segundos
+      if (activeLocation && freshness < 45000) {
+        currentLocation = { lat: activeLocation.lat, lng: activeLocation.lng };
+        console.log("[GPS] Usando ubicación pre-calentada (age:", Math.round(freshness / 1000), "s)");
+      } else {
         try {
-          // Fallback: GPS baja precision con mayor tolerancia de edad (5 minutos)
-          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 });
-          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+          // Intentar GPS de alta precision (Polled)
+          const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 });
+          currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
           localStorage.setItem('last_known_gps', JSON.stringify({ ...currentLocation, ts: Date.now() }));
-        } catch (fallbackErr) {
-          // Ultimo recurso: usar la última posición conocida cacheada (max 4 horas)
-          // Esto garantiza que el pago aparece en el mapa aunque el GPS esté lento
+        } catch (geoErr) {
           try {
-            const cached = localStorage.getItem('last_known_gps');
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              const age = Date.now() - (parsed.ts || 0);
-              if (age < 4 * 60 * 60 * 1000 && parsed.lat && parsed.lng && (parsed.lat !== 0 || parsed.lng !== 0)) {
-                currentLocation = { lat: parsed.lat, lng: parsed.lng };
-                console.log('[GPS] Usando última ubicación conocida (age:', Math.round(age/60000), 'min)');
-              } else {
-                console.warn('[GPS] Cache expirada o inválida, usando 0,0');
+            // Fallback: GPS baja precision con mayor tolerancia de edad (5 minutos)
+            const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
+            currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+            localStorage.setItem('last_known_gps', JSON.stringify({ ...currentLocation, ts: Date.now() }));
+          } catch (fallbackErr) {
+            // Ultimo recurso: usar la última posición conocida cacheada (max 4 horas)
+            try {
+              const cached = localStorage.getItem('last_known_gps');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                const age = Date.now() - (parsed.ts || 0);
+                if (age < 4 * 60 * 60 * 1000 && parsed.lat && parsed.lng && (parsed.lat !== 0 || parsed.lng !== 0)) {
+                  currentLocation = { lat: parsed.lat, lng: parsed.lng };
+                  console.log('[GPS] Usando última ubicación conocida (age:', Math.round(age / 60000), 'min)');
+                } else {
+                  console.warn('[GPS] Cache expirada o inválida, usando 0,0');
+                }
               }
-            }
-          } catch (cacheErr) { /* ignore */ }
+            } catch (cacheErr) { /* ignore */ }
+          }
         }
       }
 
@@ -299,7 +314,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       addCollectionAttempt(log, true);
 
       if (type === CollectionLogType.PAYMENT || type === CollectionLogType.NO_PAGO) {
-        if (onForceSync) onForceSync(true, "Registrando...", false, true);
+        const syncMsg = currentLocation.lat === 0 ? "Registrando (Sin GPS)..." : "Registrando...";
+        if (onForceSync) onForceSync(true, syncMsg, false, true);
       }
 
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
@@ -421,6 +437,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                 <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-500 tracking-widest truncate">
                   {selectedCollectorFilter === 'all' ? 'CONSOLIDADO' : (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedCollectorFilter)?.name.toUpperCase()}
                 </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${gpsStatus.color} ${gpsStatus.animate}`}></div>
+                  <span className={`text-[7px] font-black uppercase tracking-widest ${gpsStatus.textColor}`}>{gpsStatus.text}</span>
+                </div>
               </div>
             </div>
 

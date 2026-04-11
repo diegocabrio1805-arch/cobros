@@ -23,6 +23,7 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useAppSyncEngine } from './hooks/useAppSyncEngine';
 import { useAppActions } from './hooks/useAppActions';
 import { startConnectionKeeper } from './services/bluetoothPrinterService';
+import { useGPSWarmer } from './hooks/useGPSWarmer';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -45,7 +46,10 @@ const App: React.FC = () => {
   const sync = useAppSyncEngine(state, setState, resolvedSettings);
   const { isSyncing, isFullSyncing, isOnline, queueLength, filteredState, handleForceSync, handleDeepReset, clearQueue } = sync;
 
-  // 3. Initialize Actions
+  // 3. Initialize GPS Warmer (Global Background Tracking)
+  const activeLocation = useGPSWarmer();
+
+  // 4. Initialize Actions
   const actions = useAppActions(state, setState, setActiveTab, sync);
   const { 
     handleLogin, handleLogout, addUser, updateUser, deleteUser, updateSettings,
@@ -282,7 +286,8 @@ const App: React.FC = () => {
                 deleteCollectionLog={deleteCollectionLog} 
                 updateClient={updateClient} 
                 deleteClient={deleteRemoteClientAction} 
-                onForceSync={handleForceSync} 
+                onForceSync={handleForceSync}
+                activeLocation={activeLocation}
               />
             )}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}

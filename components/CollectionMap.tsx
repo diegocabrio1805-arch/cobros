@@ -286,8 +286,14 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
               </div>
             </div>
           </div>
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-slate-100 flex flex-col gap-1">
             <p className="text-[10px] font-black text-slate-400 uppercase">Filtros Activos: <span className="text-blue-600">{filteredLogs.length} GESTIONES</span></p>
+            {filteredLogs.filter(l => !l.location || l.location.lat === 0).length > 0 && (
+              <p className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                <span>{filteredLogs.filter(l => !l.location || l.location.lat === 0).length} SIN GPS</span>
+              </p>
+            )}
           </div>
         </div>
 

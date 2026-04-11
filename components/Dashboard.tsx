@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -260,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const dailyRevenueMap = new Map<string, number>();
     currentWeekLogs.forEach(l => {
       // Normalizar día
-      const d = new Date(l.date).toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', '').toLowerCase();
+      const d = formatLocalDate(l.date, state.settings.country, { weekday: 'short' }).replace('.', '').toLowerCase();
       dailyRevenueMap.set(d, (dailyRevenueMap.get(d) || 0) + (l.amount || 0));
     });
 
@@ -455,7 +455,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-xl border border-white/5">
           <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
           <span className="text-xs font-bold uppercase tracking-widest opacity-90">
-            {new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
+            {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' })}
           </span>
         </div>
       </div>

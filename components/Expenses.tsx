@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Expense, AppState, ExpenseCategory, CollectionLogType, LoanStatus, Loan, CollectionLog } from '../types';
-import { formatCurrency, formatDate, getLocalDateStringForCountry, getDaysOverdue, generateUUID, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, formatDate, getLocalDateStringForCountry, getDaysOverdue, generateUUID, calculateTotalPaidFromLogs, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -114,10 +114,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
     // 4. Generar 90 puntos diarios
     for (let i = 89; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const dayIso = d.toISOString().split('T')[0];
+      const dayIso = getLocalDateStringForCountry(state.settings.country, d);
       const monthIndex = d.getMonth();
       const year = d.getFullYear();
-      const fullDate = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      const fullDate = formatLocalDate(d, state.settings.country, { day: 'numeric', month: 'short' });
 
       // CÁLCULO CORE: RENDIMIENTO VS EXPECTATIVA
       const expected = dueByDate[dayIso] || 0;
@@ -131,7 +131,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       // Métricas de Volumen (Aperturas de ese día)
       const dayLoans = (Array.isArray(state.loans) ? state.loans : []).filter((l: Loan) => {
         const lDate = new Date(l.createdAt);
-        return lDate.toISOString().split('T')[0] === dayIso;
+        return getLocalDateStringForCountry(state.settings.country, lDate) === dayIso;
       });
       const count = dayLoans.length;
       const renewals = dayLoans.filter((l: Loan) => l.isRenewal).length;

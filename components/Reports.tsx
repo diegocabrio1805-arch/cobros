@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
-import { formatCurrency, getDaysOverdue } from '../utils/helpers';
+import { formatCurrency, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
@@ -21,9 +21,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const activeSettings = settings || state.settings;
    const t = getTranslation(activeSettings.language);
 
+   const countryTodayStr = useMemo(() => getLocalDateStringForCountry(activeSettings.country), [activeSettings.country]);
    const [selectedCollector, setSelectedCollector] = useState<string>('all');
-   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]); // NEW
+   const [selectedDate, setSelectedDate] = useState<string>(countryTodayStr);
+   const [endDate, setEndDate] = useState<string>(countryTodayStr); // NEW
    const [selectedFilter, setSelectedFilter] = useState<'all' | 'payment' | 'nopayment' | 'liquidation'>('all');
    const [stats, setStats] = useState({ totalStops: 0, devilStops: 0, totalDistance: 0 });
 
@@ -61,7 +62,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
    const routeData = useMemo(() => {
       let logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-         const logDate = new Date(log.date).toISOString().split('T')[0];
+         const logDate = getLocalDateStringForCountry(activeSettings.country, new Date(log.date));
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
          return logDate >= start && logDate <= end && !log.deletedAt;
@@ -69,6 +70,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       if (selectedCollector !== 'all') {
          logs = logs.filter(log => {
+            // Priority 1: Direct attribution in the log (Who actually did the action)
+            const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+            if (logCollectorId === selectedCollector) return true;
+
+            // Priority 2: Loan ownership (Who is currently responsible for the loan)
             const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
             return loan?.collectorId === selectedCollector;
          });
@@ -182,14 +188,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          (Array.isArray(mapData) ? mapData : []).forEach((log, index) => {
             const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
-            // Ignorar logs de apertura (ya tienen bandera propia) y coordenadas invalidas
-            if (log.type === CollectionLogType.OPENING || !client || !log.location || (log.location.lat === 0 && log.location.lng === 0)) return;
+            if (log.type === CollectionLogType.OPENING || !client) return;
+
+            const hasGeo = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+            if (!hasGeo) return;
 
             const lat = log.location.lat;
             const lng = log.location.lng;
             points.push([lat, lng]);
 
-            const timeStr = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = formatLocalTime(log.date, activeSettings.country);
 
             let isDevil = false;
             let timeDiffText = '';
@@ -319,10 +327,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             }
          }
 
+         const noGpsCount = mapData.filter(l => l.type !== CollectionLogType.OPENING && (!l.location || l.location.lat === 0)).length;
          setStats({
-            totalStops: mapData.length,
+            totalStops: mapData.filter(l => l.type !== CollectionLogType.OPENING).length,
             devilStops: devils,
-            totalDistance: parseFloat(calculatedDist.toFixed(2))
+            totalDistance: parseFloat(calculatedDist.toFixed(2)),
+            noGpsCount
          });
       }
    }, [mapData]); // ELIMINADO state.clients para evitar parpadeos innecesarios en cada sincronización
@@ -333,7 +343,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       const doc = new jsPDF();
       const collectorName = state.users.find(u => u.id === collectorId)?.name || 'Cobrador';
-      const dateStr = new Date().toLocaleDateString();
+      const dateStr = formatLocalDate(new Date(), activeSettings.country);
 
       // Header
       doc.setFillColor(30, 41, 59); // Slate 900
@@ -411,7 +421,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       const doc = new jsPDF();
       const collectorName = state.users.find(u => u.id === selectedCollector)?.name || 'Cobrador';
-      const dateStr = new Date().toLocaleDateString();
+      const dateStr = formatLocalDate(new Date(), activeSettings.country);
 
       // Header
       doc.setFillColor(15, 23, 42); // Slate 900
@@ -608,7 +618,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             gestiones: (Array.isArray(clientLogs) ? clientLogs : []).map(log => ({
                tipo: log.type,
                fecha: new Date(log.date).toISOString().split('T')[0],
-               hora: new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+               hora: formatLocalTime(log.date, activeSettings.country),
                monto: log.amount || 0
             }))
          };
@@ -982,11 +992,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                <p className="text-xl font-black text-slate-800">{stats.totalStops}</p>
             </div>
             <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center relative overflow-hidden">
-               <div className={`absolute inset-0 opacity-10 ${stats.devilStops > 0 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">{t.reports.longStops}</p>
+               <div className={`absolute inset-0 opacity-10 ${(stats as any).noGpsCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></div>
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">SIN GPS</p>
                <div className="relative z-10 flex items-center justify-center gap-2">
-                  <span className="text-2xl">{stats.devilStops > 0 ? '⏳' : '✅'}</span>
-                  <p className={`text-xl font-black ${stats.devilStops > 0 ? 'text-red-600' : 'text-green-600'}`}>{stats.devilStops}</p>
+                  <span className="text-2xl">{(stats as any).noGpsCount > 0 ? '⚠️' : '📍'}</span>
+                  <p className={`text-xl font-black ${(stats as any).noGpsCount > 0 ? 'text-amber-600' : 'text-green-600'}`}>{(stats as any).noGpsCount || 0}</p>
                </div>
             </div>
             <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center">

@@ -5,6 +5,49 @@ export const generateUUID = (): string => {
   return uuidv4();
 };
 
+const COUNTRY_TIMEZONES: Record<string, string> = {
+  'AR': 'America/Argentina/Buenos_Aires',
+  'BO': 'America/La_Paz',
+  'BR': 'America/Sao_Paulo',
+  'CL': 'America/Santiago',
+  'CO': 'America/Bogota',
+  'EC': 'America/Guayaquil',
+  'GY': 'America/Guyana',
+  'PY': 'America/Asuncion',
+  'PE': 'America/Lima',
+  'SR': 'America/Paramaribo',
+  'UY': 'America/Montevideo',
+  'VE': 'America/Caracas',
+  'ES': 'Europe/Madrid',
+  'BZ': 'America/Belize',
+  'CR': 'America/Costa_Rica',
+  'SV': 'America/El_Salvador',
+  'GT': 'America/Guatemala',
+  'HN': 'America/Tegucigalpa',
+  'NI': 'America/Managua',
+  'PA': 'America/Panama',
+  'CA': 'America/Toronto',
+  'US': 'America/New_York',
+  'MX': 'America/Mexico_City',
+  'DO': 'America/Santo_Domingo',
+  'CU': 'America/Havana',
+  'HT': 'America/Port-au-Prince',
+  'JM': 'America/Jamaica',
+  'TT': 'America/Port_of_Spain',
+  'BS': 'America/Nassau',
+  'BB': 'America/Barbados',
+  'LC': 'America/St_Lucia',
+  'VC': 'America/St_Vincent',
+  'GD': 'America/Grenada',
+  'AG': 'America/Antigua',
+  'DM': 'America/Dominica',
+  'KN': 'America/St_Kitts'
+};
+
+const getTimeZoneForCountry = (country: string): string => {
+  return COUNTRY_TIMEZONES[country] || 'America/Bogota';
+};
+
 const safeParseDate = (dateStr: any): Date | null => {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -33,7 +76,7 @@ const isPaidStatus = (status: any) => {
 export const getLocalDateStringForCountry = (country: string = 'CO', date: Date | null = null): string => {
   const targetDate = date || new Date();
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: country === 'PY' ? 'America/Asuncion' : 'America/Bogota',
+    timeZone: getTimeZoneForCountry(country),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
@@ -172,7 +215,7 @@ export const calculateMonthlyStats = (
 export const formatFullDateTime = (country: string = 'CO'): string => {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: country === 'PY' ? 'America/Asuncion' : 'America/Bogota',
+    timeZone: getTimeZoneForCountry(country),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -182,6 +225,38 @@ export const formatFullDateTime = (country: string = 'CO'): string => {
     hour12: true
   };
   return new Intl.DateTimeFormat('es-ES', options).format(now);
+};
+
+export const formatLocalDate = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
+  if (!date) return '---';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '---';
+  
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: getTimeZoneForCountry(country),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    ...options
+  };
+  
+  return new Intl.DateTimeFormat('es-ES', defaultOptions).format(d);
+};
+
+export const formatLocalTime = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
+  if (!date) return '---';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '---';
+  
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: getTimeZoneForCountry(country),
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    ...options
+  };
+  
+  return new Intl.DateTimeFormat('es-ES', defaultOptions).format(d);
 };
 
 export const formatCountryTime = (country: CountryCode): string => {
@@ -245,12 +320,16 @@ export const isHoliday = (date: Date | null | undefined, country: string, custom
 export const formatCurrency = (value: number | undefined, settings: AppSettings | undefined): string => {
   const currencySymbol = settings?.currencySymbol || '$';
   if (value === undefined || isNaN(value)) return `${currencySymbol}0`;
-  return `${currencySymbol}${Math.round(value).toLocaleString('es-CO')}`;
+  
+  const locale = settings?.numberFormat === 'comma' ? 'en-US' : 'es-CO';
+  const formatted = Math.round(value).toLocaleString(locale);
+  return `${currencySymbol}${formatted}`;
 };
 
-export const formatRawNumber = (value: number | undefined): string => {
+export const formatRawNumber = (value: number | undefined, settings?: AppSettings): string => {
   if (value === undefined || isNaN(value)) return '0';
-  return Math.round(value).toLocaleString('es-CO');
+  const locale = settings?.numberFormat === 'comma' ? 'en-US' : 'es-CO';
+  return Math.round(value).toLocaleString(locale);
 };
 
 export const calculateTotalReturn = (amount: any, rate: any): number => {

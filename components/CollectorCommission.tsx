@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
@@ -75,7 +75,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const dailyLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
         const logDate = new Date(log.date);
         const isSameDay = logDate.toDateString() === currentDay.toDateString();
-        const matchesUser = targetUserId === 'all' ? true : (log.recordedBy === targetUserId);
+        const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+        const matchesUser = targetUserId === 'all' ? true : (logCollectorId === targetUserId);
         return isSameDay && matchesUser && !log.isOpening;
       });
 
@@ -92,12 +93,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       daysStats.push({
         rate: delinquencyRate,
-        name: currentDay.toLocaleDateString(state.settings.language, { weekday: 'short' })
+        name: formatLocalDate(currentDay, state.settings.country, { weekday: 'short' })
       });
     }
 
     const logsHoy = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      const matchesUser = targetUserId === 'all' ? true : (log.recordedBy === targetUserId);
+      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      const matchesUser = targetUserId === 'all' ? true : (logCollectorId === targetUserId);
       return matchesUser && new Date(log.date).toDateString() === new Date().toDateString() && !log.isOpening;
     });
 
@@ -147,7 +149,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       // 3. Range & User Filters
       const d = new Date(log.date);
       if (!(d >= start && d <= end)) return false;
-      if (selectedHistoricalRoute !== 'all' && log.recordedBy !== selectedHistoricalRoute) return false;
+      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      if (selectedHistoricalRoute !== 'all' && logCollectorId !== selectedHistoricalRoute) return false;
 
       // 4. Type Filters
       if (paymentTypeFilter === 'nopay') return log.type === CollectionLogType.NO_PAGO;
@@ -697,15 +700,15 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     const comm = (log.amount || 0) * (localCommissionPercent / 100);
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
-                        <td className="px-5 py-3 whitespace-nowrap uppercase">{new Date(log.date).toLocaleDateString()} <span className="text-[8px] text-slate-400 ml-1">{new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></td>
+                        <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country)}</span></td>
                         <td className="px-5 py-3 uppercase font-black text-black">{client?.name || '---'}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : log.isVirtual ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                             {isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo'}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatRawNumber(log.amount || 0)}</td>
-                        <td className="px-5 py-3 text-right font-mono font-black text-blue-600 bg-blue-50/20">{isNoPay ? '-' : formatRawNumber(comm)}</td>
+                        <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatRawNumber(log.amount || 0, state.settings)}</td>
+                        <td className="px-5 py-3 text-right font-mono font-black text-blue-600 bg-blue-50/20">{isNoPay ? '-' : formatRawNumber(comm, state.settings)}</td>
                         <td className="px-5 py-3 text-center uppercase text-[9px] text-black">{state.users.find(u => u.id === log.recordedBy)?.name || '---'}</td>
                         <td className="px-5 py-3 no-print">
                           <div className="flex justify-center gap-1">
@@ -782,13 +785,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 </div>
 
                 <div className="grid grid-cols-2 gap-10">
-                  <div>
+                   <div>
                     <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">FECHA</p>
-                    <p className="text-3xl font-black text-slate-900">{new Date(sharingLog.date).toLocaleDateString('es-CO')}</p>
+                    <p className="text-3xl font-black text-slate-900">{formatLocalDate(sharingLog.date, settingsToUse.country)}</p>
                   </div>
                   <div>
                     <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">HORA</p>
-                    <p className="text-3xl font-black text-slate-900">{new Date(sharingLog.date).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-3xl font-black text-slate-900">{formatLocalTime(sharingLog.date, settingsToUse.country)}</p>
                   </div>
                 </div>
 
