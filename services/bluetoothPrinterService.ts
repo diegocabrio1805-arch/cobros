@@ -8,6 +8,10 @@ let isNativeConnection = false;
 let isCurrentlyPrinting = false;
 let connectionKeeperInterval: any = null; // Interval ID for keep-alive
 
+// Cola de tickets pendientes: Si la impresora estaba apagada, se imprimen al reconectar
+const pendingPrintQueue: { text: string; timestamp: number }[] = [];
+const MAX_PENDING_QUEUE = 10; // Máximo de tickets guardados en memoria
+
 // Claves para persistencia
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
 
@@ -199,7 +203,40 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
     }
 };
 
-// 4. Función de Impresión Robusta con Chunking Rápido
+
+// 4. COLA DE IMPRESIÓN PENDIENTE
+// Permite que los tickets de cobros se impriman automáticamente al encender la impresora.
+export const queuePrintJob = (rawText: string): void => {
+    if (pendingPrintQueue.length >= MAX_PENDING_QUEUE) {
+        pendingPrintQueue.shift(); // Eliminar el más antiguo si la cola está llena
+    }
+    pendingPrintQueue.push({ text: rawText, timestamp: Date.now() });
+    console.log(`[BT Queue] Ticket encolado. Cola actual: ${pendingPrintQueue.length}`);
+};
+
+const drainPrintQueue = async (): Promise<void> => {
+    if (pendingPrintQueue.length === 0) return;
+    console.log(`[BT Queue] Procesando ${pendingPrintQueue.length} ticket(s) pendiente(s)...`);
+    while (pendingPrintQueue.length > 0) {
+        const job = pendingPrintQueue.shift()!;
+        // Ignorar tickets de más de 4 horas
+        if (Date.now() - job.timestamp > 4 * 60 * 60 * 1000) {
+            console.log('[BT Queue] Ticket expirado, descartando.');
+            continue;
+        }
+        const success = await printText(job.text);
+        if (!success) {
+            // Re-encolar al frente si falló
+            pendingPrintQueue.unshift(job);
+            console.warn('[BT Queue] Fallo al imprimir, reintentando en el próximo ciclo del keeper.');
+            break;
+        }
+        console.log('[BT Queue] Ticket impreso exitosamente.');
+        await sleep(500); // Pequeña pausa entre tickets
+    }
+};
+
+// 5. Función de Impresión Robusta con Chunking Rápido
 export const printText = async (rawText: string, retryCount = 0): Promise<boolean> => {
     if (isCurrentlyPrinting && retryCount === 0) {
         console.warn("Print already in progress. Skipping duplicate request.");
@@ -215,6 +252,11 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
         console.log("Printer not connected. Attempting fast connection...");
         const reconnected = await connectToPrinter(undefined, false);
         if (!reconnected) {
+            // Encolar el trabajo para cuando la impresora se encienda
+            if (retryCount === 0) {
+                console.log('[BT Queue] Impresora no disponible. Encolando ticket para imprimir al encender.');
+                queuePrintJob(rawText);
+            }
             isCurrentlyPrinting = false;
             return false;
         }
@@ -333,7 +375,18 @@ export const startConnectionKeeper = () => {
                     console.log("[Bluetooth Keeper] App resumed. Reconnecting eagerly...");
                     try {
                         const connected = await isPrinterConnected();
-                        if (!connected) await connectToPrinter(currentSavedAddress, false, true);
+                        if (!connected) {
+                            const reconnected = await connectToPrinter(currentSavedAddress, false, true);
+                            // Si reconectó y hay tickets pendientes, imprimirlos
+                            if (reconnected && pendingPrintQueue.length > 0) {
+                                console.log('[Bluetooth Keeper] App reactiva + impresora reconectada. Imprimiendo tickets pendientes...');
+                                setTimeout(drainPrintQueue, 1500);
+                            }
+                        } else if (pendingPrintQueue.length > 0) {
+                            // Impresora ya estaba conectada, imprimir directamente
+                            console.log('[Bluetooth Keeper] App reactiva. Impresora disponible. Procesando cola...');
+                            setTimeout(drainPrintQueue, 500);
+                        }
                     } catch (err) {
                         console.warn("[Bluetooth Keeper] Eager reconnect error:", err);
                     }
@@ -354,20 +407,31 @@ export const startConnectionKeeper = () => {
             const connected = await isPrinterConnected();
             if (!connected) {
                 console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
-                await connectToPrinter(savedAddress, false, true);
+                const wasReconnected = await connectToPrinter(savedAddress, false, true);
+                // Si logró reconectar, procesar tickets pendientes
+                if (wasReconnected && pendingPrintQueue.length > 0) {
+                    console.log('[Bluetooth Keeper] Reconectado. Procesando cola de tickets pendientes...');
+                    setTimeout(drainPrintQueue, 1000); // Esperar 1s para que la impresora esté lista
+                }
             } else {
-                // Ping activo (DLE EOT 1 - Real-time status) para evitar que la impresora entre en auto-sleep.
-                // Es un comando invisible que NO avanza el papel.
-                const bs = getBluetoothSerial();
-                if (isNativeConnection && bs) {
-                    const pingCmd = '\x10\x04\x01';
-                    bs.write(pingCmd, 
-                        () => { /* Ping OK, hardware despierto */ }, 
-                        () => {
-                            console.log("[Bluetooth Keeper] Ping failed, socket dead. Reconnecting...");
-                            connectToPrinter(savedAddress, true, true);
-                        }
-                    );
+                // Primero procesar cola pendiente si hay tickets
+                if (pendingPrintQueue.length > 0 && !isCurrentlyPrinting) {
+                    console.log('[Bluetooth Keeper] Impresora activa. Procesando tickets pendientes...');
+                    drainPrintQueue();
+                } else {
+                    // Ping activo (DLE EOT 1 - Real-time status) para evitar que la impresora entre en auto-sleep.
+                    // Es un comando invisible que NO avanza el papel.
+                    const bs = getBluetoothSerial();
+                    if (isNativeConnection && bs) {
+                        const pingCmd = '\x10\x04\x01';
+                        bs.write(pingCmd, 
+                            () => { /* Ping OK, hardware despierto */ }, 
+                            () => {
+                                console.log("[Bluetooth Keeper] Ping failed, socket dead. Reconnecting...");
+                                connectToPrinter(savedAddress, true, true);
+                            }
+                        );
+                    }
                 }
             }
         } catch (e) {

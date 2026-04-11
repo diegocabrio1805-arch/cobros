@@ -306,9 +306,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             }
                             success = true;
                         } catch (err: any) {
+                            // Si fue cancelado a propósito, salir inmediatamente sin error
+                            if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+                                hasMore = false;
+                                return { data: allData, error: null };
+                            }
+
                             attempts++;
-                            await new Promise(r => setTimeout(r, 1000 * attempts));
                             if (attempts >= 3) throw err;
+                            await new Promise(r => setTimeout(r, 1000 * attempts));
                         }
                     }
                     await new Promise(r => setTimeout(r, 50));
@@ -359,7 +365,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             // PARALLEL FETCH: All 8 tables fetched simultaneously for maximum speed on mobile
             // Previously sequential (~16s on slow connections), now parallel (~2s)
             const controller = new AbortController();
-            syncTimeoutId = setTimeout(() => controller.abort(new Error("Timeout syncing data")), 60000); // 60s is enough for parallel fetch
+            syncTimeoutId = setTimeout(() => {
+                // Notificar aborto de forma compatible con navegadores antiguos y nuevos
+                try { controller.abort(); } catch (e) { } 
+                console.warn('[Sync] Timeout de 60s alcanzado. Abortando descarga paralela.');
+            }, 60000); 
             console.log('[Sync] Starting parallel data fetch...');
             const [
                 settingsResult,
@@ -428,7 +438,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (onDataUpdated) onDataUpdated(result, fullSync);
             return result;
         } catch (err: any) {
-            setSyncError(`Error Descarga: ${err.message || 'Error'}`);
+            const isAbort = err.name === 'AbortError' || err.message?.includes('aborted');
+            if (!isAbort) {
+                console.error('[Sync] Error en pullData:', err);
+                setSyncError(`Error Descarga: ${err.message || 'Error'}`);
+            } else {
+                console.warn('[Sync] Descarga cancelada (Timeout o Aborto Manual)');
+            }
             return null;
         } finally {
             if (syncTimeoutId) clearTimeout(syncTimeoutId);

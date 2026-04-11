@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>Anexo Cobro v6.4.0-STABLE</title>
+  <title>Anexo Cobro v6.7.3-STABLE</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -30,7 +30,7 @@
 
   <script>
     (function () {
-      const CURRENT_VERSION = '6.4.11-STABLE';
+      const CURRENT_VERSION = '6.7.3-STABLE';
       var storedVersion = localStorage.getItem('pwa_app_version');
       if (storedVersion !== CURRENT_VERSION) {
         localStorage.setItem('pwa_app_version', CURRENT_VERSION);
@@ -72,8 +72,14 @@
         }, BOOT_TIMEOUT);
       });
 
-      const handlePanic = (msg) => {
-        // Quitamos la restricción de bootFinished para que los errores posteriores también den opción a reparar
+        const handlePanic = (msg) => {
+        // Ignorar errores de red o cancelaciones (AbortError) para evitar bloqueos falsos
+        const isTransient = /signal is aborted|AbortError|Failed to fetch|network error/i.test(msg);
+        if (isTransient) {
+          console.warn("Error transitorio ignorado:", msg);
+          return;
+        }
+
         console.error("Error crítico detectado:", msg);
 
         var trap = document.getElementById('error-trap');
@@ -91,7 +97,7 @@
               </div>
 
               <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload(true);" 
-                style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; padding:18px 36px; border-radius:20px; font-weight:bold; border:none; cursor:pointer; box-shadow:0 10px 20px -5px rgba(59,130,246,0.6); font-size:15px; transition: transform 0.2s;">
+                style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; padding:18px 36px; border-radius:20px; font-weight:bold; border:none; cursor:pointer; box-shadow:0 10px 20px -5px rgba(59,130,246,0.6); font-size:15px;">
                 REPARAR AHORA
               </button>
             </div>
