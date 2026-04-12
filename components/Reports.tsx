@@ -781,7 +781,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             gapStatus
           };
         })
-        .filter(Boolean) as any[]
+        .filter(Boolean)
         .filter(c => c.daysSinceInteraction >= 4) 
         .sort((a, b) => b.daysSinceInteraction - a.daysSinceInteraction);
 
