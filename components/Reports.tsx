@@ -443,7 +443,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
          l.collectorId === selectedCollector &&
-         (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
+         ((Number(l.totalAmount) || 0) - (Number(l.totalPaid) || 0) > 100)
       );
       const today = new Date();
 
@@ -620,7 +620,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
          l.collectorId === selectedCollector &&
-         (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
+         ((Number(l.totalAmount) || 0) - (Number(l.totalPaid) || 0) > 100)
       );
       const today = new Date();
       const clientContexts = assignedLoans.map(loan => {
@@ -719,9 +719,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // 1. Clientes Sin Pago (Clientes con saldo pendiente en cualquier estado relevante)
       const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
-        // AJUSTE: Incluir ACTIVE y DEFAULT (Mora) que tengan saldo real
-        const balance = l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0)) : l.balance;
-        if (balance <= 0) return false;
+        // AJUSTE: No confiar en columna balance, calcularlo.
+        const calcBalance = (Number(l.totalAmount) || 0) - (Number(l.totalPaid || 0));
+        if (calcBalance <= 100) return false;
         const statusStr = (l.status || '').toLowerCase();
         if (statusStr !== 'activo' && statusStr !== 'mora' && l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
         
