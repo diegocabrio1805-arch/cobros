@@ -49,3 +49,11 @@ android/.gradle
 # Local Netlify folder
 .netlify
 .tmp.driveupload/
+
+# Assets no relacionados al proyecto (Tsubasa / otros)
+assets/tsubasa_run/
+tsubasa_*.png
+tsubasa_*.gif
+scripts/generate_tsubasa_gif.ps1
+scripts/slice_final_tsubasa.ps1
+scripts/fix_gps_zeros.mjs

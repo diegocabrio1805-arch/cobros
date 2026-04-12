@@ -441,7 +441,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // Calculations
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
+         l.status === LoanStatus.ACTIVE && 
+         l.collectorId === selectedCollector &&
+         (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
       );
       const today = new Date();
 
@@ -579,7 +581,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // --- ENHANCED: Calculate days since last visit for each client ---
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         l.status === LoanStatus.ACTIVE && l.collectorId === selectedCollector
+         l.status === LoanStatus.ACTIVE && 
+         l.collectorId === selectedCollector &&
+         (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
       );
       const today = new Date();
       const clientContexts = assignedLoans.map(loan => {
