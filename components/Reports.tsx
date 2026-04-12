@@ -65,7 +65,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const logDate = getLocalDateStringForCountry(activeSettings.country, new Date(log.date));
          const start = selectedDate;
          const end = endDate && endDate >= selectedDate ? endDate : selectedDate;
-         return logDate >= start && logDate <= end && !log.deletedAt;
+         return logDate >= start && logDate <= end && !log.deletedAt && log.type !== CollectionLogType.DELETED_PAYMENT;
       });
 
       if (selectedCollector !== 'all') {
@@ -327,9 +327,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             }
          }
 
-         const noGpsCount = mapData.filter(l => l.type !== CollectionLogType.OPENING && (!l.location || l.location.lat === 0)).length;
+         const noGpsCount = mapData.filter(l => l.type !== CollectionLogType.OPENING && l.type !== CollectionLogType.DELETED_PAYMENT && (!l.location || l.location.lat === 0)).length;
          setStats({
-            totalStops: mapData.filter(l => l.type !== CollectionLogType.OPENING).length,
+            totalStops: mapData.filter(l => l.type !== CollectionLogType.OPENING && l.type !== CollectionLogType.DELETED_PAYMENT).length,
             devilStops: devils,
             totalDistance: parseFloat(calculatedDist.toFixed(2)),
             noGpsCount
