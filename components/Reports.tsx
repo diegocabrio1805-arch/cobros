@@ -441,7 +441,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // Calculations
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         l.status === LoanStatus.ACTIVE && 
+         (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
          l.collectorId === selectedCollector &&
          (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
       );
@@ -451,7 +451,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const client = state.clients.find(c => c.id === loan.clientId);
          const gestionesPeriodo = routeData.filter(log => log.clientId === loan.clientId);
 
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt && !log.isOpening);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
             : null;
@@ -460,57 +460,94 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
             : 999;
 
+         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (l.amount || 0), 0);
+         const balance = (Number(loan.totalAmount) || 0) - paidAmt;
+         const daysOverdue = getDaysOverdue(loan, activeSettings, paidAmt);
+
+         let gapStatus = 'NORMAL';
+         if (daysSinceVisit >= 20) gapStatus = 'CRÍTICO';
+         else if (daysSinceVisit >= 8) gapStatus = 'ALERTA';
+         else if (daysSinceVisit >= 4) gapStatus = 'ATENCIÓN';
+
          return {
             cliente: client?.name || '---',
             visitas: gestionesPeriodo.length,
             diasInactivo: daysSinceVisit,
-            critico: daysSinceVisit > 5 && gestionesPeriodo.length === 0
+            atraso: daysOverdue,
+            saldo: balance,
+            gapStatus
          };
       });
 
-      const criticos = auditData.filter(d => d.critico);
+      const alertasCount = auditData.filter(d => d.gapStatus !== 'NORMAL').length;
 
       // Summary Table
       doc.setFillColor(241, 245, 249);
       doc.rect(20, 75, 170, 20, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Clientes Asignados: ${auditData.length}`, 30, 87);
+      doc.text(`Total Cartera Auditada: ${auditData.length} Clientes con Saldo`, 30, 87);
       doc.setTextColor(220, 38, 38); // Red
-      doc.text(`ALERTAS CRÍTICAS (>5 Días): ${criticos.length}`, 110, 87);
+      doc.text(`FUERA DE RANGO (>=4 Días): ${alertasCount}`, 125, 87);
 
       // Detail List
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text('Lista de Control (Clientes No Visitados o con Atraso de Gestión):', 20, 110);
+      doc.text('Control de Gestión y Morosidad (Prioridad por Abandono):', 20, 105);
 
-      let currentY = 120;
-      doc.setFontSize(9);
+      let currentY = 115;
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text('Cliente', 25, currentY);
-      doc.text('Última Visita', 110, currentY);
-      doc.text('Visitas Periodo', 145, currentY);
-      doc.text('Estado', 175, currentY);
+      doc.text('CLIENTE', 25, currentY);
+      doc.text('SALDO', 90, currentY);
+      doc.text('ATRASO (MORA)', 120, currentY);
+      doc.text('S/ REGISTRO', 145, currentY);
+      doc.text('ESTADO', 175, currentY);
 
       doc.line(20, currentY + 2, 190, currentY + 2);
       currentY += 10;
 
       doc.setFont('helvetica', 'normal');
-      auditData.sort((a, b) => b.diasInactivo - a.diasInactivo).slice(0, 25).forEach(item => {
-         if (currentY > 270) {
+      auditData.sort((a, b) => b.diasInactivo - a.diasInactivo).slice(0, 100).forEach(item => {
+         if (currentY > 275) {
             doc.addPage();
             currentY = 20;
          }
 
-         if (item.critico) doc.setTextColor(220, 38, 38);
-         else doc.setTextColor(30, 41, 59);
+         // Determinar Color del Saldo según Atraso
+         // 0-30: Verde (16, 185, 129)
+         // 31-55: Amarillo (217, 119, 6)
+         // 56+: Rojo (220, 38, 38)
+         let sR = 30, sG = 41, sB = 59;
+         if (item.atraso >= 56) { sR = 220; sG = 38; sB = 38; }
+         else if (item.atraso >= 31) { sR = 217; sG = 119; sB = 6; }
+         else { sR = 16; sG = 185; sB = 129; }
 
-         doc.text(item.cliente.substring(0, 40), 25, currentY);
-         doc.text(`${item.diasInactivo > 365 ? 'Nunca' : item.diasInactivo + ' días'}`, 110, currentY);
-         doc.text(`${item.visitas}`, 145, currentY);
-         doc.text(`${item.critico ? '⚠️ CRÍTICO' : 'Normal'}`, 175, currentY);
+         // Determinar Color del Estado según Inactividad
+         let stR = 30, stG = 41, stB = 59;
+         if (item.gapStatus === 'CRÍTICO') { stR = 220; stG = 38; stB = 38; }
+         else if (item.gapStatus === 'ALERTA') { stR = 234; stG = 88; stB = 12; }
+         else if (item.gapStatus === 'ATENCIÓN') { stR = 245; stG = 158; stB = 11; }
 
-         currentY += 8;
+         doc.setTextColor(30, 41, 59);
+         doc.text(item.cliente.substring(0, 35).toUpperCase(), 25, currentY);
+         
+         // Saldo coloreado
+         doc.setTextColor(sR, sG, sB);
+         doc.text(formatRawNumber(item.saldo, activeSettings), 90, currentY);
+         
+         // Atraso y Registro
+         doc.setTextColor(30, 41, 59);
+         doc.text(`${item.atraso} d.`, 120, currentY);
+         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' d.'}`, 145, currentY);
+         
+         // Estado coloreado
+         doc.setTextColor(stR, stG, stB);
+         doc.setFont('helvetica', 'bold');
+         doc.text(item.gapStatus, 175, currentY);
+         doc.setFont('helvetica', 'normal');
+
+         currentY += 6;
       });
 
       doc.setTextColor(150);
@@ -581,7 +618,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // --- ENHANCED: Calculate days since last visit for each client ---
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         l.status === LoanStatus.ACTIVE && 
+         (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
          l.collectorId === selectedCollector &&
          (l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0) > 0) : l.balance > 0)
       );
@@ -667,7 +704,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
 
       IMPORTANTE: Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido, sin texto explicativo antes o después.
-      
       FORMATO JSON:
       {
         "score": number, 
@@ -678,6 +714,69 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         "recommendation": "string"
       }
     `;
+
+      // --- LÓGICA EXTENDIDA: Clientes Sin Pago y Tendencias ---
+
+      // 1. Clientes Sin Pago (Clientes con saldo pendiente en cualquier estado relevante)
+      const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+        // AJUSTE: Incluir ACTIVE y DEFAULT (Mora) que tengan saldo real
+        const balance = l.balance === undefined ? (l.totalAmount - (l.totalPaid || 0)) : l.balance;
+        if (balance <= 0) return false;
+        const statusStr = (l.status || '').toLowerCase();
+        if (statusStr !== 'activo' && statusStr !== 'mora' && l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
+        
+        if (selectedCollector === 'all') return true;
+        const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
+        return lCollectorId === selectedCollector.toLowerCase();
+      });
+
+      const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
+
+      const clientsWithoutPayment = (Array.isArray(state.clients) ? state.clients : [])
+        .filter(c => relevantClientIds.has(c.id))
+        .map(c => {
+          // Find active loan for this client and collector
+          const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
+
+          // Find VERY last interaction (lifetime) - Pago o No Pago
+          const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+            .filter(l => (l.clientId || (l as any).client_id) === c.id && !l.deletedAt && !l.isOpening)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+          const lastInteraction = clientLogs.length > 0 ? clientLogs[0] : null;
+          const lastInteractionDate = lastInteraction ? new Date(lastInteraction.date) : new Date(0);
+          
+          const today = new Date();
+          const daysSinceInteraction = Math.floor((today.getTime() - lastInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Calculate current balance (Sanitized)
+          const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
+          const paidAmt = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs || []) : 0;
+          const balance = totalAmt - paidAmt;
+
+          // Calculate overdue days
+          const daysOverdue = loan ? getDaysOverdue(loan, state.settings, paidAmt) : 0;
+
+          // Determine Status based on Registry Gap
+          let gapStatus: 'NORMAL' | 'ATENCIÓN' | 'ALERTA' | 'CRÍTICO' = 'NORMAL';
+          if (daysSinceInteraction >= 20) gapStatus = 'CRÍTICO';
+          else if (daysSinceInteraction >= 8) gapStatus = 'ALERTA';
+          else if (daysSinceInteraction >= 4) gapStatus = 'ATENCIÓN';
+
+          return {
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+            lastInteractionDate: lastInteraction ? lastInteraction.date : null,
+            lastInteractionType: lastInteraction ? lastInteraction.type : 'NUNCA',
+            daysSinceInteraction,
+            daysOverdue,
+            balance,
+            gapStatus
+          };
+        })
+        .filter(c => c.daysSinceInteraction >= 4) 
+        .sort((a, b) => b.daysSinceInteraction - a.daysSinceInteraction);
 
       let data: any = null;
 
