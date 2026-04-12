@@ -464,6 +464,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const balance = (Number(loan.totalAmount) || 0) - paidAmt;
          const daysOverdue = getDaysOverdue(loan, activeSettings, paidAmt);
 
+         // REGLA: Si no debe nada y no tiene atraso, ignorar (préstamo pagado y al día)
+         if (balance <= 0 && daysOverdue <= 0) return null;
+
          let gapStatus = 'NORMAL';
          if (daysSinceVisit >= 20) gapStatus = 'CRÍTICO';
          else if (daysSinceVisit >= 8) gapStatus = 'ALERTA';
@@ -477,7 +480,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             saldo: balance,
             gapStatus
          };
-      });
+      }).filter(Boolean) as any[];
 
       const alertasCount = auditData.filter(d => d.gapStatus !== 'NORMAL').length;
 
@@ -757,6 +760,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
           // Calculate overdue days
           const daysOverdue = loan ? getDaysOverdue(loan, state.settings, paidAmt) : 0;
 
+          // REGLA: Si no debe nada y no tiene atraso, ignorar
+          if (balance <= 0 && daysOverdue <= 0) return null;
+
           // Determine Status based on Registry Gap
           let gapStatus: 'NORMAL' | 'ATENCIÓN' | 'ALERTA' | 'CRÍTICO' = 'NORMAL';
           if (daysSinceInteraction >= 20) gapStatus = 'CRÍTICO';
@@ -775,6 +781,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             gapStatus
           };
         })
+        .filter(Boolean) as any[]
         .filter(c => c.daysSinceInteraction >= 4) 
         .sort((a, b) => b.daysSinceInteraction - a.daysSinceInteraction);
 
