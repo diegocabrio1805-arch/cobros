@@ -49,6 +49,15 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       return loanCollId === targetId.toLowerCase() || (collectorNameLower && loanCollId === collectorNameLower);
    };
 
+   // HELPER: Robust Numeric Parsing for Formatted Strings (Handles "$ 700.000" etc.)
+   const parseRawNumber = (val: any): number => {
+      if (typeof val === 'number') return val;
+      if (!val) return 0;
+      // Remove currency symbols, thousand separators (dots), and generic characters
+      const cleaned = val.toString().replace(/[\$A-Za-z\s]/g, '').replace(/\./g, '').replace(/,/g, '.');
+      return parseFloat(cleaned) || 0;
+   };
+
    const collectors = useMemo(() => {
       return (Array.isArray(state.users) ? state.users : []).filter(u => {
          if (u.role !== Role.COLLECTOR) return false;
@@ -455,7 +464,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status && ['activo', 'mora', 'renovado', 'default'].includes(l.status.toString().toLowerCase())) && 
          checkLoanAssignment(l, selectedCollector) &&
-         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (Number(log.amount) || 0), 0)) < (Number(l.totalAmount) || 0) - 100
+         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0)) < (parseRawNumber(l.totalAmount) || 0) - 100
       );
       const today = new Date();
 
@@ -473,8 +482,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
             : 999;
 
-         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (l.amount || 0), 0);
-         const balance = (Number(loan.totalAmount) || 0) - paidAmt;
+         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
+         const balance = (parseRawNumber(loan.totalAmount) || 0) - paidAmt;
          const daysOverdue = getDaysOverdue(loan, activeSettings, paidAmt);
 
          // REGLA: Si no debe nada y no tiene atraso, ignorar (préstamo pagado y al día)
@@ -736,7 +745,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // 1. Clientes Sin Pago (Clientes con saldo pendiente en cualquier estado relevante)
       const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
         // AJUSTE: No confiar en columna balance, calcularlo.
-        const calcBalance = (Number(l.totalAmount) || 0) - (Number(l.totalPaid || 0));
+        const tAmt = parseRawNumber(l.totalAmount);
+        const tPaid = parseRawNumber(l.totalPaid || (l as any).total_paid);
+        const calcBalance = tAmt - tPaid;
         if (calcBalance <= 100) return false;
         
         const statusStr = (l.status || '').toLowerCase();
@@ -766,7 +777,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
           const daysSinceInteraction = Math.floor((today.getTime() - lastInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
 
           // Calculate current balance (Sanitized)
-          const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
+          const totalAmt = loan ? (parseRawNumber(loan.totalAmount) || 0) : 0;
           const paidAmt = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs || []) : 0;
           const balance = totalAmt - paidAmt;
 
