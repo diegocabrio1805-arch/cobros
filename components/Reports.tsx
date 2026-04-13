@@ -43,7 +43,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const collector = state.users.find(u => u.id === targetId);
       const collectorNameLower = collector?.name?.toLowerCase();
       
-      const loanCollId = (loan.collectorId || (loan as any).collector_id)?.toString().toLowerCase();
+      const loanCollId = (
+         loan.collectorId || 
+         (loan as any).collector_id || 
+         loan.addedBy || 
+         (loan as any).added_by
+      )?.toString().toLowerCase();
       
       // Match by UUID OR by Case-insensitive Name
       return loanCollId === targetId.toLowerCase() || (collectorNameLower && loanCollId === collectorNameLower);
@@ -53,22 +58,26 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const parseRawNumber = (val: any): number => {
       if (typeof val === 'number') return val;
       if (!val) return 0;
-      // Remove currency symbols, thousand separators (dots), and generic characters
-      const cleaned = val.toString().replace(/[\$A-Za-z\s]/g, '').replace(/\./g, '').replace(/,/g, '.');
+      // Remove everything except digits and the LAST dot/comma
+      const cleaned = val.toString().replace(/[^\d]/g, '');
       return parseFloat(cleaned) || 0;
    };
 
    // HELPER: Local Sanitization specifically for Auditor Report utility calls
    const sanitizeLoan = (loan: any) => {
       if (!loan) return loan;
+      // USAR FALLBACKS EXTREMOS (camelCase, snake_case, ALL_CAPS)
       return {
          ...loan,
-         principal: parseRawNumber(loan.principal),
-         totalAmount: parseRawNumber(loan.totalAmount),
-         interestRate: parseRawNumber(loan.interestRate),
-         totalInstallments: parseRawNumber(loan.totalInstallments),
-         balance: parseRawNumber(loan.balance),
-         totalPaid: parseRawNumber(loan.totalPaid || (loan as any).total_paid)
+         id: loan.id || (loan as any).ID,
+         principal: parseRawNumber(loan.principal || (loan as any).monto || (loan as any).MONTO || (loan as any).PRINCIPAL),
+         totalAmount: parseRawNumber(loan.totalAmount || (loan as any).total_amount || (loan as any).MONTO_TOTAL || (loan as any).TOTAL_AMOUNT || (loan as any).MONTO),
+         interestRate: parseRawNumber(loan.interestRate || (loan as any).interest_rate || (loan as any).TASA || (loan as any).INTEREST_RATE),
+         totalInstallments: parseRawNumber(loan.totalInstallments || (loan as any).total_installments || (loan as any).cuotas || (loan as any).CUOTAS),
+         balance: parseRawNumber(loan.balance || (loan as any).saldo || (loan as any).SALDO || (loan as any).SALDO_ACTUAL),
+         totalPaid: parseRawNumber(loan.totalPaid || (loan as any).total_paid || (loan as any).cobrado || (loan as any).COBRADO),
+         status: (loan.status || (loan as any).estado || (loan as any).ESTADO || '').toString(),
+         collectorId: (loan.collectorId || (loan as any).collector_id || (loan as any).COBRADOR_ID || (loan as any).COBRADOR || (loan as any).addedBy || (loan as any).added_by)?.toString()
       };
    };
 
