@@ -117,8 +117,10 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
         checkLocationStatus();
         startWatching();
 
-        // Intervalo de respaldo cada 2s para máxima seguridad (Requerimiento v6.2.0)
-        const interval = setInterval(checkLocationStatus, 2000);
+        // QUITAMOS EL INTERVALO AGRESIVO DE 2S (Causante de crashes en Android bajo recursos)
+        // El sensor watchPosition ya se encarga de las actualizaciones en tiempo real.
+        // Solo mantenemos un chequeo de cortesía cada 30s por si el sensor se duerme.
+        const interval = setInterval(checkLocationStatus, 30000);
 
         return () => {
             if (watchId) {

@@ -26,7 +26,10 @@ export const useAppActions = (
       });
     }, 500);
 
-    connectToPrinter(undefined).catch(() => { });
+    // Intentamos conectar a la impresora después de un breve delay para evitar solapamiento con permisos de GPS
+    setTimeout(() => {
+      connectToPrinter(undefined).catch(() => { });
+    }, 2000);
   };
 
   const handleLogout = async () => {

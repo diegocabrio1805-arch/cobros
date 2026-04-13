@@ -351,22 +351,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           frequency: loan.frequency
         }, state.settings);
 
-        // Condición: Solo mostrar recibo en pantalla si hay una impresora conectada
-        const { isPrinterConnected, printText } = await import('../services/bluetoothPrinterService');
-        const printerAppearsConnected = await isPrinterConnected();
-
-        if (printerAppearsConnected) {
-          setReceipt(receiptText);
-          try {
-            await printText(receiptText);
-          } catch (printErr) {
-            console.error("Error direct printing:", printErr);
-          }
-        } else {
-          setAmountInput('0');
-          setSelectedClient(null);
-          setReceipt(null);
-        }
+        // Siempre mostramos el recibo y disparamos la impresión automática.
+        // El servicio se encarga de re-conectar o encolar si la impresora no está disponible.
+        const { printText } = await import('../services/bluetoothPrinterService');
+        setReceipt(receiptText);
+        printText(receiptText).catch(e => console.error("Auto print failed:", e));
+        
+        // Limpiamos el estado después de un breve delay si el usuario sale manualmente
+        // pero mantenemos el recibo visible para confirmación.
 
         setTimeout(() => {
           const phone = client.phone.replace(/\D/g, '');

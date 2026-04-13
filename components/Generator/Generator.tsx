@@ -250,15 +250,8 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
 
             const ticketText = generateBluetoothTicket(docWithWords);
 
-            if (!(await isPrinterConnected())) {
-                const connected = await connectToPrinter();
-                if (!connected) {
-                    alert("Impresora no conectada. Por favor vincúlala primero.");
-                    setShowPrinterModal(true);
-                    handleScanPrinters();
-                    return;
-                }
-            }
+            // Intentar imprimir directamente. El servicio maneja la reconexión automática si es posible.
+            // Si falla definitivamente, el usuario recibirá el error habitual del catch.
 
             const success = await printText(ticketText);
             if (success) {
