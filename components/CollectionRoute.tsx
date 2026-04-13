@@ -368,7 +368,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           const phone = client.phone.replace(/\D/g, '');
           const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
           const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('tiket')}`, '_blank');
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('ticket')}`, '_blank');
         }, 2000);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
@@ -381,8 +381,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings, currentBalance);
         }
         setTimeout(() => {
-          const cleanMsg = convertReceiptForWhatsApp(msg);
-          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
         }, 2000);
         resetUI();
       }
@@ -418,6 +417,76 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       }
     } else {
       alert("No hay pagos para este crédito en el rango seleccionado.");
+    }
+  };
+
+  const handleShareReceiptPDF = async () => {
+    if (!receiptCardRef.current || !receipt || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden-route');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (container) {
+        container.style.display = 'none';
+        container.style.opacity = '0';
+        container.style.left = '-5000px';
+      }
+
+      if (!canvas) throw new Error("No se pudo crear el lienzo.");
+
+      const fileName = `Recibo_${new Date().getTime()}.pdf`;
+      const pdf = new jsPDF('p', 'mm', [80, 200]); // Formato ticket de 80mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      const pdfBase64 = pdfBase64Data.split(',')[1];
+
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const savedFile = await Filesystem.writeFile({
+        path: fileName,
+        data: pdfBase64,
+        directory: Directory.Cache
+      });
+
+      await Share.share({
+        title: 'Recibo de Pago',
+        text: `Recibo de Pago`,
+        url: savedFile.uri,
+        dialogTitle: 'Enviar Recibo por WhatsApp'
+      });
+    } catch (err) {
+      console.error("Error sharing PDF:", err);
+      alert("Error al compartir PDF: " + err);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -767,19 +836,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
                   </button>
                   <button
-                    onClick={() => {
-                      const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
-                        receipt.includes(c.name.toUpperCase().substring(0, 10))
-                      );
-                      const phone = client?.phone.replace(/\D/g, '') || '';
-                      const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-                      const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-                      const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(receipt || '')}`;
-                      window.open(wpUrl, '_blank');
-                    }}
-                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                    disabled={isSharing}
+                    onClick={handleShareReceiptPDF}
+                    className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                   >
-                    <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
+                    {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
+                    {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
                   </button>
                   <button
                     disabled={isSharing}

@@ -62,7 +62,7 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
     };
 
     const receipt = generateNoPaymentReceiptText(data, state.settings);
-    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(receipt)}`, '_blank');
+    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent("ticket")}`, '_blank');
   };
 
   return (

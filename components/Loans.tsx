@@ -5,6 +5,10 @@ import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, genera
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
+import html2canvas from 'html2canvas';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 interface LoansProps {
   state: AppState;
@@ -17,6 +21,8 @@ interface LoansProps {
 }
 
 const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync }) => {
+  const receiptCardRef = useRef<HTMLDivElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
   const [viewMode, setViewMode] = useState<'gestion' | 'renovaciones' | 'vencidos' | 'ocultos'>('gestion');
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -340,7 +346,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         // WhatsApp
         if (client) {
           const phone = client.phone.replace(/\D/g, '');
-          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("ticket")}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
         const client = state.clients.find(c => c.id === loan.clientId);
@@ -359,7 +365,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         
         setTimeout(() => {
           const cleanMsg = convertReceiptForWhatsApp(msg);
-          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
         }, 2000);
         resetUI();
       }
@@ -451,7 +457,162 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     // WhatsApp
     if (client) {
       const phone = client.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+      const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+      const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('ticket')}`, '_blank');
+    }
+  };
+
+  const handleShareReceiptPDF = async () => {
+    if (!receiptCardRef.current || !receipt || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden-loans');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (container) {
+        container.style.display = 'none';
+        container.style.opacity = '0';
+        container.style.left = '-5000px';
+      }
+
+      if (!canvas) throw new Error("No se pudo crear el lienzo.");
+
+      const fileName = `Recibo_${new Date().getTime()}.pdf`;
+      const pdf = new jsPDF('p', 'mm', [80, 200]); // Formato ticket de 80mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      const pdfBase64 = pdfBase64Data.split(',')[1];
+
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: `Recibo de Pago`,
+          url: savedFile.uri,
+          dialogTitle: 'Enviar Recibo por WhatsApp'
+        });
+      } else {
+        const blob = await (await fetch(pdfBase64Data)).blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.click();
+
+        // Manual WhatsApp "ticket"
+        const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
+          receipt.includes(c.name.toUpperCase().substring(0, 10))
+        );
+        const phone = client?.phone.replace(/\D/g, '') || '';
+        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+        const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
+      }
+    } catch (err) {
+      console.error("Error sharing PDF:", err);
+      alert("Error al compartir PDF: " + err);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleShareReceiptPhoto = async () => {
+    if (!receiptCardRef.current || !receipt || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden-loans');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (container) {
+        container.style.display = 'none';
+        container.style.opacity = '0';
+        container.style.left = '-5000px';
+      }
+
+      const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+      const fileName = `Recibo_${new Date().getTime()}.jpg`;
+
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Image.split(',')[1],
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: 'Comprobante de operación - Anexo Cobro',
+          url: result.uri,
+          dialogTitle: 'Compartir Recibo',
+        });
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = base64Image;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Error al compartir foto:', error);
+      alert('Error al generar la imagen del recibo.');
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -1066,11 +1227,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   const { printText } = await import('../services/bluetoothPrinterService');
                   printText(finalReceipt).catch(() => { });
 
-                  // WhatsApp
+                  // WhatsApp Automático
                   const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
                   if (client) {
                     const phone = client.phone.replace(/\D/g, '');
-                    window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(finalReceipt)}`, '_blank');
+                    const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+                    const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
                   }
                 }}
                 className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -1118,19 +1281,39 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
                 </button>
                 <button
-                  onClick={() => {
-                    const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
-                      receipt.includes(c.name.toUpperCase().substring(0, 10))
-                    );
-                    const phone = client?.phone.replace(/\D/g, '') || '';
-                    const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
-                    window.open(wpUrl, '_blank');
-                  }}
-                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  disabled={isSharing}
+                  onClick={handleShareReceiptPDF}
+                  className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                 >
-                  <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
+                  {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
+                  {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
+                </button>
+                <button
+                  disabled={isSharing}
+                  onClick={handleShareReceiptPhoto}
+                  className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                >
+                  {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
+                  {isSharing ? 'GENERANDO FOTO...' : 'ENVIAR FOTO DE RECIBO'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
+      {receipt && (
+        <div id="receipt-container-hidden-loans" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+          <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
+              <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
+              <div className="h-px bg-slate-900 my-2"></div>
+            </div>
+            {convertReceiptForWhatsApp(receipt || '')}
+            <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
+              <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
+              <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>
             </div>
           </div>
         </div>

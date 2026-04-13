@@ -222,6 +222,8 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
 };
 
 const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan }) => {
+  const receiptCardRef = useRef<HTMLDivElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
@@ -499,7 +501,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }, 300);
     return () => clearTimeout(timer);
   }, [globalSearch]);
-  const [isSharing, setIsSharing] = useState(false);
   const [receipt, setReceipt] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(50);
 
@@ -545,7 +546,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.clients.length]); // Usar length para detectar nuevos clientes sin disparar por cada cambio de atributo
 
   const shareCardRef = useRef<HTMLDivElement>(null);
-  const receiptCardRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = state.currentUser?.role === Role.ADMIN;
@@ -1236,7 +1236,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           const phone = clientInLegajo.phone.replace(/\D/g, '');
           const cleanReceipt = convertReceiptForWhatsApp(receiptText);
           const countryPrefix = state.settings.country === 'PY' ? '595' : '57'; // Dynamic prefix fallback
-          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent(cleanReceipt)}`;
+          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
           window.open(wpUrl, '_blank');
         }, 2000);
       } else if (type === CollectionLogType.NO_PAGO) {
@@ -1250,7 +1250,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         );
         setTimeout(() => {
           const cleanMsg = convertReceiptForWhatsApp(msg);
-          window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+          window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
         }, 2000);
       }
     } catch (e) { console.error(e); } finally {
@@ -1404,6 +1404,69 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
+  const handleShareReceiptPhoto = async () => {
+    if (!receiptCardRef.current || !receipt || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden-clients');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (container) {
+        container.style.display = 'none';
+        container.style.opacity = '0';
+        container.style.left = '-5000px';
+      }
+
+      const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+      const fileName = `Recibo_${new Date().getTime()}.jpg`;
+
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Image.split(',')[1],
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: 'Comprobante de operación - Anexo Cobro',
+          url: result.uri,
+          dialogTitle: 'Compartir Recibo',
+        });
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = base64Image;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Error al compartir foto:', error);
+      alert('Error al generar la imagen del recibo.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const handleShareReceiptPDF = async () => {
     if (!receiptCardRef.current || !clientInLegajo || isSharing) return;
     setIsSharing(true);
@@ -1463,7 +1526,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const phone = clientInLegajo.phone.replace(/\D/g, '');
         const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
         const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("*RECIBO DE PAGO PDF GENERADO*\n\n" + cleanReceipt)}`;
+        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
         window.open(wpUrl, '_blank');
       } else {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -1546,7 +1609,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       printWin?.print();
 
       const phone = clientInLegajo.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("*COMPROBANTE DE CORRECCIÓN*\n" + receiptText)}`, '_blank');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("ticket")}`, '_blank');
 
       setShowEditLogModal(false);
       setEditingLogId(null);
@@ -3486,7 +3549,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       onClick={async () => {
                         const { printText } = await import('../services/bluetoothPrinterService');
-                        printText(receipt || '').catch(e => alert("Error impresi\u00f3n: " + e));
+                        printText(receipt || '').catch(e => alert("Error impresión: " + e));
                       }}
                       className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                     >
@@ -3495,10 +3558,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       disabled={isSharing}
                       onClick={handleShareReceiptPDF}
-                      className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                      className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                     >
                       {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
                       {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
+                    </button>
+                    <button
+                      disabled={isSharing}
+                      onClick={handleShareReceiptPhoto}
+                      className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                    >
+                      {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
+                      {isSharing ? 'GENERANDO FOTO...' : 'ENVIAR FOTO DE RECIBO'}
                     </button>
                   </div>
                 </div>
@@ -3796,9 +3867,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           </div>
         </div>
       )}
-    </>
-
-  );
+        {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
+        {receipt && (
+          <div id="receipt-container-hidden-clients" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
+                <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
+                <div className="h-px bg-slate-900 my-2"></div>
+              </div>
+              {convertReceiptForWhatsApp(receipt || '')}
+              <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
+                <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
+                <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
 };
 
 export default Clients;
