@@ -1,11 +1,12 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { Geolocation } from '@capacitor/geolocation';
 import PullToRefresh from './PullToRefresh';
+import { Share } from '@capacitor/share';
+import html2canvas from 'html2canvas';
 
 interface CollectionRouteProps {
   state: AppState;
@@ -27,6 +28,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const receiptCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -351,18 +354,21 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           frequency: loan.frequency
         }, state.settings);
 
-        // Siempre mostramos el recibo y disparamos la impresión automática.
-        // El servicio se encarga de re-conectar o encolar si la impresora no está disponible.
-        const { printText } = await import('../services/bluetoothPrinterService');
+        // Mostramos el recibo inmediatamente para dar feedback al usuario (No esperar a la impresora)
         setReceipt(receiptText);
-        printText(receiptText).catch(e => console.error("Auto print failed:", e));
-        
-        // Limpiamos el estado después de un breve delay si el usuario sale manualmente
-        // pero mantenemos el recibo visible para confirmación.
+        setIsProcessing(false);
 
+        // Disparamos la impresión automática en segundo plano
+        import('../services/bluetoothPrinterService').then(({ printText }) => {
+          printText(receiptText).catch(e => console.error("Auto print failed:", e));
+        });
+        
+        // WhatsApp automático simplificado para encontrar el chat rápido conforme a solicitud
         setTimeout(() => {
           const phone = client.phone.replace(/\D/g, '');
-          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('tiket')}`, '_blank');
         }, 2000);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
@@ -412,6 +418,84 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       }
     } else {
       alert("No hay pagos para este crédito en el rango seleccionado.");
+    }
+  };
+
+  const handleShareReceiptPhoto = async () => {
+    if (!receiptCardRef.current || !receipt || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden-route');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (!canvas) throw new Error("No se pudo crear el lienzo.");
+
+      // Obtener nombre del cliente del recibo para el nombre del archivo
+      const clientMatch = receipt.match(/CLIENTE: (.*)\n/);
+      const clientName = clientMatch ? clientMatch[1].trim() : 'Recibo';
+      const fileName = `Recibo_${clientName.replace(/\s+/g, '_')}_${new Date().getTime()}.jpg`;
+
+      if (!Capacitor.isNativePlatform()) {
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+        if (blob) {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: `Recibo de Pago de ${clientName}`,
+          url: savedFile.uri,
+          dialogTitle: 'Enviar Foto de Recibo por WhatsApp'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al generar imagen del recibo.");
+    } finally {
+      setIsSharing(false);
+      const container = document.getElementById('receipt-container-hidden-route');
+      if (container) {
+        container.style.display = 'none';
+        container.style.visibility = 'hidden';
+        container.style.left = '-5000px';
+      }
     }
   };
 
@@ -688,14 +772,42 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                         receipt.includes(c.name.toUpperCase().substring(0, 10))
                       );
                       const phone = client?.phone.replace(/\D/g, '') || '';
-                      const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
+                      const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+                      const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+                      const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(receipt || '')}`;
                       window.open(wpUrl, '_blank');
                     }}
                     className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                   >
                     <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
                   </button>
+                  <button
+                    disabled={isSharing}
+                    onClick={handleShareReceiptPhoto}
+                    className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                  >
+                    {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
+                    {isSharing ? 'GENERANDO FOTO...' : 'ENVIAR FOTO DE RECIBO'}
+                  </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
+        {receipt && (
+          <div id="receipt-container-hidden-route" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
+                <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
+                <div className="h-px bg-slate-900 my-2"></div>
+              </div>
+              {convertReceiptForWhatsApp(receipt || '')}
+              <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
+                <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
+                <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>
               </div>
             </div>
           </div>
