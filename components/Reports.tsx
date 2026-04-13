@@ -41,17 +41,24 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const checkLoanAssignment = (loan: any, targetId: string) => {
       if (targetId === 'all') return true;
       const collector = state.users.find(u => u.id === targetId);
-      const collectorNameLower = collector?.name?.toLowerCase();
+      const collectorNameLower = collector?.name?.toLowerCase().trim();
+      const normalizedTargetId = normalizeId(targetId);
       
       const loanCollId = (
          loan.collectorId || 
          (loan as any).collector_id || 
+         (loan as any).COBRADOR_ID ||
+         (loan as any).COBRADOR ||
          loan.addedBy || 
-         (loan as any).added_by
-      )?.toString().toLowerCase();
+         (loan as any).added_by ||
+         (loan as any).vendedor ||
+         (loan as any).vendedor_id
+      )?.toString().toLowerCase().trim();
       
-      // Match by UUID OR by Case-insensitive Name
-      return loanCollId === targetId.toLowerCase() || (collectorNameLower && loanCollId === collectorNameLower);
+      if (!loanCollId) return false;
+
+      // Match by Normalized UUID OR by Case-insensitive Name comparison
+      return normalizeId(loanCollId) === normalizedTargetId || (collectorNameLower && loanCollId.includes(collectorNameLower));
    };
 
    // HELPER: Robust Numeric Parsing for Formatted Strings (Handles "$ 700.000" etc.)
@@ -61,6 +68,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Remove everything except digits and the LAST dot/comma
       const cleaned = val.toString().replace(/[^\d]/g, '');
       return parseFloat(cleaned) || 0;
+   };
+
+   // HELPER: ID Normalization (Strips dots, dashes, and extra spaces for matching)
+   const normalizeId = (id: any): string => {
+      if (!id) return '';
+      return id.toString().trim().replace(/[.\-\s]/g, '').toLowerCase();
    };
 
    // HELPER: Local Sanitization specifically for Auditor Report utility calls
@@ -483,21 +496,30 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.text(`Cobrador: ${collectorName}`, 20, 55);
       doc.text(`Periodo: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
-      // Calculations
+      // Calculations - MAXIMAL INCLUSIVITY
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
          const sl = sanitizeLoan(l);
-         return (sl.status && ['activo', 'mora', 'renovado', 'default'].includes(sl.status.toString().toLowerCase())) && 
-         checkLoanAssignment(sl, selectedCollector) &&
-         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === sl.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0)) < (sl.totalAmount || 0) - 100;
+         const statusLower = sl.status.toLowerCase();
+         // Exclude only explicitly paid or deleted statuses
+         const isEffectivelyActive = !['pagado', 'cancelado', 'finalizado', 'cobrado', 'liquidado'].includes(statusLower);
+         
+         const isAssigned = checkLoanAssignment(sl, selectedCollector);
+         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.loanId) === normalizeId(sl.id) && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0);
+         const hasBalance = (sl.totalAmount - paidAmt) > 100;
+
+         return isEffectivelyActive && isAssigned && hasBalance;
       });
       const today = new Date();
 
       const auditData = assignedLoans.map(loan => {
-         const clId = loan.clientId || (loan as any).client_id;
-         const client = state.clients.find(c => c.id === clId || c.documentId === clId);
-         const gestionesPeriodo = routeData.filter(log => (log.clientId || (log as any).client_id) === clId);
-
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => (log.clientId || (log as any).client_id) === clId && !log.deletedAt && !log.isOpening);
+         const clId = loan.clientId || (loan as any).client_id || (loan as any).CLIENTE_ID;
+         const normalizedClId = normalizeId(clId);
+         
+         // Linking with Normalization
+         const client = state.clients.find(c => normalizeId(c.id) === normalizedClId || normalizeId(c.documentId) === normalizedClId);
+         
+         const gestionesPeriodo = routeData.filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId && !log.deletedAt && !log.isOpening);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
             : null;
