@@ -443,7 +443,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
          l.collectorId === selectedCollector &&
-         ((Number(l.totalAmount) || 0) - (Number(l.totalPaid) || 0) > 100)
+         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (Number(log.amount) || 0), 0)) < (Number(l.totalAmount) || 0) - 100
       );
       const today = new Date();
 
