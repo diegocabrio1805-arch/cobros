@@ -35,7 +35,19 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    // --- ESTADOS PARA EVITAR PARPADEO DEL MAPA ---
    const [mapData, setMapData] = useState<CollectionLog[]>([]);
    const lastMapUpdate = useRef<number>(0);
-   const lastManualAction = useRef<number>(0); // Para saber si el cambio fue por el usuario
+   const lastManualAction = useRef<number>(0); 
+
+   // HELPER: Robust Collector Assignment Match
+   const checkLoanAssignment = (loan: any, targetId: string) => {
+      if (targetId === 'all') return true;
+      const collector = state.users.find(u => u.id === targetId);
+      const collectorNameLower = collector?.name?.toLowerCase();
+      
+      const loanCollId = (loan.collectorId || (loan as any).collector_id)?.toString().toLowerCase();
+      
+      // Match by UUID OR by Case-insensitive Name
+      return loanCollId === targetId.toLowerCase() || (collectorNameLower && loanCollId === collectorNameLower);
+   };
 
    const collectors = useMemo(() => {
       return (Array.isArray(state.users) ? state.users : []).filter(u => {
@@ -74,9 +86,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
             if (logCollectorId === selectedCollector) return true;
 
-            // Priority 2: Loan ownership (Who is currently responsible for the loan)
+            // Priority 2: Loan ownership
             const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === log.loanId);
-            return loan?.collectorId === selectedCollector;
+            return loan ? checkLoanAssignment(loan, selectedCollector) : false;
          });
       }
 
@@ -442,16 +454,17 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Calculations
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status && ['activo', 'mora', 'renovado', 'default'].includes(l.status.toString().toLowerCase())) && 
-         (l.collectorId === selectedCollector || (l as any).collector_id === selectedCollector) &&
+         checkLoanAssignment(l, selectedCollector) &&
          ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (Number(log.amount) || 0), 0)) < (Number(l.totalAmount) || 0) - 100
       );
       const today = new Date();
 
       const auditData = assignedLoans.map(loan => {
-         const client = state.clients.find(c => c.id === (loan.clientId || (loan as any).client_id));
-         const gestionesPeriodo = routeData.filter(log => log.clientId === (loan.clientId || (loan as any).client_id));
+         const clId = loan.clientId || (loan as any).client_id;
+         const client = state.clients.find(c => c.id === clId || c.documentId === clId);
+         const gestionesPeriodo = routeData.filter(log => (log.clientId || (log as any).client_id) === clId);
 
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === (loan.clientId || (loan as any).client_id) && !log.deletedAt && !log.isOpening);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => (log.clientId || (log as any).client_id) === clId && !log.deletedAt && !log.isOpening);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
             : null;
@@ -725,12 +738,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         // AJUSTE: No confiar en columna balance, calcularlo.
         const calcBalance = (Number(l.totalAmount) || 0) - (Number(l.totalPaid || 0));
         if (calcBalance <= 100) return false;
-        const statusStr = (l.status || '').toLowerCase();
-        if (statusStr !== 'activo' && statusStr !== 'mora' && l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
         
-        if (selectedCollector === 'all') return true;
-        const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
-        return (lCollectorId === selectedCollector.toLowerCase() || (l as any).collector_id?.toLowerCase() === selectedCollector.toLowerCase());
+        const statusStr = (l.status || '').toLowerCase();
+        const isActiveOrMora = statusStr === 'activo' || statusStr === 'mora' || statusStr === 'renovado' || l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT;
+        if (!isActiveOrMora) return false;
+        
+        return checkLoanAssignment(l, selectedCollector);
       });
 
       const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
@@ -739,11 +752,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         .filter(c => relevantClientIds.has(c.id))
         .map(c => {
           // Find active loan for this client and collector
-          const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
+          const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id || (l.clientId || (l as any).client_id) === c.documentId);
 
           // Find VERY last interaction (lifetime) - Pago o No Pago
           const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-            .filter(l => (l.clientId || (l as any).client_id) === c.id && !l.deletedAt && !l.isOpening)
+            .filter(l => ((l.clientId || (l as any).client_id) === c.id || (l.clientId || (l as any).client_id) === c.documentId) && !l.deletedAt && !l.isOpening)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
           const lastInteraction = clientLogs.length > 0 ? clientLogs[0] : null;
