@@ -441,7 +441,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // Calculations
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
+         (l.status && ['activo', 'mora', 'renovado', 'default'].includes(l.status.toString().toLowerCase())) && 
          (l.collectorId === selectedCollector || (l as any).collector_id === selectedCollector) &&
          ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (Number(log.amount) || 0), 0)) < (Number(l.totalAmount) || 0) - 100
       );
@@ -621,7 +621,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // --- ENHANCED: Calculate days since last visit for each client ---
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
+         (l.status && ['activo', 'mora', 'renovado', 'default'].includes(l.status.toString().toLowerCase())) && 
          (l.collectorId === selectedCollector || (l as any).collector_id === selectedCollector) &&
          ((Number(l.totalAmount) || 0) - (Number(l.totalPaid) || 0) > 100)
       );
@@ -730,7 +730,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         
         if (selectedCollector === 'all') return true;
         const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
-        return lCollectorId === selectedCollector.toLowerCase();
+        return (lCollectorId === selectedCollector.toLowerCase() || (l as any).collector_id?.toLowerCase() === selectedCollector.toLowerCase());
       });
 
       const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
