@@ -58,6 +58,20 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       return parseFloat(cleaned) || 0;
    };
 
+   // HELPER: Local Sanitization specifically for Auditor Report utility calls
+   const sanitizeLoan = (loan: any) => {
+      if (!loan) return loan;
+      return {
+         ...loan,
+         principal: parseRawNumber(loan.principal),
+         totalAmount: parseRawNumber(loan.totalAmount),
+         interestRate: parseRawNumber(loan.interestRate),
+         totalInstallments: parseRawNumber(loan.totalInstallments),
+         balance: parseRawNumber(loan.balance),
+         totalPaid: parseRawNumber(loan.totalPaid || (loan as any).total_paid)
+      };
+   };
+
    const collectors = useMemo(() => {
       return (Array.isArray(state.users) ? state.users : []).filter(u => {
          if (u.role !== Role.COLLECTOR) return false;
@@ -461,11 +475,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.text(`Periodo: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
       // Calculations
-      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-         (l.status && ['activo', 'mora', 'renovado', 'default'].includes(l.status.toString().toLowerCase())) && 
-         checkLoanAssignment(l, selectedCollector) &&
-         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0)) < (parseRawNumber(l.totalAmount) || 0) - 100
-      );
+      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+         const sl = sanitizeLoan(l);
+         return (sl.status && ['activo', 'mora', 'renovado', 'default'].includes(sl.status.toString().toLowerCase())) && 
+         checkLoanAssignment(sl, selectedCollector) &&
+         ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === sl.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0)) < (sl.totalAmount || 0) - 100;
+      });
       const today = new Date();
 
       const auditData = assignedLoans.map(loan => {
@@ -482,9 +497,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
             : 999;
 
-         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
-         const balance = (parseRawNumber(loan.totalAmount) || 0) - paidAmt;
-         const daysOverdue = getDaysOverdue(loan, activeSettings, paidAmt);
+         const sLoan = sanitizeLoan(loan);
+         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === sLoan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
+         const balance = (sLoan.totalAmount || 0) - paidAmt;
+         const daysOverdue = getDaysOverdue(sLoan, activeSettings, paidAmt);
 
          // REGLA: Si no debe nada y no tiene atraso, ignorar (préstamo pagado y al día)
          if (balance <= 0 && daysOverdue <= 0) return null;
@@ -649,12 +665,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       );
       const today = new Date();
       const clientContexts = assignedLoans.map(loan => {
-         const client = state.clients.find(c => c.id === (loan.clientId || (loan as any).client_id));
-         const clientLogs = routeData.filter(log => log.clientId === (loan.clientId || (loan as any).client_id));
-         const moraReal = getDaysOverdue(loan, state.settings);
+         const sLoan = sanitizeLoan(loan);
+         const client = state.clients.find(c => c.id === (sLoan.clientId || (sLoan as any).client_id));
+         const clientLogs = routeData.filter(log => (log.clientId || (log as any).client_id) === (sLoan.clientId || (sLoan as any).client_id));
+         const moraReal = getDaysOverdue(sLoan, state.settings);
 
          // Calculate days since last visit (any log type)
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === (loan.clientId || (loan as any).client_id) && !log.deletedAt);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => (log.clientId || (log as any).client_id) === (sLoan.clientId || (sLoan as any).client_id) && !log.deletedAt);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...(Array.isArray(allClientLogs) ? allClientLogs : []).map(l => new Date(l.date).getTime())))
             : null;
@@ -664,7 +681,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             : 999; // Large number if never visited
 
          // Get relevant installments (those due in the period or the latest one)
-         const installments = Array.isArray(loan.installments) ? loan.installments : [];
+         const installments = Array.isArray(sLoan.installments) ? sLoan.installments : [];
          const relevantInstallments = installments.filter(inst => {
             const dueStr = inst.dueDate ? inst.dueDate.split('T')[0] : '';
             return (dueStr >= selectedDate && dueStr <= (endDate || selectedDate)) || inst.status !== PaymentStatus.PAID;
@@ -672,7 +689,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          return {
             cliente: client?.name || 'Desconocido',
-            frecuencia: loan.frequency,
+            frecuencia: sLoan.frequency,
             dias_sin_visita: daysSinceVisit,
             dias_mora_real: moraReal,
             alerta_critica: daysSinceVisit >= 6 || moraReal > 1, // Flag if overdue or unvisited
@@ -744,17 +761,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       // 1. Clientes Sin Pago (Clientes con saldo pendiente en cualquier estado relevante)
       const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+        const sl = sanitizeLoan(l);
         // AJUSTE: No confiar en columna balance, calcularlo.
-        const tAmt = parseRawNumber(l.totalAmount);
-        const tPaid = parseRawNumber(l.totalPaid || (l as any).total_paid);
-        const calcBalance = tAmt - tPaid;
+        const calcBalance = (sl.totalAmount || 0) - (sl.totalPaid || 0);
         if (calcBalance <= 100) return false;
         
-        const statusStr = (l.status || '').toLowerCase();
-        const isActiveOrMora = statusStr === 'activo' || statusStr === 'mora' || statusStr === 'renovado' || l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT;
+        const statusStr = (sl.status || '').toLowerCase();
+        const isActiveOrMora = statusStr === 'activo' || statusStr === 'mora' || statusStr === 'renovado' || sl.status === LoanStatus.ACTIVE || sl.status === LoanStatus.DEFAULT;
         if (!isActiveOrMora) return false;
         
-        return checkLoanAssignment(l, selectedCollector);
+        return checkLoanAssignment(sl, selectedCollector);
       });
 
       const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
@@ -763,7 +779,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
         .filter(c => relevantClientIds.has(c.id))
         .map(c => {
           // Find active loan for this client and collector
-          const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id || (l.clientId || (l as any).client_id) === c.documentId);
+          const loanRaw = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id || (l.clientId || (l as any).client_id) === c.documentId);
+          const loan = sanitizeLoan(loanRaw);
 
           // Find VERY last interaction (lifetime) - Pago o No Pago
           const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
@@ -777,7 +794,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
           const daysSinceInteraction = Math.floor((today.getTime() - lastInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
 
           // Calculate current balance (Sanitized)
-          const totalAmt = loan ? (parseRawNumber(loan.totalAmount) || 0) : 0;
+          const totalAmt = loan ? (loan.totalAmount || 0) : 0;
           const paidAmt = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs || []) : 0;
           const balance = totalAmt - paidAmt;
 
