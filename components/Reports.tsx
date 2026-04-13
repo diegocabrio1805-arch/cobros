@@ -489,35 +489,44 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.text('AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`SISTEMA DE GESTIÓN DE CARTERA - ${dateStr}`, 105, 30, { align: 'center' });
-
       // Info
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
       doc.text(`Cobrador: ${collectorName}`, 20, 55);
       doc.text(`Periodo: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
-      // Calculations - MAXIMAL INCLUSIVITY
-      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
-         const sl = sanitizeLoan(l);
-         const statusLower = sl.status.toLowerCase();
-         // Exclude only explicitly paid or deleted statuses
-         const isEffectivelyActive = !['pagado', 'cancelado', 'finalizado', 'cobrado', 'liquidado'].includes(statusLower);
+      // Calculations - DASHBOARD ALIGNMENT (CLIENT-FIRST)
+      const collectorLower = selectedCollector.toLowerCase();
+      const normalizedTargetId = normalizeId(selectedCollector);
+
+      const assignedClients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+         if (c.deletedAt) return false;
          
-         const isAssigned = checkLoanAssignment(sl, selectedCollector);
+         const addedByNorm = normalizeId(c.addedBy || (c as any).added_by);
+         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => normalizeId(l.clientId || (l as any).client_id) === normalizeId(c.id) && !['pagado', 'cancelado', 'finalizado', 'cobrado', 'liquidado'].includes((l.status || '').toString().toLowerCase()));
+         const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => normalizeId(l.clientId || (l as any).client_id) === normalizeId(c.id) && checkLoanAssignment(l, selectedCollector));
+         
+         const isAssigned = addedByNorm === normalizedTargetId || 
+                            (activeLoan && checkLoanAssignment(activeLoan, selectedCollector)) ||
+                            (anyHistoricLoan && checkLoanAssignment(anyHistoricLoan, selectedCollector));
+         
+         if (!isAssigned) return false;
+
+         // Verify if they have an active loan with balance
+         if (!activeLoan) return false;
+         const sl = sanitizeLoan(activeLoan);
          const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.loanId) === normalizeId(sl.id) && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0);
-         const hasBalance = (sl.totalAmount - paidAmt) > 100;
-
-         return isEffectivelyActive && isAssigned && hasBalance;
+         const balance = sl.totalAmount - paidAmt;
+         
+         return balance > 100; // Only clients with balance
       });
-      const today = new Date();
 
-      const auditData = assignedLoans.map(loan => {
-         const clId = loan.clientId || (loan as any).client_id || (loan as any).CLIENTE_ID;
-         const normalizedClId = normalizeId(clId);
-         
-         // Linking with Normalization
-         const client = state.clients.find(c => normalizeId(c.id) === normalizedClId || normalizeId(c.documentId) === normalizedClId);
-         
+      const today = new Date();
+      const auditData = assignedClients.map(client => {
+         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => normalizeId(l.clientId || (l as any).client_id) === normalizeId(client.id) && !['pagado', 'cancelado', 'finalizado', 'cobrado', 'liquidado'].includes((l.status || '').toString().toLowerCase()));
+         if (!activeLoan) return null;
+
+         const normalizedClId = normalizeId(client.id);
          const gestionesPeriodo = routeData.filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId);
          const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId && !log.deletedAt && !log.isOpening);
          const lastVisit = allClientLogs.length > 0
@@ -528,8 +537,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
             : 999;
 
-         const sLoan = sanitizeLoan(loan);
-         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === sLoan.id && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
+         const sLoan = sanitizeLoan(activeLoan);
+         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => normalizeId(l.loanId) === normalizeId(sLoan.id) && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
          const balance = (sLoan.totalAmount || 0) - paidAmt;
          const daysOverdue = getDaysOverdue(sLoan, activeSettings, paidAmt);
 
@@ -542,7 +551,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          else if (daysSinceVisit >= 4) gapStatus = 'ATENCIÓN';
 
          return {
-            cliente: client?.name || '---',
+            cliente: client.name || '---',
             visitas: gestionesPeriodo.length,
             diasInactivo: daysSinceVisit,
             atraso: daysOverdue,
