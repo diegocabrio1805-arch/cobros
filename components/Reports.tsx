@@ -442,16 +442,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Calculations
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
-         l.collectorId === selectedCollector &&
+         (l.collectorId === selectedCollector || (l as any).collector_id === selectedCollector) &&
          ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (Number(log.amount) || 0), 0)) < (Number(l.totalAmount) || 0) - 100
       );
       const today = new Date();
 
       const auditData = assignedLoans.map(loan => {
-         const client = state.clients.find(c => c.id === loan.clientId);
-         const gestionesPeriodo = routeData.filter(log => log.clientId === loan.clientId);
+         const client = state.clients.find(c => c.id === (loan.clientId || (loan as any).client_id));
+         const gestionesPeriodo = routeData.filter(log => log.clientId === (loan.clientId || (loan as any).client_id));
 
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt && !log.isOpening);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === (loan.clientId || (loan as any).client_id) && !log.deletedAt && !log.isOpening);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
             : null;
@@ -622,17 +622,17 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // --- ENHANCED: Calculate days since last visit for each client ---
       const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
          (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && 
-         l.collectorId === selectedCollector &&
+         (l.collectorId === selectedCollector || (l as any).collector_id === selectedCollector) &&
          ((Number(l.totalAmount) || 0) - (Number(l.totalPaid) || 0) > 100)
       );
       const today = new Date();
       const clientContexts = assignedLoans.map(loan => {
-         const client = state.clients.find(c => c.id === loan.clientId);
-         const clientLogs = routeData.filter(log => log.clientId === loan.clientId);
+         const client = state.clients.find(c => c.id === (loan.clientId || (loan as any).client_id));
+         const clientLogs = routeData.filter(log => log.clientId === (loan.clientId || (loan as any).client_id));
          const moraReal = getDaysOverdue(loan, state.settings);
 
          // Calculate days since last visit (any log type)
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === loan.clientId && !log.deletedAt);
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.clientId === (loan.clientId || (loan as any).client_id) && !log.deletedAt);
          const lastVisit = allClientLogs.length > 0
             ? new Date(Math.max(...(Array.isArray(allClientLogs) ? allClientLogs : []).map(l => new Date(l.date).getTime())))
             : null;
