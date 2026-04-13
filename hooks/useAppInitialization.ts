@@ -4,7 +4,7 @@ import { AppState, User, Role, CollectionLogType, CollectionLog } from '../types
 import { StorageService } from '../utils/localforageStorage';
 import { resolveSettings } from '../utils/settingsHierarchy';
 
-export const CURRENT_VERSION_ID = '6.7.3-STABLE';
+export const CURRENT_VERSION_ID = '6.7.4-STABLE';
 export const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 export const useAppInitialization = () => {
@@ -119,7 +119,10 @@ export const useAppInitialization = () => {
           }
 
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
+          
+          // CRITICAL: Explicitly remove from both localStorage and IndexedDB (StorageService)
           localStorage.removeItem('prestamaster_v2');
+          await StorageService.removeItem('prestamaster_v2');
 
           const keysToRemove = [
             'last_sync_timestamp_ms',
@@ -136,8 +139,12 @@ export const useAppInitialization = () => {
             });
           }
 
-          console.log("[App] Purge complete. Reloading...");
-          window.location.reload();
+          console.log("[App] Purge complete. Force clearing cache and reloading...");
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of regs) await r.unregister();
+          }
+          window.location.href = window.location.pathname + '?v=' + Date.now();
           return;
         }
 

@@ -370,27 +370,26 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 try { controller.abort(); } catch (e) { } 
                 console.warn('[Sync] Timeout de 60s alcanzado. Abortando descarga paralela.');
             }, 60000); 
-            console.log('[Sync] Starting parallel data fetch...');
-            const [
-                settingsResult,
-                profilesResult,
-                clientsResult,
-                loansResult,
-                paymentsResult,
-                logsResult,
-                expensesResult,
-                deletedResult
-            ] = await Promise.all([
-                fetchAll(settingsQuery.abortSignal(controller.signal)),
-                fetchAll(profilesQuery.abortSignal(controller.signal)),
-                fetchAll(clientsQuery.abortSignal(controller.signal)),
-                fetchAll(loansQuery.abortSignal(controller.signal)),
-                fetchAll(paymentsQuery.abortSignal(controller.signal)),
-                fetchAll(logsQuery.abortSignal(controller.signal)),
-                fetchAll(expensesQuery.abortSignal(controller.signal)),
-                fetchAll(deletedItemsQuery.abortSignal(controller.signal)),
-            ]);
-            console.log('[Sync] Parallel fetch complete.');
+            const fetchWithDelay = async (q: any, delay: number = 0) => {
+                if (delay > 0) await new Promise(r => setTimeout(r, delay));
+                return fetchAll(q);
+            };
+
+            console.log(`[Sync] Starting ${fullSync ? 'Full' : 'Incremental'} data fetch...`);
+            
+            // Sequential-ish fetching for lower-end devices: groups critical data first
+            const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
+            const profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal));
+            
+            // Tiny delay between heavy tables if fullSync to prevent CPU/RAM saturation
+            const clientsResult = await fetchWithDelay(clientsQuery.abortSignal(controller.signal), fullSync ? 200 : 0);
+            const loansResult = await fetchWithDelay(loansQuery.abortSignal(controller.signal), fullSync ? 100 : 0);
+            const paymentsResult = await fetchWithDelay(paymentsQuery.abortSignal(controller.signal), fullSync ? 100 : 0);
+            const logsResult = await fetchWithDelay(logsQuery.abortSignal(controller.signal), fullSync ? 100 : 0);
+            const expensesResult = await fetchWithDelay(expensesQuery.abortSignal(controller.signal), 0);
+            const deletedResult = await fetchWithDelay(deletedItemsQuery.abortSignal(controller.signal), 0);
+
+            console.log('[Sync] Data fetch complete.');
 
             if (syncTimeoutId) clearTimeout(syncTimeoutId);
 

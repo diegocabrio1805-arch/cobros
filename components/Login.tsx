@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
 import { User, Role } from '../types';
+import { StorageService } from '../utils/localforageStorage';
 import { getTranslation } from '../utils/translations';
 import { supabase } from '../utils/supabaseClient';
 import { generateUUID } from '../utils/helpers';
@@ -212,6 +212,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               <i className="fa-brands fa-whatsapp text-white text-lg"></i>
             </div>
             SOPORTE TÉCNICO OFICIAL
+          </button>
+
+          <button
+            onClick={async () => {
+              if (confirm("¿ESTÁS SEGURO DE REINICIAR LA APLICACIÓN?\n\nEsto borrará todos los datos locales y fotos. Usa esto solo si la app se queda colgada.")) {
+                localStorage.clear();
+                await StorageService.removeItem('prestamaster_v2');
+                if ('serviceWorker' in navigator) {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  for (const r of regs) await r.unregister();
+                }
+                if ('caches' in window) {
+                  const names = await caches.keys();
+                  for (const name of names) await caches.delete(name);
+                }
+                window.location.href = window.location.pathname + '?reset=' + Date.now();
+              }
+            }}
+            type="button"
+            className="w-full mt-8 text-slate-300 hover:text-red-400 font-bold py-2 rounded-xl text-[8px] uppercase tracking-[0.2em] transition-all active:scale-95"
+          >
+            <i className="fa-solid fa-trash-can mr-1.5 opacity-50"></i> REINICIAR APP (USAR SOLO SI SE TRABA)
           </button>
         </div>
       </div>
