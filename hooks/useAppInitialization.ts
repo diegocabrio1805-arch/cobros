@@ -4,7 +4,7 @@ import { AppState, User, Role, CollectionLogType, CollectionLog } from '../types
 import { StorageService } from '../utils/localforageStorage';
 import { resolveSettings } from '../utils/settingsHierarchy';
 
-export const CURRENT_VERSION_ID = '6.7.7-STABLE';
+export const CURRENT_VERSION_ID = '6.7.8-STABLE';
 export const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 export const useAppInitialization = () => {
@@ -78,18 +78,14 @@ export const useAppInitialization = () => {
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
           console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}`);
-          
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-          
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
           }
-          
-          // CRITICAL: We NO LONGER clear() localStorage to avoid feedback loops with index.html
         }
 
-        // 3. DATA LOADING (Optimizado)
+        // 3. DATA LOADING
         let rawData: any = await StorageService.getItem<AppState>('prestamaster_v2');
         if (!rawData) {
           const lsData = localStorage.getItem('prestamaster_v2');
@@ -99,12 +95,22 @@ export const useAppInitialization = () => {
         }
 
         if (!rawData) {
+          // Intentar recuperación desde Preferences (Nativo) si no hay nada en IDB
+          const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+          if (value) {
+            try {
+              const user = JSON.parse(value);
+              setState({ ...defaultInitialState, currentUser: user });
+              setIsInitializing(false);
+              return;
+            } catch(e){}
+          }
           setState(defaultInitialState);
           setIsInitializing(false);
           return;
         }
 
-        // 4. PARSING RAPIDO
+        // 4. PARSING & SESSION RECOVERY
         const users = (Array.isArray(rawData?.users) ? rawData.users : [initialAdmin]).map((u: any) => ({
           ...u,
           role: u.role as Role,
@@ -113,6 +119,17 @@ export const useAppInitialization = () => {
         let validatedCurrentUser = null;
         if (rawData?.currentUser?.id) {
           validatedCurrentUser = users.find((u: User) => u.id === rawData.currentUser.id) || null;
+        }
+        
+        // Fallback robusto a Preferences
+        if (!validatedCurrentUser) {
+          try {
+            const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+            if (value) {
+              const parsedNative = JSON.parse(value);
+              validatedCurrentUser = users.find((u: User) => u.id === parsedNative.id) || null;
+            }
+          } catch (e) { }
         }
 
         // 5. ATOMIC STATE UPDATE

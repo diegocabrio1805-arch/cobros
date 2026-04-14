@@ -212,7 +212,9 @@ export const useAppSyncEngine = (
     recover();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && navigator.onLine)) {
+      // Solo forzar logout si el evento es explícitamente SIGNED_OUT
+      // o si es INITIAL_SESSION nulo Y no tenemos un usuario nativo ya cargado.
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && !state.currentUser && navigator.onLine)) {
         Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
         setState((prev: AppState) => ({ ...prev, currentUser: null }));
       }
