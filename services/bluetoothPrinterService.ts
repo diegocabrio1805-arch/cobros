@@ -16,11 +16,11 @@ const MAX_PENDING_QUEUE = 10; // Máximo de tickets guardados en memoria
 const PRINTER_STORAGE_KEY = 'saved_printer_address';
 
 // Configuración OPTIMIZADA
-const CHUNK_SIZE = 200; // Mantenido a 200
-const CHUNK_DELAY = 25; // Aumentado (antes 15ms) para no saturar buffer de impresoras baratas
-const CONNECTION_RETRIES = 5; // Aumentado para mayor tolerancia a fallos
-const RETRY_DELAY = 500; // 500ms entre intentos iniciales
-const KEEPER_INTERVAL_MS = 15000; // 15s: Envío de ping real (DLE EOT 1) para evitar sleep
+const CHUNK_SIZE = 128; // Reducido de 200 para mayor compatibilidad con impresoras baratas
+const CHUNK_DELAY = 30; // Aumentado (antes 25ms) para dar más tiempo de procesamiento al hardware
+const CONNECTION_RETRIES = 5; 
+const RETRY_DELAY = 500; 
+const KEEPER_INTERVAL_MS = 15000; 
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {
@@ -102,20 +102,37 @@ export const listBondedDevices = async (): Promise<any[]> => {
 const attemptNativeConnection = async (address: string, attemptNumber = 1, silent = false): Promise<boolean> => {
     try {
         const bs = getBluetoothSerial();
+        if (!bs) return false;
+
+        // Estrategia: Intentar conexión Segura primero, luego Insegura
         return new Promise((resolve) => {
-            if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} to ${address}...`);
+            if (!silent) console.log(`[Bluetooth] Connection attempt ${attemptNumber} (Secure) to ${address}...`);
             bs.connect(
                 address,
                 () => {
-                    if (!silent) console.log(`[Bluetooth] ✓ Connected successfully on attempt ${attemptNumber}`);
+                    if (!silent) console.log(`[Bluetooth] ✓ Secure connection successful`);
                     isNativeConnection = true;
                     connectedDevice = { address };
                     localStorage.setItem(PRINTER_STORAGE_KEY, address);
                     resolve(true);
                 },
                 (err: any) => {
-                    if (!silent) console.warn(`[Bluetooth] ✗ Attempt ${attemptNumber} failed:`, err?.message || err);
-                    resolve(false);
+                    if (!silent) console.warn(`[Bluetooth] Secure failed, attempting Insecure...`);
+                    // Intentar conexión Insegura como fallback (necesaria para muchas impresoras baratas)
+                    bs.connectInsecure(
+                        address,
+                        () => {
+                            if (!silent) console.log(`[Bluetooth] ✓ Insecure connection successful`);
+                            isNativeConnection = true;
+                            connectedDevice = { address };
+                            localStorage.setItem(PRINTER_STORAGE_KEY, address);
+                            resolve(true);
+                        },
+                        (errInsecure: any) => {
+                            if (!silent) console.warn(`[Bluetooth] ✗ Both Secure and Insecure failed:`, errInsecure?.message || errInsecure);
+                            resolve(false);
+                        }
+                    );
                 }
             );
         });
@@ -260,6 +277,17 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
             isCurrentlyPrinting = false;
             return false;
         }
+    }
+
+    // --- WAKE UP COMMAND ---
+    // Enviamos un byte Nulo para "despertar" el bus de datos antes del contenido real
+    try {
+        if (isNativeConnection && bs) {
+            await new Promise<void>((r) => bs.write('\0', () => r(), () => r()));
+            await sleep(100); 
+        }
+    } catch (e) {
+        console.warn("Wake up failed, proceeding anyway...");
     }
 
     // Definición de Comandos ESC/POS
