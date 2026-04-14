@@ -39,9 +39,10 @@
     })();
   </script>
 
+  <script>
     // --- MECANISMO DE RECUPERACIÓN (Anti-Pantalla en Blanco) ---
     (function () {
-      const BOOT_TIMEOUT = 15000; // 15 segundos para dar margen en móviles lentos
+      const BOOT_TIMEOUT = 15000;
       let bootFinished = false;
 
       window.addEventListener('load', () => {
@@ -51,50 +52,38 @@
         }, BOOT_TIMEOUT);
       });
 
-        const handlePanic = (msg) => {
-        // Ignorar errores de red o cancelaciones (AbortError) para evitar bloqueos falsos
+      const handlePanic = (msg) => {
         const isTransient = /signal is aborted|AbortError|Failed to fetch|network error/i.test(msg);
-        if (isTransient) {
-          console.warn("Error transitorio ignorado:", msg);
-          return;
-        }
+        if (isTransient) return;
 
         console.error("Error crítico detectado:", msg);
-
         var trap = document.getElementById('error-trap');
         if (trap) {
           trap.style.display = 'block';
-          trap.innerHTML = `
-            <div style="background:#0f172a; color:white; height:100vh; padding:20px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;">
-              <h1 style="font-size:60px; margin:0;">🛠️</h1>
-              <h2 style="font-size:20px; font-weight:bold; margin:10px 0; color:#f1f5f9;">SISTEMA EN REPARACIÓN</h2>
-              <p style="color:#94a3b8; margin-bottom:20px; font-size:14px; max-width:300px;">La app detectó un problema técnico. Pulsa abajo para resetearla.</p>
-              
-              <div style="background:#1e293b; padding:15px; border-radius:12px; border:1px solid #334155; width:100%; max-width:400px; margin-bottom:20px; text-align:left;">
-                <p style="color:#ef4444; font-size:10px; font-weight:bold; text-transform:uppercase; margin:0 0 5px 0;">Error:</p>
-                <pre style="font-size:10px; color:#cbd5e1; margin:0; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow:auto;">${msg}</pre>
-              </div>
-
-              <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload(true);" 
-                style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; padding:18px 36px; border-radius:20px; font-weight:bold; border:none; cursor:pointer; box-shadow:0 10px 20px -5px rgba(59,130,246,0.6); font-size:15px;">
-                REPARAR AHORA
-              </button>
-            </div>
-          `;
+          trap.innerHTML = 
+            '<div style="background:#0f172a; color:white; height:100vh; padding:20px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;">' +
+              '<h1 style="font-size:60px; margin:0;">🛠️</h1>' +
+              '<h2 style="font-size:20px; font-weight:bold; margin:10px 0; color:#f1f5f9;">SISTEMA EN REPARACIÓN</h2>' +
+              '<p style="color:#94a3b8; margin-bottom:20px; font-size:14px; max-width:300px;">La app detectó un problema técnico. Pulsa abajo para resetearla.</p>' +
+              '<div style="background:#1e293b; padding:15px; border-radius:12px; border:1px solid #334155; width:100%; max-width:400px; margin-bottom:20px; text-align:left;">' +
+                '<p style="color:#ef4444; font-size:10px; font-weight:bold; text-transform:uppercase; margin:0 0 5px 0;">Error:</p>' +
+                '<pre style="font-size:10px; color:#cbd5e1; margin:0; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow:auto;">' + msg + '</pre>' +
+              '</div>' +
+              '<button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload(true);" ' +
+                'style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; padding:18px 36px; border-radius:20px; font-weight:bold; border:none; cursor:pointer; box-shadow:0 10px 20px -5px rgba(59,130,246,0.6); font-size:15px;">' +
+                'REPARAR AHORA' +
+              '</button>' +
+            '</div>';
         }
       };
 
       window.addEventListener('error', (e) => {
-        const msg = e.message || '';
-        if (msg.includes('Failed to register a ServiceWorker')) return;
-        handlePanic(msg);
+        if ((e.message || '').includes('ServiceWorker')) return;
+        handlePanic(e.message || 'Error Desconocido');
       });
       window.addEventListener('unhandledrejection', (e) => {
-        const msg = e.reason?.message || "Error Desconocido";
-        if (msg.includes('Failed to register a ServiceWorker')) {
-          e.preventDefault();
-          return;
-        }
+        const msg = e.reason?.message || "Error Promesa";
+        if (msg.includes('ServiceWorker')) return;
         handlePanic(msg);
       });
     })();
