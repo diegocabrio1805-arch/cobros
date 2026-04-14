@@ -19,7 +19,7 @@ import Reports from './components/Reports';
 import Generator from './components/Generator/Generator';
 import { getTranslation } from './utils/translations';
 import { formatCurrency } from './utils/helpers';
-import { useAppInitialization } from './hooks/useAppInitialization';
+import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
 import { useAppSyncEngine } from './hooks/useAppSyncEngine';
 import { useAppActions } from './hooks/useAppActions';
 import { startConnectionKeeper } from './services/bluetoothPrinterService';
@@ -162,7 +162,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <p className="text-[10px] text-slate-400 font-mono">v6.6.24</p>
+              <p className="text-[10px] text-slate-400 font-mono">v{CURRENT_VERSION_ID.split('-')[0]}</p>
               {localStorage.getItem('syncQueue') && JSON.parse(localStorage.getItem('syncQueue') || '[]').filter((i:any) => i.lastError).length > 0 && <span className="text-[8px] text-red-500 max-w-[200px] truncate">{JSON.parse(localStorage.getItem('syncQueue') || '[]').filter((i:any) => i.lastError).map((i:any) => i.lastError).join(' | ')}</span>}
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}

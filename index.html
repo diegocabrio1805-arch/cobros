@@ -29,36 +29,15 @@
   </div>
 
   <script>
+    // Limpieza única de caché antigua (Solo una vez por instalación)
     (function () {
-      const CURRENT_VERSION = '6.7.5-STABLE';
-      var storedVersion = localStorage.getItem('pwa_app_version');
-      if (storedVersion !== CURRENT_VERSION) {
-        localStorage.setItem('pwa_app_version', CURRENT_VERSION);
-        var cleanAndReload = function () {
-          window.location.href = window.location.pathname + '?reload=' + Date.now();
-        };
-        if ('caches' in window) {
-          caches.keys().then(function (names) {
-            return Promise.all(names.map(function (n) { return caches.delete(n); }));
-          }).then(function () {
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function (regs) {
-                return Promise.all(regs.map(function (r) { return r.unregister(); }));
-              }).then(cleanAndReload).catch(cleanAndReload);
-            } else {
-              cleanAndReload();
-            }
-          }).catch(cleanAndReload);
-        } else if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function (regs) {
-            return Promise.all(regs.map(function (r) { return r.unregister(); }));
-          }).then(cleanAndReload).catch(cleanAndReload);
-        } else {
-          cleanAndReload();
-        }
-        return;
+      if (!localStorage.getItem('v6_stable_init')) {
+        localStorage.clear();
+        localStorage.setItem('v6_stable_init', 'true');
+        window.location.reload();
       }
     })();
+  </script>
 
     // --- MECANISMO DE RECUPERACIÓN (Anti-Pantalla en Blanco) ---
     (function () {
@@ -122,14 +101,11 @@
   </script>
   <div id="root"></div>
   <script>
+    // Parche preventivo para bases de datos corruptas
     (function() {
-      if (!localStorage.getItem('ghost_cleared_v3')) {
-        localStorage.setItem('ghost_cleared_v3', 'true');
-        const req = indexedDB.deleteDatabase('_ionickv');
-        req.onsuccess = function () {
-          console.log("[Auto-Fix] Ghost login cleared.");
-          window.location.reload(true);
-        };
+      if (!localStorage.getItem('db_clear_v4')) {
+        localStorage.setItem('db_clear_v4', 'true');
+        indexedDB.deleteDatabase('_ionickv');
       }
     })();
   </script>
