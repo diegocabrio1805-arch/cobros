@@ -4,7 +4,7 @@ import { AppState, User, Role, CollectionLogType, CollectionLog } from '../types
 import { StorageService } from '../utils/localforageStorage';
 import { resolveSettings } from '../utils/settingsHierarchy';
 
-export const CURRENT_VERSION_ID = '6.7.6-STABLE';
+export const CURRENT_VERSION_ID = '6.7.7-STABLE';
 export const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 export const useAppInitialization = () => {
@@ -44,7 +44,8 @@ export const useAppInitialization = () => {
   useEffect(() => {
     const checkForUpdates = async () => {
       try {
-        const res = await fetch('/index.html?t=' + Date.now(), { cache: 'no-store' });
+        const url = window.location.pathname.endsWith('index.html') ? window.location.pathname : 'index.html';
+        const res = await fetch(url + '?t=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) return;
         const text = await res.text();
         const match = text.match(/CURRENT_VERSION_ID\s*=\s*'([^']+)'/) || text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
@@ -53,7 +54,6 @@ export const useAppInitialization = () => {
           const remoteVersion = match[1];
           if (remoteVersion !== CURRENT_VERSION_ID) {
             console.log(`[Update] New version found: ${remoteVersion}. Scheduling refresh...`);
-            // Limpiar caché antes de recargar
             if ('caches' in window) {
                 const names = await caches.keys();
                 await Promise.all(names.map(name => caches.delete(name)));
@@ -63,7 +63,7 @@ export const useAppInitialization = () => {
         }
       } catch (e) { }
     };
-    setTimeout(checkForUpdates, 10000); // Check after 10s of stability
+    setTimeout(checkForUpdates, 15000); // Check after 15s of stability
   }, []);
 
   // === CARGA INICIAL OPTIMIZADA ===
@@ -71,30 +71,22 @@ export const useAppInitialization = () => {
     const loadData = async () => {
       const startTime = Date.now();
       try {
-        // 1. STABILIZATION DELAY (Crucial para gama baja/media)
-        // Permite que la WebView y el motor JS se estabilicen antes de IO pesada
+        // 1. STABILIZATION DELAY
         await new Promise(r => setTimeout(r, 600));
 
         // 2. VERSION & PURGE MANAGEMENT
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-          console.log(`[App] Purge & Update: ${lastAppVersion} -> ${CURRENT_VERSION_ID}`);
+          console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}`);
           
-          // Guardar version antes de purgar
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
           
-          // Solo borrar caches y SW si estamos en un cambio de versión
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
           }
           
-          // No hacemos un purge total de datos si solo es fix menor para no molestar al usuario, 
-          // pero si no hay version previa es una instalacion nueva -> Limpieza total.
-          if (!lastAppVersion) {
-            localStorage.clear();
-            localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-          }
+          // CRITICAL: We NO LONGER clear() localStorage to avoid feedback loops with index.html
         }
 
         // 3. DATA LOADING (Optimizado)
