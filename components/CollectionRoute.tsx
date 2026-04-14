@@ -478,7 +478,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
       await Share.share({
         title: 'Recibo de Pago',
-        text: `Recibo de Pago`,
+        text: 'Comprobante de Operacin',
         url: savedFile.uri,
         dialogTitle: 'Enviar Recibo por WhatsApp'
       });
@@ -549,7 +549,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
         await Share.share({
           title: 'Recibo de Pago',
-          text: `Recibo de Pago de ${clientName}`,
+          text: 'Comprobante de Operacin',
           url: savedFile.uri,
           dialogTitle: 'Enviar Foto de Recibo por WhatsApp'
         });

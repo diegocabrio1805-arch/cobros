@@ -598,7 +598,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
         await Share.share({
           title: 'Recibo de Pago',
-          text: 'Comprobante de operación - Anexo Cobro',
+          text: 'Comprobante de Operación',
           url: result.uri,
           dialogTitle: 'Compartir Recibo',
         });
