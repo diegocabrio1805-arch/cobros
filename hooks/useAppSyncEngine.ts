@@ -252,20 +252,11 @@ export const useAppSyncEngine = (
   }, [state.currentUser]);
 
   useEffect(() => {
-    connectToPrinter(undefined, true).catch(() => { });
-    
-    const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
-      if (isActive) {
-        connectToPrinter(undefined, true);
-      }
-    });
-
     const timer = setTimeout(() => {
       sync.pullData();
     }, 1000);
 
     return () => {
-      Promise.resolve(resumeListener).then(l => l?.remove?.()).catch(() => {});
       clearTimeout(timer);
     };
   }, []);
