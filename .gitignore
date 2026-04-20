@@ -1,0 +1,59 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Vercel
+.vercel
+.vercel.json.backup
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+.DS_Store
+
+# APK builds (opcional, si no quieres subir APKs a GitHub)
+*.apk
+android/app/build
+android/.gradle
+
+.vercel
+.env*.local
+
+# Local Netlify folder
+.netlify
+.tmp.driveupload/
+
+# Assets no relacionados al proyecto (Tsubasa / otros)
+assets/tsubasa_run/
+tsubasa_*.png
+tsubasa_*.gif
+scripts/generate_tsubasa_gif.ps1
+scripts/slice_final_tsubasa.ps1
+scripts/fix_gps_zeros.mjs

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fondo azul sólido -->
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  
+  <!-- Saco de dinero en líneas blancas -->
+  <g stroke="#ffffff" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cuerpo del saco -->
+    <path d="M 180 220 Q 160 280 160 320 Q 160 380 200 410 Q 256 440 312 410 Q 352 380 352 320 Q 352 280 332 220 Z"/>
+    
+    <!-- Nudo superior -->
+    <ellipse cx="256" cy="200" rx="80" ry="30"/>
+    <path d="M 176 200 Q 176 180 200 170"/>
+    <path d="M 336 200 Q 336 180 312 170"/>
+    
+    <!-- Símbolo $ -->
+    <text x="256" y="330" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#ffffff" text-anchor="middle">$</text>
+  </g>
+</svg>

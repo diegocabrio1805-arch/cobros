@@ -1,0 +1,2522 @@
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
+import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount } from '../utils/helpers';
+import { getTranslation } from '../utils/translations';
+import { generateNoPaymentAIReminder } from '../services/geminiService';
+import html2canvas from 'html2canvas';
+import { Share } from '@capacitor/share';
+import PullToRefresh from './PullToRefresh';
+import { useSync } from '../hooks/useSync';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Geolocation } from '@capacitor/geolocation';
+import { jsPDF } from 'jspdf';
+import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
+import { exportClientsToExcel, processExcelImport } from '../utils/excelHelper';
+import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
+
+const BANCA_CLIENT_TYPES = [
+  { code: '130', label: 'MICRO UNI P/ FORMAL' },
+  { code: '131', label: 'MICRO UNI P/ INFORMAL' },
+  { code: '132', label: 'PYMES' },
+  { code: '133', label: 'PROFESIONAL/IND. C/IVA' },
+  { code: '240', label: 'ASALARIADOS DEPENDIENTES' },
+  { code: '242', label: 'ASALARIADOS CON IVA' },
+  { code: '243', label: 'JUBILADOS' },
+  { code: '300', label: 'FUNCIONARIOS ALTERFIN' },
+  { code: '500', label: 'ASOCIACIONES' },
+];
+
+const OPERATION_TYPES = [
+  { code: '114', label: 'ASOCIACIONES' },
+  { code: '202', label: 'PRESTAMO DIARIO' },
+  { code: '201', label: 'PRESTAMO MENSUAL' },
+  { code: '204', label: 'RENOVACION- REFINANCIACION' },
+  { code: '205', label: 'RENOVACION NORMAL' },
+  { code: '206', label: 'COMERCIO ADHERIDO' },
+  { code: '207', label: 'TASA ESPECIAL' },
+  { code: '208', label: 'AMORTIZACION MANUAL' },
+  { code: '210', label: 'PLAZO FIJO TAZA 0' },
+  { code: '211', label: 'CLIENTES NUEVOS A UN SOLO VTO' },
+  { code: '260', label: 'CESION DE CREDITOS' },
+  { code: '261', label: 'ANTICIPO DE PAGOS' },
+  { code: '401', label: 'DESCUENTO DE CHEQUE' },
+];
+
+interface ClientsProps {
+  state: AppState;
+  addClient: (client: Client, loan?: Loan) => void | Promise<void>;
+  addLoan?: (loan: Loan) => void;
+  updateClient?: (client: Client) => void;
+  updateLoan?: (loan: Loan) => void;
+  deleteCollectionLog?: (logId: string) => void;
+  updateCollectionLog?: (logId: string, newAmount: number) => void;
+  updateCollectionLogNotes?: (logId: string, notes: string) => void;
+  deleteLoan?: (loanId: string) => void;
+  addCollectionAttempt: (log: CollectionLog) => void;
+  globalState: AppState;
+  onForceSync?: (silent?: boolean, message?: string) => Promise<void>;
+  setActiveTab?: (tab: string) => void;
+  fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
+  recalculateLoanStatus?: (loanId: string) => void;
+  deleteClient?: (clientId: string) => void;
+  setState: React.Dispatch<React.SetStateAction<AppState>>;
+  pushLoan?: (loan: Loan) => Promise<void>;
+}
+
+const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/webp', 0.7));
+    };
+    img.onerror = () => resolve(base64);
+  });
+};
+
+const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, disabled = false }: { startDate: string, customHolidays: string[], setDate: (iso: string) => void, toggleHoliday: (iso: string) => void, disabled?: boolean }) => {
+  const [currentCalDate, setCurrentCalDate] = useState(new Date(startDate + 'T00:00:00'));
+  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+  const month = currentCalDate.getMonth();
+  const year = currentCalDate.getFullYear();
+  const totalDays = daysInMonth(month, year);
+  const startDay = firstDayOfMonth(month, year);
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const days = [];
+  for (let i = 0; i < startDay; i++) days.push(null);
+  for (let i = 1; i <= totalDays; i++) days.push(i);
+
+  const handleDayClick = (day: number) => {
+    if (disabled) return;
+    const date = new Date(year, month, day);
+    const iso = date.toISOString().split('T')[0];
+    if (startDate === iso) {
+      toggleHoliday(iso);
+    } else {
+      setDate(iso);
+    }
+  };
+
+  return (
+    <div className={`bg - white border border - slate - 300 rounded - 2xl p - 4 shadow - sm animate - fadeIn ${disabled ? 'opacity-50 pointer-events-none' : ''} `}>
+      <div className="flex justify-between items-center mb-4">
+        <h5 className="text-[10px] font-black uppercase text-slate-900">{monthNames[month]} {year}</h5>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month - 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-left text-[10px]"></i></button>
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month + 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-right text-[10px]"></i></button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center mb-1">
+        {["D", "L", "M", "M", "J", "V", "S"].map(d => <div key={d} className="text-[8px] font-black text-slate-500 py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day, idx) => {
+          if (day === null) return <div key={`empty - ${idx} `} />;
+          const date = new Date(year, month, day);
+          const iso = date.toISOString().split('T')[0];
+          const isStart = startDate === iso;
+          const isHoliday = customHolidays.includes(iso);
+          const isSunday = date.getDay() === 0;
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => handleDayClick(day)}
+              onContextMenu={(e) => { e.preventDefault(); !disabled && toggleHoliday(iso); }}
+              className={`h - 10 w - full rounded - lg text - [10px] font - black flex flex - col items - center justify - center transition - all border
+                ${isStart ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-105 z-10' :
+                  isHoliday ? 'bg-orange-500 text-white border-orange-400' :
+                    isSunday ? 'bg-red-50 text-red-700 border-red-200' :
+                      'bg-white text-slate-800 border-slate-300 hover:border-blue-400'
+                } `}
+            >
+              {day}
+              {isHoliday && <div className="w-1 h-1 bg-white rounded-full mt-0.5"></div>}
+              {isStart && <div className="text-[6px] opacity-70">INICIO</div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
+  const isPdf = value && value.startsWith('data:application/pdf');
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
+      <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
+      <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
+        {value ? (
+          <>
+            {isPdf ? (
+              <div className="flex flex-col items-center justify-center p-2 text-center" onClick={() => onView?.(value)}>
+                <i className="fa-solid fa-file-pdf text-red-500 text-3xl mb-1"></i>
+                <span className="text-[7px] font-black text-slate-700 uppercase">VER PDF</span>
+              </div>
+            ) : (
+              <img src={value} className="w-full h-full object-cover" onClick={() => onView?.(value)} />
+            )}
+            {!disabled && (
+              <div className="absolute top-1 right-1 z-10">
+                <label className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-blue-700 active:scale-95 transition-all">
+                  <i className="fa-solid fa-camera text-[10px]"></i>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onFileChange(e, field, forEdit)}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-lg">Ampliar</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
+            <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => onFileChange(e, field, forEdit)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus, deleteClient, setState, pushLoan }) => {
+  const { forceSync } = useSync();
+  const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
+
+  const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
+    try {
+      if (!imageSrc) return;
+      const isPdf = imageSrc.startsWith('data:application/pdf');
+      // Clean filename: remove spaces and special characters for Android compatibility
+      const cleanClientName = (client.name || 'SinNombre').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${cleanClientName}_${cleanTitle}.pdf`;
+
+      if (isPdf) {
+        await saveAndOpenBase64PDF(imageSrc, fileName);
+        return;
+      }
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Title
+      doc.setFontSize(16);
+      doc.text(`Expediente: ${client.name} - ${title}`, 10, 15);
+
+      // Dynamic Image Format Detection
+      let format = 'JPEG';
+      if (imageSrc.startsWith('data:image/png')) format = 'PNG';
+      else if (imageSrc.startsWith('data:image/webp')) format = 'WEBP';
+
+      // Add image
+      const imgProps = doc.getImageProperties(imageSrc);
+      const ratio = imgProps.width / imgProps.height;
+      let imgWidth = pageWidth - 20; // 10px margin each side
+      let imgHeight = imgWidth / ratio;
+
+      if (imgHeight > pageHeight - 40) {
+        imgHeight = pageHeight - 40;
+        imgWidth = imgHeight * ratio;
+      }
+
+      // Add white background for PNG transparency support
+      if (format === 'PNG') {
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 25, imgWidth, imgHeight, 'F');
+      }
+
+      doc.addImage(imageSrc, format as any, 10, 25, imgWidth, imgHeight);
+
+      // Footer info
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Generado por Anexo Cobros - ${new Date().toLocaleString()}`, 10, pageHeight - 10);
+
+      await saveAndOpenPDF(doc, fileName);
+    } catch (e) {
+      console.error("Error generating/opening PDF", e);
+      alert("No se pudo abrir la foto. Intente de nuevo.");
+    }
+  };
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedCollectorForImport, setSelectedCollectorForImport] = useState('');
+  const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos'>('cartera');
+  const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
+  const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
+  const [selectedCollector, setSelectedCollector] = useState<string>('all');
+  const [carteraSortBy, setCarteraSortBy] = useState<'registro' | 'saldo' | 'atraso' | 'renovaciones'>('registro');
+
+  // PAGINACIÓN PARA GAMA BAJA
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
+  const [showModal, setShowModal] = useState(false);
+  const [showLegajo, setShowLegajo] = useState<string | null>(null);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewForm, setRenewForm] = useState<any>({
+    principal: '500000',
+    interestRate: '20',
+    installments: '24',
+    frequency: Frequency.DAILY,
+    operationTypeCode: '202'
+  });
+
+  const [clientData, setClientData] = useState<Client>({
+    id: '',
+    documentId: '',
+    name: '',
+    phone: '',
+    secondaryPhone: '',
+    address: '',
+    creditLimit: 1000000,
+    location: undefined,
+    domicilioLocation: undefined,
+    profilePic: '',
+    housePic: '',
+    businessPic: '',
+    documentPic: '',
+    allowCollectorLocationUpdate: false,
+    isActive: true,
+    // Inicializar nuevos campos
+    nationality: '',
+    birthDate: '',
+    maritalStatus: '',
+    profession: '',
+    email: '',
+    spouseName: '',
+    spouseDocumentId: '',
+    spouseBirthDate: '',
+    spouseProfession: '',
+    spouseWorkplace: '',
+    spouseWorkPhone: '',
+    spouseIncome: 0,
+    residenceType: 'propia',
+    residenceAntiquity: '',
+    clientType: '',
+    clientTypeCode: '131',
+    sellerCode: '',
+    particularCity: '',
+    particularStreetMain: '',
+    particularStreetSecondary: '',
+    houseNumber: '',
+    particularNeighborhood: '',
+    workCompany: '',
+    workStreetMain: '',
+    workStreetSecondary: '',
+    workCity: '',
+    workPhone: '',
+    workNeighborhood: '',
+    workPosition: '',
+    workSector: '',
+    workAntiquity: '',
+    workIncome: 0,
+    locationCoords: ''
+  });
+
+  const [editClientFormData, setEditClientFormData] = useState<Client | null>(null);
+  const [editLoanFormData, setEditLoanFormData] = useState<any>(null);
+
+  const [initialLoan, setInitialLoan] = useState<any>({
+    principal: '500000',
+    interestRate: '20',
+    installments: '24',
+    frequency: Frequency.DAILY,
+    startDate: countryTodayStr,
+    endDate: '',
+    customHolidays: [] as string[],
+    selectedCollectorId: '',
+    operationTypeCode: '202',
+    sellerCode: '',
+    promissoryNoteAmount: '',
+    promissoryNoteExpiration: ''
+  });
+
+  useEffect(() => {
+    if (showModal) {
+      const p = Number(initialLoan.principal) || 0;
+      const i = Number(initialLoan.interestRate) || 0;
+      const inst = Number(initialLoan.installments) || 0;
+
+      let startDateObj;
+      if (typeof initialLoan.startDate === 'string') {
+        startDateObj = new Date(initialLoan.startDate.split('T')[0] + 'T00:00:00');
+      } else {
+        startDateObj = new Date(initialLoan.startDate);
+        startDateObj.setHours(0, 0, 0, 0);
+      }
+
+      const table = generateAmortizationTable(
+        p,
+        i,
+        inst,
+        initialLoan.frequency,
+        startDateObj,
+        state.settings.country,
+        initialLoan.customHolidays
+      );
+      if (table.length > 0) {
+        const lastDate = table[table.length - 1].dueDate.split('T')[0];
+        setInitialLoan((prev: any) => ({ ...prev, endDate: lastDate }));
+      }
+    }
+  }, [initialLoan.startDate, initialLoan.installments, initialLoan.frequency, initialLoan.customHolidays, showModal, state.settings.country]);
+
+  useEffect(() => {
+    if (isEditingClient && editLoanFormData) {
+      const p = Number(editLoanFormData.principal) || 0;
+      const i = Number(editLoanFormData.interestRate) || 0;
+      const inst = Number(editLoanFormData.totalInstallments) || 0;
+
+      let startDateTime;
+      if (typeof editLoanFormData.createdAt === 'string') {
+        startDateTime = new Date(editLoanFormData.createdAt.split('T')[0] + 'T00:00:00');
+      } else {
+        startDateTime = new Date(editLoanFormData.createdAt);
+        startDateTime.setHours(0, 0, 0, 0);
+      }
+
+      console.log(`[REGEN DEBUG] Regenerating Loan: ${editLoanFormData.id} | Principal: ${p} | StartDate(createdAt): ${editLoanFormData.createdAt} `);
+
+      const table = generateAmortizationTable(
+        p,
+        i,
+        inst,
+        editLoanFormData.frequency,
+        startDateTime,
+        state.settings.country,
+        editLoanFormData.customHolidays || []
+      );
+
+      const totalAmount = calculateTotalReturn(p, i);
+      const installmentValue = inst > 0 ? totalAmount / inst : 0;
+
+      const updatedInstallments = (Array.isArray(table) ? table : []).map(newInst => {
+        const existing = (editLoanFormData.installments || []).find((e: any) => e.number === newInst.number);
+        if (existing) {
+          return { ...newInst, paidAmount: existing.paidAmount, status: existing.status };
+        }
+        return newInst;
+      });
+
+      setEditLoanFormData((prev: any) => prev ? {
+        ...prev,
+        totalAmount: totalAmount,
+        installmentValue: installmentValue,
+        installments: updatedInstallments
+      } : null);
+    }
+  }, [
+    editLoanFormData?.principal,
+    editLoanFormData?.interestRate,
+    editLoanFormData?.totalInstallments,
+    editLoanFormData?.frequency,
+    editLoanFormData?.customHolidays,
+    editLoanFormData?.createdAt,
+    isEditingClient,
+    state.settings.country
+  ]);
+
+  const [showDossierPaymentModal, setShowDossierPaymentModal] = useState(false);
+  const [dossierPaymentAmount, setDossierPaymentAmount] = useState<any>('');
+  const [dossierIsVirtual, setDossierIsVirtual] = useState(false);
+  const [dossierIsRenewal, setDossierIsRenewal] = useState(false);
+  const [isProcessingDossierAction, setIsProcessingDossierAction] = useState(false);
+
+  const [showEditLogModal, setShowEditLogModal] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [newLogAmount, setNewLogAmount] = useState<any>('');
+
+  const [showCustomNoPayModal, setShowCustomNoPayModal] = useState(false);
+  const [customNoPayText, setCustomNoPayText] = useState('');
+
+  const [addInitialLoan, setAddInitialLoan] = useState(true);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturingType, setCapturingType] = useState<'home' | 'domicilio' | null>(null);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(globalSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
+  const [isSharing, setIsSharing] = useState(false);
+  const [receipt, setReceipt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showLegajo && fetchClientPhotos && updateClient) {
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === showLegajo);
+      // Solo disparar si el cliente existe y le faltan fotos pero sabemos que debería tenerlas (o simplemente para asegurar)
+      if (client && (!client.profilePic || !client.documentPic || !client.housePic || !client.businessPic)) {
+        console.log("[Clients] Verificando fotos para legajo:", showLegajo);
+        fetchClientPhotos(showLegajo).then(photos => {
+          if (photos && Object.keys(photos).length > 0) {
+            // Verificar si realmente hay cambios para evitar re-renderizados infinitos
+            // Y CRUCIAL: No sobrescribir una foto local en Base64 con un 'null' o 'falsy' del servidor
+            // Esto evita la condición de carrera donde el servidor aún no tiene la foto tras un guardado reciente.
+            const safePhotosToUpdate: Partial<Client> = {};
+            let hasChanges = false;
+
+            Object.entries(photos).forEach(([key, remoteValue]) => {
+              const localValue = (client as any)[key];
+
+              // Si el servidor tiene un valor válido (la URL), y es diferente al local, lo tomamos.
+              // Si el servidor devuelve null/vacio, PERO nosotros ya tenemos algo local (como el base64),
+              // NO lo sobrescribimos. Lo ignoramos.
+              if (remoteValue !== localValue) {
+                if (remoteValue) {
+                  (safePhotosToUpdate as any)[key] = remoteValue;
+                  hasChanges = true;
+                } else if (!localValue) {
+                  // Ambos están vacios de formas distintas, o el remoto confirma que debe estar vacio.
+                  // Solo actualizamos si ambos están falsy para no romper referencias si es necesario,
+                  // pero en la práctica, si remoto es vacio y local tiene base64, ignoramos esta rama.
+                }
+              }
+            });
+
+            if (hasChanges && Object.keys(safePhotosToUpdate).length > 0) {
+              updateClient({ ...client, ...safePhotosToUpdate });
+            }
+          }
+        }).catch(err => console.error("Error fetching client photos:", err));
+      }
+    }
+  }, [showLegajo, state.clients.length]); // Usar length para detectar nuevos clientes sin disparar por cada cambio de atributo
+
+  const shareCardRef = useRef<HTMLDivElement>(null);
+  const receiptCardRef = useRef<HTMLDivElement>(null);
+  const statementRef = useRef<HTMLDivElement>(null);
+
+  const isAdmin = state.currentUser?.role === Role.ADMIN;
+  const isManager = state.currentUser?.role === Role.MANAGER;
+  const isAdminOrManager = isAdmin || isManager;
+  const isCollector = state.currentUser?.role === Role.COLLECTOR;
+  const currentUserId = state.currentUser?.id;
+
+  const collectors = useMemo(() => {
+    const allCollectors = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR);
+    if (isManager && state.currentUser) {
+      return allCollectors.filter(u => u.managedBy === state.currentUser?.id);
+    }
+    return allCollectors;
+  }, [state.users, isManager, state.currentUser]);
+
+  const clientInLegajo = useMemo(() => (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === showLegajo), [showLegajo, state.clients]);
+
+  const activeLoanInLegajo = useMemo(() => {
+    if (!showLegajo) return null;
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === showLegajo && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    return clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [showLegajo, state.loans]);
+
+  const clientHistory = useMemo(() => {
+    if (!showLegajo) return [];
+
+    // Get collection logs
+    const logs = (state.collectionLogs || [])
+      .filter(log => log.clientId === showLegajo && !log.deletedAt)
+      .map(log => ({ ...log, itemType: 'log' as const }));
+
+    // Get loan grants (créditos otorgados)
+    const loanGrants = (state.loans || [])
+      .filter(loan => loan.clientId === showLegajo)
+      .map(loan => ({
+        id: `loan - ${loan.id} `,
+        clientId: loan.clientId,
+        loanId: loan.id,
+        type: CollectionLogType.PAYMENT, // Dummy type for rendering
+        amount: loan.principal, // Show the granted amount
+        date: loan.createdAt,
+        itemType: 'loan' as const,
+        isRenewal: loan.isRenewal
+      }));
+
+    // Merge and sort by date (most recent first)
+    return [...logs, ...loanGrants]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [showLegajo, state.collectionLogs, state.loans]);
+
+  const getClientMetrics = (client: Client) => {
+    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasTP: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false };
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const activeLoan = sortedLoans[0];
+    const hasMultipleLoans = clientLoans.length > 1;
+
+    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasTP = '0/0', isFullyPaid = false, maxDaysOverdue = 0;
+
+    if (activeLoan) {
+      // USAR SIEMPRE LA FUNCIÓN ROBUSTA UNIFICADA
+      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+
+      // Saldo Pendiente Consolidado
+      balance = clientLoans.reduce((sum, l) => {
+        const lPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+        return sum + Math.max(0, l.totalAmount - lPaid);
+      }, 0);
+
+      isFullyPaid = balance <= 0.01;
+
+      // Progreso Cuotas (del principal/reciente)
+      const progress = totalPaid / (activeLoan.installmentValue || 1);
+      const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
+      installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
+
+      const paidUnits = Math.floor(progress);
+      cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
+
+      // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
+      daysOverdue = Math.max(...clientLoans.map(l => {
+        const lp = calculateTotalPaidFromLogs(l, state.collectionLogs);
+        return getDaysOverdue(l, state.settings, lp);
+      }));
+
+      const daysOverdueArr = activeLoan.installments
+        .filter(i => i.status !== PaymentStatus.PAID)
+        .map(i => getDaysOverdue(i.dueDate, state.settings));
+      maxDaysOverdue = daysOverdueArr.length > 0 ? Math.max(...daysOverdueArr) : 0;
+
+      if (activeLoan.installments && activeLoan.installments.length > 0) {
+        const insts = activeLoan.installments;
+        lastExpiryDate = insts[insts.length - 1].dueDate;
+      }
+      createdAt = activeLoan.createdAt;
+
+      return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
+    }
+    return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
+  };
+
+  const filteredClients = useMemo(() => {
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden && !c.deletedAt);
+    if (debouncedSearch) {
+      const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+      clients = clients.filter(c => {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        return nameNorm.includes(s) || docNorm.includes(s) || phoneNorm.includes(s) || secPhoneNorm.includes(s);
+      });
+    }
+    if (selectedCollector !== 'all') {
+      const collectorLower = selectedCollector.toLowerCase();
+      clients = clients.filter(c => {
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+      });
+    }
+    // SAFE SORT (NaN PROOF)
+    return [...clients].sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt.split('T')[0] + 'T00:00:00').getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt.split('T')[0] + 'T00:00:00').getTime() : 0;
+      const vA = isNaN(tA) ? 0 : tA;
+      const vB = isNaN(tB) ? 0 : tB;
+      return vB - vA;
+    });
+  }, [state.clients, debouncedSearch, selectedCollector, state.loans, state.collectionLogs]);
+
+  // RESETEAR PAGINA AL FILTRAR
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode, debouncedSearch, selectedCollector]);
+
+  const paginatedClients = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return (filteredClients || []).slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredClients, currentPage]);
+
+  const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
+
+  // VISTA EXCEL: NUEVOS CLIENTES EN RANGO
+  const nuevosExcelData = useMemo(() => {
+    if (viewMode !== 'nuevos') return [];
+    const start = new Date(filterStartDate + 'T00:00:00');
+    const end = new Date(filterEndDate + 'T23:59:59');
+
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return (Array.isArray(state.clients) ? state.clients : []).map(client => {
+      if (client.isHidden || client.deletedAt) return null;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (client.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
+      }
+
+      const cDate = new Date(client.createdAt || '');
+      const inRange = cDate >= start && cDate <= end;
+      if (!inRange) return null;
+
+      const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      if (activeLoan?.isRenewal) return null;
+
+      if (selectedCollector !== 'all') {
+        const collectorLower = selectedCollector.toLowerCase();
+        const matchesCollector = (activeLoan && (activeLoan.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower) || ((client.addedBy || (client as any).added_by)?.toLowerCase() === collectorLower);
+        if (!matchesCollector) return null;
+      }
+
+      const metrics = getClientMetrics(client);
+      return { ...client, _metrics: metrics };
+    }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan?.createdAt || b.createdAt).getTime() - new Date(a._metrics.activeLoan?.createdAt || a.createdAt).getTime());
+  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans]);
+
+  const renovacionesExcelData = useMemo(() => {
+    if (viewMode !== 'renovaciones') return [];
+    const start = new Date(filterStartDate + 'T00:00:00');
+    const end = new Date(filterEndDate + 'T23:59:59');
+
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    const clients = Array.isArray(state.clients) ? state.clients : [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return loans.filter(l =>
+      l.isRenewal &&
+      new Date(l.createdAt) >= start &&
+      new Date(l.createdAt) <= end &&
+      (selectedCollector === 'all' || (l.collectorId || (l as any).collector_id)?.toLowerCase() === selectedCollector.toLowerCase())
+    ).map(loan => {
+      const client = clients.find(c => c.id === loan.clientId);
+      if (!client || client.isHidden || client.deletedAt) return null;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (client.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
+      }
+
+      return {
+        ...client,
+        _loan: loan,
+        _metrics: getClientMetrics(client),
+        _sortDate: new Date(loan.createdAt).getTime()
+      };
+    }).filter(Boolean).sort((a: any, b: any) => b._sortDate - a._sortDate);
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch]);
+
+  // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
+  const carteraExcelData = useMemo(() => {
+    if (viewMode !== 'cartera') return [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+      if (c.isHidden || c.deletedAt) return false;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return false;
+      }
+
+      if (selectedCollector !== 'all') {
+        const collectorLower = selectedCollector.toLowerCase();
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+      }
+      return true;
+    }).map(client => {
+      const metrics = getClientMetrics(client);
+      return { ...client, _metrics: metrics };
+    }).sort((a, b) => {
+      if (carteraSortBy === 'renovaciones') {
+        const renewalsB = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === b.id && l.isRenewal).length : 0;
+        const renewalsA = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === a.id && l.isRenewal).length : 0;
+        return renewalsB - renewalsA;
+      }
+      if (carteraSortBy === 'saldo') {
+        return (b._metrics?.balance || 0) - (a._metrics?.balance || 0);
+      }
+      if (carteraSortBy === 'atraso') {
+        const delaysB = Math.max(0, b._metrics?.daysOverdue || 0);
+        const delaysA = Math.max(0, a._metrics?.daysOverdue || 0);
+        return delaysB - delaysA;
+      }
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch]);
+
+  const ocultosExcelData = useMemo(() => {
+    if (viewMode !== 'ocultos') return [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+      if (!c.isHidden || c.deletedAt) return false;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return false;
+      }
+
+      if (selectedCollector !== 'all') {
+        const collectorLower = selectedCollector.toLowerCase();
+        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+      }
+      return true;
+    }).map(client => {
+      const metrics = getClientMetrics(client);
+      return { ...client, _metrics: metrics };
+    }).sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [state.clients, state.loans, viewMode, selectedCollector, debouncedSearch]);
+
+  const handleRestoreClient = async (clientId: string) => {
+    const client = state.clients.find(c => c.id === clientId);
+    if (!client) return;
+    await updateClient({ ...client, isHidden: false });
+    alert("CLIENTE RESTAURADO A LA CARTERA.");
+  };
+
+  const handlePermanentDeleteClient = async (clientId: string) => {
+    if (!window.confirm("¿ESTÁ SEGURO DE ELIMINAR A ESTE CLIENTE?")) return;
+    if (deleteClient) {
+      deleteClient(clientId);
+      alert("CLIENTE ELIMINADO.");
+    }
+  };
+
+  const handleOpenMap = (loc?: { lat: number, lng: number }) => {
+    if (loc && loc.lat && loc.lng) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
+      window.open(url, '_blank');
+    } else {
+      alert("Sin coordenadas capturadas para este punto.");
+    }
+  };
+
+  const handleToggleHideClient = (clientId: string) => {
+    if (!isAdminOrManager) return;
+    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
+    if (client && updateClient) {
+      if (confirm(`¿DESEA OCULTAR AL CLIENTE ${client.name.toUpperCase()}? NO APARECERÁ EN LAS RUTAS DE COBRO ACTIVAS.`)) {
+        updateClient({ ...client, isHidden: true });
+      }
+    }
+  };
+
+  const handleSubmitNewClient = async (e: React.FormEvent) => {
+    if (isSubmitting) return;
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const clientId = generateUUID();
+      // FIX: Explicitly assign branchId so it belongs to the Manager/Admin, not the Collector's private scope
+      // This ensures it appears on the Web Dashboard (Admin) AND the Collector's App (via managedBy view)
+      const user = state.currentUser;
+      const calculatedBranchId = (user?.role === Role.ADMIN || user?.role === Role.MANAGER)
+        ? user.id
+        : (user?.managedBy || (user as any)?.managed_by || user?.id);
+
+      const client: Client = {
+        ...clientData,
+        id: clientId,
+        addedBy: currentUserId,
+        branchId: calculatedBranchId,
+        isActive: true,
+        isHidden: false,
+        createdAt: new Date().toISOString()
+      };
+      let loan: Loan | undefined;
+
+      if (addInitialLoan) {
+        const baseDateStr = initialLoan.startDate || countryTodayStr;
+        const startDateTime = new Date(baseDateStr + 'T00:00:00');
+        const validStartDate = isNaN(startDateTime.getTime()) ? new Date() : startDateTime;
+
+        const safeParseFloat = (val: string | number | undefined) => {
+          if (!val) return 0;
+          const str = val.toString().replace(',', '.');
+          return parseFloat(str) || 0;
+        };
+
+        const p = safeParseFloat(initialLoan.principal);
+        const i = safeParseFloat(initialLoan.interestRate);
+        const inst = safeParseFloat(initialLoan.installments);
+
+        const total = calculateTotalReturn(p, i);
+        loan = {
+          id: generateUUID(),
+          clientId,
+          collectorId: initialLoan.selectedCollectorId || currentUserId,
+          principal: p,
+          interestRate: i,
+          totalInstallments: inst,
+          frequency: initialLoan.frequency,
+          totalAmount: total,
+          installmentValue: inst > 0 ? total / inst : 0,
+          status: LoanStatus.ACTIVE,
+          createdAt: validStartDate.toISOString(),
+          customHolidays: initialLoan.customHolidays,
+          operationTypeCode: initialLoan.operationTypeCode,
+          sellerCode: initialLoan.sellerCode,
+          promissoryNoteAmount: safeParseFloat(initialLoan.promissoryNoteAmount),
+          promissoryNoteExpiration: initialLoan.promissoryNoteExpiration,
+          installments: generateAmortizationTable(p, i, inst, initialLoan.frequency, validStartDate, state.settings.country, initialLoan.customHolidays)
+        };
+        // CRITICAL: Update client with loan details for denormalized view
+        client.capital = p;
+        client.currentBalance = total;
+      }
+      await addClient(client, loan);
+      if (onForceSync) onForceSync(false, "CREDITO SUBIDO CORRECTAMENTE");
+      setShowModal(false);
+      // No longer force resetting or changing viewMode manually here if not needed
+      setClientData({
+        id: '', documentId: '', name: '', phone: '', secondaryPhone: '', address: '', creditLimit: 1000000,
+        location: undefined, domicilioLocation: undefined, profilePic: '', housePic: '', businessPic: '', documentPic: '',
+        allowCollectorLocationUpdate: false, isActive: true, isHidden: false,
+        nationality: '', birthDate: '', maritalStatus: '', profession: '', email: '',
+        spouseName: '', spouseDocumentId: '', spouseBirthDate: '', spouseProfession: '', spouseWorkplace: '', spouseWorkPhone: '', spouseIncome: 0,
+        residenceType: 'propia', residenceAntiquity: '', clientType: '', clientTypeCode: '131',
+        sellerCode: '',
+        particularCity: '', particularStreetMain: '', particularStreetSecondary: '', houseNumber: '', particularNeighborhood: '',
+        workCompany: '', workStreetMain: '', workStreetSecondary: '', workCity: '', workPhone: '', workNeighborhood: '', workPosition: '', workSector: '', workAntiquity: '', workIncome: 0,
+        locationCoords: ''
+      });
+      setInitialLoan({
+        principal: '500000', interestRate: '20', installments: '24', frequency: Frequency.DAILY, startDate: countryTodayStr, endDate: '', customHolidays: [], selectedCollectorId: '', operationTypeCode: '202', sellerCode: '', promissoryNoteAmount: '', promissoryNoteExpiration: ''
+      });
+    } catch (error) {
+      alert("Error al crear el cliente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCaptureLocation = async (type: 'home' | 'domicilio', forEdit: boolean = false) => {
+    setIsCapturing(true);
+    setCapturingType(type);
+    try {
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
+      const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (forEdit && editClientFormData) {
+        setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc } : null);
+      } else {
+        setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc }));
+      }
+    } catch (err: any) {
+      try {
+        const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+        const fbLoc = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        if (forEdit && editClientFormData) {
+          setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc }));
+        }
+      } catch (fallbackErr: any) {
+        alert("Error GPS: " + fallbackErr.message);
+      }
+      alert("Error GPS: " + err.message);
+    } finally {
+      setIsCapturing(false);
+      setCapturingType(null);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // If it's already a PDF, just read it as base64 and save it
+    if (file.type === 'application/pdf') {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (forEdit) {
+          setEditClientFormData(prev => prev ? { ...prev, [field]: base64 } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [field]: base64 }));
+        }
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // Si es imagen, se comprime y se guarda directamente en formato nativo (WEBP)
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Image = event.target?.result as string;
+      const compressed = await compressImage(base64Image);
+
+      if (forEdit) {
+        setEditClientFormData(prev => prev ? { ...prev, [field]: compressed } : null);
+      } else {
+        setClientData(prev => ({ ...prev, [field]: compressed }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleStartEdit = () => {
+    if (!clientInLegajo) return;
+    setEditClientFormData({ ...clientInLegajo });
+    if (activeLoanInLegajo) {
+      setEditLoanFormData({ ...activeLoanInLegajo });
+    }
+    setIsEditingClient(true);
+  };
+
+  const handleSaveEditedClient = () => {
+    if (editClientFormData && updateClient) {
+      updateClient(editClientFormData);
+      if (editLoanFormData && updateLoan) {
+        const loanToSave = {
+          ...editLoanFormData,
+          principal: Number(editLoanFormData.principal),
+          interestRate: Number(editLoanFormData.interestRate),
+          totalInstallments: Number(editLoanFormData.totalInstallments)
+        };
+        updateLoan(loanToSave);
+      }
+      setIsEditingClient(false);
+      alert("Expediente y Crédito actualizados.");
+    }
+  };
+
+  const handleOpenDossierPayment = () => {
+    if (!activeLoanInLegajo) return;
+    setDossierPaymentAmount(activeLoanInLegajo.installmentValue.toString());
+    setDossierIsVirtual(false);
+    setDossierIsRenewal(false);
+    setShowDossierPaymentModal(true);
+  };
+
+  const setDossierPaymentMethod = (method: 'cash' | 'virtual' | 'renewal') => {
+    setDossierIsVirtual(method === 'virtual');
+    setDossierIsRenewal(method === 'renewal');
+
+    // Solo cambiar el monto automáticamente si está vacío o es el valor por defecto
+    const currentAmount = dossierPaymentAmount.toString();
+    const isDefaultValue = activeLoanInLegajo && (currentAmount === activeLoanInLegajo.installmentValue.toString() || currentAmount === '');
+
+    if (method === 'renewal' && activeLoanInLegajo) {
+      // Regla de Oro: Usar collection logs como fuente de verdad para el saldo
+      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+      const tPaid = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
+      setDossierPaymentAmount(Math.max(0, activeLoanInLegajo.totalAmount - tPaid).toString());
+    } else if (activeLoanInLegajo && isDefaultValue) {
+      setDossierPaymentAmount(activeLoanInLegajo.installmentValue.toString());
+    }
+  };
+
+  const handleDossierAction = async (type: CollectionLogType, customAmount?: number) => {
+    if (isProcessingDossierAction || !clientInLegajo || !activeLoanInLegajo || !addCollectionAttempt) return;
+    setIsProcessingDossierAction(true);
+    try {
+      const amountToPay = customAmount || Number(dossierPaymentAmount);
+
+      // VALIDACIÓN: El abono no puede ser mayor al saldo
+      const metrics = getClientMetrics(clientInLegajo);
+      if (type === CollectionLogType.PAYMENT && amountToPay > metrics.balance + 0.01) {
+        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(metrics.balance, state.settings)}).`);
+        setIsProcessingDossierAction(false);
+        return;
+      }
+
+      const logId = generateUUID();
+      let currentLocation = { lat: 0, lng: 0 };
+      try {
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 2000, maximumAge: 120000 });
+        currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (geoErr) {
+        try {
+          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
+          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
+        } catch (fallbackErr) {
+          console.warn("Could not get real GPS from dossier:", fallbackErr);
+        }
+      }
+
+      const log: CollectionLog = {
+        id: logId,
+        clientId: clientInLegajo.id,
+        loanId: activeLoanInLegajo.id,
+        type: type,
+        amount: type === CollectionLogType.PAYMENT ? amountToPay : undefined,
+        date: new Date().toISOString(),
+        location: currentLocation,
+        isVirtual: dossierIsVirtual,
+        isRenewal: dossierIsRenewal,
+        companySnapshot: state.settings
+      };
+
+      addCollectionAttempt(log);
+
+
+
+      if (type === CollectionLogType.PAYMENT || type === CollectionLogType.NO_PAGO) {
+        if (onForceSync) onForceSync(false);
+      }
+
+      if (type === CollectionLogType.PAYMENT) {
+        const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+
+        // REGLA DE ORO: Recalcular histórico para el recibo
+        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === activeLoanInLegajo.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
+        const totalPaidHistory = (Array.isArray(loanLogs) ? loanLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
+
+        // AUTO-Cerrar crédito si el saldo llega a 0
+        if (activeLoanInLegajo.totalAmount - totalPaidHistory <= 0.01 && updateLoan) {
+          updateLoan({ ...activeLoanInLegajo, status: LoanStatus.PAID });
+        }
+
+        const progress = totalPaidHistory / (activeLoanInLegajo.installmentValue || 1);
+        const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
+
+        const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
+
+        const receiptText = generateReceiptText({
+          clientName: clientInLegajo.name,
+          amountPaid: amountToPay,
+          previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidHistory - amountToPay)),
+          loanId: activeLoanInLegajo.id,
+          startDate: activeLoanInLegajo.createdAt,
+          expiryDate: lastDueDate,
+          daysOverdue: getDaysOverdue(activeLoanInLegajo, state.settings, totalPaidHistory),
+          remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - totalPaidHistory),
+          paidInstallments: paidInstCount,
+          totalInstallments: activeLoanInLegajo.totalInstallments,
+          isRenewal: dossierIsRenewal,
+          isVirtual: dossierIsVirtual,
+          installmentValue: activeLoanInLegajo.installmentValue,
+          totalPaidAmount: totalPaidHistory,
+          principal: activeLoanInLegajo.totalAmount
+        }, state.settings);
+
+        // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
+        setReceipt(receiptText);
+
+        // Attempt Automatic Print (Silent)
+        const { printText } = await import('../services/bluetoothPrinterService');
+        printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
+
+        // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
+        const phone = clientInLegajo.phone.replace(/\D/g, '');
+        const cleanReceipt = convertReceiptForWhatsApp(receiptText);
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(cleanReceipt)}`;
+        window.open(wpUrl, '_blank');
+      } else if (type === CollectionLogType.NO_PAGO) {
+        const metrics = getClientMetrics(clientInLegajo);
+        let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(
+          activeLoanInLegajo,
+          clientInLegajo,
+          metrics.daysOverdue,
+          state.settings,
+          metrics.balance
+        );
+        const cleanMsg = convertReceiptForWhatsApp(msg);
+        window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+      }
+    } catch (e) { console.error(e); } finally {
+      setIsProcessingDossierAction(false);
+      setShowDossierPaymentModal(false);
+    }
+  };
+
+  const handleShareLegajo = async () => {
+    if (!clientInLegajo || !activeLoanInLegajo) return;
+
+    setIsSharing(true);
+
+    // Esperamos un momento para que React renderice el componente oculto y la ref sea válida
+    await new Promise(r => setTimeout(r, 800));
+
+    if (!shareCardRef.current) {
+      console.error("Share card ref is still null after waiting.");
+      // Intentamos un segundo intento más largo si falla
+      await new Promise(r => setTimeout(r, 1000));
+      if (!shareCardRef.current) {
+        setIsSharing(false);
+        alert("Error: El componente de reporte no cargó a tiempo. Intente de nuevo.");
+        return;
+      }
+    }
+
+    try {
+      // 1. MANEJO DE VISIBILIDAD MANUAL PARA ASEGURAR CAPTURA
+      const shareContainer = document.getElementById('share-container-hidden');
+      let originalStyle = '';
+
+      if (shareContainer) {
+        originalStyle = shareContainer.getAttribute('style') || '';
+        // Forzamos visibilidad para html2canvas sin que el usuario lo note
+        shareContainer.style.position = 'fixed';
+        shareContainer.style.left = '0';
+        shareContainer.style.top = '0';
+        shareContainer.style.opacity = '1';
+        shareContainer.style.zIndex = '-9999';
+        shareContainer.style.pointerEvents = 'none';
+        shareContainer.style.display = 'block';
+        shareContainer.style.visibility = 'visible';
+      }
+
+      const canvas = await html2canvas(shareCardRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 1.5, // Reduced slightly for even better stability
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 700,
+        width: 700,
+        height: shareCardRef.current.scrollHeight,
+      });
+
+      if (!canvas) {
+        throw new Error("No se pudo crear el lienzo de captura.");
+      }
+
+      const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.pdf`;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Pasar el canvas directamente es mejor para la memoria
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight > pdfHeight ? pdfHeight : imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      if (!pdfBase64Data || !pdfBase64Data.includes(',')) {
+        throw new Error("Error en la salida del PDF.");
+      }
+      const pdfBase64 = pdfBase64Data.split(',')[1];
+
+      // LOGICA WEB (PC / MOBILE BROWSER)
+      if (!Capacitor.isNativePlatform()) {
+        const blob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+
+        let sharedSuccessfully = false;
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Estado de Cuenta',
+              text: `Hola, le adjunto el estado de cuenta de ${clientInLegajo.name}`
+            });
+            sharedSuccessfully = true;
+          } catch (err) {
+            console.log("Web share cancelled or failed:", err);
+          }
+        }
+
+        if (!sharedSuccessfully) {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Fallback WhatsApp Web link
+          const phone = clientInLegajo.phone.replace(/\D/g, '');
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Hola, le comparto su estado de cuenta en PDF.`)}`, '_blank');
+        }
+      } else {
+        // LÓGICA NATIVA (CAPACITOR)
+        try {
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const { Share } = await import('@capacitor/share');
+
+          const savedFile = await Filesystem.writeFile({
+            path: fileName,
+            data: pdfBase64,
+            directory: Directory.Cache
+          });
+
+          await Share.share({
+            title: 'Estado de Cuenta',
+            text: `Estado de Cuenta de ${clientInLegajo.name}`,
+            url: savedFile.uri,
+            dialogTitle: 'Enviar por WhatsApp / Compartir'
+          });
+        } catch (err) {
+          console.error("Native share failed:", err);
+          alert("Error en Share Nativo: " + (err instanceof Error ? err.message : String(err)));
+        }
+      }
+    } catch (e) {
+      console.error("Error generating/sharing dossier:", e);
+      alert("Error Crítico: " + (e instanceof Error ? e.message : "Error desconocido al generar reporte"));
+    } finally {
+      // 2. Restauramos estilo original (oculto) SIEMPRE
+      const shareContainer = document.getElementById('share-container-hidden');
+      if (shareContainer) {
+        shareContainer.style.position = 'fixed';
+        shareContainer.style.left = '-5000px';
+        shareContainer.style.top = '0';
+        shareContainer.style.opacity = '0';
+        shareContainer.style.pointerEvents = 'none';
+        shareContainer.style.zIndex = '-1';
+        shareContainer.style.display = 'block';
+        shareContainer.style.visibility = 'hidden';
+      }
+      setIsSharing(false);
+    }
+  };
+
+  const handleShareReceiptPDF = async () => {
+    if (!receiptCardRef.current || !clientInLegajo || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (!canvas) throw new Error("No se pudo crear el lienzo.");
+
+      const fileName = `Recibo_${clientInLegajo.name.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+      const pdf = new jsPDF('p', 'mm', [80, 200]); // Formato ticket de 80mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      const pdfBase64 = pdfBase64Data.split(',')[1];
+
+      if (!Capacitor.isNativePlatform()) {
+        const blob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Descarga directa
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // WhatsApp fallback (usando el texto limpio)
+        const phone = clientInLegajo.phone.replace(/\D/g, '');
+        const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("*RECIBO DE PAGO PDF GENERADO*\n\n" + cleanReceipt)}`;
+        window.open(wpUrl, '_blank');
+      } else {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: `Recibo de Pago de ${clientInLegajo.name}`,
+          url: savedFile.uri,
+          dialogTitle: 'Enviar Recibo por WhatsApp'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al generar PDF del recibo.");
+    } finally {
+      const container = document.getElementById('receipt-container-hidden');
+      if (container) {
+        container.style.position = 'fixed';
+        container.style.left = '-5000px';
+        container.style.display = 'block';
+        container.style.visibility = 'hidden';
+      }
+      setIsSharing(false);
+    }
+  };
+
+  const handleEditLog = (log: CollectionLog) => {
+    setEditingLogId(log.id);
+    setNewLogAmount(log.amount?.toString() || '');
+    setShowEditLogModal(true);
+  };
+
+  const handleSaveEditedLog = () => {
+    const amt = parseAmount(newLogAmount);
+    if (editingLogId && updateCollectionLog && clientInLegajo && activeLoanInLegajo) {
+      const logToEdit = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).find(l => l.id === editingLogId);
+      if (!logToEdit) return;
+
+      const oldAmount = logToEdit.amount || 0;
+      updateCollectionLog(editingLogId, amt);
+
+      const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+      const currentTotalPaid = (Array.isArray(installments) ? installments : []).reduce((acc, inst) => acc + (inst.paidAmount || 0), 0);
+      const newTotalPaid = currentTotalPaid - oldAmount + amt;
+
+      const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
+
+      const progress = newTotalPaid / (activeLoanInLegajo.installmentValue || 1);
+      const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
+
+      const settingsToUse = logToEdit.companySnapshot || state.settings;
+
+      const receiptText = generateReceiptText({
+        clientName: clientInLegajo.name,
+        amountPaid: amt,
+        previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (newTotalPaid - amt)),
+        loanId: activeLoanInLegajo.id,
+        startDate: activeLoanInLegajo.createdAt,
+        expiryDate: lastDueDate,
+        daysOverdue: getDaysOverdue(activeLoanInLegajo, settingsToUse, newTotalPaid),
+        remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - newTotalPaid),
+        paidInstallments: paidInstCount,
+        totalInstallments: activeLoanInLegajo.totalInstallments,
+        isRenewal: logToEdit.isRenewal,
+        isVirtual: logToEdit.isVirtual,
+        installmentValue: activeLoanInLegajo.installmentValue,
+        totalPaidAmount: newTotalPaid,
+        principal: activeLoanInLegajo.totalAmount
+      }, settingsToUse);
+
+      const printWin = window.open('', '_blank', 'width=400,height=600');
+      printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
+      printWin?.print();
+
+      const phone = clientInLegajo.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("*COMPROBANTE DE CORRECCIÓN*\n" + receiptText)}`, '_blank');
+
+      setShowEditLogModal(false);
+      setEditingLogId(null);
+      alert("Abono corregido. Se ha generado el ticket y enviado a WhatsApp.");
+    }
+  };
+
+  const handleOpenCustomNoPay = () => {
+    if (!clientInLegajo) return;
+    setCustomNoPayText(clientInLegajo.customNoPayMessage || '');
+    setShowCustomNoPayModal(true);
+  };
+
+  const handleSaveCustomNoPay = () => {
+    if (!clientInLegajo || !updateClient) return;
+    updateClient({ ...clientInLegajo, customNoPayMessage: customNoPayText });
+    setShowCustomNoPayModal(false);
+    alert("Mensaje guardado.");
+  };
+
+  const handleReprintLastReceipt = async () => {
+    if (!clientInLegajo || !activeLoanInLegajo) return;
+
+    // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN IMPORTAR FECHA)
+    const allPaymentLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+      .filter(l => l.loanId === activeLoanInLegajo.id && l.type === CollectionLogType.PAYMENT && !l.isOpening);
+
+    const lastPaymentLog = [...(Array.isArray(allPaymentLogs) ? allPaymentLogs : [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+    if (!lastPaymentLog) {
+      alert("No hay pagos registrados para este crédito.");
+      return;
+    }
+
+    // 2. Recalcular el estado HISTÓRICO al momento de ese pago exacto
+    // Sumamos todos los pagos HASTA ese log inclusive (por fecha)
+    const historicLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l =>
+      l.loanId === activeLoanInLegajo.id &&
+      l.type === CollectionLogType.PAYMENT &&
+      !l.isOpening &&
+      new Date(l.date).getTime() <= new Date(lastPaymentLog.date).getTime()
+    );
+
+    // Si hay logs con la misma fecha exacta, aseguramos incluir el target
+    // (Ya está incluido por la lógica <=, pero si hay duplicados de timestamp, el ordenamiento previo asegura cual es cual. 
+    // Aquí asumimos idempotencia simple: sumamos todo lo que tenga fecha <= al log target).
+
+    const totalPaidAtThatMoment = (Array.isArray(historicLogs) ? historicLogs : []).reduce((acc, log) => acc + (log.amount || 0), 0);
+    const amountPaidInLastLog = lastPaymentLog.amount || 0;
+
+    const installments = Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : [];
+    const lastDueDate = (Array.isArray(installments) && installments.length > 0) ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
+
+    const progress = totalPaidAtThatMoment / (activeLoanInLegajo.installmentValue || 1);
+    const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
+
+    const settingsToUse = lastPaymentLog.companySnapshot || state.settings;
+
+    // 3. Generar Texto
+    const receiptText = generateReceiptText({
+      clientName: clientInLegajo.name,
+      amountPaid: amountPaidInLastLog,
+      previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
+      loanId: activeLoanInLegajo.id,
+      startDate: activeLoanInLegajo.createdAt,
+      expiryDate: lastDueDate,
+      daysOverdue: getDaysOverdue(activeLoanInLegajo, settingsToUse, totalPaidAtThatMoment), // Mora recalculada con el total a ese momento
+      remainingBalance: Math.max(0, activeLoanInLegajo.totalAmount - totalPaidAtThatMoment),
+      paidInstallments: paidInstCount,
+      totalInstallments: activeLoanInLegajo.totalInstallments,
+      isRenewal: lastPaymentLog.isRenewal,
+      isVirtual: lastPaymentLog.isVirtual,
+      installmentValue: activeLoanInLegajo.installmentValue,
+      totalPaidAmount: totalPaidAtThatMoment,
+      principal: activeLoanInLegajo.totalAmount
+    }, settingsToUse);
+
+    // 4. Imprimir vía Bluetooth
+    const { printText } = await import('../services/bluetoothPrinterService');
+    try {
+      await printText(receiptText);
+      alert("Reimpresi\u00f3n enviada a la impresora.");
+    } catch (printErr) {
+      console.error("Error direct printing:", printErr);
+      alert("Error: No se pudo conectar con la impresora Bluetooth.");
+    }
+  };
+
+  const handleRenewLoan = () => {
+    if (!clientInLegajo || !addLoan) return;
+
+    const p = Number(renewForm.principal) || 0;
+    const i = Number(renewForm.interestRate) || 0;
+    const inst = Number(renewForm.installments) || 0;
+
+    const total = calculateTotalReturn(p, i);
+    const newLoan: Loan = {
+      id: generateUUID(),
+      clientId: clientInLegajo.id,
+      collectorId: currentUserId,
+      principal: p,
+      interestRate: i,
+      totalInstallments: inst,
+      frequency: renewForm.frequency,
+      totalAmount: total,
+      installmentValue: inst > 0 ? total / inst : 0,
+      status: LoanStatus.ACTIVE,
+      createdAt: new Date().toISOString(),
+      installments: generateAmortizationTable(p, i, inst, renewForm.frequency, new Date(), state.settings.country),
+      operationTypeCode: renewForm.operationTypeCode,
+      isRenewal: true
+    };
+    addLoan(newLoan);
+
+    // Cerrar cualquier crédito activo previo (Liquidación por renovación)
+    const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+    previousActiveLoans.forEach(ol => {
+      // Usamos pushLoan directamente si está disponible para evitar disparar handleForceSync múltiples veces
+      if (updateLoan) {
+        const updatedOldLoan = { ...ol, status: LoanStatus.PAID, updatedAt: new Date().toISOString() };
+        // Actualizamos estado local
+        setState(prev => ({ ...prev, loans: prev.loans.map(l => l.id === updatedOldLoan.id ? updatedOldLoan : l) }));
+        // Sincronizamos sin disparar pull inmediato
+        pushLoan?.(updatedOldLoan);
+      }
+    });
+
+    setShowRenewModal(false);
+    // Un solo disparo final de sincronización consolidada
+    if (onForceSync) onForceSync(false, "RENOVACIÓN REALIZADA CORRECTAMENTE", false);
+  };
+
+  const handlePrintCartera = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const collectorName = selectedCollector === 'all'
+      ? 'TODOS'
+      : collectors.find(c => c.id === selectedCollector)?.name || selectedCollector;
+
+    const html = `
+      <html>
+        <head>
+          <title>Cartera General - ${state.settings.companyName}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; }
+            h1 { text-transform: uppercase; margin-bottom: 5px; font-size: 24px; color: #0f172a; }
+            h2 { text-transform: uppercase; font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 30px; letter-spacing: 1px; }
+            .header-info { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f1f5f9; }
+            .info-block { font-size: 12px; }
+            .info-label { font-weight: 800; color: #94a3b8; text-transform: uppercase; font-size: 10px; margin-bottom: 4px; }
+            .info-value { font-weight: 700; color: #1e293b; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #0f172a; color: white; text-align: left; padding: 12px 15px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .mora-high { color: #dc2626; font-weight: 900; }
+            .mora-none { color: #059669; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px; text-transform: uppercase; font-weight: 700; }
+            @media print {
+              @page { margin: 2cm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${state.settings.companyName}</h1>
+          <h2>Reporte de Cartera General</h2>
+          
+          <div class="header-info">
+            <div class="info-block">
+              <div class="info-label">Cobrador</div>
+              <div class="info-value">${collectorName}</div>
+            </div>
+            <div class="info-block">
+              <div class="info-label">Fecha del Reporte</div>
+              <div class="info-value">${new Date().toLocaleDateString()}</div>
+            </div>
+            <div class="info-block text-right">
+              <div class="info-label">Total Clientes</div>
+              <div class="info-value">${carteraExcelData.length}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Registro</th>
+                <th>Cliente / ID</th>
+                <th>Teléfono</th>
+                <th class="text-center">Oper.</th>
+                <th class="text-center">Clasif.</th>
+                <th class="text-center">Calif.</th>
+                <th class="text-center">Vend.</th>
+                <th class="text-right">Crédito</th>
+                <th class="text-center">Cuotas T/P</th>
+                <th class="text-right">Saldo Actual</th>
+                <th class="text-center">Progreso</th>
+                <th class="text-center">Atraso</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${carteraExcelData.map(client => `
+                <tr>
+                  <td>${client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                  <td>${client.name.toUpperCase()}<br/><span style="font-size: 9px; color: #94a3b8;">ID: ${client.documentId}</span></td>
+                  <td>${client.phone}</td>
+                  <td class="text-center">${client.operationTypeCode || '0'}</td>
+                  <td class="text-center">${client.clientTypeCode || '0'}</td>
+                  <td class="text-center">${client.systemRating || '---'}</td>
+                  <td class="text-center">${client._metrics.activeLoan?.sellerCode || '---'}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
+                  <td class="text-center">${client._metrics.cuotasTP}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.balance, state.settings)}</td>
+                  <td class="text-center">${client._metrics.installmentsStr}</td>
+                  <td class="text-center">
+                    <span class="${client._metrics.daysOverdue > 0 ? 'mora-high' : 'mora-none'}">
+                      ${client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} DÍAS` : 'AL DÍA'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Generado por Sistema de Cobros - ${new Date().toLocaleString()}
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Esperar a que las fuentes/estilos carguen si es necesario
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const collectorName = selectedCollector === 'all'
+        ? 'TODOS'
+        : collectors.find(c => c.id === selectedCollector)?.name || selectedCollector;
+
+      // CONFIGURACIÓN DE ESTILOS
+      const margin = 15;
+      let y = 20;
+
+      // ENCABEZADO
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // slate-900
+      const companyTitle = (state.settings.companyName || 'SISTEMA DE COBROS').toUpperCase();
+      doc.text(companyTitle, margin, y);
+
+      y += 8;
+      doc.setFontSize(12);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text("REPORTE DE CARTERA GENERAL", margin, y);
+
+      y += 12;
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.line(margin, y, 210 - margin, y);
+
+      y += 10;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text("COBRADOR:", margin, y);
+      doc.setTextColor(30, 41, 59); // slate-800
+      doc.text(collectorName.toUpperCase(), margin + 25, y);
+
+      doc.setTextColor(148, 163, 184);
+      doc.text("FECHA:", 140, y);
+      doc.setTextColor(30, 41, 59);
+      doc.text(new Date().toLocaleDateString(), 155, y);
+
+      y += 12;
+
+      // TABLA HEADER
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y, 180, 8, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+      doc.text("TEL.", margin + 45, y + 5.5);
+      doc.text("OPER.", margin + 65, y + 5.5, { align: 'center' });
+      doc.text("CLASF.", margin + 80, y + 5.5, { align: 'center' });
+      doc.text("CALIF.", margin + 95, y + 5.5, { align: 'center' });
+      doc.text("VEND.", margin + 110, y + 5.5, { align: 'center' });
+      doc.text("CRÉDITO", margin + 130, y + 5.5, { align: 'right' });
+      doc.text("SALDO", margin + 155, y + 5.5, { align: 'right' });
+      doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
+
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 41, 59);
+
+      // CONTENIDO
+      const dataToExport = Array.isArray(carteraExcelData) ? carteraExcelData : [];
+      dataToExport.forEach((client, idx) => {
+        // Salto de página
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+
+          // Re-dibujar header de tabla en nueva página
+          doc.setFillColor(15, 23, 42);
+          doc.rect(margin, y, 180, 8, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+          doc.text("TEL.", margin + 45, y + 5.5);
+          doc.text("OPER.", margin + 65, y + 5.5, { align: 'center' });
+          doc.text("CLASF.", margin + 80, y + 5.5, { align: 'center' });
+          doc.text("CALIF.", margin + 95, y + 5.5, { align: 'center' });
+          doc.text("VEND.", margin + 110, y + 5.5, { align: 'center' });
+          doc.text("CRÉDITO", margin + 130, y + 5.5, { align: 'right' });
+          doc.text("SALDO", margin + 155, y + 5.5, { align: 'right' });
+          doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
+          y += 8;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(30, 41, 59);
+        }
+
+        // Zebra striping
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, y, 180, 10, 'F');
+        }
+
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        const clientNameDisplay = (client.name || 'SIN NOMBRE').substring(0, 25).toUpperCase();
+        doc.text(clientNameDisplay, margin + 2, y + 4.5);
+        doc.setFontSize(5.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(148, 163, 184);
+        const clientIdDisplay = client.documentId || '---';
+        doc.text(`ID: ${clientIdDisplay}`, margin + 2, y + 7.5);
+
+        doc.setFontSize(7);
+        doc.text(client.phone || '---', margin + 45, y + 6);
+
+        doc.setFont("helvetica", "normal");
+        doc.text(client.operationTypeCode || '0', margin + 65, y + 6, { align: 'center' });
+        doc.text(client.clientTypeCode || '0', margin + 80, y + 6, { align: 'center' });
+        doc.text(client.systemRating || '---', margin + 95, y + 6, { align: 'center' });
+        doc.text(client._metrics.activeLoan?.sellerCode || '---', margin + 110, y + 6, { align: 'center' });
+
+        doc.setFont("helvetica", "bold");
+        doc.text(formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings), margin + 130, y + 6, { align: 'right' });
+
+        doc.text(formatCurrency(client._metrics.balance || 0, state.settings), margin + 155, y + 6, { align: 'right' });
+
+        if (client._metrics.daysOverdue > 0) {
+          doc.setTextColor(220, 38, 38);
+          doc.text(`${client._metrics.daysOverdue} D`, margin + 175, y + 6, { align: 'center' });
+        } else {
+          doc.setTextColor(5, 150, 105);
+          doc.text("OK", margin + 175, y + 6, { align: 'center' });
+        }
+
+        doc.setTextColor(30, 41, 59);
+        y += 10;
+        doc.setDrawColor(241, 245, 249);
+        doc.line(margin, y, 210 - margin, y);
+      });
+
+      // FOOTER
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`PÁGINA ${i} DE ${pageCount} | GENERADO EL ${new Date().toLocaleString()}`, 105, 290, { align: 'center' });
+      }
+
+      const fileName = `CARTERA_${collectorName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      await saveAndOpenPDF(doc, fileName);
+    } catch (err) {
+      console.error(err);
+      alert("ERROR AL GENERAR PDF: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+
+  const handleFileUploadMasivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedCollectorForImport) return;
+
+    setIsProcessingExcel(true);
+    try {
+      const { clients, loans } = await processExcelImport(file, selectedCollectorForImport);
+
+      for (const client of clients) {
+        await addClient(client);
+      }
+      for (const loan of loans) {
+        await addLoan(loan);
+      }
+
+      alert(`IMPORTACIÓN EXITOSA: ${clients.length} CLIENTES Y ${loans.length} PRÉSTAMOS.`);
+      setShowImportModal(false);
+      setSelectedCollectorForImport('');
+    } catch (err) {
+      console.error(err);
+      alert("ERROR AL PROCESAR EL EXCEL. VERIFIQUE EL FORMATO.");
+    } finally {
+      setIsProcessingExcel(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  return (
+    <PullToRefresh onRefresh={async () => { await forceSync(); }}>
+      <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
+        <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
+          <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> REGISTROS</button>
+          <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> AGREGAR</button>
+          <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> RENOVACIONES</button>
+          <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> CARTERA</button>
+          {(isAdmin || isManager) && (
+            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> OCULTOS</button>
+          )}
+        </div>
+
+        <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+            <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
+              <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : 'fa-briefcase text-slate-950'}`}></i>
+              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : 'Cartera General'}
+            </h2>
+
+            {viewMode === 'cartera' && isAdminOrManager && (
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <button
+                  onClick={handlePrintCartera}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <i className="fa-solid fa-print text-xs text-indigo-500"></i> IMPRIMIR
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <i className="fa-solid fa-file-pdf text-xs"></i> PDF
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Upload className="h-3 w-3" /> IMPORTAR
+                </button>
+                <button
+                  onClick={() => exportClientsToExcel(filteredClients, state.loans)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Download className="h-3 w-3" /> EXPORTAR
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            {isAdminOrManager && (
+              <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-lg">👩‍🚀</span>
+                <select
+                  value={selectedCollector}
+                  onChange={(e) => setSelectedCollector(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
+                >
+                  <option value="all">TODOS</option>
+                  {Array.isArray(collectors) && collectors.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
+              <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
+                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
+                  <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
+                  <span className="text-slate-500 font-bold">-</span>
+                  <input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowModal(true)} className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg active:scale-95 transition-all"><i className="fa-solid fa-user-plus mr-2"></i> NUEVO CLIENTE</button>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              placeholder="Buscar por nombre o ID..."
+              className="w-full bg-white border border-slate-300 rounded-2xl py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950"
+            />
+            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"></i>
+          </div>
+
+          {viewMode === 'gestion' && (
+            <div className="space-y-4">
+              <div className="px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
+                  <i className="fa-solid fa-database mr-1"></i> Total: <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> Viendo: <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 w-full max-w-5xl mx-auto">
+                {paginatedClients.length === 0 && (
+                  <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                      <i className="fa-solid fa-users-slash text-slate-300 text-xl"></i>
+                    </div>
+                    <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Lista de clientes vacía</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
+                  </div>
+                )}
+                {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
+                  const m = getClientMetrics(client);
+                  return (
+                    <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
+                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
+                      <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 items-center">
+                        <div>
+                          <h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate flex items-center gap-2">
+                            {client.name}
+                            {m.hasMultipleLoans && (
+                              <span className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] animate-pulse" title="Múltiples Préstamos Activos">
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p>
+                        </div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
+                      </div>
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">EXPEDIENTE</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* CONTROLES DE PAGINACIÓN */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 py-6">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fa-solid fa-chevron-left"></i>
+                  </button>
+
+                  <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                      Página <span className="text-emerald-600 text-base">{currentPage}</span> / {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {
+          viewMode === 'nuevos' && (
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4">Fecha Alta</th>
+                      <th className="px-6 py-4">Cliente / ID</th>
+                      <th className="px-6 py-4">Teléfono</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
+                      <th className="px-6 py-4 text-center">Int %</th>
+                      <th className="px-6 py-4 text-right">Valor Cuota</th>
+                      <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
+                    {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).map(client => (
+                      <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 uppercase text-slate-500">{client._metrics.activeLoan?.createdAt ? new Date(client._metrics.activeLoan.createdAt).toLocaleDateString() : '---'}</td>
+                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
+                        <td className="px-6 py-4 text-blue-600">{client.phone}</td>
+                        <td className="px-6 py-4 text-right">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-center text-emerald-600">{client._metrics.activeLoan?.interestRate}%</td>
+                        <td className="px-6 py-4 text-right font-mono">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
+                            {isAdminOrManager && (
+                              <button onClick={() => handleToggleHideClient(client.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {nuevosExcelData.length === 0 && (
+                      <tr><td colSpan={7} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay registros para este periodo</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {/* VISTA EXCEL: RENOVACIONES */}
+        {
+          viewMode === 'renovaciones' && (
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4">Fecha Renov.</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
+                      <th className="px-6 py-4 text-center">Cuotas</th>
+                      <th className="px-6 py-4 text-right">Atraso</th>
+                      <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
+                    {(Array.isArray(renovacionesExcelData) ? renovacionesExcelData : []).map(item => (
+                      <tr key={item._loan!.id} className="hover:bg-orange-50 transition-colors">
+                        <td className="px-6 py-4 uppercase text-slate-500">{new Date(item._loan!.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 uppercase text-slate-900">{item.name}</td>
+                        <td className="px-6 py-4 text-right text-emerald-700">{formatCurrency(item._loan!.totalAmount, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">{item._loan!.totalInstallments}</td>
+                        <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">DETALLE</button>
+                            {isAdminOrManager && (
+                              <button onClick={() => handleToggleHideClient(item.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {renovacionesExcelData.length === 0 && (
+                      <tr><td colSpan={6} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay renovaciones en este periodo</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {/* VISTA EXCEL: CARTERA GENERAL ORDENADA POR FECHA REGISTRO */}
+        {
+          viewMode === 'cartera' && (
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-950 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4 flex items-center gap-1.5">
+                        <select
+                          value={carteraSortBy}
+                          onChange={(e) => setCarteraSortBy(e.target.value as any)}
+                          className="bg-slate-800 text-white border border-slate-700 outline-none uppercase font-black cursor-pointer rounded-md px-1.5 py-0.5 text-[7px] max-w-[85px] hover:border-slate-500 transition-colors shadow-inner"
+                        >
+                          <option value="registro">REGISTRO</option>
+                          <option value="saldo">POR SALDO</option>
+                          <option value="atraso">POR ATRASO</option>
+                          <option value="renovaciones">POR RENOV.</option>
+                        </select>
+                      </th>
+                      <th className="px-6 py-4">Cliente / ID</th>
+                      <th className="px-6 py-4">Teléfono(s)</th>
+                      <th className="px-6 py-4 text-center">Oper.</th>
+                      <th className="px-6 py-4 text-center">Clasif.</th>
+                      <th className="px-6 py-4 text-center">Calif.</th>
+                      <th className="px-6 py-4 text-center">Vend.</th>
+                      <th className="px-6 py-4 text-center">Renov.</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
+                      <th className="px-6 py-4 text-center">Cuotas T/P</th>
+                      <th className="px-6 py-4 text-right">Saldo Actual</th>
+                      <th className="px-6 py-4 text-center">Progreso</th>
+                      <th className="px-6 py-4 text-center">Atraso</th>
+                      <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
+                    {(Array.isArray(carteraExcelData) ? carteraExcelData : []).map(client => (
+                      <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">DOC: {client.documentId}</span></td>
+                        <td className="px-6 py-4">
+                          <p className="text-blue-700">{client.phone}</p>
+                          {client.secondaryPhone && <p className="text-slate-400 text-[10px]">{client.secondaryPhone}</p>}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[8px] font-black">{client.operationTypeCode || '0'}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[8px] font-black">{client.clientTypeCode || '0'}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded text-[8px] font-black">{client.systemRating || '---'}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[8px] font-black">{client._metrics.activeLoan?.sellerCode || '---'}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">
+                            {Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === client.id && l.isRenewal).length : 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-100">{client._metrics.cuotasTP}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{client._metrics.installmentsStr}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[9px] ${client._metrics.daysOverdue > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} d` : 'AL DÍA'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
+                            {isAdminOrManager && (
+                              <button onClick={() => handleToggleHideClient(client.id)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-600 active:scale-90 transition-all" title="Ocultar Cliente"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          viewMode === 'ocultos' && (isAdmin || isManager) && (
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-red-800 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4">Fecha Reg.</th>
+                      <th className="px-6 py-4">Cliente / ID</th>
+                      <th className="px-6 py-4">Teléfono</th>
+                      <th className="px-6 py-4 text-right">Saldo</th>
+                      <th className="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
+                    {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).map(client => (
+                      <tr key={client.id} className="hover:bg-red-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">DOC: {client.documentId}</span></td>
+                        <td className="px-6 py-4 text-blue-700">{client.phone}</td>
+                        <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
+                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i> RESTAURAR</button>
+                            {isAdminOrManager && (
+                              <button onClick={() => handlePermanentDeleteClient(client.id)} className="text-red-600 hover:underline" title="Eliminar"><i className="fa-solid fa-trash"></i> ELIMINAR</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {ocultosExcelData.length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay clientes ocultos</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {/* MODAL REGISTRO CLIENTE NUEVO */}
+        {
+          showModal && (
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-hidden pt-4 md:pt-10">
+              <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
+                <div className="p-4 md:p-5 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-white/10 sticky top-0 z-20">
+                  <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Planilla Registro Cliente</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">Alta de expediente y documentación fotográfica</p></div>
+                  <button onClick={() => setShowModal(false)} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form onSubmit={handleSubmitNewClient} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-6 bg-slate-50 mobile-scroll-container">
+                  <div className="space-y-3">
+                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Datos del Solicitante</h4>
+                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input required type="text" value={clientData.name} onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input required type="text" value={clientData.documentId} onChange={(e: any) => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nacionalidad</div><input type="text" value={clientData.nationality} onChange={(e: any) => setClientData({ ...clientData, nationality: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">F. Nacimiento</div><input type="date" value={clientData.birthDate} onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Estado Civil</div>
+                        <select value={clientData.maritalStatus} onChange={(e: any) => setClientData({ ...clientData, maritalStatus: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
+                          <option value="">Seleccionar</option>
+                          <option value="soltero">Soltero/a</option>
+                          <option value="casado">Casado/a</option>
+                          <option value="divorciado">Divorciado/a</option>
+                          <option value="viudo">Viudo/a</option>
+                        </select>
+                      </div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Profesión</div><input type="text" value={clientData.profession} onChange={(e: any) => setClientData({ ...clientData, profession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input required type="tel" value={clientData.phone} onChange={(e: any) => setClientData({ ...clientData, phone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={clientData.secondaryPhone} onChange={(e: any) => setClientData({ ...clientData, secondaryPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Email</div>
+                        <input type="email" value={clientData.email} onChange={(e: any) => setClientData({ ...clientData, email: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
+                      </div>
+                      <div className="flex border-b border-slate-200">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">
+                          Tipo Clasif.
+                          <button type="button" onClick={() => alert("TIPS CLSIFICACIÓN CLIENTE:\n130: MICRO UNI P/ FORMAL\n131: MICRO UNI P/ INFORMAL\n132: PYMES\n133: PROFESIONAL/IND. C/IVA\n240: ASALARIADOS DEPENDIENTES\n242: ASALARIADOS CON IVA\n243: JUBILADOS\n300: FUNCIONARIOS ALTERFIN\n500: ASOCIACIONES")} className="ml-1 text-blue-400"><Info size={10} /></button>
+                        </div>
+                        <select
+                          value={clientData.clientTypeCode}
+                          onChange={(e: any) => setClientData({ ...clientData, clientTypeCode: e.target.value })}
+                          className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none cursor-pointer"
+                        >
+                          {BANCA_CLIENT_TYPES.map(t => (
+                            <option key={t.code} value={t.code} className="bg-slate-900">{t.code} - {t.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex col-span-1 md:col-span-2">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tipo de Cliente</div>
+                        <input type="text" placeholder="Ej: F01 (Formal), E (Empleado)" value={clientData.clientType} onChange={(e: any) => setClientData({ ...clientData, clientType: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
+                      </div>
+                      {/* Nuevos Datos Particulares Detallados */}
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular - Ciudad</div><input type="text" value={clientData.particularCity} onChange={(e: any) => setClientData({ ...clientData, particularCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular - Calle Principal</div><input type="text" value={clientData.particularStreetMain} onChange={(e: any) => setClientData({ ...clientData, particularStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular - Calle Secundaria</div><input type="text" value={clientData.particularStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, particularStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nro de Casa</div><input type="text" value={clientData.houseNumber} onChange={(e: any) => setClientData({ ...clientData, houseNumber: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex col-span-1 md:col-span-2 border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular - Barrio</div><input type="text" value={clientData.particularNeighborhood} onChange={(e: any) => setClientData({ ...clientData, particularNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                    </div>
+
+                    <h4 className="text-[9px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2 mt-4">II. Datos Laborales</h4>
+                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral Empresa</div><input type="text" value={clientData.workCompany} onChange={(e: any) => setClientData({ ...clientData, workCompany: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral - Calle Principal</div><input type="text" value={clientData.workStreetMain} onChange={(e: any) => setClientData({ ...clientData, workStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral - Calle Secundaria</div><input type="text" value={clientData.workStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, workStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral - Ciudad</div><input type="text" value={clientData.workCity} onChange={(e: any) => setClientData({ ...clientData, workCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral - Teléfono</div><input type="tel" value={clientData.workPhone} onChange={(e: any) => setClientData({ ...clientData, workPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Laboral - Barrio</div><input type="text" value={clientData.workNeighborhood} onChange={(e: any) => setClientData({ ...clientData, workNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cargo</div><input type="text" value={clientData.workPosition} onChange={(e: any) => setClientData({ ...clientData, workPosition: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Rubro</div><input type="text" value={clientData.workSector} onChange={(e: any) => setClientData({ ...clientData, workSector: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Antigüedad</div><input type="text" value={clientData.workAntiquity} onChange={(e: any) => setClientData({ ...clientData, workAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Ingresos / Salario</div><input type="number" value={clientData.workIncome} onChange={(e: any) => setClientData({ ...clientData, workIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex col-span-1 md:col-span-2 border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Coordenada</div><input type="text" value={clientData.locationCoords} onChange={(e: any) => setClientData({ ...clientData, locationCoords: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                    </div>
+                  </div>
+
+                  <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">III. Datos del Cónyuge</h4>
+                  <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input type="text" value={clientData.spouseName} onChange={(e: any) => setClientData({ ...clientData, spouseName: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input type="text" value={clientData.spouseDocumentId} onChange={(e: any) => setClientData({ ...clientData, spouseDocumentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">F. Nacimiento</div><input type="date" value={clientData.spouseBirthDate} onChange={(e: any) => setClientData({ ...clientData, spouseBirthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Profesión</div><input type="text" value={clientData.spouseProfession} onChange={(e: any) => setClientData({ ...clientData, spouseProfession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Lugar Trabajo</div><input type="text" value={clientData.spouseWorkplace} onChange={(e: any) => setClientData({ ...clientData, spouseWorkplace: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tel. Laboral</div><input type="tel" value={clientData.spouseWorkPhone} onChange={(e: any) => setClientData({ ...clientData, spouseWorkPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                    <div className="flex md:col-span-2">
+                      <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Ingresos Mens.</div>
+                      <input type="number" value={clientData.spouseIncome} onChange={(e: any) => setClientData({ ...clientData, spouseIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
+                    </div>
+                  </div>
+
+                  <h4 className="text-[9px] font-black text-orange-800 uppercase tracking-widest border-l-4 border-orange-800 pl-2 mt-4">IV. Información de Vivienda</h4>
+                  <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="flex border-b border-slate-200">
+                      <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tipo Residencia</div>
+                      <select value={clientData.residenceType} onChange={(e: any) => setClientData({ ...clientData, residenceType: e.target.value as any })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
+                        <option value="propia">Propia</option>
+                        <option value="alquilada">Alquilada</option>
+                        <option value="familiar">Familiar</option>
+                      </select>
+                    </div>
+                    <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Antigüedad/Tpo</div><input type="text" value={clientData.residenceAntiquity} onChange={(e: any) => setClientData({ ...clientData, residenceAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    <div className="space-y-2">
+                      <button type="button" onClick={() => handleCaptureLocation('home')} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-circle-check"></i>}
+                        MARCAR GPS CASA
+                      </button>
+                      {clientData.location && (
+                        <div className="px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[8px] font-black uppercase text-center animate-fadeIn">
+                          COORD: {clientData.location.lat.toFixed(6)}, {clientData.location.lng.toFixed(6)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <button type="button" onClick={() => handleCaptureLocation('domicilio')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-blue-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>}
+                        MARCAR GPS NEGOCIO
+                      </button>
+                      {clientData.domicilioLocation && (
+                        <div className="px-3 py-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-[8px] font-black uppercase text-center animate-fadeIn">
+                          COORD: {clientData.domicilioLocation.lat.toFixed(6)}, {clientData.domicilioLocation.lng.toFixed(6)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
+                      <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">V. Documentación Fotográfica</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                        <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
+                        <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
+                        <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', clientData)} />
+                        <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', clientData)} />
+                      </div>
+                    </div>
+                  </div>
+              </div>
+
+              {addInitialLoan && (
+                <div className="space-y-6">
+                  <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2">VI. Datos del Crédito / Pagaré</h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
+                        <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div><input type="text" value={initialLoan.sellerCode} onChange={(e: any) => setInitialLoan({ ...initialLoan, sellerCode: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
+                        <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Capital</div><input type="text" value={initialLoan.principal} onChange={(e: any) => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                        <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Int. %</div><input type="text" value={initialLoan.interestRate} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                        <div className="flex border-b border-r border-slate-200">
+                          <div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">
+                            Operación
+                            <button type="button" onClick={() => alert("TIPS CLSIFICACIÓN CRÉDITO:\n114: ASOCIACIONES\n202: PRESTAMO DIARIO\n201: PRESTAMO MENSUAL\n204: RENOVACION- REFINANCIACION\n205: RENOVACION NORMAL\n206: COMERCIO ADHERIDO\n207: TASA ESPECIAL\n208: AMORTIZACION MANUAL\n210: PLAZO FIJO TAZA 0\n211: CLIENTES NUEVOS A UN SOLO VTO\n260: CESION DE CREDITOS\n261: ANTICIPO DE PAGOS\n401: DESCUENTO DE CHEQUE")} className="ml-1 text-white/50"><Info size={10} /></button>
+                          </div>
+                          <select
+                            value={initialLoan.operationTypeCode}
+                            onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, operationTypeCode: e.target.value }))}
+                            className="flex-1 px-3 py-3 text-[10px] font-black bg-emerald-600 text-white outline-none cursor-pointer"
+                          >
+                            {OPERATION_TYPES.map(o => (
+                              <option key={o.code} value={o.code} className="bg-emerald-700">{o.code} - {o.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div><input type="text" value={initialLoan.installments} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                        <div className="flex border-b border-r border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Monto Pagaré</div><input type="text" value={initialLoan.promissoryNoteAmount} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteAmount: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
+                        <div className="flex border-b border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Vto Pagaré</div><input type="date" value={initialLoan.promissoryNoteExpiration} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteExpiration: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
+                        <div className="flex"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Finaliza</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{initialLoan.endDate ? formatDate(initialLoan.endDate).toUpperCase() : '---'}</div></div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Tipo de Pago / Frecuencia</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {Object.values(Frequency).map((freq) => (
+                            <button
+                              key={freq}
+                              type="button"
+                              onClick={() => setInitialLoan((prev: any) => ({ ...prev, frequency: freq }))}
+                              className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border-2 ${initialLoan.frequency === freq ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-emerald-200'}`}
+                            >
+                              {freq}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {isAdminOrManager && (
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Asignar a Cobrador</label>
+                          <select
+                            value={initialLoan.selectedCollectorId}
+                            onChange={e => setInitialLoan(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
+                            className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
+                          >
+                            <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
+                            {Array.isArray(collectors) && collectors.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                          <p className="text-[7px] text-slate-400 font-bold uppercase pl-1">Selecciona quién cobrará este crédito para que le aparezca en su celular</p>
+                        </div>
+                      )}
+                    </div>
+                    <GenericCalendar
+                      startDate={initialLoan.startDate}
+                      customHolidays={initialLoan.customHolidays}
+                      setDate={(iso) => setInitialLoan((prev: any) => ({ ...prev, startDate: iso }))}
+                      toggleHoliday={(iso) => setInitialLoan((prev: any) => prev.customHolidays.includes(iso) ? { ...prev, customHolidays: prev.customHolidays.filter((d: string) => d !== iso) } : { ...prev, customHolidays: [...prev.customHolidays, iso] })}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="pt-2 sticky bottom-0 bg-slate-50 z-10 pb-4">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`w-full py-4 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl transition-all ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 active:scale-95 shadow-emerald-500/20'}`}
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fa-solid fa-spinner animate-spin"></i> PROCESANDO...
+                    </span>
+                  ) : 'FINALIZAR REGISTRO Y CRONOGRAMA'}
+                </button>
+              </div>
+            </form>
+            </form>
+    </div>
+        </div >
+      )}
+    </div >
+  )
+}
+{/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN PDF */ }
+<div id="receipt-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+  <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+    <div className="text-center mb-4">
+      <h2 className="text-xl font-black uppercase text-black">{state.settings.companyName || 'ANEXO COBROS'}</h2>
+    </div>
+  </div>
+</div>

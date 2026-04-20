@@ -1,0 +1,96 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Project
+        run: npm run build
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Android APK (Debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Decode Keystore
+        continue-on-error: true
+        run: echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 --decode > android/app/my-release-key.jks
+
+      - name: Build Android APK (Release)
+        continue-on-error: true
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Rename and Zip APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v6.1.184_Debug.apk
+          zip Anexo_Cobro_v6.1.184_Debug.zip Anexo_Cobro_v6.1.184_Debug.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v6.1.184-APK"
+          name: "Release v6.1.184-APK"
+          body: |
+            Nueva versión v6.1.184 con mejoras de navegación y privacidad.
+            
+            - **Botones de Salida**: Implementación de navegación fluida con botones "SALIR" y "Volver".
+            - **Borrado Suave**: Los cobradores eliminados se ocultan inmediatamente para gerentes.
+            - **Limpieza Automática**: Datos obsoletos eliminados tras 30 días en Supabase.
+            - **Seguridad**: Visibilidad de PIN y bloqueo de edición de vencimientos para Gerentes.
+          files: |
+            Anexo_Cobro_v6.1.184_Debug.apk
+            Anexo_Cobro_v6.1.184_Debug.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Debug APK (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: anexo-cobro-v6.1.184-debug
+          path: |
+            Anexo_Cobro_v6.1.184_Debug.apk
+            Anexo_Cobro_v6.1.184_Debug.zip

@@ -1,0 +1,85 @@
+======================================================
+PLANIFICACIÓN Y CÓDIGOS PARA IMPORTAR Y EXPORTAR EXCEL
+======================================================
+
+INSTRUCCIONES:
+Guarda este documento de Word en tu carpeta "MEJORAS". Cuando decidas implementar la función, solo avísame y yo me encargaré de pegar estos códigos por ti (o los puedes pegar tú mismo aquí está la guía).
+
+CARACTERÍSTICAS AÑADIDAS EN ESTE CÓDIGO:
+1. Se mantienen intactos los datos actuales que necesitas en el modo rápido de la app (Nombre, Cédula, Dir, GPS de la casa, Saldo).
+2. Se crea internamente la capacidad completa de las 45 columnas para Exportar e Importar de golpe.
+3. Se agregan los botones "IMPORTAR EXCEL" y "EXPORTAR EXCEL" junto a los botones "IMPRIMIR" y "PDF" en la "CARTERA GENERAL".
+4. Se añade un panel emergente (Modal) de Importación que te permite elegir explícitamente "A qué Ruta/Cobrador vas a asignar esta nueva cartera" antes de subir el archivo.
+
+
+--- COPIA LO SIGUIENTE CUANDO SEA EL MOMENTO DE INTEGRARLO ---
+
+// 1. DÓNDE PEGAR LOS BOTONES (En el archivo: components/Clients.tsx)
+// Ubica la sección de "CARTERA GENERAL" y buscar la fila de botones:
+// <Button variant="outline" size="sm" onClick={handlePrint} ...>
+// <Button variant="destructive" size="sm" onClick={exportToPDF} ...>
+
+// PEGA LOS NUEVOS BOTONES DE EXCEL JUSTO DESPUÉS DEL BOTÓN DEL PDF:
+
+<Button variant="outline" size="sm" className="bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700 ml-2" onClick={() => setShowImportModal(true)}>
+  <Upload className="h-4 w-4 mr-2" /> IMPORTAR EXCEL
+</Button>
+<Button variant="outline" size="sm" className="bg-blue-600 text-white border-blue-500 hover:bg-blue-700 ml-2" onClick={handleExportExcel45}>
+  <Download className="h-4 w-4 mr-2" /> EXPORTAR EXCEL
+</Button>
+
+
+
+// 2. DÓNDE PEGAR EL MENÚ O VENTANA EMERGENTE DE IMPORTAR Y ASIGNAR RUTA
+// En el mismo archivo (components/Clients.tsx), pega este bloque justo antes del penúltimo </div> (casi al final de todo el archivo):
+
+{showImportModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-[9999]">
+    <div className="bg-slate-900 rounded-xl p-6 border border-slate-800 w-full max-w-md shadow-2xl relative">
+      <h3 className="text-xl font-bold text-white mb-4">Importar Cartera (45 Columnas)</h3>
+      <p className="text-slate-400 text-sm mb-4">
+        Sube tu archivo Excel. El sistema llenará automáticamente la base de datos completa.
+      </p>
+
+      {/* Selector de Ruta para Asignar a la Cartera Importada */}
+      <div className="mb-4">
+        <label className="block text-sm font-bold text-slate-300 mb-2">Asignar esta cartera a la Ruta/Cobrador:</label>
+        <select 
+          className="w-full bg-slate-800 border-slate-700 rounded-lg p-2 text-white outline-none ring-1 ring-slate-600 focus:ring-emerald-500"
+          value={selectedRouteForImport}
+          onChange={(e) => setSelectedRouteForImport(e.target.value)}
+        >
+          <option value="">-- Seleccionar Cobrador/Ruta --</option>
+          {routes.map((route) => (
+            <option key={route.id} value={route.id}>{route.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Input de Subida de Archivo */}
+      <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 flex flex-col items-center justify-center mb-6 cursor-pointer hover:bg-slate-800 transition-colors relative">
+        <Upload className="h-10 w-10 text-slate-500 mb-2" />
+        <span className="text-slate-300 font-medium">Click para seleccionar tu Excel</span>
+        <input 
+          type="file" 
+          accept=".xlsx, .xls" 
+          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+          onChange={(e) => {
+            if (!selectedRouteForImport) {
+              alert("Por favor, selecciona primero a qué Ruta vas a asignar esta cartera.");
+              e.target.value = ''; // Resetea el input
+              return;
+            }
+            handleFileUploadMasivo(e, selectedRouteForImport);
+          }}
+        />
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" className="text-slate-300 border-slate-700 hover:bg-slate-800" onClick={() => setShowImportModal(false)}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  </div>
+)}

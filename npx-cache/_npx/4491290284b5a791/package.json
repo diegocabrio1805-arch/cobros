@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "jimp": "^1.6.1"
+  },
+  "_npx": {
+    "packages": [
+      "jimp"
+    ]
+  }
+}

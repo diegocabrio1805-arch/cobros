@@ -1,0 +1,17 @@
+
+c:\Users\HP\.gemini\antigravity\scratch\cobros>cd /d "C:\Users\HP\.gemini\antigravity\scratch\cobros" 
+
+C:\Users\HP\.gemini\antigravity\scratch\cobros>git add . 
+warning: in the working copy of 'hooks/useAppSyncEngine.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'push_result.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'push_fix.bat', LF will be replaced by CRLF the next time Git touches it
+
+C:\Users\HP\.gemini\antigravity\scratch\cobros>git commit -m "fix: Restore visibility of other Managers for Admins" 
+[main f547ae2] fix: Restore visibility of other Managers for Admins
+ 4 files changed, 43 insertions(+)
+ create mode 100644 push_fix.bat
+ create mode 100644 push_fix_result.txt
+
+C:\Users\HP\.gemini\antigravity\scratch\cobros>git push origin main 
+To https://github.com/diegocabrio1805-arch/cobros.git
+   49d03b2..f547ae2  main -> main

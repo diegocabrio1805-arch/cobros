@@ -1,0 +1,3397 @@
+[
+  {
+    "id": "b321cded-58d1-4e9d-901e-f560d9ab0df9",
+    "table_name": "collection_logs",
+    "record_id": "c642624b-f716-4324-ac4f-0f8573670769",
+    "branch_id": null,
+    "deleted_at": "2026-02-08T17:39:14.461857+00:00"
+  },
+  {
+    "id": "b79c6e41-a94d-42ae-9c2f-8f680aa3a93f",
+    "table_name": "collection_logs",
+    "record_id": "519a1400-2d08-4dbe-b6fd-13e82ed116a6",
+    "branch_id": null,
+    "deleted_at": "2026-02-08T22:00:40.37344+00:00"
+  },
+  {
+    "id": "5762219e-cc92-46d6-8ee4-f9b0a1d52cdb",
+    "table_name": "collection_logs",
+    "record_id": "14000c1a-b52e-4db3-a086-249bc526c03b",
+    "branch_id": null,
+    "deleted_at": "2026-02-08T22:08:21.672902+00:00"
+  },
+  {
+    "id": "9ff699d0-f848-4bee-aba9-6d85aeca2fe2",
+    "table_name": "collection_logs",
+    "record_id": "200c143d-627e-42f0-b5bc-ca89f7869eef",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T02:39:12.38+00:00"
+  },
+  {
+    "id": "819d3336-0ff7-43c9-9633-a05390dd14b7",
+    "table_name": "collection_logs",
+    "record_id": "7091b2b8-2419-43df-92da-284899bae4ab",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T03:04:08.746+00:00"
+  },
+  {
+    "id": "082e98a5-c528-4658-b538-48770cf911e0",
+    "table_name": "collection_logs",
+    "record_id": "25a6ccdb-2b48-46f8-9283-8a68aec91998",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T16:34:20.068+00:00"
+  },
+  {
+    "id": "9c7fd65b-9d09-4626-af39-6c4cb0ab1912",
+    "table_name": "payments",
+    "record_id": "pay-25a6ccdb-2b48-46f8-9283-8a68aec91998-inst-2",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T16:34:26.159+00:00"
+  },
+  {
+    "id": "5c93d9a8-5dd0-48b3-a966-d4aa88f5b48e",
+    "table_name": "payments",
+    "record_id": "pay-25a6ccdb-2b48-46f8-9283-8a68aec91998-inst-3",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T16:34:31.416+00:00"
+  },
+  {
+    "id": "273b8879-317e-451a-a74c-4dee91f235aa",
+    "table_name": "collection_logs",
+    "record_id": "f4046edf-0fae-4f9d-a443-ac9b4d6cb7f0",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T17:21:29.033+00:00"
+  },
+  {
+    "id": "f6325f61-e122-426e-b74c-431050b057c1",
+    "table_name": "payments",
+    "record_id": "pay-f4046edf-0fae-4f9d-a443-ac9b4d6cb7f0-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T17:21:34.413+00:00"
+  },
+  {
+    "id": "acb31d67-babb-4c70-b005-699b2bb2a947",
+    "table_name": "payments",
+    "record_id": "pay-f4046edf-0fae-4f9d-a443-ac9b4d6cb7f0-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T17:21:47.635+00:00"
+  },
+  {
+    "id": "8f1cee2b-13e1-47a3-8177-f99d84ee2455",
+    "table_name": "collection_logs",
+    "record_id": "752700a3-b98d-4bbc-bcae-49df4615d44e",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T22:47:55.165+00:00"
+  },
+  {
+    "id": "4a66fa09-8f8f-47b8-8973-00cd97388bc7",
+    "table_name": "payments",
+    "record_id": "pay-752700a3-b98d-4bbc-bcae-49df4615d44e-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T22:48:04.844+00:00"
+  },
+  {
+    "id": "4c4f19c1-3ee3-4f57-8ccd-97415769a290",
+    "table_name": "payments",
+    "record_id": "pay-752700a3-b98d-4bbc-bcae-49df4615d44e-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T22:48:22.751+00:00"
+  },
+  {
+    "id": "87e5746e-9d05-4444-9ac8-b1ebd10ddc1c",
+    "table_name": "collection_logs",
+    "record_id": "3248ec0f-9f7b-4f72-8e58-6aff83e42516",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T23:07:50.057+00:00"
+  },
+  {
+    "id": "104a61eb-ded1-43b4-88b1-5733e5ac4699",
+    "table_name": "payments",
+    "record_id": "pay-3248ec0f-9f7b-4f72-8e58-6aff83e42516-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T23:07:55.558+00:00"
+  },
+  {
+    "id": "7406b729-d57a-42e9-b72d-9a3127d74a1d",
+    "table_name": "payments",
+    "record_id": "pay-3248ec0f-9f7b-4f72-8e58-6aff83e42516-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-09T23:08:00.712+00:00"
+  },
+  {
+    "id": "a2aa0f2a-3eb2-42f3-ab36-6e64cff57065",
+    "table_name": "collection_logs",
+    "record_id": "0d1d00b7-8142-4486-8277-127d8afc0e30",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:19:16.64+00:00"
+  },
+  {
+    "id": "718abe9f-f64a-4a7f-b698-4e21d6b407b7",
+    "table_name": "payments",
+    "record_id": "pay-0d1d00b7-8142-4486-8277-127d8afc0e30-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:19:22.272+00:00"
+  },
+  {
+    "id": "1009f830-866e-42e4-8159-f57b635bcb15",
+    "table_name": "payments",
+    "record_id": "pay-0d1d00b7-8142-4486-8277-127d8afc0e30-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:19:38.247+00:00"
+  },
+  {
+    "id": "0b8853f2-c402-44c6-8178-4fdd1950f1dc",
+    "table_name": "collection_logs",
+    "record_id": "e77161b7-9cca-4a73-a160-2fbfd1eefd87",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:33:16.147+00:00"
+  },
+  {
+    "id": "f97d9506-189e-49b6-a157-c3c093a5a276",
+    "table_name": "payments",
+    "record_id": "pay-e77161b7-9cca-4a73-a160-2fbfd1eefd87-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:33:21.858+00:00"
+  },
+  {
+    "id": "621e6b16-561e-4676-9106-1cb8a2f5fcc3",
+    "table_name": "payments",
+    "record_id": "pay-e77161b7-9cca-4a73-a160-2fbfd1eefd87-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T01:33:36.238+00:00"
+  },
+  {
+    "id": "a8b5d84c-0a69-47db-b7ed-b8ed1a676b06",
+    "table_name": "collection_logs",
+    "record_id": "b1a4ee7d-02ce-4722-bba0-aba6740842ea",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T02:36:54.417+00:00"
+  },
+  {
+    "id": "2b124f25-68de-424a-b3cd-b4b615d81dd9",
+    "table_name": "payments",
+    "record_id": "pay-b1a4ee7d-02ce-4722-bba0-aba6740842ea-inst-7",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T02:37:00.287+00:00"
+  },
+  {
+    "id": "0754f74b-0fbb-4ff4-b80d-0b6bcbae76db",
+    "table_name": "collection_logs",
+    "record_id": "21d52a74-e7fa-4311-9ce5-6c31e87678f2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T03:10:43.305897+00:00"
+  },
+  {
+    "id": "b2c3f4e6-4a1a-49b8-89e3-2571bcf26a88",
+    "table_name": "collection_logs",
+    "record_id": "21d52a74-e7fa-4311-9ce5-6c31e87678f2",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T03:10:44.02+00:00"
+  },
+  {
+    "id": "e015d9ec-206e-4eeb-9b6c-8c086f999659",
+    "table_name": "payments",
+    "record_id": "pay-21d52a74-e7fa-4311-9ce5-6c31e87678f2-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T03:10:49.150746+00:00"
+  },
+  {
+    "id": "efa55bce-dc25-4312-bd42-a9b3a31a2e41",
+    "table_name": "payments",
+    "record_id": "pay-21d52a74-e7fa-4311-9ce5-6c31e87678f2-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T03:10:49.8+00:00"
+  },
+  {
+    "id": "d0bd054d-a1bd-4a8f-998c-8060ba36e4dc",
+    "table_name": "collection_logs",
+    "record_id": "c5132e1b-b748-4740-ad32-f0f75de73df2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T03:13:08.670884+00:00"
+  },
+  {
+    "id": "af452553-7a2c-4139-b172-1223a002e84a",
+    "table_name": "collection_logs",
+    "record_id": "c5132e1b-b748-4740-ad32-f0f75de73df2",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T03:13:09.348+00:00"
+  },
+  {
+    "id": "8c11fb39-1f0b-440c-8ea5-6ff250abcb5c",
+    "table_name": "payments",
+    "record_id": "pay-c5132e1b-b748-4740-ad32-f0f75de73df2-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T03:13:14.055298+00:00"
+  },
+  {
+    "id": "b90e66b0-0dd7-4bf0-93d8-952f379471a4",
+    "table_name": "payments",
+    "record_id": "pay-c5132e1b-b748-4740-ad32-f0f75de73df2-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T03:13:14.7+00:00"
+  },
+  {
+    "id": "c11dd5b2-b47a-41e0-9c16-979b6a1ae5c7",
+    "table_name": "collection_logs",
+    "record_id": "52796041-cf6b-449b-b82f-19aecde202d2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T14:39:56.855647+00:00"
+  },
+  {
+    "id": "0d5d40bc-11ef-4d99-8712-82f2df250f44",
+    "table_name": "collection_logs",
+    "record_id": "52796041-cf6b-449b-b82f-19aecde202d2",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T14:39:56.164+00:00"
+  },
+  {
+    "id": "16f573ae-5cee-4166-bb25-73d6e2a02003",
+    "table_name": "payments",
+    "record_id": "pay-52796041-cf6b-449b-b82f-19aecde202d2-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T14:40:03.842916+00:00"
+  },
+  {
+    "id": "ee12ef60-a46a-4e94-8f2a-d1e1c8dd4902",
+    "table_name": "payments",
+    "record_id": "pay-52796041-cf6b-449b-b82f-19aecde202d2-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T14:40:03.167+00:00"
+  },
+  {
+    "id": "1362b256-4690-42c5-8008-57544c223689",
+    "table_name": "collection_logs",
+    "record_id": "a3d20a5d-7000-474f-a999-d3778458390e",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T15:07:59.66878+00:00"
+  },
+  {
+    "id": "be778601-a149-4c64-a7d6-bcdb91476909",
+    "table_name": "collection_logs",
+    "record_id": "a3d20a5d-7000-474f-a999-d3778458390e",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T15:07:59.074+00:00"
+  },
+  {
+    "id": "80403a63-7826-4eff-8f4b-3b054217d21d",
+    "table_name": "payments",
+    "record_id": "pay-a3d20a5d-7000-474f-a999-d3778458390e-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T15:08:05.660657+00:00"
+  },
+  {
+    "id": "71e27128-3c04-4103-9821-0fc8b6385322",
+    "table_name": "payments",
+    "record_id": "pay-a3d20a5d-7000-474f-a999-d3778458390e-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T15:08:04.995+00:00"
+  },
+  {
+    "id": "5e843eb7-a4d2-44b3-892e-fbc922aa60e5",
+    "table_name": "collection_logs",
+    "record_id": "3ca85c70-5575-420f-9f72-c272c39677a9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T15:54:23.808+00:00"
+  },
+  {
+    "id": "31ed9d14-7a61-4a0c-be91-cca024d0cd82",
+    "table_name": "payments",
+    "record_id": "pay-3ca85c70-5575-420f-9f72-c272c39677a9-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T15:54:41.967+00:00"
+  },
+  {
+    "id": "c30116f9-0991-44dd-b08d-c042f6c4de2a",
+    "table_name": "collection_logs",
+    "record_id": "d7aeb725-4739-430b-bac1-46ecd0012fc1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:18:50.46204+00:00"
+  },
+  {
+    "id": "09bc5699-ce7e-473f-8516-a29f667f13a6",
+    "table_name": "collection_logs",
+    "record_id": "d7aeb725-4739-430b-bac1-46ecd0012fc1",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:18:49.987+00:00"
+  },
+  {
+    "id": "a851f07d-564e-485a-b1db-c288050b85cc",
+    "table_name": "payments",
+    "record_id": "pay-d7aeb725-4739-430b-bac1-46ecd0012fc1-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:18:57.248077+00:00"
+  },
+  {
+    "id": "fc02da09-9be5-4a0d-b50a-0236b16c7519",
+    "table_name": "payments",
+    "record_id": "pay-d7aeb725-4739-430b-bac1-46ecd0012fc1-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:18:56.753+00:00"
+  },
+  {
+    "id": "2aa1e1af-f371-497c-853c-e986821229dc",
+    "table_name": "collection_logs",
+    "record_id": "3ca85c70-5575-420f-9f72-c272c39677a9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:18:59.891708+00:00"
+  },
+  {
+    "id": "831720e1-4be9-432e-9f00-92e9c4ea2d0a",
+    "table_name": "collection_logs",
+    "record_id": "3ca85c70-5575-420f-9f72-c272c39677a9",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:18:59.4+00:00"
+  },
+  {
+    "id": "de41b423-d8d5-4aeb-a80b-55960a41ff52",
+    "table_name": "payments",
+    "record_id": "pay-3ca85c70-5575-420f-9f72-c272c39677a9-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:19:06.118416+00:00"
+  },
+  {
+    "id": "fc131acd-ac3b-420a-9182-4c4c80d1d186",
+    "table_name": "payments",
+    "record_id": "pay-3ca85c70-5575-420f-9f72-c272c39677a9-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:19:05.649+00:00"
+  },
+  {
+    "id": "a62fb4bf-9203-4a55-b2a3-d742e500a649",
+    "table_name": "collection_logs",
+    "record_id": "7fa7af77-9a40-43e7-91f7-958177eda552",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:28:15.485271+00:00"
+  },
+  {
+    "id": "e8a63516-ad7e-4580-90fc-46108aa969fd",
+    "table_name": "collection_logs",
+    "record_id": "7fa7af77-9a40-43e7-91f7-958177eda552",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:28:15.035+00:00"
+  },
+  {
+    "id": "4ee79be4-8da1-440c-a277-ef06341849a5",
+    "table_name": "payments",
+    "record_id": "pay-7fa7af77-9a40-43e7-91f7-958177eda552-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:28:30.076396+00:00"
+  },
+  {
+    "id": "c554b9de-7099-4d40-8c74-3ba8aab5c332",
+    "table_name": "payments",
+    "record_id": "pay-7fa7af77-9a40-43e7-91f7-958177eda552-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:28:29.685+00:00"
+  },
+  {
+    "id": "77abdc3f-5939-4c08-bb4d-9b79ce6ca28c",
+    "table_name": "collection_logs",
+    "record_id": "e18a9127-868c-4aca-abe8-9bbfac449d78",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:46:31.243286+00:00"
+  },
+  {
+    "id": "6f2dd127-2793-4794-a577-1d5f8f41ae0c",
+    "table_name": "collection_logs",
+    "record_id": "e18a9127-868c-4aca-abe8-9bbfac449d78",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:46:30.877+00:00"
+  },
+  {
+    "id": "1c6da682-8d88-4dcd-87d3-3bcda3c8ab12",
+    "table_name": "payments",
+    "record_id": "pay-e18a9127-868c-4aca-abe8-9bbfac449d78-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T16:46:46.090755+00:00"
+  },
+  {
+    "id": "491e44d9-7bda-4746-aa08-45e4b7c2f870",
+    "table_name": "payments",
+    "record_id": "pay-e18a9127-868c-4aca-abe8-9bbfac449d78-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T16:46:45.725+00:00"
+  },
+  {
+    "id": "74e11af8-4073-4d01-8d4c-3cb251e1c3b8",
+    "table_name": "collection_logs",
+    "record_id": "06df3068-6ca5-465b-942c-883c0a3a1b07",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T18:37:05.284512+00:00"
+  },
+  {
+    "id": "f80e233a-1d67-4138-8882-b19e2f684b5e",
+    "table_name": "collection_logs",
+    "record_id": "06df3068-6ca5-465b-942c-883c0a3a1b07",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T18:37:05.225+00:00"
+  },
+  {
+    "id": "81a2191f-dfef-4401-9d66-da76eaab8cca",
+    "table_name": "payments",
+    "record_id": "pay-06df3068-6ca5-465b-942c-883c0a3a1b07-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T18:37:12.068501+00:00"
+  },
+  {
+    "id": "3bda46da-1e82-431a-a1ff-fad58e22e4dc",
+    "table_name": "payments",
+    "record_id": "pay-06df3068-6ca5-465b-942c-883c0a3a1b07-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T18:37:11.939+00:00"
+  },
+  {
+    "id": "522b18f1-68cb-476d-ae10-888fa55ca2a6",
+    "table_name": "collection_logs",
+    "record_id": "d25a4c98-3571-4137-9057-ca651a96c167",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T18:38:31.049918+00:00"
+  },
+  {
+    "id": "8f6e57d3-9e6a-4c62-bc7b-64adff9bc639",
+    "table_name": "collection_logs",
+    "record_id": "d25a4c98-3571-4137-9057-ca651a96c167",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T18:38:30.908+00:00"
+  },
+  {
+    "id": "695d36ae-ff69-4afe-b4b8-7800325004a0",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:19:47.635+00:00"
+  },
+  {
+    "id": "5057bd1d-dc14-4087-9763-53fb1b4a7a05",
+    "table_name": "payments",
+    "record_id": "pay-d25a4c98-3571-4137-9057-ca651a96c167-inst-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T18:38:36.515504+00:00"
+  },
+  {
+    "id": "020f03eb-8e01-4f08-968d-1a2b4f35839c",
+    "table_name": "payments",
+    "record_id": "pay-d25a4c98-3571-4137-9057-ca651a96c167-inst-8",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T18:38:36.38+00:00"
+  },
+  {
+    "id": "ea24aaac-5349-4bb0-91ed-0930177b8c66",
+    "table_name": "collection_logs",
+    "record_id": "55261521-cf48-4595-9a3d-ff6e808a9c84",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T19:13:53.191133+00:00"
+  },
+  {
+    "id": "29b06364-1700-48e5-ae0a-c4abf3bce61c",
+    "table_name": "collection_logs",
+    "record_id": "55261521-cf48-4595-9a3d-ff6e808a9c84",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T19:13:53.221+00:00"
+  },
+  {
+    "id": "ca326036-f94e-42b3-9000-4e87754af3e1",
+    "table_name": "collection_logs",
+    "record_id": "6484f39e-9467-408b-bdfa-bf62161c5280",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T19:23:54.257456+00:00"
+  },
+  {
+    "id": "91076dfb-c841-4044-ba16-183c5d351fcf",
+    "table_name": "collection_logs",
+    "record_id": "6484f39e-9467-408b-bdfa-bf62161c5280",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T19:23:54.36+00:00"
+  },
+  {
+    "id": "0728d512-cb87-4bf9-b035-5cb5ffa03aaa",
+    "table_name": "collection_logs",
+    "record_id": "69e4eb41-7280-44b6-9ff8-683e24f56f68",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T19:58:58.708091+00:00"
+  },
+  {
+    "id": "5b16bab0-975f-4cbb-a298-d56f0b105c52",
+    "table_name": "collection_logs",
+    "record_id": "69e4eb41-7280-44b6-9ff8-683e24f56f68",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T19:58:58.744+00:00"
+  },
+  {
+    "id": "8ef2c062-8d60-40e9-9c48-dbdc5070f8c1",
+    "table_name": "collection_logs",
+    "record_id": "7e03338f-3c2e-43f5-b232-8b1973663cfd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T20:57:08.830202+00:00"
+  },
+  {
+    "id": "4b6f88ef-c294-42d9-bf19-dec71010d47c",
+    "table_name": "collection_logs",
+    "record_id": "7e03338f-3c2e-43f5-b232-8b1973663cfd",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:57:08.809+00:00"
+  },
+  {
+    "id": "e283b4de-7222-427a-bca0-25b4e1c59e78",
+    "table_name": "payments",
+    "record_id": "pay-7e03338f-3c2e-43f5-b232-8b1973663cfd-inst-5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T20:57:19.57199+00:00"
+  },
+  {
+    "id": "2d3bb9e4-1595-411e-ac4f-8b0c3b376b30",
+    "table_name": "payments",
+    "record_id": "pay-7e03338f-3c2e-43f5-b232-8b1973663cfd-inst-5",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:57:19.532+00:00"
+  },
+  {
+    "id": "5682a6a9-9840-4d8d-925d-354fd4954efa",
+    "table_name": "collection_logs",
+    "record_id": "e9e49faf-ee63-4706-8f2f-a75d997b92d7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T20:57:28.724147+00:00"
+  },
+  {
+    "id": "92347f12-a465-49be-a39f-f1ecaa54ffda",
+    "table_name": "collection_logs",
+    "record_id": "e9e49faf-ee63-4706-8f2f-a75d997b92d7",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:57:28.633+00:00"
+  },
+  {
+    "id": "019d7108-d751-4cdf-8cd5-e3c09035b363",
+    "table_name": "collection_logs",
+    "record_id": "63191c36-27ba-44b0-8791-0f45e7bd58cb",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-10T20:57:46.542809+00:00"
+  },
+  {
+    "id": "c1d4bdf9-bcd7-45e3-98fa-f76544774a0c",
+    "table_name": "collection_logs",
+    "record_id": "63191c36-27ba-44b0-8791-0f45e7bd58cb",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:57:46.61+00:00"
+  },
+  {
+    "id": "9d399b35-5396-4c3a-a066-114791c072d6",
+    "table_name": "collection_logs",
+    "record_id": "63191c36-27ba-44b0-8791-0f45e7bd58cb",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:58:29.83+00:00"
+  },
+  {
+    "id": "2cc4d9cc-f3b5-4f01-b94b-47f43f0e9918",
+    "table_name": "collection_logs",
+    "record_id": "63191c36-27ba-44b0-8791-0f45e7bd58cb",
+    "branch_id": null,
+    "deleted_at": "2026-02-10T20:59:10.812+00:00"
+  },
+  {
+    "id": "410a89ec-6882-4ea3-9026-5657e09a2a00",
+    "table_name": "collection_logs",
+    "record_id": "abd641db-e884-443b-a937-c6d2f8b0a716",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T03:05:43.876+00:00"
+  },
+  {
+    "id": "268f3c86-b7b6-49a2-b191-c75a133352b1",
+    "table_name": "collection_logs",
+    "record_id": "8eb6284b-0a4e-4eeb-9bad-90e4f0c0c339",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T13:34:49.536+00:00"
+  },
+  {
+    "id": "12667a7f-4035-4dde-acdb-8fee23e7336e",
+    "table_name": "payments",
+    "record_id": "pay-8eb6284b-0a4e-4eeb-9bad-90e4f0c0c339-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T13:34:55.592+00:00"
+  },
+  {
+    "id": "0d5aa2b1-d322-42d6-a744-d7849e00361a",
+    "table_name": "collection_logs",
+    "record_id": "4093422c-4ad9-4312-a170-7f94bdf182f9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:23.841+00:00"
+  },
+  {
+    "id": "4487620f-1d5d-46d7-a00b-30fb32c62171",
+    "table_name": "collection_logs",
+    "record_id": "cf7670c0-0b1f-42f1-8f6d-5f1d2e299774",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:27.8+00:00"
+  },
+  {
+    "id": "9eb719f0-f6b7-467f-be84-2a1f730ec118",
+    "table_name": "collection_logs",
+    "record_id": "86c3ba15-0906-478e-8317-f79e118552ea",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:30.828+00:00"
+  },
+  {
+    "id": "ff58b6a6-d068-4eee-ac54-8e4209b7d3eb",
+    "table_name": "payments",
+    "record_id": "pay-4093422c-4ad9-4312-a170-7f94bdf182f9-5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:32.267+00:00"
+  },
+  {
+    "id": "738ab3ff-61d9-4ed0-959d-ce002cedfcd9",
+    "table_name": "collection_logs",
+    "record_id": "a3d09371-257e-4ac3-b2a1-c7d57c2236de",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:35.05+00:00"
+  },
+  {
+    "id": "4b3111c6-7311-49de-a23a-b15511ad72c0",
+    "table_name": "payments",
+    "record_id": "pay-cf7670c0-0b1f-42f1-8f6d-5f1d2e299774-7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:37.131+00:00"
+  },
+  {
+    "id": "1fca309a-3665-4244-aed0-aa5708d55098",
+    "table_name": "collection_logs",
+    "record_id": "90ddf1d4-f6a4-4a96-9d5b-fe7b0feb110f",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:39.825+00:00"
+  },
+  {
+    "id": "2f7d634d-cdb2-45b0-bdf1-666d9cb67b6f",
+    "table_name": "payments",
+    "record_id": "pay-86c3ba15-0906-478e-8317-f79e118552ea-7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:40.289+00:00"
+  },
+  {
+    "id": "086b1403-84eb-4012-9357-2c4325e6d0b4",
+    "table_name": "payments",
+    "record_id": "pay-4093422c-4ad9-4312-a170-7f94bdf182f9-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:42.587+00:00"
+  },
+  {
+    "id": "cfce26ac-e42b-4ba3-93d1-9130dd55fade",
+    "table_name": "collection_logs",
+    "record_id": "1e9aad94-52fa-4625-b0ac-82478f08db93",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:42.787+00:00"
+  },
+  {
+    "id": "deeb3d7f-06c4-433b-8b18-39f7cae8e6bb",
+    "table_name": "payments",
+    "record_id": "pay-a3d09371-257e-4ac3-b2a1-c7d57c2236de-9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:43.918+00:00"
+  },
+  {
+    "id": "1d93557f-f8ce-42d7-8709-afd4754d4b9d",
+    "table_name": "payments",
+    "record_id": "pay-cf7670c0-0b1f-42f1-8f6d-5f1d2e299774-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:45.637+00:00"
+  },
+  {
+    "id": "d4fd5f24-9d38-445c-9bc4-926b406e439c",
+    "table_name": "payments",
+    "record_id": "pay-90ddf1d4-f6a4-4a96-9d5b-fe7b0feb110f-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:47.038+00:00"
+  },
+  {
+    "id": "77493899-870b-4eda-b816-73dbeb3549fc",
+    "table_name": "payments",
+    "record_id": "pay-1e9aad94-52fa-4625-b0ac-82478f08db93-10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:49.748+00:00"
+  },
+  {
+    "id": "b52e6edc-6853-4dd8-b362-2502309d12bc",
+    "table_name": "payments",
+    "record_id": "pay-a3d09371-257e-4ac3-b2a1-c7d57c2236de-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:50.681+00:00"
+  },
+  {
+    "id": "badf567e-3f8f-43bb-ac7f-e5a5e5b7a041",
+    "table_name": "collection_logs",
+    "record_id": "48e46250-1036-402b-9459-f002e66411b2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:52.816+00:00"
+  },
+  {
+    "id": "4d74a6f4-1291-4439-a511-ac0f998b78dd",
+    "table_name": "collection_logs",
+    "record_id": "48e46250-1036-402b-9459-f002e66411b2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:55.922+00:00"
+  },
+  {
+    "id": "ae1c7cc6-dbdd-4122-8cb5-9d58527a1527",
+    "table_name": "payments",
+    "record_id": "pay-90ddf1d4-f6a4-4a96-9d5b-fe7b0feb110f-7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:56.135+00:00"
+  },
+  {
+    "id": "3bb15d3b-ef91-440a-a495-6f8a063bbe12",
+    "table_name": "collection_logs",
+    "record_id": "78719eda-d448-4c65-9262-09f9645e3f50",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:58.407+00:00"
+  },
+  {
+    "id": "4d7fe465-25dc-4264-b946-0032a7588d85",
+    "table_name": "payments",
+    "record_id": "pay-1e9aad94-52fa-4625-b0ac-82478f08db93-9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:45:59.141+00:00"
+  },
+  {
+    "id": "88a280dd-bb5b-4dbb-aac7-c6852fb03719",
+    "table_name": "collection_logs",
+    "record_id": "d479a301-9c23-4e94-aaa9-4f16714ea6ad",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:01.392+00:00"
+  },
+  {
+    "id": "cbd92dfa-5ee7-4eab-95b0-bb78156c636c",
+    "table_name": "payments",
+    "record_id": "pay-48e46250-1036-402b-9459-f002e66411b2-10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:02.533+00:00"
+  },
+  {
+    "id": "edca515f-1167-40b5-aa1b-f9e91051c15f",
+    "table_name": "collection_logs",
+    "record_id": "4ea3c5cd-34c2-44fd-b0e4-555562003f39",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:04.552+00:00"
+  },
+  {
+    "id": "fbeb9075-d97d-4950-b0a9-2eed50596055",
+    "table_name": "payments",
+    "record_id": "pay-48e46250-1036-402b-9459-f002e66411b2-10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:04.768+00:00"
+  },
+  {
+    "id": "24138cf7-a16c-4244-ab25-6710915b2e52",
+    "table_name": "payments",
+    "record_id": "pay-78719eda-d448-4c65-9262-09f9645e3f50-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:06.33+00:00"
+  },
+  {
+    "id": "7b7b7d60-83fd-45f2-bd77-070a5e891e05",
+    "table_name": "collection_logs",
+    "record_id": "3bb6aaec-7f3c-46b9-9fa7-73ca88c50501",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:07.957+00:00"
+  },
+  {
+    "id": "22e72f3c-f8cf-43fc-8815-ab5c1b1b9829",
+    "table_name": "payments",
+    "record_id": "pay-d479a301-9c23-4e94-aaa9-4f16714ea6ad-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:10.068+00:00"
+  },
+  {
+    "id": "8768680d-b3a3-441f-bb46-0f2a4266dfa8",
+    "table_name": "payments",
+    "record_id": "pay-48e46250-1036-402b-9459-f002e66411b2-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:10.712+00:00"
+  },
+  {
+    "id": "5a165f01-a0fd-4888-954b-306b0b97dbd0",
+    "table_name": "payments",
+    "record_id": "pay-4ea3c5cd-34c2-44fd-b0e4-555562003f39-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:11.534+00:00"
+  },
+  {
+    "id": "72cf5ff1-a395-4a60-98be-66e8819dfa96",
+    "table_name": "payments",
+    "record_id": "pay-48e46250-1036-402b-9459-f002e66411b2-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:12.132+00:00"
+  },
+  {
+    "id": "1fdec747-3416-4c43-8118-33e37d014bc8",
+    "table_name": "payments",
+    "record_id": "pay-78719eda-d448-4c65-9262-09f9645e3f50-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:13.812+00:00"
+  },
+  {
+    "id": "f6caa9d1-7ac3-4b42-89e5-48bf80168d84",
+    "table_name": "payments",
+    "record_id": "pay-3bb6aaec-7f3c-46b9-9fa7-73ca88c50501-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:14.572+00:00"
+  },
+  {
+    "id": "978b69a1-77a1-43cb-8a09-1d51e2c8563a",
+    "table_name": "payments",
+    "record_id": "pay-d479a301-9c23-4e94-aaa9-4f16714ea6ad-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:16.586+00:00"
+  },
+  {
+    "id": "7f3374c9-7c3f-4476-8470-3d57377b3302",
+    "table_name": "payments",
+    "record_id": "pay-4ea3c5cd-34c2-44fd-b0e4-555562003f39-14",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:20.01+00:00"
+  },
+  {
+    "id": "3308bf18-8ead-4621-b828-a0ae74d656ec",
+    "table_name": "collection_logs",
+    "record_id": "e4d62230-bc63-4954-b870-c2c4a68afe74",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:20.56+00:00"
+  },
+  {
+    "id": "856b4570-1529-44da-b7c1-94f74f1ba684",
+    "table_name": "payments",
+    "record_id": "pay-3bb6aaec-7f3c-46b9-9fa7-73ca88c50501-14",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:23.193+00:00"
+  },
+  {
+    "id": "f642e654-7827-4ffd-a4d9-e48ea846437b",
+    "table_name": "profiles",
+    "record_id": "7acffde3-c1d8-4bd2-8cc6-2ddc67d649c8",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:19:53.77+00:00"
+  },
+  {
+    "id": "e70f4cd3-eefa-4056-a580-0151e8c626eb",
+    "table_name": "collection_logs",
+    "record_id": "7e3bcbb7-c21e-47df-9e01-b5ca7cbd03a9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:24.937+00:00"
+  },
+  {
+    "id": "3c73a506-13ed-4745-bbd5-4a575cff04d3",
+    "table_name": "payments",
+    "record_id": "pay-7e3bcbb7-c21e-47df-9e01-b5ca7cbd03a9-15",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:33.125+00:00"
+  },
+  {
+    "id": "b740c7aa-aff2-4b94-9edd-c032a6263a52",
+    "table_name": "collection_logs",
+    "record_id": "0e5e73e8-4ba4-47b5-b694-f6ace32b759e",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:28.914+00:00"
+  },
+  {
+    "id": "a69b1274-5886-43ec-b908-dae167507db8",
+    "table_name": "payments",
+    "record_id": "pay-e4d62230-bc63-4954-b870-c2c4a68afe74-14",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:29.066+00:00"
+  },
+  {
+    "id": "66c858bc-e105-40f4-82e9-fcc9525d5a7f",
+    "table_name": "collection_logs",
+    "record_id": "47f4ede6-cbf1-495e-abf2-267c2f8b6cfc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:32.121+00:00"
+  },
+  {
+    "id": "b595129c-ba19-40ed-93e6-487785313b3e",
+    "table_name": "collection_logs",
+    "record_id": "0fffcbc6-a623-4b62-baf9-1cc947a376eb",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:35.668+00:00"
+  },
+  {
+    "id": "1638dc0a-c669-4f35-bc94-542062457a58",
+    "table_name": "payments",
+    "record_id": "pay-0e5e73e8-4ba4-47b5-b694-f6ace32b759e-17",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:37.486+00:00"
+  },
+  {
+    "id": "3594524e-3128-40ec-ac43-70695fd40f64",
+    "table_name": "payments",
+    "record_id": "pay-e4d62230-bc63-4954-b870-c2c4a68afe74-15",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:37.934+00:00"
+  },
+  {
+    "id": "b14a4ee4-7671-4791-acbb-deee29721401",
+    "table_name": "payments",
+    "record_id": "pay-47f4ede6-cbf1-495e-abf2-267c2f8b6cfc-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:40.356+00:00"
+  },
+  {
+    "id": "9a12b213-e779-436b-be67-620ae011670a",
+    "table_name": "payments",
+    "record_id": "pay-7e3bcbb7-c21e-47df-9e01-b5ca7cbd03a9-16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:41.129+00:00"
+  },
+  {
+    "id": "64179e81-32f1-4ffa-a800-faa1b8680d16",
+    "table_name": "payments",
+    "record_id": "pay-0fffcbc6-a623-4b62-baf9-1cc947a376eb-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:42.192+00:00"
+  },
+  {
+    "id": "a4a97462-e9c8-4fe1-95fe-95885dd0d797",
+    "table_name": "payments",
+    "record_id": "pay-0e5e73e8-4ba4-47b5-b694-f6ace32b759e-16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:44.331+00:00"
+  },
+  {
+    "id": "57879c26-1fba-442f-a7c0-787d5adaea85",
+    "table_name": "payments",
+    "record_id": "pay-47f4ede6-cbf1-495e-abf2-267c2f8b6cfc-17",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:46:46.952+00:00"
+  },
+  {
+    "id": "085c9961-7b51-43ac-8354-44331e018248",
+    "table_name": "collection_logs",
+    "record_id": "39b9a02c-0728-4ebc-846c-6dd45add25dc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:00.364+00:00"
+  },
+  {
+    "id": "4cf49bf3-0a92-4983-92a6-fbb10342be7e",
+    "table_name": "collection_logs",
+    "record_id": "f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:04.592+00:00"
+  },
+  {
+    "id": "c5b8d0d8-9ab5-4d7a-9780-08410963becd",
+    "table_name": "collection_logs",
+    "record_id": "f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:07.226+00:00"
+  },
+  {
+    "id": "0c630d3e-7b36-4c80-9adb-38bcda32ead2",
+    "table_name": "collection_logs",
+    "record_id": "f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:09.668+00:00"
+  },
+  {
+    "id": "25c1e7a3-f337-4f7b-996a-a8875de12040",
+    "table_name": "payments",
+    "record_id": "pay-39b9a02c-0728-4ebc-846c-6dd45add25dc-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:10.439+00:00"
+  },
+  {
+    "id": "f14d8b7b-851d-4999-80fd-e567c1114de5",
+    "table_name": "collection_logs",
+    "record_id": "03cf42a4-94ad-40c5-b29c-fd1bd1f26ad2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:12.419+00:00"
+  },
+  {
+    "id": "f2c4df4c-ec74-419f-97f8-ec89a70fee43",
+    "table_name": "payments",
+    "record_id": "pay-f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:13.528+00:00"
+  },
+  {
+    "id": "0b363ad1-bb72-4ca9-b32f-8c277b2d923d",
+    "table_name": "collection_logs",
+    "record_id": "ef3e1e5d-eb6c-4fd7-8c43-09f5b7fd4c55",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:15.584+00:00"
+  },
+  {
+    "id": "14df8341-c314-4cd8-b9ba-1b44920e8d14",
+    "table_name": "payments",
+    "record_id": "pay-f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:16.493+00:00"
+  },
+  {
+    "id": "695d813a-46e8-43ab-9c12-9809397b2dd6",
+    "table_name": "payments",
+    "record_id": "pay-f3f1126d-7943-4b3f-9eaa-1f79b3b1bdb6-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:18.251+00:00"
+  },
+  {
+    "id": "ed96bb76-24f7-4ee9-b8f7-1782671fb051",
+    "table_name": "collection_logs",
+    "record_id": "4ccb0d8f-329b-422b-b0c0-d44802f53e9b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:18.338+00:00"
+  },
+  {
+    "id": "3ae63f1b-7bd6-418f-b5d9-7ac29b8e6092",
+    "table_name": "collection_logs",
+    "record_id": "4ccb0d8f-329b-422b-b0c0-d44802f53e9b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:20.627+00:00"
+  },
+  {
+    "id": "6ae732fb-b75b-4e4b-982d-badb4ca3f283",
+    "table_name": "payments",
+    "record_id": "pay-03cf42a4-94ad-40c5-b29c-fd1bd1f26ad2-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:22.813+00:00"
+  },
+  {
+    "id": "28b737bd-c20d-4f7e-8602-cb6f963b2663",
+    "table_name": "collection_logs",
+    "record_id": "79a6bfbf-9472-4d96-8bec-0bd0de46e5fc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:23.435+00:00"
+  },
+  {
+    "id": "12aefd93-fb6e-4e52-a3dc-0d0c8af6fb68",
+    "table_name": "payments",
+    "record_id": "pay-ef3e1e5d-eb6c-4fd7-8c43-09f5b7fd4c55-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:24.503+00:00"
+  },
+  {
+    "id": "562d1464-249a-4f0c-b6d8-658099110139",
+    "table_name": "collection_logs",
+    "record_id": "79a6bfbf-9472-4d96-8bec-0bd0de46e5fc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:25.813+00:00"
+  },
+  {
+    "id": "0db1f713-cdb6-4afa-b27d-bb2a64acdd0e",
+    "table_name": "payments",
+    "record_id": "pay-4ccb0d8f-329b-422b-b0c0-d44802f53e9b-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:28.841+00:00"
+  },
+  {
+    "id": "da7041f8-895c-4a59-b1ed-bf399418784a",
+    "table_name": "collection_logs",
+    "record_id": "3ea60a38-4f6b-480c-a3b5-3e65a37d8ba0",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:29.466+00:00"
+  },
+  {
+    "id": "2cf8694a-1748-4d2a-97b8-cdd8c2910059",
+    "table_name": "payments",
+    "record_id": "pay-4ccb0d8f-329b-422b-b0c0-d44802f53e9b-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:30.035+00:00"
+  },
+  {
+    "id": "2a673290-9d1a-4335-81a9-9015cc3a07a0",
+    "table_name": "payments",
+    "record_id": "pay-79a6bfbf-9472-4d96-8bec-0bd0de46e5fc-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:31.715+00:00"
+  },
+  {
+    "id": "c81c7e94-6b33-42f4-9ac3-59e8965c82f3",
+    "table_name": "collection_logs",
+    "record_id": "63078d9a-55a4-4eb3-9da9-0e17ea0ad4f0",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:33.865+00:00"
+  },
+  {
+    "id": "e19946a7-dc3d-4006-8266-46886bb625fa",
+    "table_name": "payments",
+    "record_id": "pay-79a6bfbf-9472-4d96-8bec-0bd0de46e5fc-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:34.419+00:00"
+  },
+  {
+    "id": "2a6256c0-cf0f-4817-bea1-9d729e6020a8",
+    "table_name": "payments",
+    "record_id": "pay-3ea60a38-4f6b-480c-a3b5-3e65a37d8ba0-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:37.033+00:00"
+  },
+  {
+    "id": "e707a17b-9b48-441a-8c50-1704c7e2ff2a",
+    "table_name": "payments",
+    "record_id": "pay-63078d9a-55a4-4eb3-9da9-0e17ea0ad4f0-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:40.636+00:00"
+  },
+  {
+    "id": "a8cffebc-d799-47f6-b54b-a684450d1a1e",
+    "table_name": "collection_logs",
+    "record_id": "1fb5ac45-8a87-4205-9676-2b3bdc465c85",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:46.883+00:00"
+  },
+  {
+    "id": "895a5feb-537c-47d8-ab32-679420b9c964",
+    "table_name": "collection_logs",
+    "record_id": "93de7c08-c9f0-4b22-b1e4-68a774441c26",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:51.472+00:00"
+  },
+  {
+    "id": "e87286be-e597-4a27-a7d4-7275d25a6807",
+    "table_name": "payments",
+    "record_id": "pay-1fb5ac45-8a87-4205-9676-2b3bdc465c85-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:56.352+00:00"
+  },
+  {
+    "id": "07631224-e635-4223-a106-76a2b99828ef",
+    "table_name": "collection_logs",
+    "record_id": "5c5e6a29-7089-4416-8899-5a9dabb5a2be",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:56.337+00:00"
+  },
+  {
+    "id": "e44d15c7-0b44-4737-afca-1d6ac664aedb",
+    "table_name": "payments",
+    "record_id": "pay-93de7c08-c9f0-4b22-b1e4-68a774441c26-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:47:59.378+00:00"
+  },
+  {
+    "id": "76c345d3-621c-41fa-b29d-60620cd22d3d",
+    "table_name": "collection_logs",
+    "record_id": "da385c14-774f-4aea-8c43-b33d285a4982",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:01.203+00:00"
+  },
+  {
+    "id": "c3b892d3-05cd-4c69-9024-73a28281ef66",
+    "table_name": "payments",
+    "record_id": "pay-5c5e6a29-7089-4416-8899-5a9dabb5a2be-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:05.4+00:00"
+  },
+  {
+    "id": "91fcff0d-e54e-4859-8156-b449a30185a2",
+    "table_name": "collection_logs",
+    "record_id": "df37c0bf-c8ff-43cc-bd29-12919446aa21",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:05.707+00:00"
+  },
+  {
+    "id": "3e7a8fe5-e5df-44bf-bf4c-af8feac1dee0",
+    "table_name": "payments",
+    "record_id": "pay-da385c14-774f-4aea-8c43-b33d285a4982-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:08.92+00:00"
+  },
+  {
+    "id": "6ca1e851-27b5-4a8d-9e9e-6b0abe6b5ce6",
+    "table_name": "collection_logs",
+    "record_id": "a6049717-d412-4127-8022-97a632c2633f",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:11.049+00:00"
+  },
+  {
+    "id": "e9838c62-1805-4239-aff1-dd2e3df4e0c8",
+    "table_name": "payments",
+    "record_id": "pay-df37c0bf-c8ff-43cc-bd29-12919446aa21-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:14.912+00:00"
+  },
+  {
+    "id": "140d115b-1600-454a-99aa-c841211b8ab4",
+    "table_name": "collection_logs",
+    "record_id": "9fc12b45-0399-479f-ac3e-af8aa9c798e5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:15.523+00:00"
+  },
+  {
+    "id": "a5d04db8-ae17-4c68-9098-dfdecd9a5c87",
+    "table_name": "payments",
+    "record_id": "pay-a6049717-d412-4127-8022-97a632c2633f-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:19.048+00:00"
+  },
+  {
+    "id": "cc541ae5-c58c-460e-9936-1ef7aa9861bb",
+    "table_name": "payments",
+    "record_id": "pay-9fc12b45-0399-479f-ac3e-af8aa9c798e5-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:22.229+00:00"
+  },
+  {
+    "id": "068a02ba-0761-44a0-9ad5-bd4ed5a69ea6",
+    "table_name": "collection_logs",
+    "record_id": "93f15a9c-9e32-4bdd-92a2-a9e9e3bda0f4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:27.437+00:00"
+  },
+  {
+    "id": "215cbae1-3245-482f-9241-afbcad72134c",
+    "table_name": "collection_logs",
+    "record_id": "36a49e8c-d603-4fa9-93ad-cb86b7c0578d",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:32.914+00:00"
+  },
+  {
+    "id": "88508ca3-d735-4c95-9fab-38ea932dea27",
+    "table_name": "payments",
+    "record_id": "pay-93f15a9c-9e32-4bdd-92a2-a9e9e3bda0f4-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:35.316+00:00"
+  },
+  {
+    "id": "5c868bcf-8b61-4b52-92ca-96c1fd33f39e",
+    "table_name": "collection_logs",
+    "record_id": "80c4b72f-aaa8-4bf5-b94c-eaef646ece42",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:39.136+00:00"
+  },
+  {
+    "id": "314cc7ed-d893-4119-baed-146eaa3fc303",
+    "table_name": "payments",
+    "record_id": "pay-36a49e8c-d603-4fa9-93ad-cb86b7c0578d-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:40.324+00:00"
+  },
+  {
+    "id": "2edcd7b6-77e5-4f2a-ab57-0fb99a4c507f",
+    "table_name": "collection_logs",
+    "record_id": "86c5f3fa-353f-41dd-bc86-61b40e148300",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:43.966+00:00"
+  },
+  {
+    "id": "c59bf5ef-74d5-4873-aec2-332bceedcd1a",
+    "table_name": "payments",
+    "record_id": "pay-80c4b72f-aaa8-4bf5-b94c-eaef646ece42-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:47.071+00:00"
+  },
+  {
+    "id": "0279149f-5113-4c6d-869a-d0b7edb7231b",
+    "table_name": "collection_logs",
+    "record_id": "38e8ef5e-c3a6-45ca-8218-2b9197ed383d",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:50.457+00:00"
+  },
+  {
+    "id": "995f6bf2-0f43-4323-b804-cffb3b3d78c1",
+    "table_name": "payments",
+    "record_id": "pay-86c5f3fa-353f-41dd-bc86-61b40e148300-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:51.491+00:00"
+  },
+  {
+    "id": "d8e78562-732e-413e-abef-a44a2d28a19b",
+    "table_name": "payments",
+    "record_id": "pay-32b05ed5-770b-4514-8659-2d5373eeecb9-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:13.499+00:00"
+  },
+  {
+    "id": "2f8371e1-b58e-4c71-8440-944dc6199449",
+    "table_name": "collection_logs",
+    "record_id": "dab80e7f-ddfc-4a93-b6dc-2695bf8d2300",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:48:59.6+00:00"
+  },
+  {
+    "id": "c45e1b48-e998-4df2-9237-cf903d5130ef",
+    "table_name": "payments",
+    "record_id": "pay-38e8ef5e-c3a6-45ca-8218-2b9197ed383d-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:00.18+00:00"
+  },
+  {
+    "id": "65bc41a3-e563-4d14-8f3b-a7b45b673db4",
+    "table_name": "collection_logs",
+    "record_id": "32b05ed5-770b-4514-8659-2d5373eeecb9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:06.537+00:00"
+  },
+  {
+    "id": "a2cfb11d-0af0-45c2-91ec-7c22c73d81d7",
+    "table_name": "payments",
+    "record_id": "pay-13dd87f7-3705-475c-b49d-a76adfcebbdd-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:26.481+00:00"
+  },
+  {
+    "id": "310686f1-25f2-44b7-8cb1-a63569d3cd04",
+    "table_name": "payments",
+    "record_id": "pay-dab80e7f-ddfc-4a93-b6dc-2695bf8d2300-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:07.571+00:00"
+  },
+  {
+    "id": "8c52481c-0a6b-4ba0-9966-fdbee7423689",
+    "table_name": "collection_logs",
+    "record_id": "13dd87f7-3705-475c-b49d-a76adfcebbdd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T17:49:19.759+00:00"
+  },
+  {
+    "id": "a9688559-acf6-4c45-8c00-0a5f27a33c54",
+    "table_name": "collection_logs",
+    "record_id": "7070a0fb-7c2f-4a29-a618-b39d557b51ac",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T20:38:02.556+00:00"
+  },
+  {
+    "id": "158c951d-5346-45ab-be20-8ca034125c85",
+    "table_name": "payments",
+    "record_id": "pay-7070a0fb-7c2f-4a29-a618-b39d557b51ac-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-11T20:38:10.442+00:00"
+  },
+  {
+    "id": "c1789647-04c1-49a1-a785-03429cbf11c1",
+    "table_name": "collection_logs",
+    "record_id": "25838c10-1ec2-4454-a948-608882745a5b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T13:58:07.148+00:00"
+  },
+  {
+    "id": "78d153a2-a4e3-4661-97ea-6ebb7e604718",
+    "table_name": "collection_logs",
+    "record_id": "5163daa6-5cde-4612-a184-5209e950fcc9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T13:58:14.911+00:00"
+  },
+  {
+    "id": "722d1085-aa00-4077-ae45-6bf138684dd7",
+    "table_name": "payments",
+    "record_id": "pay-25838c10-1ec2-4454-a948-608882745a5b-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T13:58:16.972+00:00"
+  },
+  {
+    "id": "a68ffcc0-bb5f-4047-a875-98f1646d7c1d",
+    "table_name": "payments",
+    "record_id": "pay-5163daa6-5cde-4612-a184-5209e950fcc9-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T13:58:23.305+00:00"
+  },
+  {
+    "id": "0e07f802-33b2-475f-981c-deaf89472cbd",
+    "table_name": "collection_logs",
+    "record_id": "1df31c24-5682-4022-be62-25f672c0e563",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T21:02:39.391+00:00"
+  },
+  {
+    "id": "94f500ac-0112-4c7a-9031-caea1419102a",
+    "table_name": "payments",
+    "record_id": "pay-1df31c24-5682-4022-be62-25f672c0e563-35",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T21:02:46.467+00:00"
+  },
+  {
+    "id": "018b8132-9a66-4c5d-894f-ee014de7cba1",
+    "table_name": "collection_logs",
+    "record_id": "2d988f7c-796f-4b2b-a180-2cd3b701ef25",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T21:02:54.224+00:00"
+  },
+  {
+    "id": "7699c7ad-5f7d-4dfb-822b-63ee9db8b56e",
+    "table_name": "payments",
+    "record_id": "pay-2d988f7c-796f-4b2b-a180-2cd3b701ef25-37",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-12T21:03:06.496+00:00"
+  },
+  {
+    "id": "279b10f9-7013-4222-abff-48408311bf91",
+    "table_name": "collection_logs",
+    "record_id": "9583a277-bb1a-4995-9c67-0658ab75e560",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-13T18:25:43.04+00:00"
+  },
+  {
+    "id": "fc7f9e38-5507-4208-8b57-0cee3f2066b7",
+    "table_name": "payments",
+    "record_id": "pay-9583a277-bb1a-4995-9c67-0658ab75e560-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-13T18:25:50.488+00:00"
+  },
+  {
+    "id": "e1d75f80-7e0d-4df5-9545-66013d4bb33d",
+    "table_name": "collection_logs",
+    "record_id": "84832216-9d99-458c-bd9e-64343f919fe0",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-13T20:47:07.543+00:00"
+  },
+  {
+    "id": "745d3bca-95a8-412c-9f46-9fae2e373034",
+    "table_name": "payments",
+    "record_id": "pay-84832216-9d99-458c-bd9e-64343f919fe0-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-13T20:47:17.49+00:00"
+  },
+  {
+    "id": "53e46b6e-2c6d-4274-8829-7d37713ed77a",
+    "table_name": "collection_logs",
+    "record_id": "40e13939-1fce-4f64-817e-69fc4ee0f89d",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T13:48:41.717+00:00"
+  },
+  {
+    "id": "c0df8ac2-a339-4dac-8007-7ff794ddb4f1",
+    "table_name": "payments",
+    "record_id": "pay-40e13939-1fce-4f64-817e-69fc4ee0f89d-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T13:48:48.464+00:00"
+  },
+  {
+    "id": "7a7c9a6e-e0e7-49e7-a9c5-f6332fe07749",
+    "table_name": "collection_logs",
+    "record_id": "5517da5d-f858-43c2-80f7-2d1f834c9f52",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:31:16.033+00:00"
+  },
+  {
+    "id": "a91303cf-ed05-4800-98bf-c385e1d097ee",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:31:25.228+00:00"
+  },
+  {
+    "id": "7a4cfd53-9ce7-471d-a970-7d6fba5872a9",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:31:34.189+00:00"
+  },
+  {
+    "id": "ae74dba9-4e31-4a94-8b49-31a3d92b963c",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-22",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:31:43.159+00:00"
+  },
+  {
+    "id": "4fa8ba95-30e2-4fe1-b54a-8cd0224a361c",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-26",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:31:53.746+00:00"
+  },
+  {
+    "id": "4c0d11e8-e0da-4531-b0ff-82a46b415866",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-31",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:01.93+00:00"
+  },
+  {
+    "id": "48597e89-aea8-4443-a595-e6f9a5459a55",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-24",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:09.635+00:00"
+  },
+  {
+    "id": "cd498f44-8d21-4b4b-aed4-93a55ab83f9f",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-17",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:17.451+00:00"
+  },
+  {
+    "id": "53ac6858-0cdf-4780-bdd6-9e50830b4436",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-15",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:25.106+00:00"
+  },
+  {
+    "id": "9d541eca-d8e2-4516-aead-ab91e7abd230",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:32.976+00:00"
+  },
+  {
+    "id": "58a635f7-9ccd-4587-907d-2354849eee89",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:40.793+00:00"
+  },
+  {
+    "id": "2a745d6d-6463-4c49-b8b6-f84472190ffe",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-19",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:48.597+00:00"
+  },
+  {
+    "id": "5dc9462e-75c8-4603-bfcf-93327cd5766b",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-29",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:32:57.653+00:00"
+  },
+  {
+    "id": "78f9d116-9f72-4214-bfd0-8bb09bc76247",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-33",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:06.031+00:00"
+  },
+  {
+    "id": "72dc7be7-9721-455c-9113-815245e74ee9",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:13.664+00:00"
+  },
+  {
+    "id": "458b3c49-8fdf-4a48-ad4f-fc9ca79309ad",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-34",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:25.771+00:00"
+  },
+  {
+    "id": "0bab5a12-1ecb-463c-b664-aa3260517ee2",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-25",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:33.992+00:00"
+  },
+  {
+    "id": "7ec977d5-8f7e-449a-a5dd-a09233de4b8d",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-23",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:41.838+00:00"
+  },
+  {
+    "id": "6a0e94b5-f580-44a9-a8ab-7d82702f5173",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:49.849+00:00"
+  },
+  {
+    "id": "bf496afe-bf7e-4b3a-a8eb-ae24ac8e141f",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:33:57.703+00:00"
+  },
+  {
+    "id": "cb342ca0-991c-4f88-bbe3-cfc71c78c32e",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-20",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:05.884+00:00"
+  },
+  {
+    "id": "95153fed-dc9c-4864-a1e5-208facb54f82",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:14.516+00:00"
+  },
+  {
+    "id": "d0cec93e-dc6a-4ed3-a177-7ebb76ad0c75",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:22.451+00:00"
+  },
+  {
+    "id": "04b6cfea-565d-404a-8e9e-56ffd03e68fa",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-21",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:30.518+00:00"
+  },
+  {
+    "id": "5ebb6e1a-89d8-4b2e-855b-523d055f753a",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-27",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:39.723+00:00"
+  },
+  {
+    "id": "6ebd3d9a-6e11-4cdc-8205-7fa7a817f7ae",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:47.934+00:00"
+  },
+  {
+    "id": "2afa5907-971a-4a3d-8960-5dcefdff1e7e",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:34:56.002+00:00"
+  },
+  {
+    "id": "6523a162-d73d-449b-bc8f-92f75bdffe15",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:04.219+00:00"
+  },
+  {
+    "id": "7a582c65-a998-44a3-8539-3a487769b2d7",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:12.303+00:00"
+  },
+  {
+    "id": "8064fc0b-20a9-4e10-b612-70cb1e2c2ec0",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-30",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:20.251+00:00"
+  },
+  {
+    "id": "8f8485d3-c993-4da5-84ef-2376d196d65e",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:28.228+00:00"
+  },
+  {
+    "id": "88e29b7a-d4fc-455f-8688-99f45b324afa",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-28",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:36.253+00:00"
+  },
+  {
+    "id": "6122e5a6-7c1b-4bef-a5a7-3610e14ee777",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-14",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:35:49.043+00:00"
+  },
+  {
+    "id": "7c872efe-e5fc-424f-ba59-c6525c79df8d",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:36:10.976+00:00"
+  },
+  {
+    "id": "f5c0b155-12fa-458e-ba54-5491be1948e3",
+    "table_name": "payments",
+    "record_id": "pay-5517da5d-f858-43c2-80f7-2d1f834c9f52-32",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-14T20:36:32.986+00:00"
+  },
+  {
+    "id": "dfb8da17-cc1c-493f-a65e-87f15ac752cf",
+    "table_name": "collection_logs",
+    "record_id": "init-07879dc9-fd06-4a72-bc2b-52e3ecdf5e3b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-16T03:48:15.2+00:00"
+  },
+  {
+    "id": "db64758b-c10b-49ba-a399-58f6fac5fe55",
+    "table_name": "collection_logs",
+    "record_id": "4d1e2e99-0ff1-4d80-9b2d-2dd7f2f47f3c",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-16T20:38:02.298+00:00"
+  },
+  {
+    "id": "d12a551f-2e20-4544-b834-37577845047a",
+    "table_name": "collection_logs",
+    "record_id": "21019481-ac5d-4b04-8cda-ddf2f93860fa",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-16T20:39:11.572+00:00"
+  },
+  {
+    "id": "def7d4b2-cb19-47e0-9032-5541e239ad67",
+    "table_name": "collection_logs",
+    "record_id": "7e2f2f5f-598c-430d-b393-8e260984633f",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:19:36.62+00:00"
+  },
+  {
+    "id": "8389672b-0a26-4a97-a07b-c29a8d91329d",
+    "table_name": "collection_logs",
+    "record_id": "24342fd7-cfcc-4dab-98c6-3303a70c641d",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:19:41.334+00:00"
+  },
+  {
+    "id": "223e53ab-6591-460f-b1e8-1e646e557184",
+    "table_name": "collection_logs",
+    "record_id": "1da015de-871c-462c-84e2-5e05eae6a658",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:19:47.341+00:00"
+  },
+  {
+    "id": "24ffa342-b7c9-43ff-99ad-8387eaa094bf",
+    "table_name": "collection_logs",
+    "record_id": "0a99bc1c-c6ce-4bc0-8cd8-10bf3d7a9e77",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:19:55.964+00:00"
+  },
+  {
+    "id": "e97bbc17-d12e-4a02-9298-764260ea33a8",
+    "table_name": "collection_logs",
+    "record_id": "2603604f-6fe6-41c2-bfb3-1332bd7c2055",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:20:42.964+00:00"
+  },
+  {
+    "id": "571351e9-7161-46dd-ad94-2679a162b4b0",
+    "table_name": "collection_logs",
+    "record_id": "2603604f-6fe6-41c2-bfb3-1332bd7c2055",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:20:48.779+00:00"
+  },
+  {
+    "id": "2f502679-5f0a-4017-8807-a9a55697b355",
+    "table_name": "collection_logs",
+    "record_id": "6af5b481-e8db-47ff-8902-56c12206b5f4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T02:20:58.216+00:00"
+  },
+  {
+    "id": "d6119731-83ed-4513-9aa3-233c213eb4f7",
+    "table_name": "collection_logs",
+    "record_id": "init-6e2cf013-9369-48a2-85e6-c911f4054cb0",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:29:37.489+00:00"
+  },
+  {
+    "id": "5dc79fea-ef53-461e-a168-6297c1912d6c",
+    "table_name": "collection_logs",
+    "record_id": "845c0ccb-1270-4223-b03a-562aecd1aa80",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:29:41.09+00:00"
+  },
+  {
+    "id": "83f9c78e-5fe2-419e-a35f-69636f5e5a07",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:29:51.256+00:00"
+  },
+  {
+    "id": "4aa2ee7c-18d2-4df3-aa25-8a8c786b7389",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:29:51.256+00:00"
+  },
+  {
+    "id": "bf2b2ac0-74e0-4633-bc1a-1cf8d4556611",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-7",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:30:07.728+00:00"
+  },
+  {
+    "id": "d5b69a79-b0ac-4b27-983e-9289014fd5d5",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:30:21.044+00:00"
+  },
+  {
+    "id": "9f336394-54d5-40a2-ab92-6c1d2a3784f9",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:30:33.675+00:00"
+  },
+  {
+    "id": "d54878f6-9590-48ff-a882-d8ecfb2785ee",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:30:46.474+00:00"
+  },
+  {
+    "id": "a261b40c-8377-4856-90c1-b976e144b807",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-29",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:30:58.395+00:00"
+  },
+  {
+    "id": "90762ddf-33b7-4567-8d28-f210cbd49f3b",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-14",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:31:11.967+00:00"
+  },
+  {
+    "id": "d1ee7e60-8ca0-481c-8633-fb50282cac4c",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-33",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:31:36.133+00:00"
+  },
+  {
+    "id": "b5138911-f0b5-4c76-84c6-47ee7ed6e5a3",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-27",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:31:51.648+00:00"
+  },
+  {
+    "id": "684a234d-c0fd-4b75-8901-daf1574c0e7f",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-24",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:32:03.607+00:00"
+  },
+  {
+    "id": "e545ffe3-b57d-472b-a34b-960fcd3f2028",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:32:22.435+00:00"
+  },
+  {
+    "id": "bfa055b0-9104-4094-83cb-00c748827f86",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:32:46.616+00:00"
+  },
+  {
+    "id": "7430b879-3792-47ab-b73a-6c91c4e2dd2f",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:33:14.248+00:00"
+  },
+  {
+    "id": "d76b6074-f756-45bc-affb-5ca6e5ba4911",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-23",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:33:38.449+00:00"
+  },
+  {
+    "id": "7d74bdaa-37e6-4524-9c2f-01283ede0771",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:33:50.296+00:00"
+  },
+  {
+    "id": "95935192-85fb-4798-9aed-63829f6d2ab8",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:33:58.343+00:00"
+  },
+  {
+    "id": "43cd29d5-5e96-4fe8-a8a3-a5d105323607",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-15",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:06.991+00:00"
+  },
+  {
+    "id": "354a08cf-a496-46d3-893d-11ea9dc8436b",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-19",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:15.608+00:00"
+  },
+  {
+    "id": "bc9dc92b-4b3c-4246-9322-c2902e4badd5",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-28",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:24.361+00:00"
+  },
+  {
+    "id": "5e1d710a-3749-4c5f-853c-db8bec5cdf6c",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:33.178+00:00"
+  },
+  {
+    "id": "b057700c-a7d7-483d-9924-77cdffd33b4c",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-22",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:41.861+00:00"
+  },
+  {
+    "id": "368bfec9-ea7b-45e0-9033-658806d40b2b",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-31",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:50.309+00:00"
+  },
+  {
+    "id": "5d6d879d-6c2a-4b70-9db7-934e6be2c5bb",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-20",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:34:59.237+00:00"
+  },
+  {
+    "id": "3045f207-562e-4df8-b788-42e422a0381b",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-26",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:08.155+00:00"
+  },
+  {
+    "id": "3708899f-b11b-432e-ae6c-7658e7b4fdf4",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-21",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:16.874+00:00"
+  },
+  {
+    "id": "afba30b8-7dfc-446f-8af4-3f7ae42c1f8b",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-32",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:25.328+00:00"
+  },
+  {
+    "id": "5db6bcf7-4d44-43e3-bd11-39e03a3fde20",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-30",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:33.968+00:00"
+  },
+  {
+    "id": "96646ad4-eed8-4f49-9f33-c149544f39b0",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-25",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:42.946+00:00"
+  },
+  {
+    "id": "e897f3c2-628f-4efc-b07c-ce14a27a15e7",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:35:51.563+00:00"
+  },
+  {
+    "id": "bd5c3f35-ec70-442e-a176-bc48f7dcf36e",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-17",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:36:00.249+00:00"
+  },
+  {
+    "id": "059b21fe-25b2-4438-b8f3-715d343e1070",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:36:09.285+00:00"
+  },
+  {
+    "id": "e4841e18-96c6-4464-8050-537b5a0fd7d9",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:36:18.003+00:00"
+  },
+  {
+    "id": "59a21070-d7f7-47c9-971b-24452a88cab2",
+    "table_name": "payments",
+    "record_id": "pay-845c0ccb-1270-4223-b03a-562aecd1aa80-18",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T12:36:27.032+00:00"
+  },
+  {
+    "id": "6778b015-3a70-4aae-92d0-10efc96d6b86",
+    "table_name": "collection_logs",
+    "record_id": "671eafb4-064b-4d53-aa37-adb713dff23f",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T22:39:14.303+00:00"
+  },
+  {
+    "id": "c9555b3f-0768-4585-9848-da239bc59eed",
+    "table_name": "collection_logs",
+    "record_id": "75ffec61-b3cf-42dd-addf-bd353e50264c",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:04:40.527+00:00"
+  },
+  {
+    "id": "604722fd-facd-4223-93e4-31c60ba6a739",
+    "table_name": "payments",
+    "record_id": "pay-75ffec61-b3cf-42dd-addf-bd353e50264c-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:04:51.015+00:00"
+  },
+  {
+    "id": "014f8720-5519-4455-b72c-f4ccb8ae400c",
+    "table_name": "collection_logs",
+    "record_id": "d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:08:37.333+00:00"
+  },
+  {
+    "id": "2c9d845b-056a-4e0e-aaed-8f30d80c59b5",
+    "table_name": "collection_logs",
+    "record_id": "6425c3ff-b020-4693-979f-1b12d6763ec1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:13:54.665+00:00"
+  },
+  {
+    "id": "d393b8fb-4f4c-4f06-b72f-88ee85332d69",
+    "table_name": "collection_logs",
+    "record_id": "d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:00.208+00:00"
+  },
+  {
+    "id": "cd26e085-8321-4b57-804e-2ea8273c87c6",
+    "table_name": "collection_logs",
+    "record_id": "d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:08.92+00:00"
+  },
+  {
+    "id": "3a3fc835-a481-43a4-b49d-8cd60412edd7",
+    "table_name": "payments",
+    "record_id": "pay-d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:10.548+00:00"
+  },
+  {
+    "id": "f6b0fdfc-7b14-44ec-95cf-f99d4edec0f5",
+    "table_name": "collection_logs",
+    "record_id": "d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:16.072+00:00"
+  },
+  {
+    "id": "296b5ce1-9054-40e0-9c8e-8cf18410ba72",
+    "table_name": "payments",
+    "record_id": "pay-d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:17.81+00:00"
+  },
+  {
+    "id": "52237b69-f972-4e11-8277-30be52c65bf4",
+    "table_name": "payments",
+    "record_id": "pay-d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:19.185+00:00"
+  },
+  {
+    "id": "02d30888-6476-4bf0-ba99-58355142d2b2",
+    "table_name": "payments",
+    "record_id": "pay-d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:23.513+00:00"
+  },
+  {
+    "id": "87d29bac-1ef7-4f68-8400-e7f1c5f26944",
+    "table_name": "collection_logs",
+    "record_id": "d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:27.996+00:00"
+  },
+  {
+    "id": "cfdff928-146b-450a-84f7-f8fb81ab560f",
+    "table_name": "payments",
+    "record_id": "pay-d9595ec9-93f1-4ad0-9d18-c1e0a5c5c996-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-17T23:14:28.759+00:00"
+  },
+  {
+    "id": "7ff9ec75-caa3-4f0e-b577-20fc92b5212e",
+    "table_name": "collection_logs",
+    "record_id": "d24682c9-e6a0-447e-a7a9-e73ecba53adf",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T20:45:56.143+00:00"
+  },
+  {
+    "id": "a2fad47a-1177-403d-b7de-d6516cea9337",
+    "table_name": "collection_logs",
+    "record_id": "f12532ce-cc16-48c3-847b-61a56bca02d1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:37:27.128+00:00"
+  },
+  {
+    "id": "e014fb8e-4c01-433d-9f58-0649be7ae086",
+    "table_name": "payments",
+    "record_id": "pay-f12532ce-cc16-48c3-847b-61a56bca02d1-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:37:36.734+00:00"
+  },
+  {
+    "id": "d47ee2d4-4ca5-4f6d-bbf9-dfd829b91bc5",
+    "table_name": "collection_logs",
+    "record_id": "e4d543c9-91d9-43b8-a1ae-2c98d9920081",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:37:45.458+00:00"
+  },
+  {
+    "id": "90c9d4db-6185-4239-b9e9-07c5cfa218ad",
+    "table_name": "collection_logs",
+    "record_id": "21e92623-789e-4d3b-9931-0a75dfe72b0b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:37:52.603+00:00"
+  },
+  {
+    "id": "8eb95126-b285-402a-be70-587dea93bd98",
+    "table_name": "payments",
+    "record_id": "pay-e4d543c9-91d9-43b8-a1ae-2c98d9920081-37",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:37:54.612+00:00"
+  },
+  {
+    "id": "c7e75b49-7622-475e-aa99-2e8f088f972f",
+    "table_name": "payments",
+    "record_id": "pay-21e92623-789e-4d3b-9931-0a75dfe72b0b-37",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T21:38:07.92+00:00"
+  },
+  {
+    "id": "6d7fcfc6-df1d-4f66-b62c-7606534387ac",
+    "table_name": "collection_logs",
+    "record_id": "d6195ebc-a730-4761-bc0b-093078237cad",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:19:54.504+00:00"
+  },
+  {
+    "id": "662089f8-63b7-4dfc-9568-0ab8151aa9b3",
+    "table_name": "collection_logs",
+    "record_id": "d6195ebc-a730-4761-bc0b-093078237cad",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:00.671+00:00"
+  },
+  {
+    "id": "b66da1b5-b596-4f1f-9121-1e610bc4d679",
+    "table_name": "payments",
+    "record_id": "pay-d6195ebc-a730-4761-bc0b-093078237cad-30",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:04.406+00:00"
+  },
+  {
+    "id": "ae8966ba-b33d-4f1a-92fc-4dc5ab1f4cc8",
+    "table_name": "collection_logs",
+    "record_id": "de8502a8-cb55-4d42-8127-1ba5c22c8bf5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:08.888+00:00"
+  },
+  {
+    "id": "66994d74-9ebe-493b-a6e9-4c0d97b8d9ad",
+    "table_name": "payments",
+    "record_id": "pay-d6195ebc-a730-4761-bc0b-093078237cad-30",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:09.767+00:00"
+  },
+  {
+    "id": "a60ba173-340d-4c49-83f3-19f2a3557513",
+    "table_name": "collection_logs",
+    "record_id": "1238be38-148b-4ff2-a58d-79d063f4129f",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:14.728+00:00"
+  },
+  {
+    "id": "869dc3ee-c4aa-413c-bfa4-7f3276b42790",
+    "table_name": "collection_logs",
+    "record_id": "971ac807-b2b6-4197-a134-33d49d8cc22d",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:20.434+00:00"
+  },
+  {
+    "id": "c57e003d-e591-4993-93df-e3066fb5e51e",
+    "table_name": "payments",
+    "record_id": "pay-1238be38-148b-4ff2-a58d-79d063f4129f-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:23.697+00:00"
+  },
+  {
+    "id": "81583b79-32f3-40c0-a3ce-d0537df1006c",
+    "table_name": "collection_logs",
+    "record_id": "2da24f8d-35ba-4b37-ae97-d33465c8dd49",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:29.806+00:00"
+  },
+  {
+    "id": "fd717c3d-94ca-497b-86e8-652518ee071f",
+    "table_name": "collection_logs",
+    "record_id": "bb9d0171-1205-47e1-b3c6-18e06b9e338d",
+    "branch_id": "c956ea2f-99d7-4956-93d5-36842aeb0d54",
+    "deleted_at": "2026-02-19T23:20:33.89+00:00"
+  },
+  {
+    "id": "deb9e776-03d6-4a09-9f6c-d6a9a55e869b",
+    "table_name": "collection_logs",
+    "record_id": "cc6de02b-d46a-4672-9078-cee343d9aaaa",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:42.421+00:00"
+  },
+  {
+    "id": "66d6b8c0-b70d-4036-89a5-a7ceceae8764",
+    "table_name": "payments",
+    "record_id": "pay-bb9d0171-1205-47e1-b3c6-18e06b9e338d-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:44.033+00:00"
+  },
+  {
+    "id": "f9ebbbc5-8d4a-4197-a5a0-3faeafc22a04",
+    "table_name": "payments",
+    "record_id": "pay-cc6de02b-d46a-4672-9078-cee343d9aaaa-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-19T23:20:50.613+00:00"
+  },
+  {
+    "id": "93a2c489-c184-4022-965e-bdfee1419569",
+    "table_name": "collection_logs",
+    "record_id": "ef25ac14-e108-4005-8c37-2c4aed71021d",
+    "branch_id": "78f8bf14-1d8f-4763-ad21-619fa7724a52",
+    "deleted_at": "2026-02-20T01:29:55.28+00:00"
+  },
+  {
+    "id": "a02d05cd-71b5-4eb8-b062-e431379ad2cc",
+    "table_name": "collection_logs",
+    "record_id": "cf42eeff-c615-4258-b1d1-5008715115dd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T01:59:46.388+00:00"
+  },
+  {
+    "id": "23ea87e0-32cc-4e7f-9590-51b56926fcdf",
+    "table_name": "collection_logs",
+    "record_id": "cf42eeff-c615-4258-b1d1-5008715115dd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T01:59:49.664+00:00"
+  },
+  {
+    "id": "c81816e7-024c-4022-a64b-bd9a3e140ea4",
+    "table_name": "payments",
+    "record_id": "pay-cf42eeff-c615-4258-b1d1-5008715115dd-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T01:59:55.501+00:00"
+  },
+  {
+    "id": "2e859e57-ba4a-4849-af3a-4ba70a32bedf",
+    "table_name": "payments",
+    "record_id": "pay-cf42eeff-c615-4258-b1d1-5008715115dd-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T01:59:57.623+00:00"
+  },
+  {
+    "id": "59b105e5-56e2-414a-a507-eebb9a849841",
+    "table_name": "loans",
+    "record_id": "71306a9a-0625-4a58-b32d-ee7ca1cd6537",
+    "branch_id": "78f8bf14-1d8f-4763-ad21-619fa7724a52",
+    "deleted_at": "2026-02-20T15:52:01.662+00:00"
+  },
+  {
+    "id": "06d67f78-064e-4554-82a5-5d42b9cf9944",
+    "table_name": "collection_logs",
+    "record_id": "fbfc17d1-9809-4696-a597-0ae95dfbc3ff",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T17:08:43.647+00:00"
+  },
+  {
+    "id": "16f0414f-b384-45ae-bed4-01a0b36d38e9",
+    "table_name": "payments",
+    "record_id": "pay-fbfc17d1-9809-4696-a597-0ae95dfbc3ff-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T17:08:53.734+00:00"
+  },
+  {
+    "id": "b2f1afe2-35ca-4671-800e-9ba4a47f19c9",
+    "table_name": "payments",
+    "record_id": "pay-fbfc17d1-9809-4696-a597-0ae95dfbc3ff-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-20T17:09:02.142+00:00"
+  },
+  {
+    "id": "6c0f235b-dd86-4542-af5f-66e9fc88c2d7",
+    "table_name": "collection_logs",
+    "record_id": "f9b350c3-bf75-4b5f-9d3c-3477fea555b8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T20:51:22.355+00:00"
+  },
+  {
+    "id": "52538724-1e5e-41f0-af0f-582c852866ab",
+    "table_name": "payments",
+    "record_id": "pay-f9b350c3-bf75-4b5f-9d3c-3477fea555b8-37",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T20:51:31.985+00:00"
+  },
+  {
+    "id": "485528bc-6e50-4319-a7c0-8ef6fcaa71cf",
+    "table_name": "collection_logs",
+    "record_id": "4b60420e-35ac-4a2c-ab4d-a63aef8da785",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T20:51:39.194+00:00"
+  },
+  {
+    "id": "cea99f43-0692-4185-af37-d18af24d9fc6",
+    "table_name": "payments",
+    "record_id": "pay-f9b350c3-bf75-4b5f-9d3c-3477fea555b8-38",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T20:51:42.636+00:00"
+  },
+  {
+    "id": "2458b0b6-1ce5-4563-be35-6198f4442afd",
+    "table_name": "payments",
+    "record_id": "pay-4b60420e-35ac-4a2c-ab4d-a63aef8da785-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T20:51:47.488+00:00"
+  },
+  {
+    "id": "9cbf3cd5-c01d-4189-ba6f-83e1a85bdd04",
+    "table_name": "collection_logs",
+    "record_id": "b6e313de-e556-41b4-8f74-4b42112e6adc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T23:14:08.615+00:00"
+  },
+  {
+    "id": "785d0f29-bc44-4599-a55a-e09a19ae1cea",
+    "table_name": "payments",
+    "record_id": "pay-b6e313de-e556-41b4-8f74-4b42112e6adc-1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-21T23:14:18.957+00:00"
+  },
+  {
+    "id": "964b5bfa-6018-444b-84e9-84411c5386f7",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:26:47.744+00:00"
+  },
+  {
+    "id": "cff8073a-2fc2-45e3-a5ee-7d45374eb53c",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:27:28.582+00:00"
+  },
+  {
+    "id": "3be071ec-643a-4afa-9e56-e6e89789e8e6",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:27:52.641+00:00"
+  },
+  {
+    "id": "1cd78846-8b24-41c7-a536-6a262b1cbae5",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:28:22.593+00:00"
+  },
+  {
+    "id": "77af5f41-0564-4551-919f-e82cb73ee1ce",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:29:33.181+00:00"
+  },
+  {
+    "id": "dc671443-425f-4d02-b280-893a25e1b190",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:31:34.618+00:00"
+  },
+  {
+    "id": "fc55e99f-8329-43e7-bdfa-82639ac17693",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-21T23:33:01.627+00:00"
+  },
+  {
+    "id": "04f61b8f-8241-4b73-9498-46c0c3c84f34",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T00:29:58.583+00:00"
+  },
+  {
+    "id": "c2e53720-0802-4035-96ba-7fdfa1506760",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T00:30:09.565+00:00"
+  },
+  {
+    "id": "b213eb6d-2abe-4406-8def-544a6efb8c17",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:39.388+00:00"
+  },
+  {
+    "id": "ee544940-b59b-4aa7-92c9-abe0c9c759ef",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:41.106+00:00"
+  },
+  {
+    "id": "56fded48-2583-420c-8740-5ed80c129621",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:42.779+00:00"
+  },
+  {
+    "id": "d8cfebdc-9471-48b8-a6bd-87b834188938",
+    "table_name": "profiles",
+    "record_id": "7acffde3-c1d8-4bd2-8cc6-2ddc67d649c8",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:43.895+00:00"
+  },
+  {
+    "id": "be8b5f67-f21d-4283-8842-8e373cd75510",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:45.313+00:00"
+  },
+  {
+    "id": "7b4027da-4789-4bf4-8f83-23b808952caa",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:48.179+00:00"
+  },
+  {
+    "id": "3402d462-9d91-45da-a82c-e7a2f50e7335",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:52.637+00:00"
+  },
+  {
+    "id": "cc3f0fea-0a77-4445-838f-d9094d338bf0",
+    "table_name": "profiles",
+    "record_id": "5fdddb62-ac71-4a5a-be4c-5c341bd9e973",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T15:59:59.836+00:00"
+  },
+  {
+    "id": "0ff2068b-2a2a-45cd-9d9f-43cf1da80a16",
+    "table_name": "profiles",
+    "record_id": "0ac8794b-2289-4c85-8fa5-cbf4bc3e3fb5",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:02.098+00:00"
+  },
+  {
+    "id": "dd9cc575-da7a-4300-b96c-2d5bfcbc5082",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:03.225+00:00"
+  },
+  {
+    "id": "f4aba011-3269-422f-a6a0-fc2ae4f5bafe",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:15.84+00:00"
+  },
+  {
+    "id": "18379c90-57cf-46ec-a3b7-4ac54fd49aea",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:23.751+00:00"
+  },
+  {
+    "id": "82cc0f76-5a46-4cb5-9cb3-6cfc00cf4ad2",
+    "table_name": "profiles",
+    "record_id": "5fdddb62-ac71-4a5a-be4c-5c341bd9e973",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:24.92+00:00"
+  },
+  {
+    "id": "90fd0a27-e506-46f8-8ca2-45c606f8fdf0",
+    "table_name": "profiles",
+    "record_id": "0ac8794b-2289-4c85-8fa5-cbf4bc3e3fb5",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:26.363+00:00"
+  },
+  {
+    "id": "42db308b-c75f-4cbb-ad5a-e16f0bc69d25",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:26.869+00:00"
+  },
+  {
+    "id": "11e11d0e-01d2-4a72-ae38-9e0c6c80f717",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:27.401+00:00"
+  },
+  {
+    "id": "21027f05-d07e-4223-86e9-c4ab0e486b99",
+    "table_name": "profiles",
+    "record_id": "7acffde3-c1d8-4bd2-8cc6-2ddc67d649c8",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:00:28.332+00:00"
+  },
+  {
+    "id": "dde875f8-8e1a-4cd6-b73e-e7f5ff7f4099",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:19:27.812+00:00"
+  },
+  {
+    "id": "bb623333-6097-4b8e-999f-a8f1fcd0cc11",
+    "table_name": "profiles",
+    "record_id": "5fdddb62-ac71-4a5a-be4c-5c341bd9e973",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:19:56.349+00:00"
+  },
+  {
+    "id": "05c569ca-c722-409c-8bf4-3adbd7cc3134",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:03.216+00:00"
+  },
+  {
+    "id": "1f369401-0e38-49f9-8941-72e3bd13e7bf",
+    "table_name": "profiles",
+    "record_id": "4c46260e-ee9b-4551-ad42-e39c63c2d867",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:05+00:00"
+  },
+  {
+    "id": "980efed4-6bc5-4878-a317-15508bd2d6d5",
+    "table_name": "profiles",
+    "record_id": "832a5c50-c229-4154-bf32-43e220071fa2",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:07.208+00:00"
+  },
+  {
+    "id": "e5e8d8ad-3b18-445c-8a56-6df75b25c788",
+    "table_name": "profiles",
+    "record_id": "c1b777dd-6035-4901-8b90-9118c8c8f0a3",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:07.849+00:00"
+  },
+  {
+    "id": "37339c30-6a8a-4ba0-b0a8-d52c502c4e4a",
+    "table_name": "profiles",
+    "record_id": "473e07a6-57f9-4101-a6f0-ddac6e0faff0",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:08.522+00:00"
+  },
+  {
+    "id": "6fa4d7a8-6725-45a2-8df6-e577d0c9c9f6",
+    "table_name": "profiles",
+    "record_id": "9fd12029-15f7-4deb-adb5-3d31bfeaa976",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:09.745+00:00"
+  },
+  {
+    "id": "269ab7cd-fef8-49fe-95e8-ffe501c695a7",
+    "table_name": "profiles",
+    "record_id": "507c0cc9-25da-4f30-97b2-303fe4349c57",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:11.735+00:00"
+  },
+  {
+    "id": "e1e5d81c-7f8a-4109-96b8-8e59801275a1",
+    "table_name": "profiles",
+    "record_id": "71fcb743-e324-4495-8ef3-c0f2c86194ce",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:12.625+00:00"
+  },
+  {
+    "id": "5879d68a-1a0d-4a5f-b31f-b7ea99cc51e6",
+    "table_name": "profiles",
+    "record_id": "be471645-b517-4b7a-9b0b-1c11aeae60bd",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:13.039+00:00"
+  },
+  {
+    "id": "db270d29-3d49-420f-b0d9-9c2d121e2b95",
+    "table_name": "profiles",
+    "record_id": "342ef6b6-b544-46db-bf16-c0ded268ba55",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:13.787+00:00"
+  },
+  {
+    "id": "d836f927-e4f2-4921-a359-0655b7c749c0",
+    "table_name": "profiles",
+    "record_id": "2dea7990-e3b3-4d59-aa8a-9898010e220b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:14.219+00:00"
+  },
+  {
+    "id": "59962c65-ad41-4f84-93fe-fadb67ea38df",
+    "table_name": "profiles",
+    "record_id": "fca7ec78-356f-445e-9ee3-371078b9019d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:14.621+00:00"
+  },
+  {
+    "id": "572a3aba-b765-4382-9b5a-0430cc2c2ad1",
+    "table_name": "profiles",
+    "record_id": "2b5b9081-d9a5-48de-ab28-23497e8fcb33",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:16.563+00:00"
+  },
+  {
+    "id": "baa1032b-cbc6-4641-bdb3-a825be98115c",
+    "table_name": "profiles",
+    "record_id": "9bb7626f-76c2-41a1-be94-0d6eeb29df86",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:17.413+00:00"
+  },
+  {
+    "id": "74b483d6-7489-465f-9038-ead3e34b92de",
+    "table_name": "profiles",
+    "record_id": "9baf0049-2193-4dc7-81d2-e27a590158f3",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:39.358+00:00"
+  },
+  {
+    "id": "42166ac0-90eb-4b43-9ee2-914a6ee85722",
+    "table_name": "profiles",
+    "record_id": "0ac8794b-2289-4c85-8fa5-cbf4bc3e3fb5",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:19:58.487+00:00"
+  },
+  {
+    "id": "ebdd89a8-620b-4652-8586-10367e195757",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:00.121+00:00"
+  },
+  {
+    "id": "776fc93d-cce4-4265-a4fd-537604c8b7c6",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:01.348+00:00"
+  },
+  {
+    "id": "1d90faaf-82ea-4609-a328-3eb69cce2372",
+    "table_name": "profiles",
+    "record_id": "4286f551-e310-45ac-bc95-222f9ffa5146",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:05.969+00:00"
+  },
+  {
+    "id": "3c4cf23b-66b4-4602-a3e9-2d9c2e26301d",
+    "table_name": "profiles",
+    "record_id": "78cd9e42-332b-4d9e-89a5-feb33ce46c2b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:09.161+00:00"
+  },
+  {
+    "id": "a0e8a0b5-efb1-4807-8047-5f727273927e",
+    "table_name": "profiles",
+    "record_id": "00088183-989c-4573-a0d3-180d6dad3a10",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:10.259+00:00"
+  },
+  {
+    "id": "1365ad53-809e-449e-a60c-2e334f014776",
+    "table_name": "profiles",
+    "record_id": "4589b720-4ead-410c-9b54-306ff46a215b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:10.844+00:00"
+  },
+  {
+    "id": "50b8e99b-63d0-4973-a3b3-022ba3e55c69",
+    "table_name": "profiles",
+    "record_id": "f74a8412-7cf9-4edc-bfa3-e5a0beebe15b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:11.332+00:00"
+  },
+  {
+    "id": "3c3c72c8-30a4-4c99-9f79-8a27f596d673",
+    "table_name": "profiles",
+    "record_id": "801f9c0d-eb53-4b9b-bedd-1f35d2b5de99",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:12.202+00:00"
+  },
+  {
+    "id": "22502e7c-834d-4a6f-9f3c-77988e964469",
+    "table_name": "profiles",
+    "record_id": "c32a100f-6df9-4267-8398-7ea6fe2c1f01",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:13.423+00:00"
+  },
+  {
+    "id": "6c64e411-a146-4e66-ab88-c07dd1889971",
+    "table_name": "profiles",
+    "record_id": "a0ba30f8-820e-4929-a966-b4030619865f",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:15.002+00:00"
+  },
+  {
+    "id": "374907f2-24a8-4bcd-bd33-334326ba393b",
+    "table_name": "profiles",
+    "record_id": "501f0a7c-6123-48c9-acc8-dd9f6b28bc6d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:16.034+00:00"
+  },
+  {
+    "id": "09adb0fb-9aab-42ce-b2b2-060957c3c277",
+    "table_name": "profiles",
+    "record_id": "830e2781-520c-415e-98b2-2c9bbf5966c9",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T16:20:18.363+00:00"
+  },
+  {
+    "id": "999c33c5-7156-409d-8058-00ca4c3dd819",
+    "table_name": "payments",
+    "record_id": "89ba0212-d7b8-4290-a2c1-97282f3a2528",
+    "branch_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "deleted_at": "2026-02-22T16:28:48.617897+00:00"
+  },
+  {
+    "id": "a4557707-0be6-49cc-a1bd-f234365e5cc0",
+    "table_name": "collection_logs",
+    "record_id": "5935c88b-82e2-4280-868f-3e7fdd27a09e",
+    "branch_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "deleted_at": "2026-02-22T16:28:48.617897+00:00"
+  },
+  {
+    "id": "3e9ae863-f714-4086-9b66-96e705067612",
+    "table_name": "collection_logs",
+    "record_id": "init-b3a79458-fffb-45a6-addf-05ff50893919",
+    "branch_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "deleted_at": "2026-02-22T16:28:48.617897+00:00"
+  },
+  {
+    "id": "7a0e40bc-30fb-4ac9-863e-1b172dd0adc6",
+    "table_name": "loans",
+    "record_id": "b3a79458-fffb-45a6-addf-05ff50893919",
+    "branch_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "deleted_at": "2026-02-22T16:28:48.617897+00:00"
+  },
+  {
+    "id": "33264168-6923-4233-9308-a64330b987e6",
+    "table_name": "profiles",
+    "record_id": "9baf0049-2193-4dc7-81d2-e27a590158f3",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:03.618+00:00"
+  },
+  {
+    "id": "1811ad88-45dc-4f14-95fc-13c7bf7a8cfe",
+    "table_name": "profiles",
+    "record_id": "4c46260e-ee9b-4551-ad42-e39c63c2d867",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:10.066+00:00"
+  },
+  {
+    "id": "a8039363-28ca-4400-95c3-dd7c608f77de",
+    "table_name": "profiles",
+    "record_id": "4286f551-e310-45ac-bc95-222f9ffa5146",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:11.065+00:00"
+  },
+  {
+    "id": "ff1040a2-468c-4edc-a75c-ce300e7fa536",
+    "table_name": "profiles",
+    "record_id": "832a5c50-c229-4154-bf32-43e220071fa2",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:12.565+00:00"
+  },
+  {
+    "id": "764aabc1-6152-4d16-969d-557302c4cf60",
+    "table_name": "profiles",
+    "record_id": "c1b777dd-6035-4901-8b90-9118c8c8f0a3",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:13.698+00:00"
+  },
+  {
+    "id": "c4d18575-12c0-4438-a0d5-b0114c905590",
+    "table_name": "profiles",
+    "record_id": "6c2fd2de-61e6-4015-8c54-1192cd7b195d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:15.93+00:00"
+  },
+  {
+    "id": "b306acab-fadc-4417-af83-4b29da85b1ef",
+    "table_name": "profiles",
+    "record_id": "473e07a6-57f9-4101-a6f0-ddac6e0faff0",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:17.065+00:00"
+  },
+  {
+    "id": "34621bf1-dfc8-470f-8f7e-0a5581a733f2",
+    "table_name": "profiles",
+    "record_id": "568088d6-c872-4b4f-b069-67c9ed94ac45",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:41.777+00:00"
+  },
+  {
+    "id": "8ceab2c5-a41b-4aa8-b540-b76fe7cc9ff4",
+    "table_name": "profiles",
+    "record_id": "78cd9e42-332b-4d9e-89a5-feb33ce46c2b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:42.181+00:00"
+  },
+  {
+    "id": "d7e65091-c8f8-466d-9595-1578cde57248",
+    "table_name": "profiles",
+    "record_id": "9fd12029-15f7-4deb-adb5-3d31bfeaa976",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:42.481+00:00"
+  },
+  {
+    "id": "ecef030e-d45a-4add-a351-7f4da1beac21",
+    "table_name": "profiles",
+    "record_id": "00088183-989c-4573-a0d3-180d6dad3a10",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:42.753+00:00"
+  },
+  {
+    "id": "ca3b8955-6a75-4fe9-98e3-8d769708e836",
+    "table_name": "profiles",
+    "record_id": "19345428-d662-4669-8594-c5347c35a8dc",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:43.049+00:00"
+  },
+  {
+    "id": "f25ee656-855f-4f66-bcea-43b5f1cb9b19",
+    "table_name": "profiles",
+    "record_id": "4589b720-4ead-410c-9b54-306ff46a215b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:43.281+00:00"
+  },
+  {
+    "id": "66c23b39-6303-4906-adf2-56cbeae9422e",
+    "table_name": "profiles",
+    "record_id": "f74a8412-7cf9-4edc-bfa3-e5a0beebe15b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:43.634+00:00"
+  },
+  {
+    "id": "ce361ac1-a030-44ef-ba8f-280b496a1cde",
+    "table_name": "profiles",
+    "record_id": "507c0cc9-25da-4f30-97b2-303fe4349c57",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:43.738+00:00"
+  },
+  {
+    "id": "2fe85b4a-b05d-4e53-8a8d-a398990d0293",
+    "table_name": "profiles",
+    "record_id": "801f9c0d-eb53-4b9b-bedd-1f35d2b5de99",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:43.995+00:00"
+  },
+  {
+    "id": "c77955a0-9139-4557-bfe0-ea8f081ea616",
+    "table_name": "profiles",
+    "record_id": "71fcb743-e324-4495-8ef3-c0f2c86194ce",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:44.216+00:00"
+  },
+  {
+    "id": "f0e3449a-20ee-4a99-a7e3-dccd52141f09",
+    "table_name": "profiles",
+    "record_id": "be471645-b517-4b7a-9b0b-1c11aeae60bd",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:44.485+00:00"
+  },
+  {
+    "id": "718cf11c-910c-4dd5-851b-adb8b6cb96d7",
+    "table_name": "profiles",
+    "record_id": "342ef6b6-b544-46db-bf16-c0ded268ba55",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:44.854+00:00"
+  },
+  {
+    "id": "6bfc0df1-c7ec-45b7-b7a2-03d6a9e0d234",
+    "table_name": "profiles",
+    "record_id": "c32a100f-6df9-4267-8398-7ea6fe2c1f01",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:45.025+00:00"
+  },
+  {
+    "id": "20697294-f37e-4c11-8b37-6c55e1910fc8",
+    "table_name": "profiles",
+    "record_id": "2dea7990-e3b3-4d59-aa8a-9898010e220b",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:45.064+00:00"
+  },
+  {
+    "id": "8c3a03e6-07f4-4a73-b5e6-e96cb02d46ae",
+    "table_name": "profiles",
+    "record_id": "fca7ec78-356f-445e-9ee3-371078b9019d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:45.279+00:00"
+  },
+  {
+    "id": "b9fa8308-496c-46f2-a9f3-33d4d5c4eb42",
+    "table_name": "profiles",
+    "record_id": "a0ba30f8-820e-4929-a966-b4030619865f",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:45.941+00:00"
+  },
+  {
+    "id": "9f7c01cf-c0ea-4cc9-a60f-7204e39b2111",
+    "table_name": "profiles",
+    "record_id": "501f0a7c-6123-48c9-acc8-dd9f6b28bc6d",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:46.131+00:00"
+  },
+  {
+    "id": "d89e8a6b-a857-4ccd-a769-9a664ba06caa",
+    "table_name": "profiles",
+    "record_id": "2b5b9081-d9a5-48de-ab28-23497e8fcb33",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:46.689+00:00"
+  },
+  {
+    "id": "2867f19a-3e92-4813-879a-b6b1caf5effc",
+    "table_name": "profiles",
+    "record_id": "9bb7626f-76c2-41a1-be94-0d6eeb29df86",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:47.012+00:00"
+  },
+  {
+    "id": "93982068-79e6-4076-aba0-a345d3ef7701",
+    "table_name": "profiles",
+    "record_id": "830e2781-520c-415e-98b2-2c9bbf5966c9",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:47.086+00:00"
+  },
+  {
+    "id": "5e3f287f-90d8-4e56-9493-1ffdb62464ec",
+    "table_name": "profiles",
+    "record_id": "c32d1c1c-807a-4a58-9c89-b04bf4647f84",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:47.62+00:00"
+  },
+  {
+    "id": "caf4240e-1fa2-48c2-8db3-354813e6cea7",
+    "table_name": "profiles",
+    "record_id": "7acffde3-c1d8-4bd2-8cc6-2ddc67d649c8",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:48.464+00:00"
+  },
+  {
+    "id": "f2a2e00f-fb2d-478a-ae88-2dfab36893df",
+    "table_name": "profiles",
+    "record_id": "5fdddb62-ac71-4a5a-be4c-5c341bd9e973",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:49.71+00:00"
+  },
+  {
+    "id": "918b617d-0a24-4dc6-87d3-3620b46374c3",
+    "table_name": "profiles",
+    "record_id": "0ac8794b-2289-4c85-8fa5-cbf4bc3e3fb5",
+    "branch_id": null,
+    "deleted_at": "2026-02-22T17:26:50.516+00:00"
+  },
+  {
+    "id": "d75f5909-8ccd-4f82-bda7-2b6780762a33",
+    "table_name": "collection_logs",
+    "record_id": "e0ccedf9-ac6c-4000-96f7-0a6a6302fe10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:58:58.758+00:00"
+  },
+  {
+    "id": "0a3fd635-4b79-40ce-9b12-eef2d82e2430",
+    "table_name": "collection_logs",
+    "record_id": "e0ccedf9-ac6c-4000-96f7-0a6a6302fe10",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:01.119+00:00"
+  },
+  {
+    "id": "d1fe304e-96cd-46b8-bae6-2e34c692f4e0",
+    "table_name": "collection_logs",
+    "record_id": "9e680dc1-78ad-4d16-ba9e-29d1d586bcbd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:04.87+00:00"
+  },
+  {
+    "id": "ccd3a773-05c3-4e11-9029-b2f88f69cd47",
+    "table_name": "collection_logs",
+    "record_id": "9e680dc1-78ad-4d16-ba9e-29d1d586bcbd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:10.937+00:00"
+  },
+  {
+    "id": "9f9e2567-bc05-47bf-aa64-5b9efb92696a",
+    "table_name": "payments",
+    "record_id": "pay-e0ccedf9-ac6c-4000-96f7-0a6a6302fe10-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:11.232+00:00"
+  },
+  {
+    "id": "c29fcdf5-16f3-4f7a-ad3b-fa9cba0dc0eb",
+    "table_name": "payments",
+    "record_id": "pay-e0ccedf9-ac6c-4000-96f7-0a6a6302fe10-11",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:11.612+00:00"
+  },
+  {
+    "id": "4120daf7-f8f3-484a-b63d-959be85e4a11",
+    "table_name": "collection_logs",
+    "record_id": "1381d25f-887b-414e-b5f8-d327e51c4df8",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:13.921+00:00"
+  },
+  {
+    "id": "a224b121-7476-44e8-bf1a-c039ebbc112e",
+    "table_name": "payments",
+    "record_id": "pay-9e680dc1-78ad-4d16-ba9e-29d1d586bcbd-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:15.956+00:00"
+  },
+  {
+    "id": "4ca67b85-621a-4ed3-bc2e-031d56b7b3a4",
+    "table_name": "payments",
+    "record_id": "pay-9e680dc1-78ad-4d16-ba9e-29d1d586bcbd-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:32.955+00:00"
+  },
+  {
+    "id": "da4c6f92-8924-4320-bc6b-62838c18cc33",
+    "table_name": "payments",
+    "record_id": "pay-1381d25f-887b-414e-b5f8-d327e51c4df8-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T18:59:39.157+00:00"
+  },
+  {
+    "id": "35107e01-e92b-4169-95da-b6b8bf7360eb",
+    "table_name": "collection_logs",
+    "record_id": "6842864b-f45c-414a-bb9e-faefc00811c1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:01:49.29+00:00"
+  },
+  {
+    "id": "698560a5-472a-4a44-b2d3-96e28da54b00",
+    "table_name": "collection_logs",
+    "record_id": "6842864b-f45c-414a-bb9e-faefc00811c1",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:01:56.473+00:00"
+  },
+  {
+    "id": "476e9f85-d088-47a0-ac6e-2e1bd26ec277",
+    "table_name": "payments",
+    "record_id": "pay-6842864b-f45c-414a-bb9e-faefc00811c1-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:01:59.223+00:00"
+  },
+  {
+    "id": "07272249-4439-4fc1-b486-b970aee073d3",
+    "table_name": "collection_logs",
+    "record_id": "7060bb66-054e-42b8-84ae-e627adfaac8e",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:04.809+00:00"
+  },
+  {
+    "id": "5a333198-7356-4732-94b3-c1713bc13609",
+    "table_name": "payments",
+    "record_id": "pay-6842864b-f45c-414a-bb9e-faefc00811c1-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:06.033+00:00"
+  },
+  {
+    "id": "1e11233c-b14b-441a-8345-cb8732c88a95",
+    "table_name": "collection_logs",
+    "record_id": "24b9beaa-c996-469a-948c-7e4c08e51cbe",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:13.4+00:00"
+  },
+  {
+    "id": "8cbdcd15-2d8c-47c1-90df-f2a39d798c3f",
+    "table_name": "collection_logs",
+    "record_id": "f82318b6-57dc-44ed-885c-238db5247bd4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:18.766+00:00"
+  },
+  {
+    "id": "ec1c601e-82b3-4c60-9482-6d91f2e9ed74",
+    "table_name": "payments",
+    "record_id": "pay-24b9beaa-c996-469a-948c-7e4c08e51cbe-2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:22.929+00:00"
+  },
+  {
+    "id": "15b28cff-0d5a-47c3-9500-915d70032873",
+    "table_name": "payments",
+    "record_id": "pay-f82318b6-57dc-44ed-885c-238db5247bd4-2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:27.58+00:00"
+  },
+  {
+    "id": "c651324b-5873-4843-b3a2-ea5a3dc4af83",
+    "table_name": "payments",
+    "record_id": "pay-24b9beaa-c996-469a-948c-7e4c08e51cbe-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:02:31.985+00:00"
+  },
+  {
+    "id": "66ea1efe-defd-4f70-92b7-70b2c8badcf0",
+    "table_name": "collection_logs",
+    "record_id": "b73bfe73-959d-4070-9331-032e5f32d89b",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:42:43.978+00:00"
+  },
+  {
+    "id": "4636484e-fbb0-40f0-a6b5-80bb95445364",
+    "table_name": "payments",
+    "record_id": "pay-b73bfe73-959d-4070-9331-032e5f32d89b-2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:42:54.303+00:00"
+  },
+  {
+    "id": "ee08df6a-c0c1-4377-8fcb-2f93ed7f7ea6",
+    "table_name": "payments",
+    "record_id": "pay-b73bfe73-959d-4070-9331-032e5f32d89b-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-22T19:43:04.055+00:00"
+  },
+  {
+    "id": "58ffae7b-1b78-4dbb-8aa1-b5bd58a25bfc",
+    "table_name": "collection_logs",
+    "record_id": "c6515fdf-b6c6-4398-876b-550296c0e206",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:05:41.609+00:00"
+  },
+  {
+    "id": "673191ea-01f6-46ab-a1be-49b70121da1d",
+    "table_name": "collection_logs",
+    "record_id": "1cfefabc-70e7-40d7-9a2a-51bbc98de9bf",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:05:49.848+00:00"
+  },
+  {
+    "id": "0f343799-c279-441a-b960-b1facf5bbfa1",
+    "table_name": "payments",
+    "record_id": "pay-c6515fdf-b6c6-4398-876b-550296c0e206-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:05:55.111+00:00"
+  },
+  {
+    "id": "4520cd97-a11b-4a5e-95be-d4912dd4eee3",
+    "table_name": "payments",
+    "record_id": "pay-1cfefabc-70e7-40d7-9a2a-51bbc98de9bf-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:06:00.687+00:00"
+  },
+  {
+    "id": "bda4145a-cfe7-4230-8a6a-e9699eff4a10",
+    "table_name": "payments",
+    "record_id": "pay-c6515fdf-b6c6-4398-876b-550296c0e206-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:06:05.134+00:00"
+  },
+  {
+    "id": "88e18723-2aae-427b-abdd-7630287a16a9",
+    "table_name": "payments",
+    "record_id": "pay-1cfefabc-70e7-40d7-9a2a-51bbc98de9bf-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-23T17:06:13.402+00:00"
+  },
+  {
+    "id": "15c15d67-9834-4470-9998-5720f8670427",
+    "table_name": "collection_logs",
+    "record_id": "a2cfd378-f131-4bbf-9ebc-95b1c48596dd",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-24T14:21:38.063+00:00"
+  },
+  {
+    "id": "0a0df9e2-9991-4f3d-b827-86fa0a6e4c2e",
+    "table_name": "payments",
+    "record_id": "pay-a2cfd378-f131-4bbf-9ebc-95b1c48596dd-13",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-24T14:21:48.238+00:00"
+  },
+  {
+    "id": "b92a53af-4444-4e9c-a64d-6601b86a59e7",
+    "table_name": "payments",
+    "record_id": "pay-a2cfd378-f131-4bbf-9ebc-95b1c48596dd-12",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-24T14:21:58.653+00:00"
+  },
+  {
+    "id": "333da88f-bdbc-48ed-8f08-172ee3191aa0",
+    "table_name": "collection_logs",
+    "record_id": "5e97274a-f931-44f7-8540-ffe37bc817b2",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:22:24.048+00:00"
+  },
+  {
+    "id": "2779fa33-65a9-4ae1-a6ba-b6fdfba4bed5",
+    "table_name": "collection_logs",
+    "record_id": "1238366e-bd58-42b3-b072-290a5bbd7e6d",
+    "branch_id": "c956ea2f-99d7-4956-93d5-36842aeb0d54",
+    "deleted_at": "2026-02-25T04:22:30.372+00:00"
+  },
+  {
+    "id": "b50b2bb5-2541-480e-8e04-ad0ba1ece327",
+    "table_name": "payments",
+    "record_id": "pay-5e97274a-f931-44f7-8540-ffe37bc817b2-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:22:35.204+00:00"
+  },
+  {
+    "id": "1dd04e4e-ff68-43e5-aed7-d2ae6ba30799",
+    "table_name": "collection_logs",
+    "record_id": "66ab31a8-4b64-4347-bd70-acb70b77d9bb",
+    "branch_id": "c956ea2f-99d7-4956-93d5-36842aeb0d54",
+    "deleted_at": "2026-02-25T04:22:38.595+00:00"
+  },
+  {
+    "id": "f309c5d2-2893-4801-b861-6c10b1cc3add",
+    "table_name": "payments",
+    "record_id": "pay-1238366e-bd58-42b3-b072-290a5bbd7e6d-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:22:41.234+00:00"
+  },
+  {
+    "id": "9c4434cd-f3c2-411f-9e86-ab1e0b4726bc",
+    "table_name": "payments",
+    "record_id": "pay-66ab31a8-4b64-4347-bd70-acb70b77d9bb-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:22:53.469+00:00"
+  },
+  {
+    "id": "53ee94c3-ecfa-4774-8b65-6368392c53cf",
+    "table_name": "collection_logs",
+    "record_id": "adb59d9d-9c93-4219-81b3-7474542563c5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:22:57.85+00:00"
+  },
+  {
+    "id": "f773a7ad-2806-4713-a170-a9f6e8c6d42b",
+    "table_name": "payments",
+    "record_id": "pay-66ab31a8-4b64-4347-bd70-acb70b77d9bb-4",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:23:11.608+00:00"
+  },
+  {
+    "id": "e614374b-d28f-43b7-9fcc-dfb795ac93c3",
+    "table_name": "payments",
+    "record_id": "pay-adb59d9d-9c93-4219-81b3-7474542563c5-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T04:23:12.348+00:00"
+  },
+  {
+    "id": "0da454a9-a815-4606-958e-658ea095d05a",
+    "table_name": "collection_logs",
+    "record_id": "45ab2b85-8b23-4222-8aaf-6d6bd718e8d5",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T18:33:01.93+00:00"
+  },
+  {
+    "id": "10fea66b-a344-4779-8434-bad5ddb28ef8",
+    "table_name": "payments",
+    "record_id": "pay-45ab2b85-8b23-4222-8aaf-6d6bd718e8d5-41",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T18:33:14.045+00:00"
+  },
+  {
+    "id": "f4f7b3e5-da43-4e0e-a40a-423a919c319a",
+    "table_name": "payments",
+    "record_id": "pay-45ab2b85-8b23-4222-8aaf-6d6bd718e8d5-40",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T18:33:37.264+00:00"
+  },
+  {
+    "id": "4faeae2f-d9da-41f3-8859-8dec83caa43c",
+    "table_name": "collection_logs",
+    "record_id": "bd007556-71dc-42eb-80e9-848ba641bbc9",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-25T23:42:58.527+00:00"
+  },
+  {
+    "id": "f68a3729-2b70-4631-b620-077ed1006dbc",
+    "table_name": "collection_logs",
+    "record_id": "4274c25b-0ae4-408c-bbb0-05f7dc8cee1c",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T04:55:12.168+00:00"
+  },
+  {
+    "id": "45cb2539-7bec-4613-afc0-d4826d7ed02c",
+    "table_name": "collection_logs",
+    "record_id": "11d8101e-fae4-4365-9224-3b27462099cc",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T04:55:15.686+00:00"
+  },
+  {
+    "id": "613c551a-ed38-4f40-8c45-e2277f14c4d3",
+    "table_name": "payments",
+    "record_id": "pay-4274c25b-0ae4-408c-bbb0-05f7dc8cee1c-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T04:55:30.953+00:00"
+  },
+  {
+    "id": "ad233eab-fd8f-4c48-8356-6b398300370c",
+    "table_name": "payments",
+    "record_id": "pay-11d8101e-fae4-4365-9224-3b27462099cc-3",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T04:55:33.939+00:00"
+  },
+  {
+    "id": "be288110-4901-4177-9d2b-c857a0bf6296",
+    "table_name": "collection_logs",
+    "record_id": "6228354f-4a6e-4d0c-bc53-bb6f1bda8d83",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T19:56:02.023+00:00"
+  },
+  {
+    "id": "dfa22b4f-c6ac-457c-a4c3-dc56a8a0d84f",
+    "table_name": "collection_logs",
+    "record_id": "9a1ec750-8ddd-4796-a8b2-8792337f6dfe",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:10:24.284+00:00"
+  },
+  {
+    "id": "fdc23a5c-6bba-4951-86b4-4ca401d20574",
+    "table_name": "payments",
+    "record_id": "pay-9a1ec750-8ddd-4796-a8b2-8792337f6dfe-16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:10:34.421+00:00"
+  },
+  {
+    "id": "a2cbf45a-0b92-4343-b752-dfd0f9fa2db1",
+    "table_name": "payments",
+    "record_id": "pay-9a1ec750-8ddd-4796-a8b2-8792337f6dfe-17",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:10:49.97+00:00"
+  },
+  {
+    "id": "f8833a32-c941-4855-a988-e7993cbc7a84",
+    "table_name": "collection_logs",
+    "record_id": "6228354f-4a6e-4d0c-bc53-bb6f1bda8d83",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:21:14.682+00:00"
+  },
+  {
+    "id": "ac9ab853-c51d-4a5c-b830-648cc2da412d",
+    "table_name": "collection_logs",
+    "record_id": "4a0014eb-4c48-4bf9-a7af-f54554f27b16",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:24:32.994+00:00"
+  },
+  {
+    "id": "a3efbd3a-5ab7-4217-ab9c-04c6145befb9",
+    "table_name": "payments",
+    "record_id": "pay-4a0014eb-4c48-4bf9-a7af-f54554f27b16-6",
+    "branch_id": "b3716a78-fb4f-4918-8c0b-92004e3d63ec",
+    "deleted_at": "2026-02-26T20:24:45.112+00:00"
+  }
+]
