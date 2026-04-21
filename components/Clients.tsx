@@ -284,6 +284,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
+  const [receipt, setReceipt] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(50);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedCollectorForImport, setSelectedCollectorForImport] = useState('');
   const [isProcessingExcel, setIsProcessingExcel] = useState(false);
@@ -317,7 +319,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     principal: '500000',
     interestRate: '20',
     installments: '24',
-    frequency: Frequency.DAILY
+    frequency: Frequency.DAILY,
+    startDate: countryTodayStr,
+    endDate: '',
+    customHolidays: [] as string[],
+    selectedCollectorId: '',
+    operationTypeCode: '202',
+    sellerCode: '',
+    promissoryNoteAmount: '',
+    promissoryNoteExpiration: ''
   });
 
   const [clientData, setClientData] = useState<Client>({
@@ -495,14 +505,57 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [globalSearch, setGlobalSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Sincronización del buscador con rebote (Debounce)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(globalSearch);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [globalSearch]);
-  const [receipt, setReceipt] = useState<string | null>(null);
-  const [displayLimit, setDisplayLimit] = useState(50);
+
+  const handleOpenRenewalModal = (client: Client) => {
+    setClientData(client);
+    
+    const lastLoan = [...(Array.isArray(state.loans) ? state.loans : [])]
+      .filter(l => l.clientId === client.id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    setRenewForm({
+      principal: lastLoan?.principal?.toString() || '500000',
+      interestRate: lastLoan?.interestRate?.toString() || '20',
+      installments: lastLoan?.totalInstallments?.toString() || '24',
+      frequency: lastLoan?.frequency || Frequency.DAILY,
+      startDate: countryTodayStr,
+      customHolidays: lastLoan?.customHolidays || [],
+      selectedCollectorId: lastLoan?.collectorId || currentUserId,
+      operationTypeCode: '205',
+      sellerCode: lastLoan?.sellerCode || client.sellerCode || '',
+      promissoryNoteAmount: lastLoan?.promissoryNoteAmount?.toString() || '',
+      promissoryNoteExpiration: ''
+    });
+
+    setShowRenewModal(true);
+  };
+
+  useEffect(() => {
+    const handleQuickRenewal = (e: any) => {
+      const client = e.detail;
+      if (client) {
+        setShowLegajo(client.id);
+        handleOpenRenewalModal(client);
+        localStorage.removeItem('quick_renewal_client');
+      }
+    };
+
+    window.addEventListener('open_add_loan_modal', handleQuickRenewal);
+    
+    const pendingClient = localStorage.getItem('quick_renewal_client');
+    if (pendingClient) {
+      handleQuickRenewal({ detail: JSON.parse(pendingClient) });
+    }
+
+    return () => window.removeEventListener('open_add_loan_modal', handleQuickRenewal);
+  }, [state.loans]);
 
   useEffect(() => {
     if (showLegajo && fetchClientPhotos && updateClient) {
@@ -1698,45 +1751,53 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
-  const handleRenewLoan = () => {
-    if (!clientInLegajo || !addLoan) return;
+  const handleRenewLoan = async () => {
+    if (isSubmitting || !clientInLegajo || !addLoan || !updateLoan) return;
 
-    const p = Number(renewForm.principal) || 0;
-    const i = Number(renewForm.interestRate) || 0;
-    const inst = Number(renewForm.installments) || 0;
+    setIsSubmitting(true);
+    try {
+      const p = Number(renewForm.principal) || 0;
+      const i = Number(renewForm.interestRate) || 0;
+      const inst = Number(renewForm.installments) || 0;
+      const total = calculateTotalReturn(p, i);
+      const baseDateStr = renewForm.startDate || countryTodayStr;
+      const startDateTime = new Date(baseDateStr + 'T00:00:00');
+      const validStartDate = isNaN(startDateTime.getTime()) ? new Date() : startDateTime;
+      const newLoan: Loan = {
+        id: generateUUID(),
+        clientId: clientInLegajo.id,
+        collectorId: renewForm.selectedCollectorId || activeLoanInLegajo?.collectorId || currentUserId,
+        principal: p, interestRate: i, totalInstallments: inst,
+        frequency: renewForm.frequency, totalAmount: total,
+        installmentValue: inst > 0 ? total / inst : 0, status: LoanStatus.ACTIVE,
+        createdAt: validStartDate.toISOString(), customHolidays: renewForm.customHolidays,
+        operationTypeCode: renewForm.operationTypeCode || '202',
+        sellerCode: renewForm.sellerCode || clientInLegajo.sellerCode || '',
+        promissoryNoteAmount: Number(renewForm.promissoryNoteAmount) || 0,
+        promissoryNoteExpiration: renewForm.promissoryNoteExpiration || '',
+        installments: generateAmortizationTable(p, i, inst, renewForm.frequency, validStartDate, state.settings.country, renewForm.customHolidays),
+        isRenewal: true
+      };
 
-    const total = calculateTotalReturn(p, i);
-    const newLoan: Loan = {
-      id: generateUUID(),
-      clientId: clientInLegajo.id,
-      collectorId: currentUserId,
-      principal: p,
-      interestRate: i,
-      totalInstallments: inst,
-      frequency: renewForm.frequency,
-      totalAmount: total,
-      installmentValue: inst > 0 ? total / inst : 0,
-      status: LoanStatus.ACTIVE,
-      createdAt: new Date().toISOString(),
-      installments: generateAmortizationTable(p, i, inst, renewForm.frequency, new Date(), state.settings.country),
-      isRenewal: true
-    };
+      const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      const previousLoanIds = previousActiveLoans.map(l => l.id);
+      if (renewLoan) {
+        await renewLoan(newLoan, previousLoanIds);
+      } else {
+        await addLoan(newLoan);
+        for (const ol of previousActiveLoans) { if (updateLoan) await updateLoan({ ...ol, status: LoanStatus.PAID }); }
+      }
+      if (onForceSync) onForceSync(false, "RENOVACIÓN EXITOSA");
+      setShowRenewModal(false);
+      alert("Crédito Renovado con éxito.");
+    } catch (error) {
+      console.error("Error renovando:", error);
+      alert("Error al renovar el crédito.");
+    } finally { setIsSubmitting(false); }
 
-    const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-    const previousLoanIds = previousActiveLoans.map(l => l.id);
 
-    if (renewLoan) {
-      renewLoan(newLoan, previousLoanIds);
-    } else {
-      // Fallback si no está definida (aunque debería estarlo)
-      if (addLoan) addLoan(newLoan);
-      previousActiveLoans.forEach(ol => {
-        if (updateLoan) updateLoan({ ...ol, status: LoanStatus.PAID });
-      });
-    }
 
-    setShowRenewModal(false);
-    if (onForceSync) onForceSync(false, "RENOVACIÓN REALIZADA CORRECTAMENTE");
+
   };
 
   const handlePrintCartera = () => {
@@ -2668,7 +2729,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
+                            {/* 
                             <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div><input type="text" value={initialLoan.sellerCode} onChange={(e: any) => setInitialLoan({ ...initialLoan, sellerCode: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
+                            */}
                             <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Capital</div><input type="text" value={initialLoan.principal} onChange={(e: any) => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
                             <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Int. %</div><input type="text" value={initialLoan.interestRate} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
                             <div className="flex border-b border-r border-slate-200">
@@ -2687,8 +2750,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </select>
                             </div>
                             <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div><input type="text" value={initialLoan.installments} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            {/* 
                             <div className="flex border-b border-r border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Monto Pagaré</div><input type="text" value={initialLoan.promissoryNoteAmount} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteAmount: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
                             <div className="flex border-b border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Vto Pagaré</div><input type="date" value={initialLoan.promissoryNoteExpiration} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteExpiration: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
+                            */}
                             <div className="flex"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Finaliza</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{initialLoan.endDate ? formatDate(initialLoan.endDate).toUpperCase() : '---'}</div></div>
                           </div>
 
@@ -2865,7 +2930,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   return (
                                     <table className="w-full text-left border-collapse">
                                       <tbody className="divide-y divide-slate-800 text-slate-100 font-bold text-[10px] md:text-[11px]">
-                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">Total del Crédito</td><td className="p-3 text-right font-black text-white">{formatCurrency(m.totalCreditAmount || activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
+                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">Monto Habilitado</td><td className="p-3 text-right font-black text-white">{formatCurrency(activeLoanInLegajo.principal, state.settings)}</td></tr>
+                                        {activeLoanInLegajo.interestRate > 0 && (
+                                          <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/10">Crédito Habilitado</td><td className="p-3 text-right font-black text-slate-300">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
+                                        )}
                                         <tr className="hover:bg-emerald-900/10 transition-colors"><td className="p-3 text-emerald-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-emerald-900/5">Abonado</td><td className="p-3 text-right font-black text-emerald-400">{formatCurrency(m.totalPaid, state.settings)}</td></tr>
                                         <tr className="hover:bg-red-900/10 transition-colors"><td className="p-3 text-red-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-red-900/5">Saldo Pendiente</td><td className="p-3 text-right font-black text-red-400">{formatCurrency(m.balance, state.settings)}</td></tr>
                                         <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/20">Progreso Cuotas</td><td className="p-3 text-right font-black text-white">{m.installmentsStr}</td></tr>
@@ -2894,7 +2962,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">Este cliente no posee créditos vigentes en este momento.</p>
                               </div>
                               <button
-                                onClick={() => setShowRenewModal(true)}
+                                onClick={() => handleOpenRenewalModal(clientInLegajo)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-3 border border-blue-400/30"
                               >
                                 <i className="fa-solid fa-plus-circle"></i> NUEVA RENOVACIÓN / CRÉDITO
@@ -3160,7 +3228,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                     <>
                                       <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
                                       <button
-                                        onClick={isFullyPaid ? () => setShowRenewModal(true) : handleOpenDossierPayment}
+                                        onClick={isFullyPaid ? () => handleOpenRenewalModal(clientInLegajo) : handleOpenDossierPayment}
                                         className={`py-2.5 ${getRenewalButtonColor(m.maxDaysOverdue)} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
                                       >
                                         {isFullyPaid ? 'Renovar Crédito' : 'Cobrar / Renovación'}
@@ -3313,30 +3381,117 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL RENOVACIÓN / NUEVO CRÉDITO */}
         {
           showRenewModal && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[250] p-4 pt-10 md:pt-20">
-              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-lg overflow-hidden animate-scaleIn border border-white/20">
-                <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
-                  <h3 className="text-xl font-black uppercase tracking-tighter">Generar Nuevo Crédito</h3>
-                  <button onClick={() => setShowRenewModal(false)}><i className="fa-solid fa-xmark text-xl"></i></button>
-                </div>
-                <div className="p-8 space-y-6 bg-slate-50">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Capital a Prestar</label>
-                        <input type="text" value={renewForm.principal} onChange={e => setRenewForm({ ...renewForm, principal: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-300 font-black text-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">Interés %</label>
-                        <input type="text" value={renewForm.interestRate} onChange={e => setRenewForm({ ...renewForm, interestRate: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-300 font-black text-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[250] p-4 overflow-y-auto pt-6 pb-20">
+              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-white/20">
+                <div className="p-6 bg-blue-600 text-white flex justify-between items-center sticky top-0 z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">
+                      <i className="fa-solid fa-rotate"></i>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Cantidad de Cuotas</label>
-                      <input type="text" value={renewForm.installments} onChange={e => setRenewForm({ ...renewForm, installments: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-300 font-black text-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-tighter leading-none">Generar Nuevo Crédito</h3>
+                      <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mt-1">Cliente: {clientInLegajo.name}</p>
                     </div>
                   </div>
-                  <button onClick={handleRenewLoan} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95">CONFIRMAR E INICIAR CRÉDITO</button>
+                  <button onClick={() => setShowRenewModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-all"><i className="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div className="p-8 space-y-6 bg-slate-50">
+                  <div className="space-y-6">
+                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-600 pl-2">Datos del Crédito / Pagaré</h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <div className="space-y-4">
+                        <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
+                          {/* 
+                          <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2">
+                            <div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div>
+                            <input type="text" value={renewForm.sellerCode} onChange={(e: any) => setRenewForm({ ...renewForm, sellerCode: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" />
+                          </div>
+                          */}
+                          <div className="flex border-b border-r border-slate-200">
+                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Capital</div>
+                            <input type="text" value={renewForm.principal} onChange={(e: any) => setRenewForm({ ...renewForm, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-blue-600 text-white outline-none" />
+                          </div>
+                          <div className="flex border-b border-slate-200">
+                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Int. %</div>
+                            <input type="text" value={renewForm.interestRate} onChange={(e: any) => setRenewForm({ ...renewForm, interestRate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-blue-600 text-white outline-none" />
+                          </div>
+                          <div className="flex border-b border-r border-slate-200">
+                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Operación</div>
+                            <select
+                              value={renewForm.operationTypeCode}
+                              onChange={(e: any) => setRenewForm({ ...renewForm, operationTypeCode: e.target.value })}
+                              className="flex-1 px-3 py-3 text-[10px] font-black bg-blue-600 text-white outline-none cursor-pointer"
+                            >
+                              {OPERATION_TYPES.map(o => (
+                                <option key={o.code} value={o.code} className="bg-blue-700">{o.code} - {o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex border-b border-slate-200">
+                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div>
+                            <input type="text" value={renewForm.installments} onChange={(e: any) => setRenewForm({ ...renewForm, installments: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-blue-600 text-white outline-none" />
+                          </div>
+                          {/* 
+                          <div className="flex border-b border-r border-slate-200 bg-slate-900">
+                            <div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Monto Pagaré</div>
+                            <input type="text" value={renewForm.promissoryNoteAmount} onChange={(e: any) => setRenewForm({ ...renewForm, promissoryNoteAmount: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" />
+                          </div>
+                          <div className="flex border-b border-slate-200 bg-slate-900">
+                            <div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Vto Pagaré</div>
+                            <input type="date" value={renewForm.promissoryNoteExpiration} onChange={(e: any) => setRenewForm({ ...renewForm, promissoryNoteExpiration: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" />
+                          </div>
+                          */}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Tipo de Pago / Frecuencia</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {Object.values(Frequency).map((freq) => (
+                              <button
+                                key={freq}
+                                type="button"
+                                onClick={() => setRenewForm((prev: any) => ({ ...prev, frequency: freq }))}
+                                className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border-2 ${renewForm.frequency === freq ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-blue-200'}`}
+                              >
+                                {freq}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {isAdminOrManager && (
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Asignar a Cobrador</label>
+                            <select
+                              value={renewForm.selectedCollectorId}
+                              onChange={e => setRenewForm(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
+                              className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all uppercase"
+                            >
+                              <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
+                              {Array.isArray(collectors) && collectors.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            <p className="text-[7px] text-slate-400 font-bold uppercase pl-1">Selecciona quién cobrará este crédito para que le aparezca en su celular</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1 mb-2 block text-center">Seleccionar Fecha de Inicio</label>
+                        <GenericCalendar
+                          startDate={renewForm.startDate}
+                          customHolidays={renewForm.customHolidays}
+                          setDate={(iso) => setRenewForm((prev: any) => ({ ...prev, startDate: iso }))}
+                          toggleHoliday={(iso) => setRenewForm((prev: any) => prev.customHolidays.includes(iso) ? { ...prev, customHolidays: prev.customHolidays.filter((d: string) => d !== iso) } : { ...prev, customHolidays: [...prev.customHolidays, iso] })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={handleRenewLoan} className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-blue-800">
+                    {isSubmitting ? <i className="fa-solid fa-spinner animate-spin mr-2"></i> : <i className="fa-solid fa-check-circle mr-2"></i>}
+                    CONFIRMAR E INICIAR CRÉDITO
+                  </button>
                 </div>
               </div>
             </div>

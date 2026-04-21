@@ -77,8 +77,12 @@ export const useAppInitialization = () => {
         // 2. VERSION & PURGE MANAGEMENT
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
-          console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}`);
+          console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}. Purging cache...`);
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
+          
+          // Borrar datos locales antiguos para evitar conflictos de esquema
+          await StorageService.removeItem('prestamaster_v2');
+          
           if ('serviceWorker' in navigator) {
             try {
               const regs = await navigator.serviceWorker.getRegistrations();

@@ -61,6 +61,11 @@ const App: React.FC = () => {
     handleSyncUser, deleteRemoteClientAction, renewLoan 
   } = actions;
 
+  // GLOBAL EXPOSURE: For legacy handleSync alias support
+  useEffect(() => {
+    (window as any)._triggerForceSync = () => handleForceSync(true);
+  }, [handleForceSync]);
+
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
   // Pull to Refresh Handlers
@@ -282,6 +287,7 @@ const App: React.FC = () => {
                 addCollectionAttempt={addCollectionAttempt} 
                 deleteCollectionLog={deleteCollectionLog} 
                 onForceSync={handleForceSync} 
+                setActiveTab={setActiveTab}
               />
             )}
             {activeTab === 'route' && (

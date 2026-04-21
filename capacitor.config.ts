@@ -10,7 +10,9 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    url: 'https://diegocabrio1805-arch.github.io/cobros/',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {

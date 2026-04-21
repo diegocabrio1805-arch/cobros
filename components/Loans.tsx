@@ -18,9 +18,10 @@ interface LoansProps {
   deleteCollectionLog: (logId: string) => void;
   updateClient?: (client: Client) => void;
   onForceSync?: (silent?: boolean) => Promise<void>;
+  setActiveTab: (tab: string) => void;
 }
 
-const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync }) => {
+const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync, setActiveTab }) => {
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [viewMode, setViewMode] = useState<'gestion' | 'renovaciones' | 'vencidos' | 'ocultos'>('gestion');
@@ -43,44 +44,106 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   const t = getTranslation(state.settings.language);
   const isAdminOrManager = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
 
-  // Filtrado de préstamos general
+  // Filtrado de préstamos general - AGRUPADO POR CLIENTE para coincidir con Cartera
   const filteredLoans = useMemo(() => {
-    return (Array.isArray(state.loans) ? state.loans : []).filter((loan) => {
-      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return false;
+    const allLoans = Array.isArray(state.loans) ? state.loans : [];
+    const allClients = Array.isArray(state.clients) ? state.clients : [];
+    const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+
+    // 1. Identificar clientes únicos con préstamos que califiquen para la vista actual
+    const clientMap: Record<string, { client: Client, loans: Loan[] }> = {};
+
+    allLoans.forEach(loan => {
+      const client = allClients.find(c => c.id === loan.clientId);
+      if (!client || client.isHidden) return;
+
       const searchLower = searchTerm.toLowerCase();
-
       const matchesSearch = client.name.toLowerCase().includes(searchLower) ||
-        client.address.toLowerCase().includes(searchLower) ||
-        client.documentId.includes(searchLower);
+        (client.address || '').toLowerCase().includes(searchLower) ||
+        (client.documentId || '').includes(searchLower);
 
+      if (!matchesSearch) return;
+
+      // Lógica de calificación según viewMode
+      let qualifies = false;
       if (viewMode === 'vencidos') {
-        return matchesSearch && getDaysOverdue(loan, state.settings) > 0;
+        const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+        qualifies = getDaysOverdue(loan, state.settings, totalPaid) > 0;
+      } else if (viewMode === 'renovaciones') {
+        qualifies = loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
+      } else if (viewMode === 'gestion') {
+        const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+        const balance = loan.totalAmount - totalPaid;
+        const isPaid = loan.status === LoanStatus.PAID || balance <= 0.01;
+
+        if (!isPaid) {
+          qualifies = true;
+        } else {
+          // Si está pagado, califica si es el más reciente de este cliente y no hay otros activos
+          const clientLoans = allLoans.filter(l => l.clientId === loan.clientId);
+          const hasActive = clientLoans.some(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs)) > 0.01);
+          if (!hasActive) {
+            const sorted = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            qualifies = sorted[0]?.id === loan.id;
+          }
+        }
+      } else {
+        qualifies = true;
       }
 
-      if (viewMode === 'renovaciones') {
-        // Solo mostrar créditos marcados como renovaciones
-        return matchesSearch && loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
+      if (qualifies) {
+        if (!clientMap[client.id]) {
+          clientMap[client.id] = { client, loans: [] };
+        }
+        clientMap[client.id].loans.push(loan);
       }
+    });
 
-      // Balance usando logs (consistente con getClientMetrics y el panel de saldo)
-      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-        .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
-      const totalPaidFromLogs = loanLogs.reduce((acc: number, l: any) => acc + (l.amount || 0), 0);
-      const balanceFromLogs = loan.totalAmount - totalPaidFromLogs;
-      const isActuallyPaid = loan.status === LoanStatus.PAID || balanceFromLogs <= 0.01;
-      return matchesSearch && !isActuallyPaid;
+    // 2. Consolidar préstamos por cliente usando TODOS sus préstamos activos
+    return Object.values(clientMap).map(({ client }) => {
+      // IMPORTANTE: Buscar TODOS los préstamos activos del cliente en el estado global,
+      // no solo los que "calificaron" para esta pestaña, para que el Saldo y Cobrado coincidan con Cartera.
+      const clientLoans = allLoans.filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      
+      // Ordenar préstamos activos: Más reciente primero para el "base"
+      const sortedLoans = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      // Si no hay préstamos activos (ej: modo gestion mostrando el último pagado), usamos los que calificaron originalmente
+      const displayLoans = sortedLoans.length > 0 ? sortedLoans : (clientMap[client.id].loans || []);
+      const baseLoan = displayLoans[0];
+      
+      // Métricas consolidadas de TODOS los préstamos activos (estilo Cartera)
+      const totalPaid = clientLoans.reduce((sum, l) => sum + calculateTotalPaidFromLogs(l, allLogs), 0);
+      const consolidatedBalance = clientLoans.reduce((sum, l) => {
+          const lp = calculateTotalPaidFromLogs(l, allLogs);
+          return sum + Math.max(0, l.totalAmount - lp);
+      }, 0);
+      
+      const consolidatedMora = Math.max(0, ...clientLoans.map(l => {
+          const lp = calculateTotalPaidFromLogs(l, allLogs);
+          return getDaysOverdue(l, state.settings, lp);
+      }));
+      
+      return {
+        ...baseLoan,
+        _consolidatedPaid: totalPaid,
+        _consolidatedBalance: consolidatedBalance,
+        _consolidatedMora: consolidatedMora,
+        _isConsolidated: clientLoans.length > 1,
+        _clientName: client.name 
+      };
     }).sort((a, b) => {
       if (viewMode === 'vencidos') {
-        return getDaysOverdue(b, state.settings) - getDaysOverdue(a, state.settings);
+        const moraA = (a as any)._consolidatedMora || 0;
+        const moraB = (b as any)._consolidatedMora || 0;
+        return moraB - moraA;
       }
-      // Ordenar por fecha de creación para renovaciones (más recientes primero)
       if (viewMode === 'renovaciones') {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       return 0;
     });
-  }, [state.loans, state.clients, state.collectionLogs, searchTerm, state.currentUser, isAdminOrManager, viewMode]);
+  }, [state.loans, state.clients, state.collectionLogs, searchTerm, state.currentUser, isAdminOrManager, viewMode, state.settings]);
 
   // RESET PAGE ON FILTER CHANGE
   useEffect(() => {
@@ -181,9 +244,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     const tableRows = (Array.isArray(filteredLoans) ? filteredLoans : []).map(loan => {
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
-      const mora = getDaysOverdue(loan, state.settings, totalPaid);
-      const balance = loan.totalAmount - totalPaid;
+      const totalPaid = (loan as any)._consolidatedPaid;
+      const mora = (loan as any)._consolidatedMora;
+      const balance = (loan as any)._consolidatedBalance;
       return `
         <tr>
           <td style="border: 1px solid #ddd; padding: 8px;">${client?.name || '---'}</td>
@@ -802,14 +865,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             ) : (
               (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
                 const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-                // Usar logs para balance (consistente con getClientMetrics)
+                
+                // Usar métricas consolidadas calculadas en filteredLoans
+                const totalPaid = (loan as any)._consolidatedPaid;
+                const balance = (loan as any)._consolidatedBalance;
+                const daysOverdue = (loan as any)._consolidatedMora;
+                
+                // Recopilar logs de TODOS los préstamos de este cliente (para el historial de la tarjeta)
+                const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === loan.clientId && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
                 const cardLoanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-                  .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
-                const totalPaid = cardLoanLogs.reduce((acc: number, l: any) => acc + (l.amount || 0), 0);
-                const balance = Math.max(0, loan.totalAmount - totalPaid);
+                  .filter(l => clientLoans.some(cl => cl.id === l.loanId) && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
+                
                 const progress = Math.min(100, (totalPaid / loan.totalAmount) * 100);
-                const daysOverdue = getDaysOverdue(loan, state.settings, totalPaid);
-                // Último pago para poder borrarlo
+                const installmentsPaid = Number((totalPaid / loan.installmentValue).toFixed(1));
+                
+                // Último pago global del cliente
                 const lastPayLog = [...cardLoanLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
                 return (
@@ -859,26 +929,81 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         </div>
                       </div>
 
-                      <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
-                        <div className="flex justify-between items-center">
-                          <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Cuota</p>
-                          <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency(loan.installmentValue, state.settings)}</p>
-                        </div>
-                        <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-slate-800">
-                          <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Saldo</p>
-                          <p className="text-xs md:text-sm font-black text-red-400 font-mono">{formatCurrency(balance, state.settings)}</p>
-                        </div>
-                      </div>
+                      {balance > 0.01 ? (
+                        <>
+                          <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
+                            <div className="flex justify-between items-center opacity-60">
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Monto habilitado</p>
+                              <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency(loan.principal, state.settings)}</p>
+                            </div>
+                            
+                            {loan.interestRate > 0 && (
+                              <div className="flex justify-between items-center border-b border-slate-800/50 pb-2">
+                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Credito habilitado</p>
+                                <p className="text-[10px] md:text-xs font-black text-slate-300 font-mono">{formatCurrency(loan.totalAmount, state.settings)}</p>
+                              </div>
+                            )}
 
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          <span>Avance</span>
-                          <span className="text-white">{Math.round(progress)}%</span>
+                            <div className="flex justify-between items-center pt-1">
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Cuota</p>
+                              <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency(loan.installmentValue, state.settings)}</p>
+                            </div>
+                            <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-slate-800">
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Saldo</p>
+                              <p className="text-xs md:text-sm font-black text-red-400 font-mono">{formatCurrency(balance, state.settings)}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                              <span>Avance</span>
+                              <span className="text-white font-mono">{installmentsPaid} / {loan.totalInstallments} <span className="opacity-40 ml-1">CUOTAS</span></span>
+                            </div>
+                            <div className="w-full h-1.5 md:h-2 bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                              <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
+                          {/* Sello de Liquidado */}
+                          <div className="absolute -right-4 -top-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
+                          
+                          <div className="w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+                            <i className="fa-solid fa-check-double text-emerald-400 text-2xl"></i>
+                          </div>
+
+                          <div>
+                            <span className="bg-emerald-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-emerald-500/20">Crédito Liquidado</span>
+                            <h3 className="text-base font-black text-white uppercase tracking-tight mt-3">¡Listo para Renovar!</h3>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 px-4 leading-relaxed opacity-80">
+                              El cliente ha completado todos sus pagos con éxito.
+                            </p>
+                          </div>
+
+                          <div className="w-full pt-2">
+                            <button 
+                              onClick={() => {
+                                localStorage.setItem('quick_renewal_client', JSON.stringify(client));
+                                setActiveTab('clients');
+                                setTimeout(() => {
+                                  window.dispatchEvent(new CustomEvent('open_add_loan_modal', { detail: client }));
+                                }, 100);
+                              }}
+                              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-emerald-700"
+                            >
+                              <i className="fa-solid fa-bolt-lightning text-xs"></i>
+                              Nueva Renovación Directa
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="h-px bg-white/10 flex-1"></div>
+                            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Opciones de Historial</span>
+                            <div className="h-px bg-white/10 flex-1"></div>
+                          </div>
                         </div>
-                        <div className="w-full h-1.5 md:h-2 bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${progress}%` }}></div>
-                        </div>
-                      </div>
+                      )}
 
                       {/* TABLA DE HISTORIAL DESPLEGABLE (ESTILO IMAGEN 2) */}
                       {expandedHistory[loan.id] && (
@@ -962,18 +1087,22 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         )}
                       </div>
                       <div className="flex-1 flex gap-2">
-                        <button
-                          onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
-                          className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
-                        >
-                          No Pago
-                        </button>
-                        <button
-                          onClick={() => handleOpenPayment(loan)}
-                          className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
-                        >
-                          Pagar
-                        </button>
+                        {balance > 0.01 && (
+                          <>
+                            <button
+                              onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
+                              className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
+                            >
+                              No Pago
+                            </button>
+                            <button
+                              onClick={() => handleOpenPayment(loan)}
+                              className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
+                            >
+                              Pagar
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1017,6 +1146,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <th className="px-6 py-5 border-r border-white/10">Contacto</th>
                   <th className="px-6 py-5 border-r border-white/10">Ubicación</th>
                   <th className="px-6 py-5 border-r border-white/10 text-center">Días Mora</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-center">Cuotas Pagadas</th>
                   <th className="px-6 py-5 border-r border-white/10 text-right">Valor Cuota</th>
                   <th className="px-6 py-5 border-r border-white/10 text-right">Saldo Pend.</th>
                   <th className="px-6 py-5 text-center">Gestión</th>
@@ -1029,11 +1159,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   </tr>
                 ) : (
                   (Array.isArray(paginatedLoans) ? paginatedLoans : []).map((loan) => {
-                    const amountToPay = loan.installmentValue || 0;
                     const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-                    const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
-                    const mora = getDaysOverdue(loan, state.settings, totalPaid);
-                    const balance = loan.totalAmount - totalPaid;
+                    
+                    const totalPaid = (loan as any)._consolidatedPaid;
+                    const balance = (loan as any)._consolidatedBalance;
+                    const mora = (loan as any)._consolidatedMora;
+
+                    const installmentsPaid = Number((totalPaid / loan.installmentValue).toFixed(1));
 
                     return (
                       <tr key={loan.id} className="hover:bg-red-50/30 transition-colors text-[11px] font-bold text-slate-700">
@@ -1047,6 +1179,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           <span className="inline-flex items-center justify-center w-10 h-10 bg-red-100 text-red-600 rounded-xl font-black shadow-inner">
                             {mora}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 border-r border-slate-100 text-center font-mono font-black text-slate-500">
+                          {Number((totalPaid / loan.installmentValue).toFixed(1))} / {loan.totalInstallments}
                         </td>
                         <td className="px-6 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-900">{formatCurrency(loan.installmentValue, state.settings)}</td>
                         <td className="px-6 py-4 border-r border-slate-100 text-right font-mono font-black text-red-600">{formatCurrency(balance, state.settings)}</td>

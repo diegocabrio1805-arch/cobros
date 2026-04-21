@@ -23,10 +23,15 @@ const AutoUpdater: React.FC = () => {
 
   useEffect(() => {
     if (needRefresh) {
-      console.log("[AutoUpdater] ¡Nueva versión detectada! Aplicando y recargando instantáneamente...");
-      // Si la IA de updateServiceWorker(true) borra el caché e instala el nuevo código
-      // Inmediatamente recargará la ventana de forma silenciosa e imperceptible.
-      updateServiceWorker(true);
+      console.log("[AutoUpdater] ¡Nueva versión detectada! Limpiando caché y recargando...");
+      // Limpiar IDB para forzar una sincronización fresca con la nueva versión del código
+      import('../utils/localforageStorage').then(({ StorageService }) => {
+        StorageService.removeItem('prestamaster_v2').then(() => {
+          updateServiceWorker(true);
+        });
+      }).catch(() => {
+        updateServiceWorker(true);
+      });
     }
   }, [needRefresh, updateServiceWorker]);
 
