@@ -628,10 +628,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         try {
                             const d = item.data;
                             
-                            // 1. Actualizar prestamos anteriores a 'Renovado'
+                            // 1. Actualizar prestamos anteriores a 'Pagado'
                             if (d.previousLoanIds && d.previousLoanIds.length > 0) {
                                 const { error: updateErr } = await supabase.from('loans')
-                                    .update({ status: 'Renovado', updated_at: new Date().toISOString() })
+                                    .update({ status: 'Pagado', updated_at: new Date().toISOString() })
                                     .in('id', d.previousLoanIds);
                                 if (updateErr) throw updateErr;
                             }

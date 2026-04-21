@@ -835,12 +835,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const isRenewal = l.isRenewal === true || l.operationTypeCode === '204' || l.operationTypeCode === '205';
       if (!isRenewal) return false;
 
-      // Normalización de fecha para comparación robusta
+      // Normalización de fecha para comparación robusta (usando solo fecha para los límites)
       const loanDate = new Date(l.createdAt);
+      const loanDateMs = loanDate.getTime();
+      
       // Filtro por Colector
       const matchesCollector = selectedCollector === 'all' || (l.collectorId || (l as any).collector_id)?.toLowerCase() === selectedCollector.toLowerCase();
       
-      return loanDate >= start && loanDate <= end && matchesCollector;
+      // Permitimos un margen de 1 minuto para evitar problemas de precisión en los límites
+      return loanDateMs >= (start.getTime() - 60000) && loanDateMs <= (end.getTime() + 60000) && matchesCollector;
     }).map(loan => {
       const client = clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden || client.deletedAt) return null;
@@ -1776,7 +1779,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         frequency: renewForm.frequency, totalAmount: total,
         installmentValue: inst > 0 ? total / inst : 0, status: LoanStatus.ACTIVE,
         createdAt: validStartDate.toISOString(), customHolidays: renewForm.customHolidays,
-        operationTypeCode: renewForm.operationTypeCode || '202',
+        operationTypeCode: renewForm.operationTypeCode || '204',
         sellerCode: renewForm.sellerCode || clientInLegajo.sellerCode || '',
         promissoryNoteAmount: Number(renewForm.promissoryNoteAmount) || 0,
         promissoryNoteExpiration: renewForm.promissoryNoteExpiration || '',
