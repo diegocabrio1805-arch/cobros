@@ -841,11 +841,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       
       // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente)
       const loanCollectorId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
-      const clientObj = clients.find(c => c.id === l.clientId);
+      const lClientId = (l.clientId || (l as any).client_id || '').toLowerCase();
+      const clientObj = (clients || []).find(c => (c.id || '').toLowerCase() === lClientId);
       const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
-      const collectorLower = selectedCollector.toLowerCase();
+      const collectorLower = (selectedCollector || '').toLowerCase();
       
-      const matchesCollector = selectedCollector === 'all' || 
+      const matchesCollector = collectorLower === 'all' || 
                                loanCollectorId === collectorLower || 
                                clientAddedBy === collectorLower;
       
