@@ -139,10 +139,6 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
     setActiveTab(isPowerUser ? 'dashboard' : 'route');
   };
 
-  const handleOpenWeb = () => {
-    // Open in system browser
-    window.open('https://anexo-cobro.vercel.app', '_system');
-  };
 
   const countries = [
     { code: 'AG', name: 'Antigua y Barbuda', flag: '🇦🇬' },
@@ -494,13 +490,6 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <span className="text-[10px] font-black uppercase tracking-widest">LIMPIAR COLA</span>
               </button>
 
-              <button
-                onClick={handleOpenWeb}
-                className="w-full p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
-              >
-                <i className="fa-brands fa-chrome text-xl"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">ABRIR VERSIÓN WEB</span>
-              </button>
 
               <button
                 onClick={() => {

@@ -43,7 +43,8 @@
       });
 
       const handlePanic = (msg) => {
-        const isTransient = /signal is aborted|AbortError|Failed to fetch|network error/i.test(msg);
+        // Ignorar errores transitorios o de ServiceWorker que no impiden el funcionamiento
+        const isTransient = /signal is aborted|AbortError|Failed to fetch|network error|ServiceWorker|script error/i.test(msg);
         if (isTransient) return;
 
         console.error("Error crítico detectado:", msg);
@@ -68,13 +69,11 @@
       };
 
       window.addEventListener('error', (e) => {
-        if ((e.message || '').includes('ServiceWorker')) return;
         handlePanic(e.message || 'Error Desconocido');
       });
       window.addEventListener('unhandledrejection', (e) => {
-        const msg = e.reason?.message || "Error Promesa";
-        if (msg.includes('ServiceWorker')) return;
-        handlePanic(msg);
+        const msg = e.reason?.message || e.reason || "Error Promesa";
+        handlePanic(msg.toString());
       });
     })();
   </script>

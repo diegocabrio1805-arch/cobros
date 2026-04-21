@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './', // CRITICAL for GitHub Pages (subpath /cobros/) and relative asset loading
+    base: './', // Relative paths for better compatibility across environments
     server: {
       port: 5177,
       strictPort: false,
@@ -23,10 +23,8 @@ export default defineConfig(({ mode }) => {
         additionalLegacyPolyfills: ['regenerator-runtime/runtime']
       }),
       VitePWA({
-        registerType: 'prompt',
-        base: '/cobros/',
-        scope: '/cobros/',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'maskable-icon.png'],
+        registerType: 'autoUpdate', // Automatically update SW when ready
+        injectRegister: 'auto',
         manifest: {
           name: 'Anexo Cobro',
           short_name: 'Cobro',
@@ -47,7 +45,10 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MiB
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true
         }
       })
     ],

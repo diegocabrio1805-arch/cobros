@@ -80,8 +80,12 @@ export const useAppInitialization = () => {
           console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}`);
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
           if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (const r of regs) await r.unregister();
+            try {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const r of regs) await r.unregister();
+            } catch (swErr) {
+              console.warn("[App] Could not unregister SW (Incognito?):", swErr);
+            }
           }
         }
 
