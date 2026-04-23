@@ -50,12 +50,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const allClients = Array.isArray(state.clients) ? state.clients : [];
     const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
 
-    // 1. Identificar clientes únicos con préstamos que califiquen para la vista actual
-    const clientMap: Record<string, { client: Client, loans: Loan[] }> = {};
+    // 1. Identificar clientes únicos que califiquen para la vista actual
+    const clientMap: Record<string, { client: Client, loans: Loan[], isNewClient?: boolean }> = {};
 
-    allLoans.forEach(loan => {
-      const client = allClients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return;
+    allClients.forEach(client => {
+      if (client.isHidden || client.deletedAt) return;
 
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = client.name.toLowerCase().includes(searchLower) ||
@@ -64,55 +63,84 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       if (!matchesSearch) return;
 
+      const clientLoans = allLoans.filter(l => l.clientId === client.id);
+      
       // Lógica de calificación según viewMode
       let qualifies = false;
-      if (viewMode === 'vencidos') {
-        const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
-        qualifies = getDaysOverdue(loan, state.settings, totalPaid) > 0;
-      } else if (viewMode === 'renovaciones') {
-        qualifies = loan.isRenewal === true && loan.status === LoanStatus.ACTIVE;
-      } else if (viewMode === 'gestion') {
-        const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
-        const balance = loan.totalAmount - totalPaid;
-        const isPaid = loan.status === LoanStatus.PAID || balance <= 0.01;
+      let targetLoans = [...clientLoans];
 
-        if (!isPaid) {
+      if (viewMode === 'vencidos') {
+        targetLoans = clientLoans.filter(loan => {
+          const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+          return getDaysOverdue(loan, state.settings, totalPaid) > 0;
+        });
+        qualifies = targetLoans.length > 0;
+      } else if (viewMode === 'renovaciones') {
+        targetLoans = clientLoans.filter(loan => loan.isRenewal === true && loan.status === LoanStatus.ACTIVE);
+        qualifies = targetLoans.length > 0;
+      } else if (viewMode === 'gestion') {
+        if (clientLoans.length === 0) {
+          // CASO NUEVO: Cliente sin créditos
+          qualifies = true;
+          clientMap[client.id] = { client, loans: [], isNewClient: true };
+          return;
+        }
+
+        const hasActive = clientLoans.some(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs)) > 0.01);
+        
+        if (hasActive) {
+          targetLoans = clientLoans.filter(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
           qualifies = true;
         } else {
-          // Si está pagado, califica si es el más reciente de este cliente y no hay otros activos
-          const clientLoans = allLoans.filter(l => l.clientId === loan.clientId);
-          const hasActive = clientLoans.some(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs)) > 0.01);
-          if (!hasActive) {
-            const sorted = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            qualifies = sorted[0]?.id === loan.id;
-          }
+          // Si está pagado, califica el más reciente de este cliente
+          const sorted = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          targetLoans = [sorted[0]];
+          qualifies = true;
         }
       } else {
         qualifies = true;
       }
 
       if (qualifies) {
-        if (!clientMap[client.id]) {
-          clientMap[client.id] = { client, loans: [] };
-        }
-        clientMap[client.id].loans.push(loan);
+        clientMap[client.id] = { client, loans: targetLoans };
       }
     });
 
-    // 2. Consolidar préstamos por cliente usando TODOS sus préstamos activos
-    return Object.values(clientMap).map(({ client }) => {
-      // IMPORTANTE: Buscar TODOS los préstamos activos del cliente en el estado global,
-      // no solo los que "calificaron" para esta pestaña, para que el Saldo y Cobrado coincidan con Cartera.
+    // 2. Consolidar préstamos por cliente
+    return Object.values(clientMap).map(({ client, loans, isNewClient }) => {
+      if (isNewClient || loans.length === 0) {
+        // Objeto dummy para cliente nuevo
+        return {
+          id: `new-client-${client.id}`,
+          clientId: client.id,
+          principal: 0,
+          totalAmount: 0,
+          installmentValue: 0,
+          totalInstallments: 0,
+          status: LoanStatus.PAID,
+          createdAt: client.createdAt || new Date().toISOString(),
+          installments: [],
+          _isNewClient: true,
+          _consolidatedPaid: 0,
+          _consolidatedBalance: 0,
+          _consolidatedPrincipal: 0,
+          _consolidatedTotalAmount: 0,
+          _consolidatedInstallmentValue: 0,
+          _consolidatedMora: 0,
+          _clientName: client.name 
+        };
+      }
+      
+      // Métricas consolidadas de TODOS los préstamos activos (estilo Cartera)
       const clientLoans = allLoans.filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       
       // Ordenar préstamos activos: Más reciente primero para el "base"
       const sortedLoans = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
       // Si no hay préstamos activos (ej: modo gestion mostrando el último pagado), usamos los que calificaron originalmente
-      const displayLoans = sortedLoans.length > 0 ? sortedLoans : (clientMap[client.id].loans || []);
+      const displayLoans = sortedLoans.length > 0 ? sortedLoans : (loans || []);
       const baseLoan = displayLoans[0];
-      
-      // Métricas consolidadas de TODOS los préstamos activos (estilo Cartera)
+
       const totalPaid = clientLoans.reduce((sum, l) => sum + calculateTotalPaidFromLogs(l, allLogs), 0);
       const consolidatedBalance = clientLoans.reduce((sum, l) => {
           const lp = calculateTotalPaidFromLogs(l, allLogs);
@@ -971,6 +999,39 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                             </div>
                           </div>
                         </>
+                      ) : (loan as any)._isNewClient ? (
+                        <div className="bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
+                          {/* Sello de Nuevo Cliente */}
+                          <div className="absolute -right-4 -top-4 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+                          
+                          <div className="w-14 h-14 bg-blue-500/20 rounded-full flex items-center justify-center border border-blue-500/30 shadow-lg shadow-blue-500/10">
+                            <i className="fa-solid fa-user-plus text-blue-400 text-2xl"></i>
+                          </div>
+
+                          <div>
+                            <span className="bg-blue-600 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-blue-500/20">Cliente sin Crédito</span>
+                            <h3 className="text-base font-black text-white uppercase tracking-tight mt-3">Habilitar Cartera</h3>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 px-4 leading-relaxed opacity-80">
+                              Este cliente ha sido cargado pero aún no cuenta con un crédito activo.
+                            </p>
+                          </div>
+
+                          <div className="w-full pt-2">
+                            <button 
+                              onClick={() => {
+                                localStorage.setItem('quick_renewal_client', JSON.stringify(client));
+                                setActiveTab('clients');
+                                setTimeout(() => {
+                                  window.dispatchEvent(new CustomEvent('open_add_loan_modal', { detail: client }));
+                                }, 100);
+                              }}
+                              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-blue-800"
+                            >
+                              <i className="fa-solid fa-plus-circle text-xs"></i>
+                              CARGAR CREDITO
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
                           {/* Sello de Liquidado */}
