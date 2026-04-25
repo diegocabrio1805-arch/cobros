@@ -1,7 +1,7 @@
 import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
-import { calculateTotalPaidFromLogs, formatCurrency } from '../utils/helpers';
+import { calculateTotalPaidFromLogs, formatCurrency, generateUUID } from '../utils/helpers';
 import { connectToPrinter } from '../services/bluetoothPrinterService';
 import React from 'react';
 export const useAppActions = (
@@ -396,7 +396,7 @@ export const useAppActions = (
         const loan = state.loans.find(l => l.id === logToDelete.loanId);
 
         newAuditLog = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           loanId: logToDelete.loanId,
           clientId: logToDelete.clientId,
           branchId: state.currentUser?.managedBy || state.currentUser?.id,
@@ -640,7 +640,7 @@ export const useAppActions = (
       const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
 
       const newAuditLog: CollectionLog = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         loanId: (clientLoans.length > 0 ? clientLoans[0].id : clientId) as any,
         clientId: clientId as any,
         branchId: state.currentUser?.managedBy || state.currentUser?.id,

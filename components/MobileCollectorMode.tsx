@@ -141,7 +141,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
         clientId,
         loanId: loan.id,
         type,
-        amount: type === CollectionLogType.PAYMENT ? amountToApply : undefined,
+        amount: type === CollectionLogType.PAYMENT ? amountToApply : 0,
         date: new Date().toISOString(),
         location: currentLocation,
         isVirtual: isVirtualProcessing,
@@ -149,8 +149,8 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
         companySnapshot: state.settings
       };
 
-      addCollectionAttempt(log, true);
-      if (onForceSync) onForceSync(true, "Registrando...", false, true);
+      await addCollectionAttempt(log, true);
+      if (onForceSync) await onForceSync(true, "Registrando...", false, true);
 
       if (type === CollectionLogType.PAYMENT) {
           const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
@@ -187,7 +187,30 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
              }, 1000);
           }
       } else {
-          // If NO PAGO, clear selection
+          // If NO PAGO, send WhatsApp message and clear selection
+          const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
+          if (client) {
+             const totalPaidHistory = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+             const remainingBalance = Math.max(0, loan.totalAmount - totalPaidHistory);
+             const daysOverdue = getDaysOverdue(loan, state.settings, totalPaidHistory);
+             
+             let message = '';
+             if (client.customNoPayMessage) {
+                 message = client.customNoPayMessage
+                     .replace('{cliente}', client.name)
+                     .replace('{saldo}', formatCurrency(remainingBalance, state.settings))
+                     .replace('{atraso}', daysOverdue.toString());
+             } else {
+                 message = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+             }
+
+             setTimeout(() => {
+                const phone = client.phone.replace(/\D/g, '');
+                if (phone) {
+                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                }
+             }, 1000);
+          }
           resetUI();
       }
       setSelectedClient(null);

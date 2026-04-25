@@ -544,7 +544,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 })},
                 'ADD_LOG': { items: [], table: 'collection_logs', isDelete: false, mapper: (d) => ({
                     id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
-                    recorded_by: d.recordedBy, amount: d.amount, type: d.type, date: d.date,
+                    recorded_by: d.recordedBy, amount: d.amount !== undefined && d.amount !== null ? d.amount : 0, type: d.type, date: d.date,
                     location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
                     is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
                     deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()

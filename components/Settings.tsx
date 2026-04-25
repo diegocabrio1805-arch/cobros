@@ -54,7 +54,30 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
   const handleScanPrinters = async () => {
     setScanningPrinters(true);
     try {
-      const { listBondedDevices, checkBluetoothEnabled, enableBluetooth } = await import('../services/bluetoothPrinterService');
+      const { listBondedDevices, checkBluetoothEnabled, enableBluetooth, connectToPrinter } = await import('../services/bluetoothPrinterService');
+      
+      // Fallback para Navegadores Web (PC o Chrome Móvil sin APK)
+      const hasCordova = !!(window as any).cordova || !!(window as any).BluetoothSerial;
+      if (!hasCordova) {
+        if (!('bluetooth' in navigator)) {
+          alert("Tu navegador no soporta Web Bluetooth. Usa Chrome o la app nativa (APK).");
+          setScanningPrinters(false);
+          return;
+        }
+        
+        // El navegador pedirá al usuario que seleccione un dispositivo mediante un popup nativo
+        const connected = await connectToPrinter(undefined, true, false);
+        if (connected) {
+          alert("Impresora vinculada exitosamente vía Web Bluetooth.");
+          setConnectedDevice("Impresora Web Bluetooth");
+          localStorage.setItem('printer_name', 'Impresora Web Bluetooth');
+          setShowPrinterModal(false);
+        }
+        setScanningPrinters(false);
+        return;
+      }
+
+      // Lógica Nativa para la APK
       const enabled = await checkBluetoothEnabled();
       if (!enabled) {
         const success = await enableBluetooth();

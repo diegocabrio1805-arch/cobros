@@ -2,7 +2,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency, LoanStatus, CollectionLogType, PaymentStatus } from '../types';
 
 export const generateUUID = (): string => {
-  return uuidv4();
+  try {
+    // Intenta usar la API nativa si está disponible (entornos seguros/modernos)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+  } catch (e) {
+    // Silently fallback
+  }
+  
+  // Fallback robusto para HTTP, dispositivos viejos o entornos no seguros
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
 
 const COUNTRY_TIMEZONES: Record<string, string> = {
