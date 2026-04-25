@@ -468,10 +468,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         // WhatsApp
         if (client) {
           const phone = client.phone.replace(/\D/g, '');
-          const cleanReceipt = convertReceiptForWhatsApp(finalReceipt);
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
+          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("ticket")}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
         const client = state.clients.find(c => c.id === loan.clientId);
@@ -746,8 +743,14 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         link.download = fileName;
         link.click();
 
-        const cleanReceipt = convertReceiptForWhatsApp(receipt);
-        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
+        // Manual WhatsApp "ticket"
+        const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
+          receipt.includes(c.name.toUpperCase().substring(0, 10))
+        );
+        const phone = client?.phone.replace(/\D/g, '') || '';
+        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+        const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
       }
     } catch (err) {
       console.error("Error sharing PDF:", err);
@@ -1627,8 +1630,14 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   const { printText } = await import('../services/bluetoothPrinterService');
                   printText(finalReceipt).catch(() => { });
 
-                    const cleanReceipt = convertReceiptForWhatsApp(finalReceipt);
-                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
+                  // WhatsApp Automático
+                  const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
+                  if (client) {
+                    const phone = client.phone.replace(/\D/g, '');
+                    const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+                    const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
+                  }
                 }}
                 className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >
