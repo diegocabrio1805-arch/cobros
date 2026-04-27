@@ -297,8 +297,10 @@ export const useAppActions = (
       loans: prev.loans.filter(l => l.id !== loanId),
       collectionLogs: [newAuditLog, ...prev.collectionLogs]
     }));
-    deleteRemoteLoan(loanId);
+    // CRITICAL: pushLog primero para evitar race condition con isProcessingRef
     pushLog(newAuditLog);
+    deleteRemoteLoan(loanId);
+    await new Promise(r => setTimeout(r, 200));
     handleForceSync(false);
   };
 
