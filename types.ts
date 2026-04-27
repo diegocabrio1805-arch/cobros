@@ -101,6 +101,7 @@ export interface Client {
   housePic?: string;
   businessPic?: string;
   documentPic?: string;
+  documentBackPic?: string;
   location?: {
     lat: number;
     lng: number;

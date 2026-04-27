@@ -170,7 +170,7 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   );
 };
 
-const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
+const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
   const isPdf = value && value.startsWith('data:application/pdf');
 
   return (
@@ -344,6 +344,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     housePic: '',
     businessPic: '',
     documentPic: '',
+    documentBackPic: '',
     allowCollectorLocationUpdate: false,
     isActive: true,
     // Inicializar nuevos campos
@@ -1075,6 +1076,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       setClientData({
         id: '', documentId: '', name: '', phone: '', secondaryPhone: '', address: '', creditLimit: 1000000,
         location: undefined, domicilioLocation: undefined, profilePic: '', housePic: '', businessPic: '', documentPic: '',
+        documentBackPic: '',
         allowCollectorLocationUpdate: false, isActive: true, isHidden: false,
         nationality: '', birthDate: '', maritalStatus: '', profession: '', email: '',
         spouseName: '', spouseDocumentId: '', spouseBirthDate: '', spouseProfession: '', spouseWorkplace: '', spouseWorkPhone: '', spouseIncome: 0,
@@ -1125,7 +1127,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean = false) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', forEdit: boolean = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1170,6 +1172,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const handleSaveEditedClient = () => {
     if (editClientFormData && updateClient) {
+      if (isCollector) {
+        const hasLocation = editClientFormData.location?.lat && editClientFormData.location?.lng;
+        const hasDomicilio = editClientFormData.domicilioLocation?.lat && editClientFormData.domicilioLocation?.lng;
+        
+        if (!hasLocation && !hasDomicilio) {
+          alert("⚠️ ERROR GPS: No has capturado ninguna ubicación. Presiona 'CAPTURAR CASA' o 'CAPTURAR NEGOCIO' antes de guardar.");
+          return;
+        }
+      }
+
       updateClient(editClientFormData);
       if (editLoanFormData && updateLoan) {
         const loanToSave = {
@@ -2746,9 +2758,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                       <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
                         <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">IV. Documentación Fotográfica</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                           <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
                           <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
+                          <PhotoUploadField label="Cédula Dorso" field="documentBackPic" value={clientData.documentBackPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', clientData)} />
                           <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', clientData)} />
                           <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', clientData)} />
                         </div>
@@ -3218,7 +3231,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm space-y-3">
                             <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">Fotos del Expediente</h4>
                             <div className="grid grid-cols-2 gap-2">
-                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item: { key: string, label: string }) => {
+                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'documentBackPic', label: 'Cédula Dorso' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item: { key: string, label: string }) => {
                                 // Buscar al cliente en tiempo real en el estado para obtener las fotos recién descargadas
                                 const liveClient = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientInLegajo.id) || clientInLegajo;
                                 const photoUrl = liveClient[item.key as keyof Client] as string;
@@ -3356,9 +3369,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">III. Documentación Fotográfica</h5>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
                                 <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
                                 <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
+                                <PhotoUploadField label="Cédula Dorso" field="documentBackPic" value={editClientFormData?.documentBackPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', editClientFormData!)} />
                                 <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
                                 <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
                               </div>
