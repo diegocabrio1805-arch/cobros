@@ -436,15 +436,20 @@ export const useAppActions = (
         setTimeout(() => recalculateLoanStatus(logToDelete.loanId!, logsForRecalc), 0);
       }
 
-      deleteRemoteLog(logId);
-      const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
-      for (const p of related) deleteRemotePayment(p.id);
-
+      // CRITICAL: Encolar el audit log PRIMERO, antes de los DELETEs.
+      // Si se encola después, el primer processQueue() disparado por deleteRemoteLog()
+      // pone isProcessingRef=true y bloquea el pushLog, dejando el PAGO_ELIMINADO atrapado.
       if (newAuditLog) {
         pushLog(newAuditLog);
       }
 
-      // CRITICAL: Force sync so deletions are pushed to the server immediately
+      deleteRemoteLog(logId);
+      const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
+      for (const p of related) deleteRemotePayment(p.id);
+
+      // Pequeño delay para que el processQueue() inmediato del primer addToQueue() termine
+      // antes de forzar un segundo ciclo completo de sync.
+      await new Promise(r => setTimeout(r, 200));
       await handleForceSync(true, "Pago eliminado y sincronizado");
 
     } catch (err: any) {
