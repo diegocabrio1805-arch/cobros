@@ -387,7 +387,14 @@ export const useAppSyncEngine = (
     );
     let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
       isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) &&
-      !log.deletedAt
+      !log.deletedAt &&
+      (
+        // Logs de auditoría de eliminados: siempre visibles (no tienen clientId activo)
+        log.type === CollectionLogType.DELETED_PAYMENT ||
+        // Logs normales: solo mostrar si el cliente sigue activo en el sistema
+        !log.clientId ||
+        activeClientIds.has(log.clientId)
+      )
     );
 
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {

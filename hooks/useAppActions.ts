@@ -300,8 +300,7 @@ export const useAppActions = (
     // CRITICAL: pushLog primero para evitar race condition con isProcessingRef
     pushLog(newAuditLog);
     deleteRemoteLoan(loanId);
-    await new Promise(r => setTimeout(r, 200));
-    handleForceSync(false);
+    await handleForceSync(false);
   };
 
   const addCollectionAttempt = async (log: CollectionLog, skipSync: boolean = false) => {
@@ -449,9 +448,6 @@ export const useAppActions = (
       const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
       for (const p of related) deleteRemotePayment(p.id);
 
-      // Pequeño delay para que el processQueue() inmediato del primer addToQueue() termine
-      // antes de forzar un segundo ciclo completo de sync.
-      await new Promise(r => setTimeout(r, 200));
       await handleForceSync(true, "Pago eliminado y sincronizado");
 
     } catch (err: any) {

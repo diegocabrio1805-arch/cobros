@@ -21,6 +21,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const [queueLength, setQueueLength] = useState(0);
     const [lastErrors, setLastErrors] = useState<{ table: string, error: any, timestamp: string }[]>([]);
     const isProcessingRef = useRef(false);
+    const pendingRunRef = useRef(false);
+    const pendingParamsRef = useRef({ force: false, fullSync: false, skipPull: true });
 
     // Checks for internet connection
     const checkConnection = async (): Promise<boolean> => {
@@ -472,8 +474,23 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     };
 
     const processQueue = async (force = false, fullSync = false, skipPull = false) => {
-        if (isProcessingRef.current && !force) return;
+        if (isProcessingRef.current) {
+            pendingRunRef.current = true;
+            pendingParamsRef.current = {
+                force: force || pendingParamsRef.current.force,
+                fullSync: fullSync || pendingParamsRef.current.fullSync,
+                skipPull: skipPull && pendingParamsRef.current.skipPull
+            };
+            return;
+        }
         isProcessingRef.current = true;
+
+        const finalForce = force || pendingParamsRef.current.force;
+        const finalFullSync = fullSync || pendingParamsRef.current.fullSync;
+        const finalSkipPull = skipPull && pendingParamsRef.current.skipPull;
+
+        // Reset pending params
+        pendingParamsRef.current = { force: false, fullSync: false, skipPull: true };
         try {
             const online = await checkConnection();
             setIsOnline(online);
@@ -492,7 +509,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setQueueLength(queue.length);
 
             if (queue.length === 0) {
-                if (force || fullSync) pullData(fullSync);
+                if (finalForce || finalFullSync) pullData(finalFullSync);
                 setIsSyncing(false);
                 isProcessingRef.current = false;
                 return;
@@ -730,16 +747,22 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             if (remainingQueue.length > 0) {
                 setSyncError(`Pendientes: ${remainingQueue.length}. Reintentando automáticamente...`);
-                setTimeout(() => processQueue(true, fullSync, skipPull), 3000);
+                setTimeout(() => processQueue(true, finalFullSync, finalSkipPull), 3000);
             } else {
                 setSyncError(null);
-                if (!skipPull) pullData(fullSync);
+                if (!finalSkipPull) pullData(finalFullSync);
             }
         } catch (err) { 
             setSyncError("Error sincronización."); 
         } finally {
             isProcessingRef.current = false;
-            setIsSyncing(false);
+            
+            if (pendingRunRef.current) {
+                pendingRunRef.current = false;
+                setTimeout(() => processQueue(false, false, false), 100);
+            } else {
+                setIsSyncing(false);
+            }
         }
     };
 
