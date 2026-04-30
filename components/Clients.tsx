@@ -664,16 +664,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
 
     if (activeLoan) {
-      // USAR SIEMPRE LA FUNCIÓN ROBUSTA UNIFICADA
-      totalPaid = clientLoans.reduce((sum, l) => sum + calculateTotalPaidFromLogs(l, state.collectionLogs), 0);
+      // USAR SIEMPRE LA FUNCIÓN ROBUSTA UNIFICADA - AHORA SOLO DEL PRESTAMO ACTIVO PARA EVITAR SUMAS DE CREDITOS ANTERIORES
+      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
 
-      const totalCreditAmount = clientLoans.reduce((sum, l) => sum + l.totalAmount, 0);
+      const totalCreditAmount = activeLoan.totalAmount;
 
-      // Saldo Pendiente Consolidado
-      balance = clientLoans.reduce((sum, l) => {
-        const lPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
-        return sum + Math.max(0, l.totalAmount - lPaid);
-      }, 0);
+      // Saldo Pendiente del préstamo activo
+      balance = Math.max(0, totalCreditAmount - totalPaid);
 
       isFullyPaid = balance <= 0.01;
 
