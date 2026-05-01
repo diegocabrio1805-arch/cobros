@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { Toast } from '@capacitor/toast';
 
 const BackgroundGeolocation = registerPlugin<any>('BackgroundGeolocation');
 import { supabase } from '../utils/supabaseClient';
@@ -61,7 +60,6 @@ export const useGPSWarmer = (user: User | null) => {
           }
         } catch (e: any) {
           console.warn("[GPSWarmer] No se pudo obtener la posición inicial:", e);
-          Toast.show({ text: `GPS Bloqueado: Sal al exterior 1 minuto.`, duration: 'long' }).catch(()=>{});
         }
 
         if (Capacitor.isNativePlatform()) {
@@ -211,7 +209,6 @@ export const useGPSWarmer = (user: User | null) => {
             
           if (error && !error.message.includes("schema cache")) {
             console.error("[GPS Engine] Error subiendo GPS:", error.message);
-            Toast.show({ text: `GPS Sync Error: ${error.message}` }).catch(()=>{});
           }
         } else {
           console.warn("[GPS Engine] No se encontró usuario en Preferences o LocalStorage");
