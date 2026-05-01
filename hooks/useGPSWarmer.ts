@@ -16,6 +16,7 @@ export const useGPSWarmer = () => {
     let watchId: string | Promise<string> | null = null;
     let isWatching = false;
     let retryInterval: any;
+    let lastUpdateTs = Date.now();
     
     const startWatching = async () => {
       try {
@@ -26,22 +27,24 @@ export const useGPSWarmer = () => {
 
         if (isWatching) return;
         isWatching = true;
+        lastUpdateTs = Date.now(); // Reset watchdog
 
         watchId = Geolocation.watchPosition({
           enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 3000
+          timeout: 10000,
+          maximumAge: 5000
         }, (position, err) => {
           if (err) {
             console.warn("[GPSWarmer] Error en watchPosition, reiniciando...", err);
-            isWatching = false;
+            isWatching = false; // Permitir reinicio
             return;
           }
           if (position && position.coords) {
+            lastUpdateTs = Date.now();
             const loc = {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
-              timestamp: Date.now()
+              timestamp: lastUpdateTs
             };
             setActiveLocation(loc);
             localStorage.setItem('last_known_gps', JSON.stringify({ ...loc, ts: loc.timestamp }));
@@ -53,23 +56,49 @@ export const useGPSWarmer = () => {
       }
     };
 
-    // Intentar iniciar. Si no hay permisos, el intervalo lo seguirá intentando.
-    startWatching();
-    retryInterval = setInterval(() => {
-        if (!isWatching) {
-            startWatching();
-        }
-    }, 5000);
-
-    return () => {
-      clearInterval(retryInterval);
+    const stopWatching = () => {
       if (watchId) {
         if (typeof watchId === 'string') {
           Geolocation.clearWatch({ id: watchId });
         } else {
           watchId.then(id => Geolocation.clearWatch({ id }));
         }
+        watchId = null;
       }
+      isWatching = false;
+    };
+
+    // Intentar iniciar. Si no hay permisos, el intervalo lo seguirá intentando.
+    startWatching();
+
+    // WATCHDOG: Verifica cada 5 segundos si el sensor se quedó dormido (común en Android tras apagar pantalla)
+    retryInterval = setInterval(() => {
+        const timeSinceLastUpdate = Date.now() - lastUpdateTs;
+        if (!isWatching || timeSinceLastUpdate > 15000) {
+            if (timeSinceLastUpdate > 15000 && isWatching) {
+                console.warn("[GPSWarmer] Sensor GPS dormido detectado (>15s sin datos). Reiniciando forzosamente...");
+                stopWatching();
+            }
+            startWatching();
+        }
+    }, 5000);
+
+    // Reinicio forzado al volver a la app (foreground)
+    const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+            console.log("[GPSWarmer] App en foreground. Verificando GPS...");
+            if (Date.now() - lastUpdateTs > 10000) {
+               stopWatching();
+               startWatching();
+            }
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(retryInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      stopWatching();
     };
   }, []);
 
