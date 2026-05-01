@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
+import { User, Role } from '../types';
 
 export interface GPSLocation {
   lat: number;
@@ -9,7 +10,7 @@ export interface GPSLocation {
   timestamp: number;
 }
 
-export const useGPSWarmer = () => {
+export const useGPSWarmer = (user: User | null) => {
   const [activeLocation, setActiveLocation] = useState<GPSLocation | null>(null);
 
   useEffect(() => {
@@ -19,6 +20,8 @@ export const useGPSWarmer = () => {
     let lastUpdateTs = Date.now();
     
     const startWatching = async () => {
+      if (!user || user.role !== Role.COLLECTOR) return;
+
       try {
         const perm = await Geolocation.checkPermissions();
         if (perm.location !== 'granted') {
@@ -71,17 +74,20 @@ export const useGPSWarmer = () => {
     // Intentar iniciar. Si no hay permisos, el intervalo lo seguirá intentando.
     startWatching();
 
-    // WATCHDOG: Verifica cada 5 segundos si el sensor se quedó dormido (común en Android tras apagar pantalla)
+    // WATCHDOG: Verifica cada 10 segundos si el sensor se quedó dormido.
+    // Usamos 60s (60000ms) de tolerancia para dar tiempo a un GPS frío a arrancar.
     retryInterval = setInterval(() => {
+        if (!user || user.role !== Role.COLLECTOR) return;
+
         const timeSinceLastUpdate = Date.now() - lastUpdateTs;
-        if (!isWatching || timeSinceLastUpdate > 15000) {
-            if (timeSinceLastUpdate > 15000 && isWatching) {
-                console.warn("[GPSWarmer] Sensor GPS dormido detectado (>15s sin datos). Reiniciando forzosamente...");
+        if (!isWatching || timeSinceLastUpdate > 60000) {
+            if (timeSinceLastUpdate > 60000 && isWatching) {
+                console.warn("[GPSWarmer] Sensor GPS dormido detectado (>60s sin datos). Reiniciando forzosamente...");
                 stopWatching();
             }
             startWatching();
         }
-    }, 5000);
+    }, 10000);
 
     // Reinicio forzado al volver a la app (foreground)
     const handleVisibility = () => {
@@ -100,7 +106,7 @@ export const useGPSWarmer = () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       stopWatching();
     };
-  }, []);
+  }, [user]);
 
   // NUEVO: Motor de envío periódico a Supabase para 'COBRADORGPS'
   useEffect(() => {
