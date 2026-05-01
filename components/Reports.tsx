@@ -32,6 +32,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [showAiModal, setShowAiModal] = useState(false); // NEW
    const [loadingAi, setLoadingAi] = useState(false);
 
+   // --- LIVE TRACKING STATE ---
+   const [isLiveTracking, setIsLiveTracking] = useState(false);
+   const [liveLocation, setLiveLocation] = useState<{lat: number, lng: number, timestamp: number, accuracy?: number} | null>(null);
+   const liveMarkerRef = useRef<any>(null);
+
    // --- ESTADOS PARA EVITAR PARPADEO DEL MAPA ---
    const [mapData, setMapData] = useState<CollectionLog[]>([]);
    const lastMapUpdate = useRef<number>(0);
@@ -169,13 +174,74 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const elapsed = now - lastMapUpdate.current;
       const THROTTLE_MS = 30000; // 30 segundos de pausa para mejor visualización (Ajustado por el usuario)
 
-      if (elapsed >= THROTTLE_MS) {
+      if (elapsed >= THROTTLE_MS && !isLiveTracking) {
          setMapData(routeData);
          lastMapUpdate.current = now;
          // console.log("[Reports] Sincronización fondo: Actualización aplicada (45s)");
       }
       // Si han pasado menos de 45s, ignoramos. El mapa se refrescará en la próxima sincronización que ocurra.
-   }, [routeData]);
+   }, [routeData, isLiveTracking]);
+
+   // --- LIVE TRACKING SUSCRIPCIÓN ---
+   useEffect(() => {
+      if (!isLiveTracking || selectedCollector === 'all') return;
+
+      import('../utils/supabaseClient').then(({ supabase }) => {
+         console.log(`[Reports] 📡 Suscribiendo a GPS en vivo para: ${selectedCollector}`);
+         
+         const channel = supabase.channel('room-gps');
+         
+         channel.on('broadcast', { event: 'location_update' }, (payload: any) => {
+            const data = payload.payload;
+            // Solo procesar si el mensaje es del cobrador seleccionado
+            if (data && data.collectorId === selectedCollector) {
+               console.log("[Reports] 📍 Coordenada en vivo recibida:", data);
+               setLiveLocation({
+                  lat: data.lat,
+                  lng: data.lng,
+                  timestamp: data.timestamp,
+                  accuracy: data.accuracy
+               });
+            }
+         }).subscribe();
+
+         return () => {
+            console.log(`[Reports] 🔌 Desconectando GPS en vivo`);
+            supabase.removeChannel(channel);
+            setLiveLocation(null);
+            if (liveMarkerRef.current && layerGroup.current) {
+               layerGroup.current.removeLayer(liveMarkerRef.current);
+               liveMarkerRef.current = null;
+            }
+         };
+      });
+   }, [isLiveTracking, selectedCollector]);
+
+   // --- LIVE TRACKING ACTUALIZACIÓN EN MAPA ---
+   useEffect(() => {
+      if (isLiveTracking && liveLocation && leafletMap.current && layerGroup.current) {
+         if (!liveMarkerRef.current) {
+            const liveIcon = L.divIcon({
+               className: 'custom-icon',
+               html: `<div class="relative">
+                        <div class="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-75" style="width: 24px; height: 24px; left: -12px; top: -12px;"></div>
+                        <div class="relative bg-indigo-600 border-2 border-white rounded-full flex items-center justify-center text-white shadow-xl" style="width: 24px; height: 24px; left: -12px; top: -12px;">
+                           <i class="fa-solid fa-motorcycle text-[10px]"></i>
+                        </div>
+                      </div>`,
+               iconAnchor: [0, 0]
+            });
+            liveMarkerRef.current = L.marker([liveLocation.lat, liveLocation.lng], { icon: liveIcon, zIndexOffset: 1000 }).addTo(layerGroup.current);
+            // Hacer zoom inicial suave al encontrarlo
+            leafletMap.current.flyTo([liveLocation.lat, liveLocation.lng], 16, { animate: true, duration: 1.5 });
+         } else {
+            // Mover suavemente
+            liveMarkerRef.current.setLatLng([liveLocation.lat, liveLocation.lng]);
+            // Mantener centrado si se mueve
+            leafletMap.current.panTo([liveLocation.lat, liveLocation.lng], { animate: true });
+         }
+      }
+   }, [liveLocation, isLiveTracking]);
 
    useEffect(() => {
       if (mapRef.current && !leafletMap.current) {
@@ -1158,14 +1224,31 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                { (selectedCollector !== 'all' && (state.currentUser?.name?.toUpperCase() === 'GPS' || state.currentUser?.username?.toUpperCase() === 'GPS' || true)) && (
                   <>
                      <button
-                        onClick={() => alert("Iniciando Rastreo en Tiempo Real para el Cobrador seleccionado...")}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border border-indigo-500"
+                        onClick={() => {
+                           if (selectedCollector === 'all') {
+                              alert("Selecciona un cobrador específico para ver su ubicación en tiempo real.");
+                              return;
+                           }
+                           setIsLiveTracking(!isLiveTracking);
+                        }}
+                        className={`px-4 py-2 ${isLiveTracking ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30 border-red-500' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/30 border-indigo-500'} text-white font-black rounded-xl shadow-lg uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border`}
                      >
-                        <i className="fa-solid fa-satellite-dish animate-pulse"></i>
-                        Ubicación en Tiempo Real
+                        {isLiveTracking ? (
+                           <>
+                              <i className="fa-solid fa-stop-circle"></i> Detener Rastreo
+                           </>
+                        ) : (
+                           <>
+                              <i className="fa-solid fa-satellite-dish animate-pulse"></i> Ubicación en Tiempo Real
+                           </>
+                        )}
                      </button>
                      <button
-                        onClick={() => alert("Cargando Historial de Recorrido y Paradas...")}
+                        onClick={() => {
+                           setIsLiveTracking(false);
+                           setMapData([...routeData]);
+                           alert("Cargando Historial de Recorrido y Paradas...");
+                        }}
                         className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border border-orange-500"
                      >
                         <i className="fa-solid fa-route"></i>
@@ -1223,9 +1306,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          {/* OLD CARD REMOVED */}
 
-         <div className="w-full bg-slate-900 rounded-[2rem] shadow-xl overflow-hidden relative border-4 border-slate-800 h-[400px]">
+         <div className={`w-full bg-slate-900 rounded-[2rem] shadow-xl overflow-hidden relative border-4 ${isLiveTracking ? 'border-indigo-500 shadow-indigo-500/20' : 'border-slate-800'} h-[400px] transition-all`}>
+            {isLiveTracking && (
+               <div className="absolute top-4 left-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 border border-indigo-400">
+                  <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                  EN VIVO
+                  {liveLocation && <span className="ml-2 opacity-70 text-[9px] font-mono">{new Date(liveLocation.timestamp).toLocaleTimeString()}</span>}
+               </div>
+            )}
             <div ref={mapRef} className="w-full h-full z-10"></div>
-            {routeData.length === 0 && (
+            {!isLiveTracking && routeData.length === 0 && (
                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/98 z-20 text-white">
                   <i className="fa-solid fa-map-location-dot text-6xl text-slate-700 mb-4"></i>
                   <h3 className="text-xl font-black uppercase tracking-tight">Sin Recorrido</h3>

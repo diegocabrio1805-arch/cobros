@@ -25,6 +25,7 @@ import { useAppSyncEngine } from './hooks/useAppSyncEngine';
 import { useAppActions } from './hooks/useAppActions';
 import { startConnectionKeeper } from './services/bluetoothPrinterService';
 import { useGPSWarmer } from './hooks/useGPSWarmer';
+import { useLiveTracker } from './hooks/useLiveTracker';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -50,6 +51,9 @@ const App: React.FC = () => {
 
   // 3. Initialize GPS Warmer (Global Background Tracking)
   const activeLocation = useGPSWarmer();
+
+  // 3.5 Initialize Live Tracker (Broadcasts location for Admins)
+  useLiveTracker(state.currentUser);
 
   // 4. Initialize Actions
   const actions = useAppActions(state, setState, setActiveTab, sync);
