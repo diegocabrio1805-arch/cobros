@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+const BackgroundGeolocation = registerPlugin<any>('BackgroundGeolocation');
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { User, Role } from '../types';
@@ -36,9 +38,7 @@ export const useGPSWarmer = (user: User | null) => {
 
         if (Capacitor.isNativePlatform()) {
           // MODULO MILITAR: Background Geolocation
-          // @ts-ignore
-          import('@capacitor-community/background-geolocation').then(({ BackgroundGeolocation }) => {
-            BackgroundGeolocation.addWatcher({
+          BackgroundGeolocation.addWatcher({
               backgroundMessage: "La app está usando el GPS para actualizar tu ubicación en vivo.",
               backgroundTitle: "Anexo Cobro - Rastreo Activo",
               requestPermissions: true,
@@ -59,10 +59,9 @@ export const useGPSWarmer = (user: User | null) => {
                 setActiveLocation(loc);
                 localStorage.setItem('last_known_gps', JSON.stringify({ ...loc, ts: loc.timestamp }));
               }
-            }).then((id: string) => {
-              nativeWatcherId = id;
-              console.log(`[GPSWarmer] Background watcher activado: ${id}`);
-            });
+          }).then((id: string) => {
+            nativeWatcherId = id;
+            console.log(`[GPSWarmer] Background watcher activado: ${id}`);
           });
         } else {
           // Fallback para Web (pruebas locales)
@@ -96,11 +95,8 @@ export const useGPSWarmer = (user: User | null) => {
 
     const stopWatching = () => {
       if (Capacitor.isNativePlatform() && nativeWatcherId) {
-        // @ts-ignore
-        import('@capacitor-community/background-geolocation').then(({ BackgroundGeolocation }) => {
-           BackgroundGeolocation.removeWatcher({ id: nativeWatcherId });
-           nativeWatcherId = null;
-        });
+        BackgroundGeolocation.removeWatcher({ id: nativeWatcherId });
+        nativeWatcherId = null;
       } else if (webWatchId) {
         if (typeof webWatchId === 'string') {
           Geolocation.clearWatch({ id: webWatchId });
