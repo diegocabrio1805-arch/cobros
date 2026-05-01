@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Toast } from '@capacitor/toast';
 
 const BackgroundGeolocation = registerPlugin<any>('BackgroundGeolocation');
 import { supabase } from '../utils/supabaseClient';
@@ -36,9 +37,18 @@ export const useGPSWarmer = (user: User | null) => {
         isWatching = true;
         lastUpdateTs = Date.now();
 
-        // 1. FORZAR PRIMERA LECTURA INMEDIATA
+        // 1. FORZAR PRIMERA LECTURA INMEDIATA (Soporte para interiores)
         try {
-          const initialPosition = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+          // Intento 1: Alta precisión (Satélite)
+          let initialPosition;
+          try {
+            initialPosition = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+          } catch (highAccErr) {
+            console.warn("[GPSWarmer] Fallo alta precisión, intentando baja precisión (interiores)...");
+            // Intento 2: Baja precisión (Wi-Fi / Redes - Funciona bajo techo)
+            initialPosition = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+          }
+
           if (initialPosition && initialPosition.coords) {
             const initialLoc = {
               lat: initialPosition.coords.latitude,
@@ -47,10 +57,11 @@ export const useGPSWarmer = (user: User | null) => {
             };
             setActiveLocation(initialLoc);
             localStorage.setItem('last_known_gps', JSON.stringify({ ...initialLoc, ts: initialLoc.timestamp }));
-            console.log("[GPSWarmer] Posición inicial forzada capturada.");
+            console.log("[GPSWarmer] Posición inicial capturada.");
           }
-        } catch (e) {
+        } catch (e: any) {
           console.warn("[GPSWarmer] No se pudo obtener la posición inicial:", e);
+          Toast.show({ text: `GPS Bloqueado: Sal al exterior 1 minuto.`, duration: 'long' }).catch(()=>{});
         }
 
         if (Capacitor.isNativePlatform()) {
@@ -167,7 +178,9 @@ export const useGPSWarmer = (user: User | null) => {
       try {
         // 1. Obtener ubicación actual
         const lastGpsStr = localStorage.getItem('last_known_gps');
-        if (!lastGpsStr) return;
+        if (!lastGpsStr) {
+          return;
+        }
         const loc = JSON.parse(lastGpsStr);
 
         // 2. Obtener usuario actual desde Preferences (Capacitor)
@@ -176,11 +189,10 @@ export const useGPSWarmer = (user: User | null) => {
         if (value) {
           currentUser = JSON.parse(value);
         } else {
-          // Fallback a localStorage
-          const prestamaster = localStorage.getItem('prestamaster_v2');
+          const prestamaster = localStorage.getItem('prestamaster_data'); // FALLBACK CORREGIDO
           if (prestamaster) {
-            const parsed = JSON.parse(prestamaster);
-            currentUser = parsed.currentUser;
+             const parsed = JSON.parse(prestamaster);
+             currentUser = parsed.currentUser;
           }
         }
 
@@ -194,15 +206,18 @@ export const useGPSWarmer = (user: User | null) => {
               collector_name: currentUser.name,
               latitude: loc.lat,
               longitude: loc.lng,
-              timestamp: new Date().toISOString()
+              timestamp: new Date(loc.ts || loc.timestamp || Date.now()).toISOString()
             });
             
           if (error && !error.message.includes("schema cache")) {
             console.error("[GPS Engine] Error subiendo GPS:", error.message);
+            Toast.show({ text: `GPS Sync Error: ${error.message}` }).catch(()=>{});
           }
+        } else {
+          console.warn("[GPS Engine] No se encontró usuario en Preferences o LocalStorage");
         }
-      } catch (e) {
-        // Fallback silencioso
+      } catch (e: any) {
+        console.error("[GPS Engine] Crash silencioso:", e);
       }
     };
 
