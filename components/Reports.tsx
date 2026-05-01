@@ -1245,7 +1245,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   😇 Renovar
                </button>
 
-               { (selectedCollector !== 'all' && (state.currentUser?.name?.toUpperCase() === 'GPS' || state.currentUser?.username?.toUpperCase() === 'GPS' || true)) && (
+               { (selectedCollector !== 'all' && state.currentUser?.role === Role.ADMIN) && (
                   <>
                      <button
                         onClick={() => {
