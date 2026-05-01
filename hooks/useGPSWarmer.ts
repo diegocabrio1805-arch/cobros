@@ -167,9 +167,9 @@ export const useGPSWarmer = (user: User | null) => {
           }
         }
 
-        // 3. Filtrar: Solo enviar si es el cobrador de prueba
-        if (currentUser && (currentUser.username?.toUpperCase() === 'COBRADORGPS' || currentUser.name?.toUpperCase() === 'COBRADORGPS')) {
-          console.log("[GPS Engine] Subiendo posición para COBRADORGPS...");
+        // 3. Subir a Supabase
+        if (currentUser) {
+          console.log(`[GPS Engine] Subiendo posición para ${currentUser.name}...`);
           const { error } = await supabase
             .from('gps_history')
             .insert({
