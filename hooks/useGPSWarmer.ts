@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { User, Role } from '../types';
@@ -14,11 +15,12 @@ export const useGPSWarmer = (user: User | null) => {
   const [activeLocation, setActiveLocation] = useState<GPSLocation | null>(null);
 
   useEffect(() => {
-    let watchId: string | Promise<string> | null = null;
+    let nativeWatcherId: string | null = null;
+    let webWatchId: string | Promise<string> | null = null;
     let isWatching = false;
     let retryInterval: any;
     let lastUpdateTs = Date.now();
-    
+
     const startWatching = async () => {
       if (!user || user.role !== Role.COLLECTOR) return;
 
@@ -30,29 +32,62 @@ export const useGPSWarmer = (user: User | null) => {
 
         if (isWatching) return;
         isWatching = true;
-        lastUpdateTs = Date.now(); // Reset watchdog
+        lastUpdateTs = Date.now();
 
-        watchId = Geolocation.watchPosition({
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 5000
-        }, (position, err) => {
-          if (err) {
-            console.warn("[GPSWarmer] Error en watchPosition, reiniciando...", err);
-            isWatching = false; // Permitir reinicio
-            return;
-          }
-          if (position && position.coords) {
-            lastUpdateTs = Date.now();
-            const loc = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              timestamp: lastUpdateTs
-            };
-            setActiveLocation(loc);
-            localStorage.setItem('last_known_gps', JSON.stringify({ ...loc, ts: loc.timestamp }));
-          }
-        });
+        if (Capacitor.isNativePlatform()) {
+          // MODULO MILITAR: Background Geolocation
+          // @ts-ignore
+          import('@capacitor-community/background-geolocation').then(({ BackgroundGeolocation }) => {
+            BackgroundGeolocation.addWatcher({
+              backgroundMessage: "La app está usando el GPS para actualizar tu ubicación en vivo.",
+              backgroundTitle: "Anexo Cobro - Rastreo Activo",
+              requestPermissions: true,
+              stale: false,
+              distanceFilter: 5 // Cada 5 metros actualiza
+            }, (location: any, error: any) => {
+              if (error) {
+                console.error("[GPSWarmer] Error en Background GPS:", error);
+                return;
+              }
+              if (location) {
+                lastUpdateTs = Date.now();
+                const loc = {
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  timestamp: lastUpdateTs
+                };
+                setActiveLocation(loc);
+                localStorage.setItem('last_known_gps', JSON.stringify({ ...loc, ts: loc.timestamp }));
+              }
+            }).then((id: string) => {
+              nativeWatcherId = id;
+              console.log(`[GPSWarmer] Background watcher activado: ${id}`);
+            });
+          });
+        } else {
+          // Fallback para Web (pruebas locales)
+          webWatchId = Geolocation.watchPosition({
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 5000
+          }, (position, err) => {
+            if (err) {
+              console.warn("[GPSWarmer] Error en watchPosition web:", err);
+              isWatching = false;
+              return;
+            }
+            if (position && position.coords) {
+              lastUpdateTs = Date.now();
+              const loc = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                timestamp: lastUpdateTs
+              };
+              setActiveLocation(loc);
+              localStorage.setItem('last_known_gps', JSON.stringify({ ...loc, ts: loc.timestamp }));
+            }
+          });
+        }
       } catch (e) {
         console.error("Error starting Global GPS watch:", e);
         isWatching = false;
@@ -60,40 +95,43 @@ export const useGPSWarmer = (user: User | null) => {
     };
 
     const stopWatching = () => {
-      if (watchId) {
-        if (typeof watchId === 'string') {
-          Geolocation.clearWatch({ id: watchId });
+      if (Capacitor.isNativePlatform() && nativeWatcherId) {
+        // @ts-ignore
+        import('@capacitor-community/background-geolocation').then(({ BackgroundGeolocation }) => {
+           BackgroundGeolocation.removeWatcher({ id: nativeWatcherId });
+           nativeWatcherId = null;
+        });
+      } else if (webWatchId) {
+        if (typeof webWatchId === 'string') {
+          Geolocation.clearWatch({ id: webWatchId });
         } else {
-          watchId.then(id => Geolocation.clearWatch({ id }));
+          webWatchId.then(id => Geolocation.clearWatch({ id }));
         }
-        watchId = null;
+        webWatchId = null;
       }
       isWatching = false;
     };
 
-    // Intentar iniciar. Si no hay permisos, el intervalo lo seguirá intentando.
     startWatching();
 
-    // WATCHDOG: Verifica cada 10 segundos si el sensor se quedó dormido.
-    // Usamos 60s (60000ms) de tolerancia para dar tiempo a un GPS frío a arrancar.
+    // El watchdog sigue existiendo por seguridad, pero es mucho más pasivo con BackgroundGeolocation
     retryInterval = setInterval(() => {
         if (!user || user.role !== Role.COLLECTOR) return;
 
         const timeSinceLastUpdate = Date.now() - lastUpdateTs;
-        if (!isWatching || timeSinceLastUpdate > 60000) {
-            if (timeSinceLastUpdate > 60000 && isWatching) {
-                console.warn("[GPSWarmer] Sensor GPS dormido detectado (>60s sin datos). Reiniciando forzosamente...");
+        if (!isWatching || timeSinceLastUpdate > 120000) { // 2 minutos tolerancia en background
+            if (timeSinceLastUpdate > 120000 && isWatching) {
+                console.warn("[GPSWarmer] Watchdog reiniciando sensor (muy antiguo)...");
                 stopWatching();
             }
             startWatching();
         }
-    }, 10000);
+    }, 15000);
 
-    // Reinicio forzado al volver a la app (foreground)
     const handleVisibility = () => {
         if (document.visibilityState === 'visible') {
-            console.log("[GPSWarmer] App en foreground. Verificando GPS...");
-            if (Date.now() - lastUpdateTs > 10000) {
+            console.log("[GPSWarmer] App en foreground.");
+            if (Date.now() - lastUpdateTs > 20000) {
                stopWatching();
                startWatching();
             }
