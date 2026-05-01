@@ -36,6 +36,23 @@ export const useGPSWarmer = (user: User | null) => {
         isWatching = true;
         lastUpdateTs = Date.now();
 
+        // 1. FORZAR PRIMERA LECTURA INMEDIATA
+        try {
+          const initialPosition = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+          if (initialPosition && initialPosition.coords) {
+            const initialLoc = {
+              lat: initialPosition.coords.latitude,
+              lng: initialPosition.coords.longitude,
+              timestamp: Date.now()
+            };
+            setActiveLocation(initialLoc);
+            localStorage.setItem('last_known_gps', JSON.stringify({ ...initialLoc, ts: initialLoc.timestamp }));
+            console.log("[GPSWarmer] Posición inicial forzada capturada.");
+          }
+        } catch (e) {
+          console.warn("[GPSWarmer] No se pudo obtener la posición inicial:", e);
+        }
+
         if (Capacitor.isNativePlatform()) {
           // MODULO MILITAR: Background Geolocation
           BackgroundGeolocation.addWatcher({
