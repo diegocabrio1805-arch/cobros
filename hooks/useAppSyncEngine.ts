@@ -12,6 +12,17 @@ export const useAppSyncEngine = (
   setState: React.Dispatch<React.SetStateAction<AppState>>,
   resolvedSettings: any
 ) => {
+  // Función para guardar el estado inmediatamente en IndexedDB (Crítico para robustez offline)
+  const immediateSave = async (stateToSave: AppState) => {
+    try {
+      await StorageService.setItem('prestamaster_v2', stateToSave);
+      if (stateToSave.currentUser) {
+        await Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(stateToSave.currentUser) });
+      }
+    } catch (e) {
+      console.error("🚨 [Critical] Error en guardado inmediato:", e);
+    }
+  };
   const mergeData = <T extends { id: string, updated_at?: string }>(
     local: T[],
     remote: T[],
@@ -152,6 +163,8 @@ export const useAppSyncEngine = (
 
       if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
 
+      // Persistencia inmediata del nuevo estado sincronizado
+      immediateSave(updatedState);
       return updatedState;
     });
   };
@@ -439,6 +452,7 @@ export const useAppSyncEngine = (
     handleDeepReset,
     pushRenewal: sync.pushRenewal,
     filteredState,
-    getBranchId
+    getBranchId,
+    immediateSave
   };
 };

@@ -226,13 +226,25 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             queue = queue.filter((item: any) => item.operation !== 'UPDATE_SETTINGS' || item.data.branchId !== data.branchId);
         }
 
+        // DEDUPLICACIÓN ROBUSTA: Si ya hay un item en la cola con el mismo ID de registro, no duplicar
+        if (data && data.id) {
+            const isDuplicate = queue.some((item: any) => 
+                item.operation === operation && 
+                item.data.id === data.id
+            );
+            if (isDuplicate) {
+                console.log(`[Sync] Registro duplicado omitido en cola: ${operation} - ${data.id}`);
+                return;
+            }
+        }
+
         if (operation === 'ADD_LOG') {
             const isDuplicate = queue.some((item: any) =>
                 item.operation === 'ADD_LOG' &&
                 item.data.loanId === data.loanId &&
                 item.data.amount === data.amount &&
                 item.data.type === data.type &&
-                (Date.now() - item.timestamp < 2000)
+                (Date.now() - item.timestamp < 3000) // Ventana ampliada a 3s
             );
             if (isDuplicate) return;
         }

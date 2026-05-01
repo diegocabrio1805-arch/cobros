@@ -10,7 +10,7 @@ export const useAppActions = (
   setActiveTab: (tab: string) => void,
   sync: any // From useAppSyncEngine
 ) => {
-  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk, pushRenewal } = sync;
+  const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk, pushRenewal, immediateSave } = sync;
 
   const handleLogin = (user: User) => {
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
@@ -121,7 +121,9 @@ export const useAppActions = (
   const addClient = async (client: Client, loan?: Loan) => {
     const branchId = internalGetBranchId(state.currentUser);
     const newClient = { ...client, branchId, isActive: true, createdAt: new Date().toISOString(), updated_at: new Date().toISOString() };
-    setState(prev => ({ ...prev, clients: [...prev.clients, newClient] }));
+    const newState = { ...state, clients: [...state.clients, newClient] };
+    setState(newState);
+    immediateSave(newState);
     pushClient(newClient);
     if (loan) addLoan(loan);
     handleForceSync(false);
@@ -130,7 +132,9 @@ export const useAppActions = (
   const addLoan = async (loan: Loan) => {
     const branchId = internalGetBranchId(state.currentUser);
     const newLoan = { ...loan, branchId, updated_at: new Date().toISOString() };
-    setState(prev => ({ ...prev, loans: [newLoan, ...prev.loans] }));
+    const newState = { ...state, loans: [newLoan, ...state.loans] };
+    setState(newState);
+    immediateSave(newState);
     pushLoan(newLoan);
     handleForceSync(false);
   };
@@ -359,7 +363,9 @@ export const useAppActions = (
     }
 
     // Actualizar logs e historiales EN EL ESTADO
-    setState(prev => ({ ...prev, payments: updatedPayments, collectionLogs: [newLog, ...prev.collectionLogs] }));
+    const newState = { ...state, payments: updatedPayments, collectionLogs: [newLog, ...state.collectionLogs] };
+    setState(newState);
+    immediateSave(newState);
 
     if (newPaymentsForSync.length > 0) {
       for (const p of newPaymentsForSync) pushPayment(p);
@@ -608,7 +614,9 @@ export const useAppActions = (
   const addExpense = (expense: Expense) => {
     const branchId = internalGetBranchId(state.currentUser);
     const newExpense = { ...expense, branchId, addedBy: state.currentUser?.id };
-    setState(prev => ({ ...prev, expenses: [newExpense, ...prev.expenses] }));
+    const newState = { ...state, expenses: [newExpense, ...state.expenses] };
+    setState(newState);
+    immediateSave(newState);
     addToQueue('ADD_EXPENSE', newExpense);
     handleForceSync(true);
   };
