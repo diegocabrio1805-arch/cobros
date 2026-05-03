@@ -319,7 +319,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         </div>
 
         <div className="h-[350px] w-full bg-[#f3f4f6] rounded-[2rem] p-6 relative shadow-inner">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300} minWidth={0}>
             <AreaChart data={dailyPoints} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorUtility" x1="0" y1="0" x2="0" y2="1">

@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 import legacy from '@vitejs/plugin-legacy';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
@@ -17,6 +19,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      nodePolyfills(),
       react(),
       legacy({
         targets: ['defaults', 'android >= 5', 'chrome >= 64'],

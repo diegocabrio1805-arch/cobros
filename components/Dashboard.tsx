@@ -616,7 +616,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           <div className="h-[280px] w-full mt-auto bg-slate-50/50 rounded-2xl p-4 border border-slate-100 relative">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={250} minWidth={0}>
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis
