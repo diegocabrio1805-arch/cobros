@@ -1245,41 +1245,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   😇 Renovar
                </button>
 
-               { (selectedCollector !== 'all' && state.currentUser?.role === 'Administrador') && (
-                  <>
-                     <button
-                        onClick={() => {
-                           if (selectedCollector === 'all') {
-                              alert("Selecciona un cobrador específico para ver su ubicación en tiempo real.");
-                              return;
-                           }
-                           setIsLiveTracking(!isLiveTracking);
-                        }}
-                        className={`px-4 py-2 ${isLiveTracking ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30 border-red-500' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/30 border-indigo-500'} text-white font-black rounded-xl shadow-lg uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border`}
-                     >
-                        {isLiveTracking ? (
-                           <>
-                              <i className="fa-solid fa-stop-circle"></i> Detener Rastreo
-                           </>
-                        ) : (
-                           <>
-                              <i className="fa-solid fa-satellite-dish animate-pulse"></i> Ubicación en Tiempo Real
-                           </>
-                        )}
-                     </button>
-                     <button
-                        onClick={() => {
-                           setIsLiveTracking(false);
-                           setMapData([...routeData]);
-                           alert("Cargando Historial de Recorrido y Paradas...");
-                        }}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border border-orange-500"
-                     >
-                        <i className="fa-solid fa-route"></i>
-                        Historial de Recorrido
-                     </button>
-                  </>
-               )}
 
                {/* 
                <button
@@ -1292,10 +1257,22 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                </button>
                */}
 
+               { (state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) && (
+                  <a
+                     href="https://www.google.com/android/find/u/1/?pageId=none"
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
+                  >
+                     <i className="fa-brands fa-google"></i>
+                     Google Localizador
+                  </a>
+               )}
+
                <button
                   onClick={handleLocalAuditPDF}
                   disabled={selectedCollector === 'all'}
-                  className="ml-auto px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600"
+                  className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
                >
                   <i className="fa-solid fa-clipboard-check"></i>
                   Auditor
