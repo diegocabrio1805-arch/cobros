@@ -500,6 +500,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [showCustomNoPayModal, setShowCustomNoPayModal] = useState(false);
   const [customNoPayText, setCustomNoPayText] = useState('');
   const [finalizadosDate, setFinalizadosDate] = useState(countryTodayStr);
+  const [finalizadosEndDate, setFinalizadosEndDate] = useState(countryTodayStr);
 
   const [addInitialLoan, setAddInitialLoan] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -971,12 +972,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
     const allClients = Array.isArray(state.clients) ? state.clients : [];
 
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
     return allLoans.filter(loan => {
       if (loan.status !== LoanStatus.PAID && loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT) return false;
 
       // Filtrar por cobrador (misma lógica completa que las demás vistas)
       const client = allClients.find(c => c.id === loan.clientId);
       if (!client || client.deletedAt) return false;
+
+      // Búsqueda Global (Nombre o Cédula)
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s)) return false;
+      }
+
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
         const loanCollectorId = (loan.collectorId || (loan as any).collector_id || '').toLowerCase();
@@ -1003,18 +1014,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       );
       if (allPaymentLogs.length === 0) return false;
 
-      // El último pago debe ser exactamente en la fecha seleccionada
+      // El último pago debe estar dentro del rango seleccionado
       const lastLog = [...allPaymentLogs].sort((a, b) =>
         new Date(b.date).getTime() - new Date(a.date).getTime()
       )[0];
 
-      return (lastLog.date || '').startsWith(finalizadosDate);
+      if (!lastLog || !lastLog.date) return false;
+      const logDate = lastLog.date.split('T')[0];
+      return logDate >= finalizadosDate && logDate <= finalizadosEndDate;
     }).map(loan => {
       const client = allClients.find(c => c.id === loan.clientId)!;
       const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
       return { loan, client, totalPaid };
     }) as { loan: any, client: any, totalPaid: number }[];
-  }, [viewMode, state.loans, state.collectionLogs, state.clients, finalizadosDate, selectedCollector]);
+  }, [viewMode, state.loans, state.collectionLogs, state.clients, finalizadosDate, finalizadosEndDate, selectedCollector, debouncedSearch]);
 
   const handleRestoreClient = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
@@ -2234,7 +2247,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
               <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : viewMode === 'finalizados' ? 'fa-flag-checkered text-slate-600' : 'fa-briefcase text-slate-950'}`}></i>
-              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : viewMode === 'finalizados' ? `Finalizados Hoy — ${countryTodayStr}` : 'Cartera General'}
+              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : viewMode === 'finalizados' ? 'Créditos Finalizados' : 'Cartera General'}
             </h2>
 
             {viewMode === 'cartera' && isAdminOrManager && (
@@ -2283,14 +2296,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
             )}
             {viewMode === 'finalizados' ? (
-              <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 px-4 py-2 rounded-xl shadow-inner">
-                <i className="fa-solid fa-calendar-day text-slate-600 text-sm"></i>
-                <input
-                  type="date"
-                  value={finalizadosDate}
-                  onChange={(e) => setFinalizadosDate(e.target.value)}
-                  className="bg-transparent text-[11px] font-black text-slate-800 outline-none uppercase"
-                />
+              <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
+                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
+                  <input type="date" value={finalizadosDate} onChange={(e) => setFinalizadosDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
+                  <span className="text-slate-500 font-bold">-</span>
+                  <input type="date" value={finalizadosEndDate} onChange={(e) => setFinalizadosEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
+                </div>
               </div>
             ) : viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
@@ -2697,7 +2708,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
              {finalizadosData.length === 0 ? (
                <div className="py-24 flex flex-col items-center justify-center text-slate-400 gap-4">
                  <i className="fa-solid fa-flag-checkered text-5xl opacity-10"></i>
-                 <p className="text-[11px] font-black uppercase tracking-widest">Ningún crédito finalizó el {finalizadosDate}</p>
+                 <p className="text-[11px] font-black uppercase tracking-widest">Ningún crédito finalizó entre el {finalizadosDate} y {finalizadosEndDate}</p>
                </div>
              ) : (
                <>
@@ -2706,7 +2717,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                      <i className="fa-solid fa-flag-checkered text-xl"></i>
                      <div>
                        <p className="font-black text-sm uppercase tracking-tight">Créditos Finalizados</p>
-                       <p className="text-[9px] font-bold text-slate-200 uppercase tracking-widest">{finalizadosDate} · {finalizadosData.length} crédito{finalizadosData.length !== 1 ? 's' : ''}</p>
+                       <p className="text-[9px] font-bold text-slate-200 uppercase tracking-widest">
+                          {finalizadosDate === finalizadosEndDate ? finalizadosDate : `${finalizadosDate} AL ${finalizadosEndDate}`} · {finalizadosData.length} CRÉDITO{finalizadosData.length !== 1 ? 'S' : ''}
+                        </p>
                      </div>
                    </div>
                  </div>
@@ -2719,7 +2732,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                          <th className="px-5 py-4 border-r border-white/10 text-center">Frecuencia</th>
                          <th className="px-5 py-4 border-r border-white/10 text-right">Habilitado</th>
                          <th className="px-5 py-4 border-r border-white/10 text-right">Total</th>
-                         <th className="px-5 py-4 text-center">Cuotas</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">Cuotas</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">Créditos</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">Estado</th>
+                         <th className="px-5 py-4 text-center">Acciones</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
@@ -2729,6 +2745,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                          const diaSemana = DIAS[startDate.getDay()];
                          const freqLabel = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'DIARIO (L-S)' : loan.frequency === Frequency.DAILY_MF ? 'DIARIO (L-V)' : loan.frequency === Frequency.WEEKLY ? `SEMANAL · ${diaSemana}` : loan.frequency === Frequency.BIWEEKLY ? 'QUINCENAL' : 'MENSUAL';
                          const freqColor = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'text-amber-600' : loan.frequency === Frequency.DAILY_MF ? 'text-emerald-600' : loan.frequency === Frequency.WEEKLY ? 'text-violet-600' : 'text-blue-600';
+                         const totalCredits = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+                            if (l.clientId !== client.id) return false;
+                            if (l.status === LoanStatus.PAID) return true;
+                            // También contamos como finalizado si el saldo es 0, aunque siga "Activo" en el sistema
+                            if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
+                              const tPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+                              return (l.totalAmount - tPaid) <= 1;
+                            }
+                            return false;
+                          }).length;
+                         const hasActiveLoan = (Array.isArray(state.loans) ? state.loans : []).some(l => {
+                            if (l.clientId !== client.id) return false;
+                            if (l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
+                            const tPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+                            return (l.totalAmount - tPaid) > 1;
+                          });
                          return (
                            <tr key={loan.id} className="hover:bg-slate-50/60 transition-colors text-[11px] font-bold text-slate-700">
                              <td className="px-5 py-4 border-r border-slate-100">
@@ -2739,8 +2771,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                              <td className={`px-5 py-4 border-r border-slate-100 text-center font-black text-[10px] ${freqColor}`}>{freqLabel}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-700">{formatCurrency(loan.principal, state.settings)}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-900">{formatCurrency(loan.totalAmount, state.settings)}</td>
-                             <td className="px-5 py-4 text-center">
+                             <td className="px-5 py-4 border-r border-slate-100 text-center">
                                <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-lg uppercase">{loan.totalInstallments} CUOTAS</span>
+                             </td>
+                             <td className="px-5 py-4 border-r border-slate-100 text-center">
+                               <span className={`font-black text-[10px] px-3 py-1 rounded-lg ${
+                                 totalCredits >= 5 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                                 totalCredits >= 3 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                 'bg-slate-100 text-slate-600 border border-slate-200'
+                               }`}>
+                                  {totalCredits} CRÉD. FINALIZADOS
+                               </span>
+                             </td>
+                             <td className="px-5 py-4 border-r border-slate-100 text-center">
+                               <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider ${hasActiveLoan ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
+                                 {hasActiveLoan ? '● ACTIVO' : '● INACTIVO'}
+                               </span>
+                             </td>
+                             <td className="px-5 py-4 text-center">
+                               <button onClick={() => setShowLegajo(client.id)} className="text-orange-600 hover:underline">DETALLE</button>
                              </td>
                            </tr>
                          );
