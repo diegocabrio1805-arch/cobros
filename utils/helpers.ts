@@ -393,20 +393,25 @@ export const generateAmortizationTable = (
     }
 
     for (let i = 1; i <= numInstallments; i++) {
+      const freqStr = String(frequency).toLowerCase();
       // Calcular siguiente fecha según frecuencia
-      if (frequency === Frequency.DAILY || frequency === Frequency.DAILY_MF) {
-        currentDate.setDate(currentDate.getDate() + 1);
-      } else if (frequency === Frequency.WEEKLY) {
+      if (freqStr.includes('diari') && freqStr.includes('v')) {
+        currentDate.setDate(currentDate.getDate() + 1); // Diario L-V
+      } else if (freqStr.includes('diari')) {
+        currentDate.setDate(currentDate.getDate() + 1); // Diario L-S
+      } else if (freqStr.includes('semanal') && freqStr.includes('quincenal') === false) {
         currentDate.setDate(currentDate.getDate() + 7);
-      } else if (frequency === Frequency.BIWEEKLY) {
+      } else if (freqStr.includes('quincenal')) {
         currentDate.setDate(currentDate.getDate() + 15);
-      } else if (frequency === Frequency.MONTHLY) {
+      } else if (freqStr.includes('mensual')) {
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
 
       let safetyCounter = 0;
+      const isDailyMF = freqStr.includes('diari') && freqStr.includes('v');
+      
       while ((currentDate.getDay() === 0 || 
-             (frequency === Frequency.DAILY_MF && currentDate.getDay() === 6) ||
+             (isDailyMF && currentDate.getDay() === 6) ||
              isHoliday(currentDate, country, customHolidays)) && safetyCounter < 45) {
         currentDate.setDate(currentDate.getDate() + 1);
         safetyCounter++;
@@ -453,46 +458,48 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
 
     if (!virtualInstallments || virtualInstallments.length === 0) return 0;
 
-    // 1. Encontrar la primera cuota que no está totalmente pagada en la tabla virtual
-    let accumulatedPaid = totalPaid;
-    const firstUnpaidInstallment = virtualInstallments.find(inst => {
-      const amount = Number(inst.amount) || 0;
-      if (accumulatedPaid >= amount - 0.1) {
-        accumulatedPaid -= amount;
-        return false;
-      }
-      return true;
-    });
-
-    if (!firstUnpaidInstallment) return 0;
-
+    // OPCIÓN B: Tiempo Real Infinito
+    // Días de mora = Días hábiles transcurridos desde la fecha de la primera cuota impaga hasta hoy (inclusive)
+    
+    // 1. Calcular cuántas cuotas enteras están pagadas
+    const paidInstallmentsCount = Math.floor(totalPaid / (loan.installmentValue || 1));
+    
+    // 2. Encontrar la fecha de la primera cuota que falta por pagar
+    // (Si pagó 5, la primera impaga es la número 6, que en el array es el índice 5)
+    const firstUnpaidIndex = paidInstallmentsCount;
+    
+    // Si ya pagó todas las cuotas (o más), no hay mora
+    if (firstUnpaidIndex >= virtualInstallments.length) return 0;
+    
+    const firstUnpaidInstallment = virtualInstallments[firstUnpaidIndex];
     const cleanDueDateStr = firstUnpaidInstallment.dueDate.split('T')[0];
     const firstDueDate = new Date(cleanDueDateStr + 'T00:00:00');
 
-    if (isNaN(firstDueDate.getTime()) || firstDueDate >= today) {
+    // Si la cuota vence en el futuro, no hay mora
+    if (isNaN(firstDueDate.getTime()) || firstDueDate > today) {
       return 0;
     }
 
-    // 2. Contar DÍAS DE ATRASO (Excluyendo domingos y feriados sugeridos por el usuario)
+    // 3. Contar DÍAS HÁBILES desde el primer vencimiento impago hasta HOY (inclusive)
     let delayedWorkingDays = 0;
     let tempDate = new Date(firstDueDate);
+    
+    const freqStr = String(loan.frequency).toLowerCase();
+    const isDailyMF = freqStr.includes('diari') && freqStr.includes('v');
 
-    // El atraso cuenta desde el día siguiente al vencimiento HASTA EL DÍA ANTERIOR A HOY
-    // (Según ejemplo del usuario: si vence el 1 y es el 4, son 2 días de mora: el 2 y el 3)
-    while (tempDate < today) {
-      tempDate.setDate(tempDate.getDate() + 1);
-
-      if (tempDate >= today) break; // NO contar el día de hoy ni días después
-
+    while (tempDate <= today) {
       const isSun = tempDate.getDay() === 0;
       const isSat = tempDate.getDay() === 6;
       const isHol = isHoliday(tempDate, settings?.country || 'CO', loan.customHolidays || []);
 
-      const shouldSkip = isSun || (loan.frequency === Frequency.DAILY_MF && isSat) || isHol;
+      const shouldSkip = isSun || (isDailyMF && isSat) || isHol;
 
       if (!shouldSkip) {
         delayedWorkingDays++;
       }
+      
+      // Avanzar al día siguiente
+      tempDate.setDate(tempDate.getDate() + 1);
     }
 
     return delayedWorkingDays;

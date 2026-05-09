@@ -2429,6 +2429,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <th className="px-6 py-4 text-center">%</th>
                       <th className="px-6 py-4 text-right">Cobrado</th>
                       <th className="px-6 py-4 text-right">Valor Cuota</th>
+                      <th className="px-6 py-4 text-center">Cuotas</th>
+                      <th className="px-6 py-4 text-right">Mora</th>
                       <th className="px-6 py-4 text-center">Acciones</th>
                     </tr>
                   </thead>
@@ -2456,6 +2458,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center text-blue-500">{client._metrics.activeLoan?.interestRate || 0}%</td>
                         <td className="px-6 py-4 text-right text-emerald-600 font-mono">{formatCurrency(client._metrics.totalPaid || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-center text-slate-500">{client._metrics.installmentsStr || '---'}</td>
+                        <td className={`px-6 py-4 text-right font-mono ${client._metrics.daysOverdue > 0 ? 'text-red-600 animate-pulse' : 'text-slate-400'}`}>
+                          {client._metrics.daysOverdue || 0} d
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
@@ -2467,7 +2473,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </tr>
                     ))}
                     {nuevosExcelData.length === 0 && (
-                      <tr><td colSpan={11} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay registros para este periodo</td></tr>
+                      <tr><td colSpan={12} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay registros para este periodo</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -3387,7 +3393,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   const m = getClientMetrics(clientInLegajo!);
                                   let remainingToAllocate = m.totalPaid;
 
-                                  return (Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
+                                  const displayInstallments = generateAmortizationTable(
+                                    activeLoanInLegajo.principal,
+                                    activeLoanInLegajo.interestRate,
+                                    activeLoanInLegajo.totalInstallments,
+                                    activeLoanInLegajo.frequency,
+                                    activeLoanInLegajo.createdAt,
+                                    state.settings?.country || 'CO',
+                                    activeLoanInLegajo.customHolidays || []
+                                  );
+
+                                  return displayInstallments.map((inst, idx) => {
                                     const installmentAmount = inst.amount;
                                     let amountPaidForThisOne = 0;
 

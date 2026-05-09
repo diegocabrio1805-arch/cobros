@@ -28,12 +28,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
   const [showBracketModal, setShowBracketModal] = useState(false);
 
+  const [showCollectorHistoryId, setShowCollectorHistoryId] = useState<string | null>(null);
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [excelStartDate, setExcelStartDate] = useState(countryTodayStr);
   const [excelEndDate, setExcelEndDate] = useState(countryTodayStr);
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'cash' | 'virtual' | 'renewal' | 'nopay'>('all');
 
-  const [localCommissionPercent, setLocalCommissionPercent] = useState<number>(state.commissionPercentage);
+  const [localCommissionPercent, setLocalCommissionPercent] = useState<number>(0);
   const [editingBrackets, setEditingBrackets] = useState<CommissionBracket[]>([...(Array.isArray(state.commissionBrackets) ? state.commissionBrackets : [])]);
 
   // Estado para override manual del incentivo (null = usar automático)
@@ -42,6 +43,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   // Estado para override manual de Mora (deseado: default 0)
   const [manualMoraPercent, setManualMoraPercent] = useState<number | null>(0);
+  const [sencilloAmount, setSencilloAmount] = useState<number>(0);
+  const [expenseAmount, setExpenseAmount] = useState<number>(0);
+  const [expenseNote, setExpenseNote] = useState<string>('');
+  const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
 
   const receiptImageRef = useRef<HTMLDivElement>(null);
   const auditTableRef = useRef<HTMLDivElement>(null);
@@ -120,6 +125,71 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   };
 
   const currentViewStats = useMemo(() => calculateStatsForCollector(selectedHistoricalRoutes), [state.collectionLogs, state.loans, state.commissionBrackets, selectedHistoricalRoutes]);
+
+  const thirtyDayHistory = useMemo(() => {
+    if (!showCollectorHistoryId) return [];
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    // Retrocedemos 30 días exactos
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    // Para no cortar la primera semana a la mitad (ej. que falte lunes y martes),
+    // buscamos el LUNES de la semana donde cae esa fecha límite.
+    const dayOfWeekLimit = thirtyDaysAgo.getDay();
+    const diffToMondayLimit = thirtyDaysAgo.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
+    const startOfLimitWeek = new Date(thirtyDaysAgo);
+    startOfLimitWeek.setDate(diffToMondayLimit);
+    startOfLimitWeek.setHours(0, 0, 0, 0);
+    
+    const collectorLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      if (log.type !== CollectionLogType.PAYMENT) return false;
+      if (log.isOpening || log.deletedAt) return false;
+      const logDate = new Date(log.date);
+      if (logDate < startOfLimitWeek) return false; // Filtramos desde el Lunes completo
+      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      return logCollectorId === showCollectorHistoryId;
+    });
+
+    const weeksMap = new Map<string, { weekStart: Date, weekEnd: Date, Lunes: number, Martes: number, Miércoles: number, Jueves: number, Viernes: number, Sábado: number, Total: number }>();
+
+    collectorLogs.forEach(log => {
+      const d = new Date(log.date);
+      const dayOfWeek = d.getDay(); 
+      const diffToMonday = d.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(d);
+      monday.setDate(diffToMonday);
+      monday.setHours(0, 0, 0, 0);
+      const mondayStr = monday.toISOString().split('T')[0];
+
+      if (!weeksMap.has(mondayStr)) {
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        weeksMap.set(mondayStr, {
+          weekStart: monday,
+          weekEnd: sunday,
+          Lunes: 0, Martes: 0, Miércoles: 0, Jueves: 0, Viernes: 0, Sábado: 0, Total: 0
+        });
+      }
+
+      const weekData = weeksMap.get(mondayStr)!;
+      const amount = log.amount || 0;
+      
+      if (dayOfWeek === 1) weekData.Lunes += amount;
+      else if (dayOfWeek === 2) weekData.Martes += amount;
+      else if (dayOfWeek === 3) weekData.Miércoles += amount;
+      else if (dayOfWeek === 4) weekData.Jueves += amount;
+      else if (dayOfWeek === 5) weekData.Viernes += amount;
+      else if (dayOfWeek === 6) weekData.Sábado += amount;
+      
+      if (dayOfWeek >= 1 && dayOfWeek <= 6) {
+        weekData.Total += amount;
+      }
+    });
+
+    return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+  }, [state.collectionLogs, showCollectorHistoryId]);
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
@@ -321,6 +391,38 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       const summaryRow2Idx = wsData.length;
       wsData.push([
+        { v: 'Base / Sencillo:', t: "s", s: summaryLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: sencilloAmount, t: "n", s: summaryMoneyStyle },
+        "", "" // Empty
+      ]);
+
+      const summaryRow3Idx = wsData.length;
+      const gastoLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
+      const gastoMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+      const gastoLabel = expenseNote ? `Gasto / ${expenseNote}` : 'Gasto';
+      wsData.push([
+        { v: gastoLabel, t: "s", s: gastoLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: expenseAmount, t: "n", s: gastoMoneyStyle },
+        "", "" // Empty
+      ]);
+
+      const summaryRow4Idx = wsData.length;
+      const rendirLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FF00B050" } }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
+      const rendirMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FF00B050" } }, border: borderAll, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+      wsData.push([
+        { v: 'Total a Rendir:', t: "s", s: rendirLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
+        { v: totalCollectedInRange + sencilloAmount - expenseAmount, t: "n", s: rendirMoneyStyle },
+        "", "" // Empty
+      ]);
+
+      const summaryRow5Idx = wsData.length;
+      wsData.push([
         { v: 'Total Liquidación:', t: "s", s: summaryLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
@@ -337,6 +439,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 4 } }); // Period Merge B3:E3
       ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 2 } });
       ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 2 } });
 
       // Column Widths
       ws['!cols'] = [
@@ -548,8 +653,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="flex-1 text-center space-y-1">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">2. Comisión Base</p>
             <div className="flex items-center justify-center gap-2">
-              <input type="number" value={localCommissionPercent} onChange={(e) => {
-                const val = Number(e.target.value);
+              <input type="number" value={localCommissionPercent === 0 ? '' : localCommissionPercent} placeholder="0" onChange={(e) => {
+                const val = e.target.value === '' ? 0 : Number(e.target.value);
                 setLocalCommissionPercent(val);
                 setCommissionPercentage(val);
               }} className="w-12 bg-slate-100 text-center font-black rounded-lg py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-black" />
@@ -591,9 +696,73 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         </div>
       </div>
 
+      {/* SECCIÓN DE RENDICIÓN DE CAJA */}
+      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden relative mt-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+          
+          {/* Valor Recaudo */}
+          <div className="flex-1 text-center space-y-1">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Recaudo Filtrado</p>
+            <p className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p>
+          </div>
+
+          <i className="fa-solid fa-plus text-slate-300 text-lg"></i>
+
+          {/* Sencillo Editable */}
+          <div className="flex-1 text-center space-y-2">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sencillo / Base</p>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl font-black text-slate-400">$</span>
+              <input 
+                type="number" 
+                value={sencilloAmount === 0 ? '' : sencilloAmount} 
+                onChange={(e) => setSencilloAmount(e.target.value === '' ? 0 : Number(e.target.value))} 
+                className="w-28 bg-slate-100 text-center font-black rounded-xl py-2 text-xl outline-none focus:ring-2 focus:ring-blue-500 text-black shadow-inner" 
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <i className="fa-solid fa-minus text-red-300 text-lg"></i>
+
+          {/* Gasto Editable */}
+          <div className="flex-1 text-center space-y-2">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Gasto (Obs y Monto)</p>
+            <div className="flex flex-col items-center gap-1">
+              <input 
+                type="text" 
+                value={expenseNote} 
+                onChange={(e) => setExpenseNote(e.target.value)} 
+                className="w-full max-w-[120px] bg-slate-50 text-center font-bold rounded-lg py-1 text-xs outline-none focus:ring-1 focus:ring-red-400 text-slate-600 border border-slate-200" 
+                placeholder="Observacion"
+              />
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-xl font-black text-red-400">$</span>
+                <input 
+                  type="number" 
+                  value={expenseAmount === 0 ? '' : expenseAmount} 
+                  onChange={(e) => setExpenseAmount(e.target.value === '' ? 0 : Number(e.target.value))} 
+                  className="w-24 bg-red-50 text-center font-black rounded-xl py-2 text-xl outline-none focus:ring-2 focus:ring-red-500 text-red-600 shadow-inner" 
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          <i className="fa-solid fa-equals text-slate-900 text-2xl"></i>
+
+          {/* Total a Rendir */}
+          <div className="flex-1 text-center md:text-right space-y-1 bg-slate-900 text-white p-5 rounded-[2rem] shadow-xl">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total a Rendir</p>
+            <p className="text-3xl font-black text-blue-400 font-mono">{formatCurrency(totalCollectedInRange + sencilloAmount - expenseAmount, state.settings)}</p>
+          </div>
+
+        </div>
+      </div>
+
       {/* FILTROS DE HISTORIAL EXCEL */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <button onClick={() => setShowExcelModal(true)} className="w-full sm:w-auto px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
+        <button onClick={() => setShowExcelModal(true)} className="w-full sm:w-auto px-6 py-4 bg-slate-900 text-white rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
           <i className="fa-solid fa-table-list text-emerald-400"></i> VER HISTORIAL DETALLADO EXCEL
         </button>
 
@@ -613,7 +782,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             {isDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setIsDropdownOpen(false); }}></div>
-                <div className="absolute top-full left-0 mt-3 w-[250px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-[100] max-h-64 overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute bottom-full left-0 mb-3 w-[250px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-[100] max-h-64 overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
                   <div 
                     className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex items-center gap-3 transition-colors"
                     onClick={() => {
@@ -912,27 +1081,102 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <h3 className="text-xl font-black uppercase tracking-tighter">Comparativa de Desempeño</h3>
               <button onClick={() => setShowGlobalSummary(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-800">
               {(Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).map(({ user, stats }) => (
-                <div key={user.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-lg space-y-4 hover:shadow-2xl transition-all">
+                <div key={user.id} className="bg-slate-900 p-6 rounded-[2rem] border border-slate-700 shadow-lg space-y-4 hover:shadow-2xl transition-all">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-xl text-black">{user.name.charAt(0)}</div>
+                    <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center font-black text-xl text-white">{user.name.charAt(0)}</div>
                     <div>
-                      <h4 className="font-black text-slate-800 uppercase text-sm truncate">{user.name}</h4>
+                      <h4 className="font-black text-white uppercase text-sm truncate">{user.name}</h4>
                       <p className="text-[8px] font-bold text-slate-400 uppercase">Corte hoy: {formatCurrency(stats.recaudoHoy, state.settings)}</p>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
-                    <span className="text-[9px] font-black text-slate-500 uppercase">Mora: <span className={stats.averageDelinquency > 20 ? 'text-red-600' : 'text-emerald-600'}>{Math.round(stats.averageDelinquency)}%</span></span>
-                    <span className="text-[9px] font-black text-blue-600 uppercase">PAGO: {Math.round(stats.performanceFactor * 100)}%</span>
+                  <div className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
+                    <span className="text-[9px] font-black text-slate-400 uppercase">Mora: <span className={stats.averageDelinquency > 20 ? 'text-red-400' : 'text-emerald-400'}>{Math.round(stats.averageDelinquency)}%</span></span>
+                    <span className="text-[9px] font-black text-blue-400 uppercase">PAGO: {Math.round(stats.performanceFactor * 100)}%</span>
                   </div>
-                  <button onClick={() => { setSelectedHistoricalRoute(user.id); setShowGlobalSummary(false); }} className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all">VER LIBRO INDIVIDUAL</button>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">HISTORIAL DE COBROS 30 DÍAS</button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       )}
+      {/* MODAL HISTORIAL 30 DIAS */}
+      {showCollectorHistoryId && (
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[350] p-0 md:p-4 animate-fadeIn overflow-y-auto">
+          <div className="bg-white w-full max-w-6xl md:rounded-[2.5rem] shadow-2xl flex flex-col border border-white/20">
+            <div className="p-4 md:p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tighter">Historial de Cobros (Últimos 30 días)</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestor: {state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Comisión %</span>
+                  <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+                    <input 
+                      type="number" 
+                      value={historyCommissionPercent} 
+                      onChange={(e) => setHistoryCommissionPercent(Number(e.target.value))} 
+                      className="w-12 bg-transparent text-right font-black text-white outline-none no-spinner" 
+                    />
+                    <span className="font-black text-slate-400">%</span>
+                  </div>
+                </div>
+                <button onClick={() => setShowCollectorHistoryId(null)} className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-white custom-scrollbar p-6">
+              {thirtyDayHistory.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 font-bold uppercase text-sm">
+                  No hay cobros registrados en los últimos 30 días para este gestor.
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead className="bg-slate-100 rounded-t-xl">
+                    <tr className="text-[10px] font-black text-slate-600 uppercase">
+                      <th className="px-4 py-4 rounded-tl-xl">Semana Del</th>
+                      <th className="px-4 py-4 text-right">Lunes</th>
+                      <th className="px-4 py-4 text-right">Martes</th>
+                      <th className="px-4 py-4 text-right">Miércoles</th>
+                      <th className="px-4 py-4 text-right">Jueves</th>
+                      <th className="px-4 py-4 text-right">Viernes</th>
+                      <th className="px-4 py-4 text-right">Sábado</th>
+                      <th className="px-4 py-4 text-right text-blue-700 bg-blue-50">Total Semanal</th>
+                      <th className="px-4 py-4 text-right text-emerald-700 bg-emerald-50 rounded-tr-xl">Comisión {historyCommissionPercent}%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {thirtyDayHistory.map((week, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
+                        <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
+                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
+                        </td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Lunes > 0 ? formatCurrency(week.Lunes, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Martes > 0 ? formatCurrency(week.Martes, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Miércoles > 0 ? formatCurrency(week.Miércoles, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Jueves > 0 ? formatCurrency(week.Jueves, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Viernes > 0 ? formatCurrency(week.Viernes, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono">{week.Sábado > 0 ? formatCurrency(week.Sábado, state.settings) : '-'}</td>
+                        <td className="px-4 py-4 text-right font-mono text-blue-700 font-black bg-blue-50/30">{formatCurrency(week.Total, state.settings)}</td>
+                        <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">{formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 text-center md:rounded-b-[2.5rem]">
+              <p className="text-[10px] text-slate-500 font-bold uppercase"><i className="fa-solid fa-info-circle mr-1"></i> El total semanal suma exclusivamente los cobros realizados de Lunes a Sábado.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
