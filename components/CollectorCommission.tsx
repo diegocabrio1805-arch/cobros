@@ -48,6 +48,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [expenseNote, setExpenseNote] = useState<string>('');
   const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
 
+  const historyPrintRef = useRef<HTMLDivElement>(null);
   const receiptImageRef = useRef<HTMLDivElement>(null);
   const auditTableRef = useRef<HTMLDivElement>(null);
   const [sharingLog, setSharingLog] = useState<CollectionLog | null>(null);
@@ -381,6 +382,104 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     updateCommissionBrackets(editingBrackets);
     setShowBracketModal(false);
     alert("Reglas de comisión actualizadas.");
+  };
+
+  const handleExportHistoryExcel = () => {
+    setIsGeneratingExcel(true);
+    setTimeout(() => {
+      try {
+        const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
+        
+        const wsData: any[][] = [];
+        
+        // Cabecera
+        wsData.push([{ v: `REPORTE FINANCIERO DE 30 DÍAS - ${collectorName.toUpperCase()}`, s: { font: { bold: true, sz: 14 } } }]);
+        wsData.push([]);
+        
+        // --- SECCIÓN RECAUDO ---
+        wsData.push([{ v: 'RECAUDO DE CUOTAS', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2563EB" } } } }]);
+        wsData.push(['Semana Del', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Total Semanal', `Comisión ${historyCommissionPercent}%`]);
+        
+        thirtyDayHistory.forEach(week => {
+          wsData.push([
+            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
+            week.Lunes, week.Martes, week.Miércoles, week.Jueves, week.Viernes, week.Sábado,
+            week.Total,
+            week.Total * (historyCommissionPercent / 100)
+          ]);
+        });
+        
+        wsData.push(['TOTAL RECAUDADO (30 DÍAS)', '', '', '', '', '', '', totals30Dias.recaudo, totals30Dias.comision]);
+        wsData.push([]);
+        
+        // --- SECCIÓN BALANCE ---
+        wsData.push([{ v: 'BALANCE DE RUTA (RECAUDO VS COLOCACIÓN)', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "475569" } } } }]);
+        wsData.push(['Superávit/Déficit', totals30Dias.balance > 0 ? 'SUPERÁVIT (Mayor Recaudación)' : totals30Dias.balance < 0 ? 'DÉFICIT (Mayor Colocación)' : 'BALANCE NEUTRO']);
+        wsData.push(['Diferencia Neta', totals30Dias.balance]);
+        wsData.push([]);
+
+        // --- SECCIÓN COLOCACIÓN ---
+        wsData.push([{ v: 'COLOCACIÓN (CAPITAL PRESTADO)', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } } } }]);
+        wsData.push(['Semana Del', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Total Colocado']);
+        
+        const sumarDia = (ops: any[]) => ops.reduce((acc, curr) => acc + curr.amount, 0);
+
+        thirtyDayColocacionHistory.forEach(week => {
+          wsData.push([
+            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
+            sumarDia(week.Lunes), sumarDia(week.Martes), sumarDia(week.Miércoles), sumarDia(week.Jueves), sumarDia(week.Viernes), sumarDia(week.Sábado),
+            week.TotalNuevos + week.TotalRenovados
+          ]);
+        });
+
+        wsData.push(['TOTAL COLOCADO (30 DÍAS)', '', '', '', '', '', '', totals30Dias.colocacion]);
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        
+        const colWidths = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte 30 Dias");
+        XLSX.writeFile(wb, `Reporte_30Dias_${collectorName.replace(/\s+/g, '_')}_${Date.now()}.xlsx`);
+      } catch (error) {
+        console.error("Error generating history excel", error);
+        alert("Ocurrió un error al generar el archivo Excel.");
+      } finally {
+        setIsGeneratingExcel(false);
+      }
+    }, 100);
+  };
+
+  const handleExportHistoryPDF = async () => {
+    if (!historyPrintRef.current) return;
+    setIsGeneratingImage(true);
+    try {
+      const canvas = await html2canvas(historyPrintRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
+      pdf.save(`Historial_30Dias_${collectorName.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+      console.error('Error al generar PDF', error);
+      alert("No se pudo generar el PDF. Intente nuevamente.");
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   const handleExportExcel = async () => {
@@ -1223,6 +1322,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestor: {state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
               </div>
               <div className="flex items-center gap-4">
+                <div className="flex gap-2">
+                  <button onClick={handleExportHistoryExcel} disabled={isGeneratingExcel} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-[9px] uppercase transition-colors flex items-center justify-center gap-2">
+                    {isGeneratingExcel ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel"></i>} EXCEL
+                  </button>
+                  <button onClick={handleExportHistoryPDF} disabled={isGeneratingImage} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-[9px] uppercase transition-colors flex items-center justify-center gap-2">
+                    {isGeneratingImage ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>} PDF
+                  </button>
+                </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Comisión %</span>
                   <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
@@ -1239,7 +1346,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-white custom-scrollbar p-6">
+            <div ref={historyPrintRef} className="flex-1 overflow-auto bg-white custom-scrollbar p-6">
               <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> Recaudo de Cuotas</h4>
               {thirtyDayHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl mb-8">
