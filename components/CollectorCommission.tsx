@@ -212,17 +212,20 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       return logCollectorId === showCollectorHistoryId;
     });
 
+    type ColocacionOp = { amount: number, isRenewal: boolean, name: string };
     const weeksMap = new Map<string, { 
       weekStart: Date, 
       weekEnd: Date, 
-      LunesN: number, LunesR: number, 
-      MartesN: number, MartesR: number, 
-      MiércolesN: number, MiércolesR: number, 
-      JuevesN: number, JuevesR: number, 
-      ViernesN: number, ViernesR: number, 
-      SábadoN: number, SábadoR: number, 
+      Lunes: ColocacionOp[],
+      Martes: ColocacionOp[],
+      Miércoles: ColocacionOp[],
+      Jueves: ColocacionOp[],
+      Viernes: ColocacionOp[],
+      Sábado: ColocacionOp[],
       TotalNuevos: number, TotalRenovados: number 
     }>();
+
+    const clients = Array.isArray(state.clients) ? state.clients : [];
 
     collectorLoans.forEach(loan => {
       const d = new Date(loan.createdAt || (loan as any).date);
@@ -239,26 +242,25 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         weeksMap.set(mondayStr, {
           weekStart: monday,
           weekEnd: sunday,
-          LunesN: 0, LunesR: 0, 
-          MartesN: 0, MartesR: 0, 
-          MiércolesN: 0, MiércolesR: 0, 
-          JuevesN: 0, JuevesR: 0, 
-          ViernesN: 0, ViernesR: 0, 
-          SábadoN: 0, SábadoR: 0, 
+          Lunes: [], Martes: [], Miércoles: [], Jueves: [], Viernes: [], Sábado: [],
           TotalNuevos: 0, TotalRenovados: 0
         });
       }
 
       const weekData = weeksMap.get(mondayStr)!;
       const amount = Number(loan.principal) || 0;
-      const isR = loan.isRenewal;
+      const isR = !!loan.isRenewal;
       
-      if (dayOfWeek === 1) { if (isR) weekData.LunesR += amount; else weekData.LunesN += amount; }
-      else if (dayOfWeek === 2) { if (isR) weekData.MartesR += amount; else weekData.MartesN += amount; }
-      else if (dayOfWeek === 3) { if (isR) weekData.MiércolesR += amount; else weekData.MiércolesN += amount; }
-      else if (dayOfWeek === 4) { if (isR) weekData.JuevesR += amount; else weekData.JuevesN += amount; }
-      else if (dayOfWeek === 5) { if (isR) weekData.ViernesR += amount; else weekData.ViernesN += amount; }
-      else if (dayOfWeek === 6) { if (isR) weekData.SábadoR += amount; else weekData.SábadoN += amount; }
+      const client = clients.find(c => c.id === loan.clientId || c.id === (loan as any).client_id);
+      const clientName = client ? client.name : 'Desconocido';
+      const op: ColocacionOp = { amount, isRenewal: isR, name: clientName };
+      
+      if (dayOfWeek === 1) weekData.Lunes.push(op);
+      else if (dayOfWeek === 2) weekData.Martes.push(op);
+      else if (dayOfWeek === 3) weekData.Miércoles.push(op);
+      else if (dayOfWeek === 4) weekData.Jueves.push(op);
+      else if (dayOfWeek === 5) weekData.Viernes.push(op);
+      else if (dayOfWeek === 6) weekData.Sábado.push(op);
       
       if (dayOfWeek >= 1 && dayOfWeek <= 6) {
         if (isR) weekData.TotalRenovados += amount;
@@ -267,7 +269,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     });
 
     return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
-  }, [state.loans, showCollectorHistoryId]);
+  }, [state.loans, showCollectorHistoryId, state.clients]);
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
@@ -1280,26 +1282,40 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {thirtyDayColocacionHistory.map((week, idx) => {
-                      const showDay = (nuevos: number, renov: number) => {
-                         if (nuevos === 0 && renov === 0) return <span className="text-slate-300">-</span>;
+                      const showDay = (ops: {amount: number, isRenewal: boolean, name: string}[]) => {
+                         if (ops.length === 0) return <span className="text-slate-300">-</span>;
+                         
+                         const nuevos = ops.filter(o => !o.isRenewal);
+                         const renov = ops.filter(o => o.isRenewal);
+
                          return (
-                           <div className="flex flex-col gap-1 items-center font-mono">
-                             {nuevos > 0 && <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded shadow-sm w-full" title="Nuevo Cliente"><span className="text-emerald-400">N:</span> {formatCurrency(nuevos, state.settings)}</span>}
-                             {renov > 0 && <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded shadow-sm w-full" title="Renovación"><span className="text-amber-400">R:</span> {formatCurrency(renov, state.settings)}</span>}
+                           <div className="flex flex-col gap-1 items-center font-mono w-full px-1">
+                             {nuevos.map((n, i) => (
+                               <div key={`n-${i}`} className="flex flex-col items-center w-full bg-emerald-50 rounded shadow-sm p-1 border border-emerald-100">
+                                 <span className="text-[9px] font-black text-emerald-600"><span className="text-emerald-400">N:</span> {formatCurrency(n.amount, state.settings)}</span>
+                                 <span className="text-[6.5px] uppercase font-bold text-emerald-800 leading-tight text-center break-words max-w-full line-clamp-2 mt-0.5" title={n.name}>{n.name}</span>
+                               </div>
+                             ))}
+                             {renov.map((r, i) => (
+                               <div key={`r-${i}`} className="flex flex-col items-center w-full bg-amber-50 rounded shadow-sm p-1 border border-amber-100">
+                                 <span className="text-[9px] font-black text-amber-600"><span className="text-amber-400">R:</span> {formatCurrency(r.amount, state.settings)}</span>
+                                 <span className="text-[6.5px] uppercase font-bold text-amber-800 leading-tight text-center break-words max-w-full line-clamp-2 mt-0.5" title={r.name}>{r.name}</span>
+                               </div>
+                             ))}
                            </div>
                          );
                       };
                       return (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
-                        <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800 align-top">
+                        <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500 align-middle">
                           {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
                         </td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.LunesN, week.LunesR)}</td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.MartesN, week.MartesR)}</td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.MiércolesN, week.MiércolesR)}</td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.JuevesN, week.JuevesR)}</td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.ViernesN, week.ViernesR)}</td>
-                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.SábadoN, week.SábadoR)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Lunes)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Martes)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Miércoles)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Jueves)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Viernes)}</td>
+                        <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Sábado)}</td>
                         <td className="px-4 py-4 text-right font-mono text-orange-700 bg-orange-50/30 w-40">
                           <span className="text-sm font-black block leading-none">{formatCurrency(week.TotalNuevos + week.TotalRenovados, state.settings)}</span>
                           <div className="flex flex-col gap-0.5 mt-2 text-[8px] font-bold uppercase tracking-wider text-orange-800/60">
