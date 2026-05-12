@@ -47,6 +47,24 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
   const [expenseNote, setExpenseNote] = useState<string>('');
   const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
+  
+  // Rango de fechas para el historial (por defecto últimos 30 días)
+  const [historyStartDate, setHistoryStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 28);
+    return d.toISOString().split('T')[0];
+  });
+  const [historyEndDate, setHistoryEndDate] = useState<string>(countryTodayStr);
+
+  // Resetear fechas al abrir el historial de un nuevo gestor (Default 5 semanas / 35 días)
+  React.useEffect(() => {
+    if (showCollectorHistoryId) {
+      const d = new Date();
+      d.setDate(d.getDate() - 28);
+      setHistoryStartDate(d.toISOString().split('T')[0]);
+      setHistoryEndDate(countryTodayStr);
+    }
+  }, [showCollectorHistoryId, countryTodayStr]);
 
   const historyPrintRef = useRef<HTMLDivElement>(null);
   const receiptImageRef = useRef<HTMLDivElement>(null);
@@ -127,20 +145,19 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   const currentViewStats = useMemo(() => calculateStatsForCollector(selectedHistoricalRoutes), [state.collectionLogs, state.loans, state.commissionBrackets, selectedHistoricalRoutes]);
 
-  const thirtyDayHistory = useMemo(() => {
+  const filteredHistory = useMemo(() => {
     if (!showCollectorHistoryId) return [];
 
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    const [sYear, sMonth, sDay] = historyStartDate.split('-').map(Number);
+    const startRange = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
     
-    // Retrocedemos 30 días exactos
-    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const [eYear, eMonth, eDay] = historyEndDate.split('-').map(Number);
+    const endRange = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
     
-    // Para no cortar la primera semana a la mitad (ej. que falte lunes y martes),
-    // buscamos el LUNES de la semana donde cae esa fecha límite.
-    const dayOfWeekLimit = thirtyDaysAgo.getDay();
-    const diffToMondayLimit = thirtyDaysAgo.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
-    const startOfLimitWeek = new Date(thirtyDaysAgo);
+    // Para no cortar la primera semana a la mitad, buscamos el LUNES de la semana donde cae la fecha de inicio.
+    const dayOfWeekLimit = startRange.getDay();
+    const diffToMondayLimit = startRange.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
+    const startOfLimitWeek = new Date(startRange);
     startOfLimitWeek.setDate(diffToMondayLimit);
     startOfLimitWeek.setHours(0, 0, 0, 0);
     
@@ -148,7 +165,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       if (log.type !== CollectionLogType.PAYMENT) return false;
       if (log.isOpening || log.deletedAt) return false;
       const logDate = new Date(log.date);
-      if (logDate < startOfLimitWeek) return false; // Filtramos desde el Lunes completo
+      if (logDate < startOfLimitWeek || logDate > endRange) return false;
       const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
       return logCollectorId === showCollectorHistoryId;
     });
@@ -190,18 +207,20 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     });
 
     return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
-  }, [state.collectionLogs, showCollectorHistoryId]);
+  }, [state.collectionLogs, showCollectorHistoryId, historyStartDate, historyEndDate]);
 
-  const thirtyDayColocacionHistory = useMemo(() => {
+  const filteredColocacionHistory = useMemo(() => {
     if (!showCollectorHistoryId) return [];
 
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const [sYear, sMonth, sDay] = historyStartDate.split('-').map(Number);
+    const startRange = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
     
-    const dayOfWeekLimit = thirtyDaysAgo.getDay();
-    const diffToMondayLimit = thirtyDaysAgo.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
-    const startOfLimitWeek = new Date(thirtyDaysAgo);
+    const [eYear, eMonth, eDay] = historyEndDate.split('-').map(Number);
+    const endRange = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+    
+    const dayOfWeekLimit = startRange.getDay();
+    const diffToMondayLimit = startRange.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
+    const startOfLimitWeek = new Date(startRange);
     startOfLimitWeek.setDate(diffToMondayLimit);
     startOfLimitWeek.setHours(0, 0, 0, 0);
     
@@ -211,7 +230,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(loan => {
       if (loan.deletedAt) return false;
       const loanDate = new Date(loan.createdAt || (loan as any).date);
-      if (loanDate < startOfLimitWeek) return false;
+      if (loanDate < startOfLimitWeek || loanDate > endRange) return false;
       
       const loanCollectorId = (loan.collectorId || (loan as any).collector_id || loan.branchId || '').toLowerCase();
       const lClientId = (loan.clientId || (loan as any).client_id || '').toLowerCase();
@@ -283,15 +302,15 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     });
 
     return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
-  }, [state.loans, showCollectorHistoryId, state.clients]);
+  }, [state.loans, showCollectorHistoryId, state.clients, historyStartDate, historyEndDate]);
 
-  const totals30Dias = useMemo(() => {
-    const recaudo = thirtyDayHistory.reduce((acc, curr) => acc + curr.Total, 0);
-    const comision = thirtyDayHistory.reduce((acc, curr) => acc + (curr.Total * (historyCommissionPercent / 100)), 0);
-    const colocacion = thirtyDayColocacionHistory.reduce((acc, curr) => acc + curr.TotalNuevos + curr.TotalRenovados, 0);
+  const totalsFilteredHistory = useMemo(() => {
+    const recaudo = filteredHistory.reduce((acc, curr) => acc + curr.Total, 0);
+    const comision = filteredHistory.reduce((acc, curr) => acc + (curr.Total * (historyCommissionPercent / 100)), 0);
+    const colocacion = filteredColocacionHistory.reduce((acc, curr) => acc + curr.TotalNuevos + curr.TotalRenovados, 0);
     const balance = recaudo - colocacion;
     return { recaudo, colocacion, balance, comision };
-  }, [thirtyDayHistory, thirtyDayColocacionHistory, historyCommissionPercent]);
+  }, [filteredHistory, filteredColocacionHistory, historyCommissionPercent]);
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
@@ -393,7 +412,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const wsData: any[][] = [];
         
         // Cabecera
-        wsData.push([{ v: `REPORTE FINANCIERO DE 30 DÍAS - ${collectorName.toUpperCase()}`, s: { font: { bold: true, sz: 14 } } }]);
+        wsData.push([{ v: `REPORTE FINANCIERO - ${collectorName.toUpperCase()}`, s: { font: { bold: true, sz: 14 } } }]);
+        wsData.push([{ v: `Periodo: ${historyStartDate} al ${historyEndDate}`, s: { font: { italic: true, sz: 10 } } }]);
         wsData.push([]);
         
         // --- SECCIÓN RECAUDO ---
@@ -404,7 +424,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const nFmt = '#,##0';
         const c = (v: number) => ({ v: Number(v) || 0, t: 'n', z: nFmt });
 
-        thirtyDayHistory.forEach(week => {
+        filteredHistory.forEach(week => {
           wsData.push([
             `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
             c(week.Lunes), c(week.Martes), c(week.Miércoles), c(week.Jueves), c(week.Viernes), c(week.Sábado),
@@ -414,17 +434,17 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         });
         
         wsData.push([
-          { v: 'TOTAL RECAUDADO (30 DÍAS)', s: { font: { bold: true } } }, 
+          { v: 'TOTAL RECAUDADO (RANGO)', s: { font: { bold: true } } }, 
           '', '', '', '', '', '', 
-          { ...c(totals30Dias.recaudo), s: { font: { bold: true } } }, 
-          { ...c(totals30Dias.comision), s: { font: { bold: true } } }
+          { ...c(totalsFilteredHistory.recaudo), s: { font: { bold: true } } }, 
+          { ...c(totalsFilteredHistory.comision), s: { font: { bold: true } } }
         ]);
         wsData.push([]);
         
         // --- SECCIÓN BALANCE ---
         wsData.push([{ v: 'BALANCE DE RUTA (RECAUDO VS COLOCACIÓN)', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "475569" } } } }]);
-        wsData.push(['Superávit/Déficit', totals30Dias.balance > 0 ? 'SUPERÁVIT (Mayor Recaudación)' : totals30Dias.balance < 0 ? 'DÉFICIT (Mayor Colocación)' : 'BALANCE NEUTRO']);
-        wsData.push(['Diferencia Neta', c(totals30Dias.balance)]);
+        wsData.push(['Superávit/Déficit', totalsFilteredHistory.balance > 0 ? 'SUPERÁVIT (Mayor Recaudación)' : totalsFilteredHistory.balance < 0 ? 'DÉFICIT (Mayor Colocación)' : 'BALANCE NEUTRO']);
+        wsData.push(['Diferencia Neta', c(totalsFilteredHistory.balance)]);
         wsData.push([]);
 
         // --- SECCIÓN COLOCACIÓN ---
@@ -433,7 +453,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         
         const sumarDia = (ops: any[]) => ops.reduce((acc, curr) => acc + curr.amount, 0);
 
-        thirtyDayColocacionHistory.forEach(week => {
+        filteredColocacionHistory.forEach(week => {
           wsData.push([
             `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
             c(sumarDia(week.Lunes)), c(sumarDia(week.Martes)), c(sumarDia(week.Miércoles)), c(sumarDia(week.Jueves)), c(sumarDia(week.Viernes)), c(sumarDia(week.Sábado)),
@@ -442,9 +462,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         });
 
         wsData.push([
-          { v: 'TOTAL COLOCADO (30 DÍAS)', s: { font: { bold: true } } }, 
+          { v: 'TOTAL COLOCADO (RANGO)', s: { font: { bold: true } } }, 
           '', '', '', '', '', '', 
-          { ...c(totals30Dias.colocacion), s: { font: { bold: true } } }
+          { ...c(totalsFilteredHistory.colocacion), s: { font: { bold: true } } }
         ]);
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -454,7 +474,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Reporte 30 Dias");
-        XLSX.writeFile(wb, `Reporte_30Dias_${collectorName.replace(/\s+/g, '_')}_${Date.now()}.xlsx`);
+        XLSX.writeFile(wb, `Reporte_Historial_${collectorName.replace(/\s+/g, '_')}_${Date.now()}.xlsx`);
       } catch (error) {
         console.error("Error generating history excel", error);
         alert("Ocurrió un error al generar el archivo Excel.");
@@ -501,7 +521,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidthmm, imgHeightmm);
       
       const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
-      pdf.save(`Historial_30Dias_${collectorName.replace(/\s+/g, '_')}.pdf`);
+      pdf.save(`Historial_Reporte_${collectorName.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error('Error al generar PDF', error);
       alert("No se pudo generar el PDF. Intente nuevamente.");
@@ -1332,7 +1352,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <span className="text-[9px] font-black text-blue-400 uppercase">PAGO: {Math.round(stats.performanceFactor * 100)}%</span>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">HISTORIAL DE COBROS 30 DÍAS</button>
+                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">HISTORIAL DE COBROS DETALLADO</button>
                   </div>
                 </div>
               ))}
@@ -1346,8 +1366,64 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="bg-white w-full max-w-6xl md:rounded-[2.5rem] shadow-2xl flex flex-col border border-white/20">
             <div className="p-4 md:p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-lg font-black uppercase tracking-tighter">Historial de Cobros (Últimos 30 días)</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Gestor: {state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
+                <h3 className="text-lg font-black uppercase tracking-tighter">Historial de Cobros</h3>
+                <div className="flex flex-col md:flex-row gap-3 mt-2">
+                   <div className="flex flex-col">
+                      <span className="text-[7px] font-black text-slate-500 uppercase mb-1">Gestor Seleccionado</span>
+                      <p className="text-[10px] text-blue-400 font-bold uppercase">{state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
+                   </div>
+                   <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-inner">
+                      <div 
+                        className="flex items-center gap-3 px-3 cursor-pointer group"
+                        onClick={(e) => {
+                          const input = e.currentTarget.querySelector('input');
+                          if (input && 'showPicker' in input) {
+                            try { input.showPicker(); } catch(err) { input.focus(); }
+                          } else if (input) {
+                            input.focus();
+                          }
+                        }}
+                      >
+                         <div className="flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">Desde</span>
+                            <input 
+                              type="date" 
+                              value={historyStartDate} 
+                              onChange={(e) => setHistoryStartDate(e.target.value)} 
+                              onClick={(e) => e.stopPropagation()}
+                              className="bg-transparent text-white rounded-lg py-0.5 px-1 text-xs font-black outline-none border-none focus:ring-0 hide-native-calendar cursor-pointer" 
+                            />
+                         </div>
+                         <i className="fa-solid fa-calendar-day text-blue-400 text-xl group-hover:scale-110 transition-transform"></i>
+                      </div>
+                      
+                      <div className="w-px h-6 bg-slate-700"></div>
+                      
+                      <div 
+                        className="flex items-center gap-3 px-3 cursor-pointer group"
+                        onClick={(e) => {
+                          const input = e.currentTarget.querySelector('input');
+                          if (input && 'showPicker' in input) {
+                            try { input.showPicker(); } catch(err) { input.focus(); }
+                          } else if (input) {
+                            input.focus();
+                          }
+                        }}
+                      >
+                         <div className="flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">Hasta</span>
+                            <input 
+                              type="date" 
+                              value={historyEndDate} 
+                              onChange={(e) => setHistoryEndDate(e.target.value)} 
+                              onClick={(e) => e.stopPropagation()}
+                              className="bg-transparent text-white rounded-lg py-0.5 px-1 text-xs font-black outline-none border-none focus:ring-0 hide-native-calendar cursor-pointer" 
+                            />
+                         </div>
+                         <i className="fa-solid fa-calendar-check text-emerald-400 text-xl group-hover:scale-110 transition-transform"></i>
+                      </div>
+                   </div>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex gap-2">
@@ -1377,9 +1453,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div className="flex-1 overflow-auto bg-white custom-scrollbar">
               <div ref={historyPrintRef} className="p-6">
               <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> Recaudo de Cuotas</h4>
-              {thirtyDayHistory.length === 0 ? (
+              {filteredHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl mb-8">
-                  No hay cobros registrados en los últimos 30 días para este gestor.
+                  No hay cobros registrados en el rango seleccionado para este gestor.
                 </div>
               ) : (
                 <div className="mb-10">
@@ -1398,7 +1474,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {thirtyDayHistory.map((week, idx) => (
+                    {filteredHistory.map((week, idx) => (
                       <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
                         <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
                           {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
@@ -1416,9 +1492,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </tbody>
                   <tfoot className="bg-blue-100/50">
                     <tr>
-                      <td colSpan={7} className="px-4 py-4 text-right font-black text-blue-800 uppercase text-[10px] tracking-widest">TOTAL RECAUDADO (30 DÍAS):</td>
-                      <td className="px-4 py-4 text-right font-black font-mono text-blue-700 text-sm bg-blue-100">{formatCurrency(totals30Dias.recaudo, state.settings)}</td>
-                      <td className="px-4 py-4 text-right font-black font-mono text-emerald-700 text-sm bg-emerald-100">{formatCurrency(totals30Dias.comision, state.settings)}</td>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-blue-800 uppercase text-[10px] tracking-widest">TOTAL RECAUDADO (RANGO):</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-blue-700 text-sm bg-blue-100">{formatCurrency(totalsFilteredHistory.recaudo, state.settings)}</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-emerald-700 text-sm bg-emerald-100">{formatCurrency(totalsFilteredHistory.comision, state.settings)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1426,21 +1502,21 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               )}
 
               {/* BALANCE BANNER */}
-              {(thirtyDayHistory.length > 0 || thirtyDayColocacionHistory.length > 0) && (
-                <div className={`my-8 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between border-2 shadow-sm transition-all ${totals30Dias.balance > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : totals30Dias.balance < 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+              {(filteredHistory.length > 0 || filteredColocacionHistory.length > 0) && (
+                <div className={`my-8 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between border-2 shadow-sm transition-all ${totalsFilteredHistory.balance > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : totalsFilteredHistory.balance < 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
                   <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totals30Dias.balance > 0 ? 'bg-emerald-200 text-emerald-700' : totals30Dias.balance < 0 ? 'bg-red-200 text-red-700' : 'bg-slate-200 text-slate-700'}`}>
-                      <i className={`fa-solid ${totals30Dias.balance > 0 ? 'fa-arrow-trend-up' : totals30Dias.balance < 0 ? 'fa-arrow-trend-down' : 'fa-minus'}`}></i>
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totalsFilteredHistory.balance > 0 ? 'bg-emerald-200 text-emerald-700' : totalsFilteredHistory.balance < 0 ? 'bg-red-200 text-red-700' : 'bg-slate-200 text-slate-700'}`}>
+                      <i className={`fa-solid ${totalsFilteredHistory.balance > 0 ? 'fa-arrow-trend-up' : totalsFilteredHistory.balance < 0 ? 'fa-arrow-trend-down' : 'fa-minus'}`}></i>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Balance de Ruta (30 Días)</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Balance de Ruta (Rango)</p>
                       <h4 className="text-xl font-black tracking-tight">
-                        {totals30Dias.balance > 0 ? '🟢 SUPERÁVIT (Mayor Recaudación)' : totals30Dias.balance < 0 ? '🔴 DÉFICIT (Mayor Colocación)' : '⚪ BALANCE NEUTRO'}
+                        {totalsFilteredHistory.balance > 0 ? '🟢 SUPERÁVIT (Mayor Recaudación)' : totalsFilteredHistory.balance < 0 ? '🔴 DÉFICIT (Mayor Colocación)' : '⚪ BALANCE NEUTRO'}
                       </h4>
                       <p className="text-xs font-bold opacity-80 mt-1">
-                        {totals30Dias.balance > 0 
+                        {totalsFilteredHistory.balance > 0 
                           ? 'El gestor ingresó más dinero del que entregó en créditos.' 
-                          : totals30Dias.balance < 0 
+                          : totalsFilteredHistory.balance < 0 
                             ? 'El gestor entregó más dinero en créditos del que logró cobrar.' 
                             : 'El dinero que entró fue exactamente el mismo que salió.'}
                       </p>
@@ -1449,16 +1525,16 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <div className="text-right mt-4 md:mt-0 bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Diferencia Neta</p>
                     <p className="text-3xl font-black font-mono">
-                      {totals30Dias.balance > 0 ? '+' : totals30Dias.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totals30Dias.balance), state.settings)}
+                      {totalsFilteredHistory.balance > 0 ? '+' : totalsFilteredHistory.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totalsFilteredHistory.balance), state.settings)}
                     </p>
                   </div>
                 </div>
               )}
 
               <h4 className="text-sm font-black text-orange-600 uppercase tracking-widest mt-6 mb-4 flex items-center gap-2 pt-4 border-t border-slate-100"><i className="fa-solid fa-hand-holding-dollar"></i> Colocación (Capital Prestado)</h4>
-              {thirtyDayColocacionHistory.length === 0 ? (
+              {filteredColocacionHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl">
-                  No hay créditos entregados en los últimos 30 días para este gestor.
+                  No hay créditos entregados en el rango seleccionado para este gestor.
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse min-w-[1000px]">
@@ -1475,7 +1551,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {thirtyDayColocacionHistory.map((week, idx) => {
+                    {filteredColocacionHistory.map((week, idx) => {
                       const showDay = (ops: {amount: number, isRenewal: boolean, name: string}[]) => {
                          if (ops.length === 0) return <span className="text-slate-300">-</span>;
                          
@@ -1522,8 +1598,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </tbody>
                   <tfoot className="bg-orange-100/50">
                     <tr>
-                      <td colSpan={7} className="px-4 py-4 text-right font-black text-orange-800 uppercase text-[10px] tracking-widest">TOTAL COLOCADO (30 DÍAS):</td>
-                      <td className="px-4 py-4 text-right font-black font-mono text-orange-700 text-sm bg-orange-100">{formatCurrency(totals30Dias.colocacion, state.settings)}</td>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-orange-800 uppercase text-[10px] tracking-widest">TOTAL COLOCADO (RANGO):</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-orange-700 text-sm bg-orange-100">{formatCurrency(totalsFilteredHistory.colocacion, state.settings)}</td>
                     </tr>
                   </tfoot>
                 </table>

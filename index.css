@@ -55,6 +55,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 1;
 }
 
+.hide-native-calendar::-webkit-calendar-picker-indicator {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
 .leaflet-container {
   height: 100%;
   width: 100%;
