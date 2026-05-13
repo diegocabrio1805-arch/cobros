@@ -448,12 +448,17 @@ export const useAppSyncEngine = (
         }
       });
 
-      // 2. Filtrar clientes: Los que poseo activamente OR los que creé y nadie más posee activamente
+      // 2. Filtrar clientes: Directamente asignados OR poseídos activamente OR creados por mí (si no hay otro dueño activo)
       clients = clients.filter(c => {
+        // A. Asignación directa en el registro del cliente
+        const directOwner = (c.collectorId || (c as any).collector_id || '').toLowerCase();
+        if (directOwner === user.id.toLowerCase()) return true;
+
+        // B. Posesión vía préstamo activo/mora
         if (clientsOwnedByMe.has(c.id)) return true;
         
+        // C. Creador original (fallback si no hay préstamos activos de terceros)
         const isCreator = (c.addedBy || (c as any).added_by || '').toLowerCase() === user.id.toLowerCase();
-        // Si soy el creador, lo veo siempre y cuando no haya otro cobrador con un préstamo activo que me lo haya "quitado"
         if (isCreator && !clientHasActiveLoanByOther.has(c.id)) return true;
         
         return false;
