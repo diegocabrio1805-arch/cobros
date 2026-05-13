@@ -459,8 +459,7 @@ export const useAppSyncEngine = (
       // 2. Filtrar clientes basados en el dueño actual o si el cobrador lo creó
       clients = clients.filter(c => {
         const isOwner = clientOwnerMap.get(c.id) === user.id;
-        const isCreator = (c.addedBy || (c as any).added_by) === user.id;
-        return isOwner || isCreator;
+        return isOwner;
       });
 
       const visibleClientIds = new Set(clients.map(c => c.id));
