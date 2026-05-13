@@ -433,6 +433,12 @@ export const useAppSyncEngine = (
       const clientLatestLoanDate = new Map<string, string>();
       const clientHasActiveLoan = new Map<string, boolean>();
       
+      // 0. El dueño base es quien creó al cliente
+      clients.forEach(c => {
+        const creatorId = c.addedBy || (c as any).added_by;
+        if (creatorId) clientOwnerMap.set(c.id, creatorId);
+      });
+      
       const allLoansInState = Array.isArray(state.loans) ? state.loans : [];
       allLoansInState.forEach(l => {
         const cId = l.clientId || (l as any).client_id;
