@@ -290,8 +290,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
     const pullData = async (fullSync = false): Promise<Partial<AppState> | null> => {
         // LOCK: Prevenir múltiples descargas paralelas que saturan el equipo
+        // Un fullSync SIEMPRE tiene prioridad y rompe el lock.
         if (isProcessingRef.current && !fullSync) {
-            console.log('[Sync] Pull ya en curso. Ignorando solicitud duplicada.');
+            console.log('[Sync] Pull incremental ya en curso. Ignorando solicitud duplicada.');
             return null;
         }
         
@@ -528,9 +529,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setQueueLength(queue.length);
 
             if (queue.length === 0) {
-                if (finalForce || finalFullSync) pullData(finalFullSync);
-                setIsSyncing(false);
-                isProcessingRef.current = false;
+                if (finalForce || finalFullSync) {
+                    // Liberar el lock ANTES de llamar pullData para que no se cancele
+                    isProcessingRef.current = false;
+                    setIsSyncing(false);
+                    await pullData(finalFullSync);
+                } else {
+                    setIsSyncing(false);
+                    isProcessingRef.current = false;
+                }
                 return;
             }
 

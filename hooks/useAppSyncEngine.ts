@@ -272,14 +272,17 @@ export const useAppSyncEngine = (
   }, [state.currentUser]);
 
   useEffect(() => {
+    // NOTA: El delay es de 5s para evitar colisión con el fullSync que App.tsx
+    // dispara a los 3s cuando no hay clientes en caché local.
     const timer = setTimeout(() => {
       sync.pullData();
-    }, 1000);
+    }, 5000);
 
     return () => {
       clearTimeout(timer);
     };
   }, []);
+
 
   useEffect(() => {
     let lastFocusSync = 0;
