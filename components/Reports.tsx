@@ -388,20 +388,81 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                // Enhanced Markers for Google Maps look
                const isPayment = log.type === CollectionLogType.PAYMENT;
                const isRenewal = log.isRenewal;
+               const isNoPayment = !isPayment && !isRenewal;
 
-               let bgColor = '#ef4444'; // Red (No Payment)
+               let bgColor = '#ef4444'; // Red (No Payment default)
                let borderColor = '#991b1b';
                let emoji = '😡';
+               let distanceNote = '';
 
-               if (isPayment) {
-                  bgColor = '#10b981'; // Emerald (Payment)
+               if (isPayment && log.isVirtual) {
+                  bgColor = '#38bdf8'; // Celeste (Transferencia)
+                  borderColor = '#0369a1';
+                  emoji = '😊';
+               } else if (isPayment) {
+                  bgColor = '#10b981'; // Emerald (Efectivo)
                   borderColor = '#065f46';
                   emoji = '😊';
-               }
-               if (isRenewal) {
+               } else if (isRenewal) {
                   bgColor = '#3b82f6'; // Blue (Liquidation)
                   borderColor = '#1e40af';
                   emoji = '😇';
+               } else if (isNoPayment) {
+                  // Verificar distancia entre el registro y la casa del cliente
+                  const clientLat = client?.location?.lat;
+                  const clientLng = client?.location?.lng;
+                  const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+                  const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+
+                  if (!hasClientLocation) {
+                     // Sin ubicación registrada del cliente → naranja fosforescente
+                     bgColor = '#ff6a00';
+                     borderColor = '#cc5500';
+                     emoji = '👀';
+                     distanceNote = 'Sin ubicación del cliente';
+                  } else if (hasLogLocation) {
+                     const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000; // en metros
+                     if (dist <= 50) {
+                        // Dentro de 50m → rojo (fue a la casa)
+                        bgColor = '#ef4444';
+                        borderColor = '#991b1b';
+                        emoji = '😡';
+                        distanceNote = `${Math.round(dist)}m de la casa`;
+                     } else {
+                        // Fuera de 50m → naranja oscuro (no fue a la casa)
+                        bgColor = '#f97316';
+                        borderColor = '#c2410c';
+                        emoji = '😤';
+                        distanceNote = `${Math.round(dist)}m de la casa ⚠️`;
+                     }
+                  } else {
+                     // Sin GPS en el log → naranja fosforescente
+                     bgColor = '#ff6a00';
+                     borderColor = '#cc5500';
+                     emoji = '👀';
+                     distanceNote = 'Sin GPS en el registro';
+                  }
+               }
+
+               // Calcular distancia para PAGOS también
+               if (isPayment) {
+                  const clientLat = client?.location?.lat;
+                  const clientLng = client?.location?.lng;
+                  const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+                  const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+
+                  if (!hasClientLocation) {
+                     distanceNote = 'Sin ubicación del cliente';
+                  } else if (hasLogLocation) {
+                     const distM = calculateDistance(lat, lng, clientLat, clientLng) * 1000;
+                     if (distM >= 1000) {
+                        distanceNote = `${(distM / 1000).toFixed(1)} km de la casa`;
+                     } else {
+                        distanceNote = `${Math.round(distM)}m de la casa`;
+                     }
+                  } else {
+                     distanceNote = 'Sin GPS en el registro';
+                  }
                }
 
                const markerHtml = `
@@ -431,11 +492,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
                L.marker([lat, lng], { icon: googleIcon })
                   .bindPopup(`
-                    <div style="min-width: 150px; text-align: center;">
+                    <div style="min-width: 160px; text-align: center;">
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
                         <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? 'LIQUIDACIÓN' : log.type}</p>
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
                         ${log.amount ? `<p style="margin-top:4px; font-weight:900; font-family:monospace;">${formatCurrency(log.amount, activeSettings)}</p>` : ''}
+                        ${distanceNote ? `<p style="margin-top:6px; font-size:10px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px;">📍 ${distanceNote}</p>` : ''}
                     </div>
                   `)
                   .addTo(layerGroup.current);
@@ -643,13 +705,25 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          else if (daysSinceVisit >= 8) gapStatus = 'ALERTA';
          else if (daysSinceVisit >= 4) gapStatus = 'ATENCIÓN';
 
+         // Último pago real del cliente
+         const lastPaymentLog = allClientLogs
+            .filter(l => l.type === CollectionLogType.PAYMENT)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+         const lastPaymentDays = lastPaymentLog
+            ? Math.floor((today.getTime() - new Date(lastPaymentLog.date).getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+         const lastPaymentAmount = lastPaymentLog ? (parseRawNumber(lastPaymentLog.amount) || 0) : 0;
+
          return {
             cliente: client.name || '---',
             visitas: gestionesPeriodo.length,
             diasInactivo: daysSinceVisit,
             atraso: daysOverdue,
             saldo: balance,
-            gapStatus
+            gapStatus,
+            lastPaymentDays,
+            lastPaymentAmount,
+            hasLocation: !!(client.location?.lat && client.location?.lng && (Math.abs(client.location.lat) > 0.1 || Math.abs(client.location.lng) > 0.1)),
          };
       }).filter(Boolean) as any[];
 
@@ -667,23 +741,26 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Detail List
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text('Control de Gestión y Morosidad (Prioridad por Abandono):', 20, 105);
+      doc.text('Control de Gestión y Morosidad (Prioridad S/ REGISTRO):', 20, 105);
 
       let currentY = 115;
-      doc.setFontSize(8);
+      doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
-      doc.text('CLIENTE', 25, currentY);
-      doc.text('SALDO', 90, currentY);
-      doc.text('ATRASO (MORA)', 120, currentY);
-      doc.text('S/ REGISTRO', 145, currentY);
-      doc.text('ESTADO', 175, currentY);
+      doc.text('#', 20, currentY);
+      doc.text('CLIENTE', 26, currentY);
+      doc.text('SALDO', 72, currentY);
+      doc.text('ATRASO', 95, currentY);
+      doc.text('S/ REGIST.', 114, currentY);
+      doc.text('ÚLT. PAGO', 136, currentY);
+      doc.text('ESTADO', 160, currentY);
+      doc.text('UBICACION', 176, currentY);
 
-      doc.line(20, currentY + 2, 190, currentY + 2);
+      doc.line(20, currentY + 2, 210, currentY + 2);
       currentY += 10;
 
       doc.setFont('helvetica', 'normal');
-      auditData.sort((a, b) => b.diasInactivo - a.diasInactivo).slice(0, 100).forEach(item => {
-         if (currentY > 275) {
+      auditData.sort((a, b) => b.diasInactivo - a.diasInactivo).slice(0, 100).forEach((item, index) => {
+         if (currentY > 272) {
             doc.addPage();
             currentY = 20;
          }
@@ -703,25 +780,62 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          else if (item.gapStatus === 'ALERTA') { stR = 234; stG = 88; stB = 12; }
          else if (item.gapStatus === 'ATENCIÓN') { stR = 245; stG = 158; stB = 11; }
 
+         doc.setFontSize(6.5);
+         // Número de fila
+         doc.setTextColor(100, 116, 139);
+         doc.setFont('helvetica', 'bold');
+         doc.text(`${index + 1}.`, 20, currentY);
+         doc.setFont('helvetica', 'normal');
          doc.setTextColor(30, 41, 59);
-         doc.text(item.cliente.substring(0, 35).toUpperCase(), 25, currentY);
-         
+         doc.text(item.cliente.substring(0, 25).toUpperCase(), 26, currentY);
+
          // Saldo coloreado
          doc.setTextColor(sR, sG, sB);
-         doc.text(formatRawNumber(item.saldo, activeSettings), 90, currentY);
-         
+         doc.text(formatRawNumber(item.saldo, activeSettings), 72, currentY);
+
          // Atraso y Registro
          doc.setTextColor(30, 41, 59);
-         doc.text(`${item.atraso} d.`, 120, currentY);
-         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' d.'}`, 145, currentY);
-         
+         doc.text(`${item.atraso} d.`, 95, currentY);
+         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' d.'}`, 114, currentY);
+
+         // Último Pago
+         if (item.lastPaymentDays !== null && item.lastPaymentDays !== undefined) {
+            const lpR = item.lastPaymentDays <= 7 ? 16 : item.lastPaymentDays <= 14 ? 217 : 220;
+            const lpG = item.lastPaymentDays <= 7 ? 185 : item.lastPaymentDays <= 14 ? 119 : 38;
+            const lpB = item.lastPaymentDays <= 7 ? 129 : item.lastPaymentDays <= 14 ? 6 : 38;
+            doc.setTextColor(lpR, lpG, lpB);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${item.lastPaymentDays} d.`, 136, currentY);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(5.5);
+            doc.setTextColor(100, 116, 139);
+            doc.text(formatRawNumber(item.lastPaymentAmount, activeSettings), 136, currentY + 3);
+            doc.setFontSize(6.5);
+         } else {
+            doc.setTextColor(220, 38, 38);
+            doc.setFont('helvetica', 'bold');
+            doc.text('NUNCA', 136, currentY);
+            doc.setFont('helvetica', 'normal');
+         }
+
          // Estado coloreado
          doc.setTextColor(stR, stG, stB);
          doc.setFont('helvetica', 'bold');
-         doc.text(item.gapStatus, 175, currentY);
+         doc.text(item.gapStatus, 160, currentY);
          doc.setFont('helvetica', 'normal');
 
-         currentY += 6;
+         // UBICACION
+         doc.setFont('helvetica', 'bold');
+         if (item.hasLocation) {
+            doc.setTextColor(16, 185, 129); // Verde
+            doc.text('UBICACION R', 176, currentY);
+         } else {
+            doc.setTextColor(220, 38, 38); // Rojo
+            doc.text('UBICACION NR', 176, currentY);
+         }
+         doc.setFont('helvetica', 'normal');
+
+         currentY += 8;
       });
 
       doc.setTextColor(150);
@@ -1354,19 +1468,66 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                            const normalizedLogClientId = normalizeId(log.clientId);
                            const client = (Array.isArray(state.clients) ? state.clients : []).find(c => normalizeId(c.id) === normalizedLogClientId);
                            const time = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                           const getEmoji = () => {
-                              if (log.isRenewal) return '😇';
-                              if (log.type === CollectionLogType.PAYMENT) return '😊';
-                              return '😡';
-                           };
+
+                           const isPayment = log.type === CollectionLogType.PAYMENT;
+                           const isRenewal = log.isRenewal;
+                           const isNoPayment = !isPayment && !isRenewal;
+
+                           // Calcular emoji y color igual que el mapa
+                           let emoji = '😡';
+                           let colorClass = 'text-red-600';
+                           let bgClass = 'bg-red-100';
+
+                           if (isRenewal) {
+                              emoji = '😇';
+                              colorClass = 'text-blue-600';
+                              bgClass = 'bg-blue-100';
+                           } else if (isPayment && log.isVirtual) {
+                              // Transferencia → celeste
+                              emoji = '😊';
+                              colorClass = 'text-sky-500';
+                              bgClass = 'bg-sky-100';
+                           } else if (isPayment) {
+                              // Efectivo → verde
+                              emoji = '😊';
+                              colorClass = 'text-emerald-600';
+                              bgClass = 'bg-emerald-100';
+                           } else if (isNoPayment) {
+                              const clientLat = client?.location?.lat;
+                              const clientLng = client?.location?.lng;
+                              const hasClientLoc = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+                              const hasLogLoc = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+
+                              if (!hasClientLoc || !hasLogLoc) {
+                                 // Sin ubicación → naranja fosforescente 👀
+                                 emoji = '👀';
+                                 colorClass = 'text-orange-500';
+                                 bgClass = 'bg-orange-100';
+                              } else {
+                                 const dist = calculateDistance(log.location.lat, log.location.lng, clientLat, clientLng) * 1000;
+                                 if (dist <= 50) {
+                                    // Dentro de 50m → rojo 😡
+                                    emoji = '😡';
+                                    colorClass = 'text-red-600';
+                                    bgClass = 'bg-red-100';
+                                 } else {
+                                    // Lejos → naranja 😤
+                                    emoji = '😤';
+                                    colorClass = 'text-orange-500';
+                                    bgClass = 'bg-orange-100';
+                                 }
+                              }
+                           }
+
+                           const label = isRenewal ? 'Liquidado' : isPayment ? (log.isVirtual ? 'Transferencia' : 'Cobrado') : 'No Pago';
 
                            return (
                               <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
-                                    <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${log.isRenewal ? 'text-blue-600' : log.type === CollectionLogType.PAYMENT ? 'text-emerald-600' : 'text-red-600'}`}>
-                                       <span className="text-lg">{getEmoji()}</span>
-                                       {log.isRenewal ? 'Liquidado' : log.type === CollectionLogType.PAYMENT ? 'Cobrado' : 'No Pago'}
+                                    <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
+                                       <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-full ${bgClass}`}>{emoji}</span>
+                                       {label}
                                     </span>
                                  </td>
                                  <td className="px-6 py-4">
