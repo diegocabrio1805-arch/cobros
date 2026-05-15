@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
 import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime } from '../utils/helpers';
@@ -1507,6 +1507,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   <table className="w-full text-left">
                      <thead>
                         <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                           <th className="px-6 py-4">#</th>
                            <th className="px-6 py-4">Hora</th>
                            <th className="px-6 py-4">Estado</th>
                            <th className="px-6 py-4">Cliente</th>
@@ -1515,7 +1516,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
-                        {(Array.isArray(routeData) ? routeData : []).filter(l => l.type !== CollectionLogType.OPENING).map((log) => {
+                        {(Array.isArray(routeData) ? routeData : []).filter(l => l.type !== CollectionLogType.OPENING).map((log, idx) => {
                            const normalizedLogClientId = normalizeId(log.clientId);
                            const client = (Array.isArray(state.clients) ? state.clients : []).find(c => normalizeId(c.id) === normalizedLogClientId);
                            const time = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1592,7 +1593,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  className={`transition-colors ${hasMapMarker ? 'hover:bg-blue-50/60 cursor-pointer' : 'hover:bg-slate-50/50'}`}
                                  title={hasMapMarker ? '📍 Clic para ver en el mapa' : ''}
                               >
-                                 <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
+                                 <td className="px-6 py-4 text-[11px] font-black text-slate-400 font-mono">{idx + 1}</td>`n                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
                                     <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
                                        <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-full ${bgClass}`}>{emoji}</span>
@@ -1638,4 +1639,5 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 };
 
 export default Reports;
+
 
