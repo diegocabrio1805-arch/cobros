@@ -1505,8 +1505,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
                <div className="overflow-auto max-h-[450px] scrollbar-premium">
                   <table className="w-full text-left">
-                     <thead>
-                        <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                     <thead className="sticky top-0 z-20">
+                        <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 shadow-sm">
                            <th className="px-6 py-4">#</th>
                            <th className="px-6 py-4">Hora</th>
                            <th className="px-6 py-4">Estado</th>
