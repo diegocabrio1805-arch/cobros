@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
 import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime } from '../utils/helpers';
@@ -1593,7 +1593,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  className={`transition-colors ${hasMapMarker ? 'hover:bg-blue-50/60 cursor-pointer' : 'hover:bg-slate-50/50'}`}
                                  title={hasMapMarker ? '📍 Clic para ver en el mapa' : ''}
                               >
-                                 <td className="px-6 py-4 text-[11px] font-black text-slate-400 font-mono">{idx + 1}</td>`n                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
+                                 <td className="px-6 py-4 text-[11px] font-black text-slate-400 font-mono">{idx + 1}</td>
+                                 <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
                                     <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
                                        <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-full ${bgClass}`}>{emoji}</span>
