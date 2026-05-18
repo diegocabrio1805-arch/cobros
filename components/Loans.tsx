@@ -142,20 +142,14 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const displayLoans = sortedLoans.length > 0 ? sortedLoans : (loans || []);
       const baseLoan = displayLoans[0];
 
-      const totalPaid = clientLoans.reduce((sum, l) => sum + calculateTotalPaidFromLogs(l, allLogs), 0);
-      const consolidatedBalance = clientLoans.reduce((sum, l) => {
-          const lp = calculateTotalPaidFromLogs(l, allLogs);
-          return sum + Math.max(0, l.totalAmount - lp);
-      }, 0);
+      const totalPaid = calculateTotalPaidFromLogs(baseLoan, allLogs);
+      const consolidatedBalance = Math.max(0, baseLoan.totalAmount - totalPaid);
       
-      const consolidatedPrincipal = clientLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
-      const consolidatedTotalAmount = clientLoans.reduce((sum, l) => sum + (l.totalAmount || 0), 0);
-      const consolidatedInstallmentValue = clientLoans.reduce((sum, l) => sum + (l.installmentValue || 0), 0);
+      const consolidatedPrincipal = baseLoan.principal || 0;
+      const consolidatedTotalAmount = baseLoan.totalAmount || 0;
+      const consolidatedInstallmentValue = baseLoan.installmentValue || 0;
 
-      const consolidatedMora = Math.max(0, ...clientLoans.map(l => {
-          const lp = calculateTotalPaidFromLogs(l, allLogs);
-          return getDaysOverdue(l, state.settings, lp);
-      }));
+      const consolidatedMora = getDaysOverdue(baseLoan, state.settings, totalPaid);
       
       return {
         ...baseLoan,
