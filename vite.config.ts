@@ -56,7 +56,6 @@ export default defineConfig(({ mode }) => {
       })
     ],
     build: {
-      target: 'es2015',
       minify: mode === 'production' ? 'terser' : false,
       sourcemap: mode !== 'production',
       cssCodeSplit: true,

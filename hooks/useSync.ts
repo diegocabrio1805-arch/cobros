@@ -312,7 +312,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }
 
             const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
-            const PAGE_SIZE = 200; // REDUCIDO de 500 a 200 para mejorar fluidez en gama baja
+            const PAGE_SIZE = 1000; // AUMENTADO a 1000 para minimizar latencia de red en zonas de baja cobertura
 
             const fetchAll = async (query: any) => {
                 let allData: any[] = [];
@@ -394,32 +394,46 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', sevenDaysAgo);
             }
 
-            // PARALLEL FETCH: All 8 tables fetched simultaneously for maximum speed on mobile
-            // Previously sequential (~16s on slow connections), now parallel (~2s)
+            // PARALLEL FETCH HYBRID: Agrupado por lotes para no ahogar el procesador en gama baja ni la red 3G
             const controller = new AbortController();
             syncTimeoutId = setTimeout(() => {
                 // Notificar aborto de forma compatible con navegadores antiguos y nuevos
                 try { controller.abort(); } catch (e) { } 
                 console.warn('[Sync] Timeout de 120s alcanzado. Abortando descarga paralela.');
             }, 120000); 
-            const fetchWithDelay = async (q: any, delay: number = 0) => {
-                if (delay > 0) await new Promise(r => setTimeout(r, delay));
-                return fetchAll(q);
-            };
 
-            console.log(`[Sync] Starting ${fullSync ? 'Full' : 'Incremental'} data fetch (Staggered Mode)...`);
+            console.log(`[Sync] Starting ${fullSync ? 'Full' : 'Incremental'} data fetch (Hybrid Batched Mode)...`);
             
-            // Sequential-ish fetching for lower-end devices: groups critical data first
-            const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
-            const profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal));
+            // LOTE 1: Datos Base y Configuración (Rápido)
+            const [settingsResult, profilesResult] = await Promise.all([
+                fetchAll(settingsQuery.abortSignal(controller.signal)),
+                fetchAll(profilesQuery.abortSignal(controller.signal))
+            ]);
             
-            // AGGRESSIVE STAGGERING: Aumentamos los tiempos para dar respiro al CPU del celular (Gama Baja)
-            const clientsResult = await fetchWithDelay(clientsQuery.abortSignal(controller.signal), fullSync ? 500 : 0);
-            const loansResult = await fetchWithDelay(loansQuery.abortSignal(controller.signal), fullSync ? 300 : 0);
-            const paymentsResult = await fetchWithDelay(paymentsQuery.abortSignal(controller.signal), fullSync ? 300 : 0);
-            const logsResult = await fetchWithDelay(logsQuery.abortSignal(controller.signal), fullSync ? 300 : 0);
-            const expensesResult = await fetchWithDelay(expensesQuery.abortSignal(controller.signal), 0);
-            const deletedResult = await fetchWithDelay(deletedItemsQuery.abortSignal(controller.signal), 0);
+            // Pequeña pausa en FullSync para liberar el hilo principal del celular
+            if (fullSync) await new Promise(r => setTimeout(r, 200));
+            
+            // LOTE 2: Tablas Pesadas (Clientes y Préstamos)
+            const [clientsResult, loansResult] = await Promise.all([
+                fetchAll(clientsQuery.abortSignal(controller.signal)),
+                fetchAll(loansQuery.abortSignal(controller.signal))
+            ]);
+            
+            if (fullSync) await new Promise(r => setTimeout(r, 200));
+            
+            // LOTE 3: Registros Transaccionales (Pagos y Logs)
+            const [paymentsResult, logsResult] = await Promise.all([
+                fetchAll(paymentsQuery.abortSignal(controller.signal)),
+                fetchAll(logsQuery.abortSignal(controller.signal))
+            ]);
+
+            if (fullSync) await new Promise(r => setTimeout(r, 150));
+
+            // LOTE 4: Gastos y Eliminados
+            const [expensesResult, deletedResult] = await Promise.all([
+                fetchAll(expensesQuery.abortSignal(controller.signal)),
+                fetchAll(deletedItemsQuery.abortSignal(controller.signal))
+            ]);
 
             console.log('[Sync] Data fetch complete.');
 
