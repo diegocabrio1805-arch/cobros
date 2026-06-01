@@ -144,7 +144,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   // Calcular lo cobrado SOLO de los créditos que siguen activos (no cancelados/pagados)
   const totalPaidActiveLoans = (Array.isArray(state.loans) ? state.loans : [])
-    .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    .filter(l => {
+      if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) return true;
+      if (l.status === LoanStatus.PAID) {
+        const logsForLoan = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+          .filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt);
+        if (logsForLoan.length > 0) {
+          const lastLog = logsForLoan.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(lastLog.date));
+          if (logDateStr === countryTodayStr) return true;
+        }
+      }
+      return false;
+    })
     .reduce((acc, l) => acc + calculateTotalPaidFromLogs(l, state.collectionLogs), 0);
 
   const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
