@@ -142,6 +142,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       return acc + remaining;
     }, 0);
 
+  // Calcular lo cobrado SOLO de los créditos que siguen activos (no cancelados/pagados)
+  const totalPaidActiveLoans = (Array.isArray(state.loans) ? state.loans : [])
+    .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    .reduce((acc, l) => acc + calculateTotalPaidFromLogs(l, state.collectionLogs), 0);
+
   const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
   const paginatedCollectors = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -476,9 +481,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       </div>
 
       {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
         {[
           { label: 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: 'Cobrado (Activos)', value: formatCurrency(totalPaidActiveLoans, state.settings), icon: 'fa-money-bill-wave', color: 'text-violet-500', bg: 'bg-violet-500/10' },
           { label: 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
           { label: 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
           { label: 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
