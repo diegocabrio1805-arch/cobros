@@ -128,6 +128,20 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   // Esto asegura que el "Recaudo de Hoy" coincida exactamente con la suma de la tabla
   const collectedToday = collectorStats.reduce((acc, curr) => acc + curr.recaudo, 0);
 
+  // Sumar todos los abonos históricos reales (excluyendo aperturas y pagos borrados)
+  const totalCollectedAllTime = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+    .filter(log => log.type === CollectionLogType.PAYMENT && !log.deletedAt)
+    .reduce((acc, log) => acc + (log.amount || 0), 0);
+
+  // Calcular el saldo pendiente total de los clientes (Capital en la Calle)
+  const totalOwedAmount = (Array.isArray(state.loans) ? state.loans : [])
+    .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    .reduce((acc, l) => {
+      const totalPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+      const remaining = Math.max(0, l.totalAmount - totalPaid);
+      return acc + remaining;
+    }, 0);
+
   const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
   const paginatedCollectors = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -462,9 +476,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       </div>
 
       {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         {[
-          { label: 'Utilidad Neta', value: formatCurrency(netUtility, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
           { label: 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
           { label: 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
           { label: 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },

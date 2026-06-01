@@ -520,9 +520,9 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
 
                 {/* Zona Activa Expandible */}
                 <div className={`mt-4 pt-4 border-t border-slate-800 transition-all duration-300 ${isSelected ? 'block' : 'hidden'}`}>
-                  
-                  {loan ? (
-                                 {/* Selector de Método de Pago */}
+                       {loan ? (
+                    <>
+                      {/* Selector de Método de Pago */}
                       <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-4 bg-slate-950 p-1 rounded-xl`}>
                         <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>EFECTIVO</button>
                         <button onClick={() => setMethodInRoute('virtual', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>TRANSF.</button>
@@ -612,7 +612,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                              <button onClick={() => resetUI()} className="w-14 bg-slate-800 text-slate-400 font-black rounded-xl text-center active:scale-95"><i className="fa-solid fa-xmark"></i></button>
                           </div>
                         </>
-                      )}        </div>
+                      )}
                     </>
                   ) : (
                     <div className="bg-slate-950 p-4 rounded-xl text-center mb-4">
