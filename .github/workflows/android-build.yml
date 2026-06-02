@@ -43,6 +43,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Remove Hardcoded Java Home for CI
+        run: sed -i '/org.gradle.java.home/d' android/gradle.properties
+
       - name: Build Android APK (Debug)
         run: |
           cd android
