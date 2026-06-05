@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import html2canvas from 'html2canvas';
@@ -317,6 +317,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewalWhatsAppUrl, setRenewalWhatsAppUrl] = useState<string | null>(null);
   const [renewForm, setRenewForm] = useState<any>({
     principal: '500000',
     interestRate: '20',
@@ -1844,6 +1845,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const handleRenewLoan = async () => {
     if (isSubmitting || !clientInLegajo || !addLoan || !updateLoan) return;
 
+    // ✅ TRUCO ANTI-POPUP-BLOCKER: Abrir ventana vacía AHORA (sincrónico, gesto del usuario)
+    // El navegador permite window.open() solo en respuesta directa a un clic.
+    // Luego le asignamos la URL de WhatsApp al finalizar el proceso async.
+    const waWindow = clientInLegajo?.phone ? window.open('', '_blank') : null;
+
     setIsSubmitting(true);
     try {
       const p = Number(renewForm.principal) || 0;
@@ -1879,7 +1885,34 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       if (onForceSync) onForceSync(false, "RENOVACIÓN EXITOSA");
       setShowRenewModal(false);
-      alert("Crédito Renovado con éxito.");
+
+      // ✅ Calcular URL de WhatsApp y navegar directamente (anti-popup: usamos la ventana pre-abierta)
+      if (clientInLegajo?.phone) {
+        const rawPhone = clientInLegajo.phone.replace(/\D/g, '');
+        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+        const targetPhone = (rawPhone.length === 10 && countryPrefix === '57')
+          ? countryPrefix + rawPhone
+          : (rawPhone.startsWith(countryPrefix) ? rawPhone : countryPrefix + rawPhone);
+        const formattedAmount = formatRawNumber(p, state.settings);
+        const companyName = (state.settings.companyAlias || state.settings.companyName || 'LA EMPRESA').toUpperCase();
+        const contactPhone = state.settings.contactPhone ? ` ${state.settings.contactPhone}` : '';
+        const msgText = `CLIENTE ${clientInLegajo.name.toUpperCase()} SE APROBO SU RENOVACION DE CREDITO ${state.settings.currencySymbol || '$'}${formattedAmount} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
+        const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
+
+        // Navegar en la ventana pre-abierta (no bloqueada por popup blocker)
+        if (waWindow && !waWindow.closed) {
+          waWindow.location.href = waUrl;
+        } else {
+          // Fallback: si la ventana fue bloqueada, mostrar toast para que el usuario haga clic
+          window.open(waUrl, '_blank');
+        }
+
+        // Mostrar toast igualmente como confirmación visual
+        setRenewalWhatsAppUrl(waUrl);
+      } else {
+        // Sin teléfono: cerrar la ventana vacía si quedó abierta
+        if (waWindow && !waWindow.closed) waWindow.close();
+      }
     } catch (error) {
       console.error("Error renovando:", error);
       alert("Error al renovar el crédito.");
@@ -3894,6 +3927,36 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           )
         }
+
+        {/* ✅ TOAST WHATSAPP POST-RENOVACIÓN - nunca bloqueado por popup blocker */}
+        {renewalWhatsAppUrl && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] animate-scaleIn w-[90vw] max-w-sm">
+            <div className="bg-[#075e54] text-white rounded-2xl shadow-2xl overflow-hidden border border-white/10">
+              <div className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-xl">
+                  <i className="fa-brands fa-whatsapp"></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Crédito Renovado ✅</p>
+                  <p className="text-xs font-black leading-tight">Toca para notificar al cliente por WhatsApp</p>
+                </div>
+                <button onClick={() => setRenewalWhatsAppUrl(null)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0 hover:bg-white/20 transition-all">
+                  <i className="fa-solid fa-xmark text-sm"></i>
+                </button>
+              </div>
+              <a
+                href={renewalWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setRenewalWhatsAppUrl(null)}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-[#25d366] font-black text-[11px] uppercase tracking-widest hover:bg-[#20ba58] transition-all active:scale-95"
+              >
+                <i className="fa-brands fa-whatsapp text-lg"></i>
+                ENVIAR MENSAJE DE RENOVACIÓN
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* MODAL COBRO / LIQUIDACIÓN DENTRO DEL EXPEDIENTE */}
         {
