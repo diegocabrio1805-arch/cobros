@@ -2392,6 +2392,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Cuotas</p><p className="text-xs md:text-sm font-black text-slate-800">{m.totalInstallments}</p></div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Pagadas</p><p className="text-xs md:text-sm font-black text-emerald-700">{m.paidInstallments}</p></div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Créditos</p><p className="text-xs md:text-sm font-black text-slate-800">{(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).length}</p></div>
                       </div>
                       <div className="flex items-center gap-2 w-full md:w-auto">
                         <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">EXPEDIENTE</button>
@@ -3402,6 +3403,83 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
 
+                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Historial Crediticio</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
+                              <div className="p-0 max-h-[220px] overflow-y-auto">
+                                <table className="w-full text-left border-collapse">
+                                  <thead className="bg-slate-100 text-[7px] text-slate-500 uppercase sticky top-0">
+                                    <tr>
+                                      <th className="p-2 border-b border-slate-200">Fecha</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">Crédito</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">Habilitado</th>
+                                      <th className="p-2 border-b border-slate-200 text-center">Días de Mora</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
+                                    {(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(loan => {
+                                      const inicio = new Date(loan.createdAt);
+                                      const amortization = generateAmortizationTable(loan.principal, loan.interestRate, loan.totalInstallments, loan.frequency, inicio, loan.customHolidays || []);
+                                      const vencimiento = amortization.length > 0 ? new Date(amortization[amortization.length - 1].dueDate) : inicio;
+                                      
+                                      let cancelado: Date | null = null;
+                                      let atraso = 0;
+                                      
+                                      const calcBusinessDays = (start: Date, end: Date) => {
+                                        let current = new Date(start);
+                                        current.setDate(current.getDate() + 1);
+                                        current.setHours(0,0,0,0);
+                                        const endDate = new Date(end);
+                                        endDate.setHours(0,0,0,0);
+                                        let days = 0;
+                                        while (current <= endDate) {
+                                          if (current.getDay() !== 0) days++; // Omitir domingos
+                                          current.setDate(current.getDate() + 1);
+                                        }
+                                        return days;
+                                      };
+
+                                      if (loan.status === 'PAID') {
+                                        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === 'PAGO').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                                        cancelado = loanLogs.length > 0 ? new Date(loanLogs[0].date) : (loan.updatedAt ? new Date(loan.updatedAt) : null);
+                                        if (cancelado && cancelado > vencimiento) {
+                                          atraso = calcBusinessDays(vencimiento, cancelado);
+                                        }
+                                      } else {
+                                        if (activeLoanInLegajo && loan.id === activeLoanInLegajo.id) {
+                                          atraso = getClientMetrics(clientInLegajo!).daysOverdue;
+                                        } else {
+                                          const now = new Date();
+                                          if (now > vencimiento) {
+                                            atraso = calcBusinessDays(vencimiento, now);
+                                          }
+                                        }
+                                      }
+
+                                      return (
+                                        <tr key={loan.id}>
+                                          <td className="p-2 uppercase text-slate-500 text-[7px] leading-tight">
+                                            <span className="block"><strong className="text-slate-700">Inic:</strong> {inicio.toLocaleDateString()}</span>
+                                            <span className="block"><strong className="text-slate-700">Venc:</strong> {vencimiento.toLocaleDateString()}</span>
+                                            {loan.status === 'PAID' && cancelado && <span className="block text-emerald-600"><strong className="text-emerald-700">Canc:</strong> {cancelado.toLocaleDateString()}</span>}
+                                          </td>
+                                          <td className="p-2 text-right text-slate-900 font-mono align-middle">{formatCurrency(loan.principal, state.settings)}</td>
+                                          <td className="p-2 text-right text-emerald-700 font-mono align-middle">{formatCurrency(loan.totalAmount, state.settings)}</td>
+                                          <td className="p-2 text-center align-middle">
+                                            <span className={`text-[10px] font-black uppercase ${atraso > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                              {atraso} DÍAS
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                    {(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id).length === 0 && (
+                                      <tr><td colSpan={4} className="p-4 text-center text-slate-400 text-[9px] uppercase">Sin historial</td></tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden col-span-1 md:col-span-2">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información de Vivienda y Laboral</h4><i className="fa-solid fa-house-laptop text-slate-400"></i></div>
                               <div className="p-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
@@ -3928,35 +4006,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )
         }
 
-        {/* ✅ TOAST WHATSAPP POST-RENOVACIÓN - nunca bloqueado por popup blocker */}
-        {renewalWhatsAppUrl && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] animate-scaleIn w-[90vw] max-w-sm">
-            <div className="bg-[#075e54] text-white rounded-2xl shadow-2xl overflow-hidden border border-white/10">
-              <div className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-xl">
-                  <i className="fa-brands fa-whatsapp"></i>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Crédito Renovado ✅</p>
-                  <p className="text-xs font-black leading-tight">Toca para notificar al cliente por WhatsApp</p>
-                </div>
-                <button onClick={() => setRenewalWhatsAppUrl(null)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0 hover:bg-white/20 transition-all">
-                  <i className="fa-solid fa-xmark text-sm"></i>
-                </button>
-              </div>
-              <a
-                href={renewalWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setRenewalWhatsAppUrl(null)}
-                className="flex items-center justify-center gap-2 w-full py-3 bg-[#25d366] font-black text-[11px] uppercase tracking-widest hover:bg-[#20ba58] transition-all active:scale-95"
-              >
-                <i className="fa-brands fa-whatsapp text-lg"></i>
-                ENVIAR MENSAJE DE RENOVACIÓN
-              </a>
-            </div>
-          </div>
-        )}
+        {/* El Toast de WhatsApp Post-Renovación ha sido eliminado */}
 
         {/* MODAL COBRO / LIQUIDACIÓN DENTRO DEL EXPEDIENTE */}
         {
