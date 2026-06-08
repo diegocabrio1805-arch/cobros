@@ -246,7 +246,7 @@ export const useAppSyncEngine = (
 
     const triggerEmergencySync = async () => {
       const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
-      const syncKey = 'emergency_sync_v640_STABLE';
+      const syncKey = 'emergency_sync_v641_ADMIN_FIX';
       
       if (lastSyncKey !== syncKey && state.currentUser) {
         console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
@@ -379,6 +379,8 @@ export const useAppSyncEngine = (
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
+      if (user.role === Role.ADMIN) return true;
+      
       const itemBranchLower = itemBranchId?.toLowerCase();
       const addedByLower = itemAddedBy?.toLowerCase() || '';
       const collectorIdLower = itemCollectorId?.toLowerCase() || '';
