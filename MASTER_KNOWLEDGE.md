@@ -43,5 +43,23 @@ Este documento sirve como la **Memoria Central** del proyecto, consolidando toda
     - `localforage`: Base de datos pesada para clientes, préstamos e imágenes (fotos de casa/negocio).
 - **Build Pipeline**: GitHub Actions automatizado vía `android-build.yml`.
 
+## 🚀 Despliegue en Google Play Store (Junio 2026)
+
+### 1. Gestión del Keystore (Punto Rojo)
+- **Ubicación Original**: `android/app/my-release-key.jks`
+- **Alias y Password**: `my-key-alias` / `password123`
+- **Respaldo Seguro**: Se creó la carpeta `Anexo_Cobro_Respaldo` (Escritorio y Google Drive) conteniendo el Keystore, credenciales, el ícono oficial y el AAB de producción. **IMPORTANTE: La pérdida del keystore impide permanentemente actualizar la app.**
+
+### 2. Assets y Compilación (AAB)
+- **Comando de Sync**: `npx cap sync android`
+- **Generación AAB**: Ejecutar `.\gradlew.bat bundleRelease` dentro de la carpeta `android`. El build final se genera en `android/app/build/outputs/bundle/release/app-release.aab`.
+- **Gráficos Play Store**: Generados ícono (512x512) y Feature Graphic (1024x500) en estilo flat minimalista azul navy.
+- **Política de Privacidad**: Alojada en GitHub Pages copiando el archivo a `public/privacy-policy.html` para cumplir los requisitos de Google.
+
+### 3. Estado de la Cuenta
+- **Tipo de Cuenta**: Cuenta Personal / Individual ("Para ti").
+- **Identidad**: Validada/En proceso mediante subida de documento.
+- **Dispositivo Android**: Verificado automáticamente al iniciar sesión en la app Play Console desde el móvil.
+
 ---
-*Manual maestro actualizado el 13 de abril de 2026. Versión de Producción: 6.7.4-STABLE*
+*Manual maestro actualizado el 07 de junio de 2026. Versión de Producción: 6.9.5-STABLE*
