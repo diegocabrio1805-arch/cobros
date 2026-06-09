@@ -1,8 +1,11 @@
 const fs = require('fs');
-const p = 'c:/Users/Usuario/.antigravity/cobros/utils/translations.ts';
-let code = fs.readFileSync(p, 'utf8');
+const path = require('path');
 
-const esProps = `    settingsPage: {
+const transPath = path.join(__dirname, 'utils', 'translations.ts');
+let transCode = fs.readFileSync(transPath, 'utf8');
+
+const newTranslations = {
+  es: `    settingsPage: {
       optionsTitle: 'Opciones',
       supportBtn: 'Configurar Soporte Técnico',
       companyDataTitle: 'Datos de la Empresa',
@@ -54,10 +57,8 @@ const esProps = `    settingsPage: {
       printerWarning: '* Conecte su impresora térmica vía Bluetooth para imprimir recibos automáticamente tras cada cobro.',
       linked: 'Vinculado:',
       saveAndExit: 'GUARDAR Y SALIR'
-    },
-`;
-
-const enProps = `    settingsPage: {
+    },`,
+  en: `    settingsPage: {
       optionsTitle: 'Options',
       supportBtn: 'Configure Tech Support',
       companyDataTitle: 'Company Data',
@@ -109,10 +110,8 @@ const enProps = `    settingsPage: {
       printerWarning: '* Connect your thermal printer via Bluetooth to automatically print receipts.',
       linked: 'Linked:',
       saveAndExit: 'SAVE AND EXIT'
-    },
-`;
-
-const ptProps = `    settingsPage: {
+    },`,
+  pt: `    settingsPage: {
       optionsTitle: 'Opções',
       supportBtn: 'Configurar Suporte Técnico',
       companyDataTitle: 'Dados da Empresa',
@@ -164,10 +163,8 @@ const ptProps = `    settingsPage: {
       printerWarning: '* Conecte sua impressora térmica via Bluetooth para imprimir recibos automaticamente.',
       linked: 'Vinculado:',
       saveAndExit: 'SALVAR E SAIR'
-    },
-`;
-
-const frProps = `    settingsPage: {
+    },`,
+  fr: `    settingsPage: {
       optionsTitle: 'Options',
       supportBtn: 'Configurer le Support Technique',
       companyDataTitle: 'Données de l\\'Entreprise',
@@ -219,12 +216,80 @@ const frProps = `    settingsPage: {
       printerWarning: '* Connectez votre imprimante thermique via Bluetooth pour imprimer des reçus automatiquement.',
       linked: 'Lié:',
       saveAndExit: 'ENREGISTRER ET QUITTER'
-    },
-`;
+    },`
+};
 
-code = code.replace(/settings:\s*\{\s*title:\s*'Configuración Regional',/, esProps + "    settings: {\n      title: 'Configuración Regional',");
-code = code.replace(/settings:\s*\{\s*title:\s*'Regional Settings',/, enProps + "    settings: {\n      title: 'Regional Settings',");
-code = code.replace(/settings:\s*\{\s*title:\s*'Configurações Regionais',/, ptProps + "    settings: {\n      title: 'Configurações Regionais',");
-code = code.replace(/settings:\s*\{\s*title:\s*'Paramètres Régionaux',/, frProps + "    settings: {\n      title: 'Paramètres Régionaux',");
+for (const lang of ['es', 'en', 'pt', 'fr']) {
+  const regexStr = '(' + lang + ':\\s*\\{\\s*common:)';
+  const regex = new RegExp(regexStr, 'g');
+  if (transCode.match(regex)) {
+    transCode = transCode.replace(regex, "$1\\n" + newTranslations[lang]);
+  }
+}
 
-fs.writeFileSync(p, code, 'utf8');
+fs.writeFileSync(transPath, transCode, 'utf8');
+
+const compPath = path.join(__dirname, 'components', 'Settings.tsx');
+let compCode = fs.readFileSync(compPath, 'utf8');
+
+const replacements = [
+  ['>Opciones<', '>{t.settingsPage?.optionsTitle || "Opciones"}<'],
+  ['>Configuración Regional<', '>{t.settings.title || "Configuración Regional"}<'],
+  ['>CONFIGURAR SOPORTE TÉCNICO<', '>{t.settingsPage?.supportBtn || "CONFIGURAR SOPORTE TÉCNICO"}<'],
+  ['>Datos de la Empresa<', '>{t.settingsPage?.companyDataTitle || "Datos de la Empresa"}<'],
+  ['>Para Recibos y Legajos<', '>{t.settingsPage?.companyDataDesc || "Para Recibos y Legajos"}<'],
+  ['>Nombre de la Empresa (Título App)<', '>{t.settingsPage?.companyNameLabel || "Nombre de la Empresa (Título App)"}<'],
+  ['>Teléfono Público<', '>{t.settingsPage?.publicPhoneLabel || "Teléfono Público"}<'],
+  ['>Marca<', '>{t.settingsPage?.brandLabel || "Marca"}<'],
+  ['>ID Empresa (Legajo)<', '>{t.settingsPage?.companyIdLabel || "ID Empresa (Legajo)"}<'],
+  ['>Nombres de banco o cuentas bancarias<', '>{t.settingsPage?.bankNamesLabel || "Nombres de banco o cuentas bancarias"}<'],
+  ['>Numero de cuenta o alias de la empresa<', '>{t.settingsPage?.accountNumberLabel || "Numero de cuenta o alias de la empresa"}<'],
+  ['> Negrita<', '>{t.settingsPage?.boldBtn || "Negrita"}<'],
+  ['>Normal<', '>{t.settingsPage?.sizeNormal || "Normal"}<'],
+  ['>Med.<', '>{t.settingsPage?.sizeMedium || "Med."}<'],
+  ['>Gnd.<', '>{t.settingsPage?.sizeLarge || "Gnd."}<'],
+  ['>Mediano<', '>{t.settingsPage?.sizeMedium || "Mediano"}<'],
+  ['>Grande<', '>{t.settingsPage?.sizeLarge || "Grande"}<'],
+  ['>Estilos de Impresión (Resaltado)<', '>{t.settingsPage?.printStylesTitle || "Estilos de Impresión"}<'],
+  ['>Nombre de Empresa<', '>{t.settingsPage?.printNameLabel || "Nombre de Empresa"}<'],
+  ['>ID Legal (NIT/RUC)<', '>{t.settingsPage?.printIdLabel || "ID Legal (NIT/RUC)"}<'],
+  ['>Teléfono Soporte<', '>{t.settingsPage?.printPhoneLabel || "Teléfono Soporte"}<'],
+  ['>Margen Final (Cola del Recibo)<', '>{t.settingsPage?.printMarginTitle || "Margen Final"}<'],
+  ['>Largo del papel sobrante<', '>{t.settingsPage?.printMarginDesc || "Largo del papel sobrante"}<'],
+  ['>LÍNEAS<', '>{t.settingsPage?.lines || "LÍNEAS"}<'],
+  ['GUARDAR DATOS DE EMPRESA', '{t.settingsPage?.saveCompanyData || "GUARDAR DATOS DE EMPRESA"}'],
+  ['>Integración de Bancard (Cobro QR)<', '>{t.settingsPage?.bancardTitle || "Integración de Bancard"}<'],
+  ['>Configuración de Credenciales para Cobro Móvil<', '>{t.settingsPage?.bancardDesc || "Configuración de Credenciales"}<'],
+  ['>Código de Comercio (Shop ID)<', '>{t.settingsPage?.shopIdLabel || "Código de Comercio"}<'],
+  ['>Clave Pública (Public Key)<', '>{t.settingsPage?.publicKeyLabel || "Clave Pública"}<'],
+  ['>Clave Privada (Private Key)<', '>{t.settingsPage?.privateKeyLabel || "Clave Privada"}<'],
+  ["{isLoadingBancard ? 'GUARDANDO...' : 'GUARDAR CREDENCIALES DE BANCARD'}", "{isLoadingBancard ? (t.settingsPage?.saving || 'GUARDANDO...') : (t.settingsPage?.saveBancard || 'GUARDAR CREDENCIALES DE BANCARD')}"],
+  ['>Zona de Estabilización<', '>{t.settingsPage?.syncZoneTitle || "Zona de Estabilización"}<'],
+  ['>Solución de Sincronización<', '>{t.settingsPage?.syncZoneDesc || "Solución de Sincronización"}<'],
+  ["{isOnline ? 'Conexión Estable' : 'Sin Internet Real'}", "{isOnline ? (t.settingsPage?.connStable || 'Conexión Estable') : (t.settingsPage?.connOffline || 'Sin Internet Real')}"],
+  ["{isOnline ? 'La App tiene acceso verificado a los servidores.' : 'Detectamos problemas de conexión. Los datos se guardarán localmente.'}", "{isOnline ? (t.settingsPage?.connStableDesc || 'La App tiene acceso verificado a los servidores.') : (t.settingsPage?.connOfflineDesc || 'Detectamos problemas de conexión. Los datos se guardarán localmente.')}"],
+  ["{isSyncing ? 'SINCRONIZANDO...' : 'FORZAR SINCRONIZACIÓN'}", "{isSyncing ? (t.settingsPage?.syncing || 'SINCRONIZANDO...') : (t.settingsPage?.forceSyncBtn || 'FORZAR SINCRONIZACIÓN')}"],
+  ['>LIMPIAR COLA<', '>{t.settingsPage?.clearQueueBtn || "LIMPIAR COLA"}<'],
+  ['>REPARAR PROBL. SINCRONIZACIÓN<', '>{t.settingsPage?.repairSyncBtn || "REPARAR PROBL. SINCRONIZACIÓN"}<'],
+  ['>ACTUALIZACIÓN PROFUNDA<', '>{t.settingsPage?.deepUpdateBtn || "ACTUALIZACIÓN PROFUNDA"}<'],
+  ['>* Use "Forzar Sincronización" si sus pagos no aparecen. Use "Reparación Profunda" solo si el problema persiste tras forzar.<', '>{t.settingsPage?.syncWarning || "* Use Forzar Sincronización..."}<'],
+  ['>Formato de Moneda<', '>{t.settingsPage?.currencyFormatTitle || "Formato de Moneda"}<'],
+  ['>PUNTO DE MIL<', '>{t.settingsPage?.dotFormat || "PUNTO DE MIL"}<'],
+  ['>PUNTO DE COMA<', '>{t.settingsPage?.commaFormat || "PUNTO DE COMA"}<'],
+  ['>Configuración de Impresora<', '>{t.settingsPage?.printerConfigTitle || "Configuración de Impresora"}<'],
+  ["{scanningPrinters ? 'BUSCANDO...' : 'BUSCAR IMPRESORA'}", "{scanningPrinters ? (t.settingsPage?.searching || 'BUSCANDO...') : (t.settingsPage?.searchPrinterBtn || 'BUSCAR IMPRESORA')}"],
+  ['>PROBAR IMPRESIÓN<', '>{t.settingsPage?.testPrintBtn || "PROBAR IMPRESIÓN"}<'],
+  ['>* Conecte su impresora térmica vía Bluetooth para imprimir recibos automáticamente tras cada cobro.<', '>{t.settingsPage?.printerWarning || "* Conecte su impresora..."}<'],
+  ['Vinculado:', '{t.settingsPage?.linked || "Vinculado:"}'],
+  ['>Idioma App<', '>{t.settings.language || "Idioma App"}<'],
+  ['>País de Operación<', '>{t.settings.country || "País de Operación"}<'],
+  ['>Ajusta festivos y formato de moneda.<', '>{t.settings.countryDesc || "Ajusta festivos y formato de moneda."}<'],
+  ['GUARDAR Y SALIR', '{t.settingsPage?.saveAndExit || "GUARDAR Y SALIR"}']
+];
+
+for (const [from, to] of replacements) {
+  compCode = compCode.split(from).join(to);
+}
+
+fs.writeFileSync(compPath, compCode, 'utf8');
+console.log('Update successful');

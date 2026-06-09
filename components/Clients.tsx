@@ -652,6 +652,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const collectors = useMemo(() => {
     return (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.role !== Role.COLLECTOR) return false;
+      if (u.name?.toUpperCase() === 'FABIAN PEDROZO') return false;
       if (state.currentUser?.role === Role.COLLECTOR) {
         return u.id === state.currentUser?.id;
       }

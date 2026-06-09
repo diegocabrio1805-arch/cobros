@@ -41,6 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   // 1. Determine VISIBLE COLLECTORS based on strict rules
   const visibleCollectors = useMemo(() => {
     return (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (u.name?.toUpperCase() === 'FABIAN PEDROZO') return false;
       if (u.role !== Role.COLLECTOR) return false;
       if (state.currentUser?.role === Role.COLLECTOR) {
         return u.id === state.currentUser.id;

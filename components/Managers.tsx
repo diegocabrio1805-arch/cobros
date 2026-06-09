@@ -66,7 +66,8 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       password: formData.password,
       role: Role.MANAGER,
       blocked: formData.blocked,
-      expiryDate: formData.expiryDate
+      expiryDate: formData.expiryDate,
+      managedBy: state.currentUser?.id
     };
     if (editingUserId) onUpdateUser(userData);
     else onAddUser(userData);
@@ -202,7 +203,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
   const managers = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.MANAGER);
   const selectedManager = (Array.isArray(state.users) ? state.users : []).find(u => u.id === showCollectorManagerModal);
   const currentCollectors = (Array.isArray(state.users) ? state.users : []).filter(u =>
-    u.role === Role.COLLECTOR &&
+    u.role === Role.COLLECTOR && u.name?.toUpperCase() !== 'FABIAN PEDROZO' &&
     (u.managedBy || (u as any).managed_by)?.toLowerCase() === showCollectorManagerModal?.toLowerCase()
   );
 

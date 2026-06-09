@@ -182,7 +182,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
   };
 
   const collectors = (Array.isArray(state.users) ? state.users : []).filter(u =>
-    u.role === Role.COLLECTOR &&
+    u.role === Role.COLLECTOR && u.name?.toUpperCase() !== 'FABIAN PEDROZO' &&
     (u.managedBy || (u as any).managed_by)?.toLowerCase() === currentUserId?.toLowerCase()
   );
 

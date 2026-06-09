@@ -444,7 +444,7 @@ export const useAppSyncEngine = (
         return true; 
       }
       
-      return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
+      return uId === myIdLower || (uManagedBy && myBranchIds.has(uManagedBy));
     });
 
     if (user.role === Role.COLLECTOR) {
