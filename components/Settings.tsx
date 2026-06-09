@@ -275,8 +275,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <i className="fa-solid fa-gear"></i>
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">Opciones</h2>
-            <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-widest mt-1">Configuración Regional</p>
+            <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">{t.settingsPage?.optionsTitle || "Opciones"}</h2>
+            <p className="text-slate-400 font-bold uppercase text-[9px] md:text-[10px] tracking-widest mt-1">{t.settings.title || "Configuración Regional"}</p>
           </div>
         </div>
 
@@ -300,15 +300,15 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-building text-xl md:text-2xl text-blue-600"></i>
             <div>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Datos de la Empresa</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Para Recibos y Legajos</p>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.companyDataTitle || "Datos de la Empresa"}</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t.settingsPage?.companyDataDesc || "Para Recibos y Legajos"}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre de la Empresa (Título App)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.companyNameLabel || "Nombre de la Empresa (Título App)"}</label>
                 <input
                   type="text"
                   value={localForm.companyName}
@@ -318,7 +318,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono Público</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.publicPhoneLabel || "Teléfono Público"}</label>
                 <input
                   type="text"
                   value={localForm.contactPhone}
@@ -331,7 +331,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Marca</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.brandLabel || "Marca"}</label>
                 <input
                   type="text"
                   value={localForm.companyAlias}
@@ -341,7 +341,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID Empresa (Legajo)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.companyIdLabel || "ID Empresa (Legajo)"}</label>
                 <input
                   type="text"
                   value={localForm.companyIdentifier}
@@ -354,7 +354,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
             <div className="space-y-4 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombres de banco o cuentas bancarias</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.bankNamesLabel || "Nombres de banco o cuentas bancarias"}</label>
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
@@ -385,7 +385,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Numero de cuenta o alias de la empresa</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.accountNumberLabel || "Numero de cuenta o alias de la empresa"}</label>
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
@@ -421,13 +421,13 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="col-span-1 md:col-span-2 pt-6 border-t border-slate-100 space-y-6">
               <div className="flex items-center gap-2">
                 <i className="fa-solid fa-wand-magic-sparkles text-blue-600"></i>
-                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Estilos de Impresión (Resaltado)</h4>
+                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{t.settingsPage?.printStylesTitle || "Estilos de Impresión"}</h4>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Nombre de la Empresa */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Nombre de Empresa</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printNameLabel || "Nombre de Empresa"}</p>
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={() => setLocalForm({ ...localForm, companyNameBold: !localForm.companyNameBold })}
@@ -451,7 +451,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
                 {/* ID Empresa */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">ID Legal (NIT/RUC)</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printIdLabel || "ID Legal (NIT/RUC)"}</p>
                   <div>
                     <button
                       onClick={() => setLocalForm({ ...localForm, companyIdentifierBold: !localForm.companyIdentifierBold })}
@@ -464,7 +464,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
                 {/* Teléfono */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Teléfono Soporte</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printPhoneLabel || "Teléfono Soporte"}</p>
                   <div>
                     <button
                       onClick={() => setLocalForm({ ...localForm, contactPhoneBold: !localForm.contactPhoneBold })}
@@ -483,8 +483,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     <i className="fa-solid fa-arrows-up-down"></i>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-800 uppercase leading-none">Margen Final (Cola del Recibo)</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Largo del papel sobrante</p>
+                    <p className="text-[10px] font-black text-slate-800 uppercase leading-none">{t.settingsPage?.printMarginTitle || "Margen Final"}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{t.settingsPage?.printMarginDesc || "Largo del papel sobrante"}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 w-full sm:w-auto px-2">
@@ -498,7 +498,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     className="flex-1 sm:w-32 accent-blue-600"
                   />
                   <span className="w-12 text-center py-1 bg-white border border-blue-200 rounded-lg text-[10px] font-black text-blue-700">
-                    {localForm.receiptPrintMargin} <span className="text-[8px] opacity-50">LÍNEAS</span>
+                    {localForm.receiptPrintMargin} <span className="text-[8px] opacity-50">{t.settingsPage?.lines || "LÍNEAS"}</span>
                   </span>
                 </div>
               </div>
@@ -516,7 +516,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
             >
               <i className="fa-solid fa-floppy-disk text-sm"></i>
-              GUARDAR DATOS DE EMPRESA
+              {t.settingsPage?.saveCompanyData || "GUARDAR DATOS DE EMPRESA"}
             </button>
           </div>
         </div>
@@ -528,15 +528,15 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-qrcode text-xl md:text-2xl text-purple-600"></i>
             <div>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Integración de Bancard (Cobro QR)</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Configuración de Credenciales para Cobro Móvil</p>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.bancardTitle || "Integración de Bancard"}</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t.settingsPage?.bancardDesc || "Configuración de Credenciales"}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código de Comercio (Shop ID)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.shopIdLabel || "Código de Comercio"}</label>
                 <input
                   type="text"
                   value={bancardShopId}
@@ -546,7 +546,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clave Pública (Public Key)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.publicKeyLabel || "Clave Pública"}</label>
                 <input
                   type="text"
                   value={bancardPublicKey}
@@ -558,7 +558,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clave Privada (Private Key)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.privateKeyLabel || "Clave Privada"}</label>
               <div className="relative">
                 <input
                   type={showPrivateKey ? "text" : "password"}
@@ -588,7 +588,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 ) : (
                   <i className="fa-solid fa-floppy-disk text-sm"></i>
                 )}
-                {isLoadingBancard ? 'GUARDANDO...' : 'GUARDAR CREDENCIALES DE BANCARD'}
+                {isLoadingBancard ? (t.settingsPage?.saving || 'GUARDANDO...') : (t.settingsPage?.saveBancard || 'GUARDAR CREDENCIALES DE BANCARD')}
               </button>
             </div>
           </div>
@@ -601,8 +601,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-satellite-dish text-xl md:text-2xl text-amber-500 animate-pulse"></i>
             <div>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Zona de Estabilización</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Solución de Sincronización</p>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.syncZoneTitle || "Zona de Estabilización"}</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t.settingsPage?.syncZoneDesc || "Solución de Sincronización"}</p>
             </div>
           </div>
 
@@ -613,10 +613,10 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <i className={`fa-solid ${isOnline ? 'fa-wifi' : 'fa-triangle-exclamation'}`}></i>
               </div>
               <h4 className={`text-sm font-black uppercase ${isOnline ? 'text-emerald-800' : 'text-red-800'}`}>
-                {isOnline ? 'Conexión Estable' : 'Sin Internet Real'}
+                {isOnline ? (t.settingsPage?.connStable || 'Conexión Estable') : (t.settingsPage?.connOffline || 'Sin Internet Real')}
               </h4>
               <p className="text-[10px] font-bold text-center opacity-60 uppercase tracking-widest leading-tight px-4">
-                {isOnline ? 'La App tiene acceso verificado a los servidores.' : 'Detectamos problemas de conexión. Los datos se guardarán localmente.'}
+                {isOnline ? (t.settingsPage?.connStableDesc || 'La App tiene acceso verificado a los servidores.') : (t.settingsPage?.connOfflineDesc || 'Detectamos problemas de conexión. Los datos se guardarán localmente.')}
               </p>
             </div>
 
@@ -629,7 +629,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               >
                 <i className={`fa-solid ${isSyncing ? 'fa-arrows-rotate animate-spin' : 'fa-rotate'} text-xl`}></i>
                 <span className="text-[10px] font-black uppercase tracking-widest">
-                  {isSyncing ? 'SINCRONIZANDO...' : 'FORZAR SINCRONIZACIÓN'}
+                  {isSyncing ? (t.settingsPage?.syncing || 'SINCRONIZANDO...') : (t.settingsPage?.forceSyncBtn || 'FORZAR SINCRONIZACIÓN')}
                 </span>
               </button>
 
@@ -642,7 +642,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 className="w-full p-4 rounded-2xl border-2 border-red-600 bg-red-50 text-red-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
               >
                 <i className="fa-solid fa-trash-can text-xl"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest">LIMPIAR COLA</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{t.settingsPage?.clearQueueBtn || "LIMPIAR COLA"}</span>
               </button>
 
 
@@ -664,7 +664,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 className="w-full p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
               >
                 <i className="fa-solid fa-cloud-arrow-down text-xl"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">REPARAR PROBL. SINCRONIZACIÓN</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.repairSyncBtn || "REPARAR PROBL. SINCRONIZACIÓN"}</span>
               </button>
 
               {/* BOTON DE ACTUALIZACIÓN PROFUNDA (ANTES REPARACIÓN PROFUNDA) */}
@@ -673,7 +673,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 className="w-full p-4 rounded-2xl border-2 border-emerald-600 bg-white text-emerald-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-emerald-50"
               >
                 <i className="fa-solid fa-triangle-exclamation text-xl"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">ACTUALIZACIÓN PROFUNDA</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.deepUpdateBtn || "ACTUALIZACIÓN PROFUNDA"}</span>
               </button>
             </div>
           </div>
@@ -689,7 +689,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all">
             <div className="flex items-center gap-3 mb-6">
               <i className="fa-solid fa-coins text-xl md:text-2xl text-amber-500"></i>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Formato de Moneda</h3>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.currencyFormatTitle || "Formato de Moneda"}</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -698,7 +698,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${numberFormat !== 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
               >
                 <span className={`text-xl font-black ${numberFormat !== 'comma' ? 'text-emerald-700' : 'text-slate-500'}`}>1.000.000,00</span>
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">PUNTO DE MIL</span>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{t.settingsPage?.dotFormat || "PUNTO DE MIL"}</span>
               </button>
 
               <button
@@ -706,7 +706,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${numberFormat === 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
               >
                 <span className={`text-xl font-black ${numberFormat === 'comma' ? 'text-emerald-700' : 'text-slate-500'}`}>1,000,000.00</span>
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">PUNTO DE COMA</span>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{t.settingsPage?.commaFormat || "PUNTO DE COMA"}</span>
               </button>
             </div>
           </div>
@@ -718,7 +718,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
         <div className="flex items-center gap-3 mb-6">
           <i className="fa-solid fa-print text-xl md:text-2xl text-blue-600"></i>
-          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Configuración de Impresora</h3>
+          <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.printerConfigTitle || "Configuración de Impresora"}</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -732,12 +732,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               className={`w-full p-5 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all ${scanningPrinters ? 'bg-slate-100 border-slate-200' : 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20 active:scale-95 text-center'}`}
             >
               {scanningPrinters ? <i className="fa-solid fa-spinner animate-spin text-xl text-center"></i> : <i className="fa-solid fa-bluetooth text-xl"></i>}
-              <span className="text-[10px] font-black uppercase tracking-widest">{scanningPrinters ? 'BUSCANDO...' : 'BUSCAR IMPRESORA'}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">{scanningPrinters ? (t.settingsPage?.searching || 'BUSCANDO...') : (t.settingsPage?.searchPrinterBtn || 'BUSCAR IMPRESORA')}</span>
             </button>
             {connectedDevice && (
               <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase text-center animate-fadeIn">
                 <i className="fa-solid fa-circle-check mr-2"></i>
-                Vinculado: {connectedDevice}
+                {t.settingsPage?.linked || "Vinculado:"} {connectedDevice}
               </div>
             )}
           </div>
@@ -747,7 +747,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             className="w-full p-5 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
           >
             <i className="fa-solid fa-vial text-xl"></i>
-            <span className="text-[10px] font-black uppercase tracking-widest text-center">PROBAR IMPRESIÓN</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.testPrintBtn || "PROBAR IMPRESIÓN"}</span>
           </button>
         </div>
         <p className="text-[9px] font-bold text-slate-400 mt-4 uppercase tracking-widest leading-relaxed">
@@ -763,7 +763,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all h-full">
             <div className="flex items-center gap-3 mb-5 md:mb-6">
               <i className="fa-solid fa-language text-xl md:text-2xl text-blue-600"></i>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Idioma App</h3>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settings.language || "Idioma App"}</h3>
             </div>
 
             <div className="space-y-2 md:space-y-3">
@@ -784,12 +784,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           </div>
         </div>
 
-        {/* COLUMNA 2: PAÍS + BOTÓN GUARDAR Y SALIR */}
+        {/* COLUMNA 2: PAÍS + BOTÓN {t.settingsPage?.saveAndExit || "GUARDAR Y SALIR"} */}
         <div className="flex flex-col gap-4 md:gap-6">
           <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all h-fit flex flex-col">
             <div className="flex items-center gap-3 mb-1.5 md:mb-2">
               <i className="fa-solid fa-earth-americas text-xl md:text-2xl text-emerald-600"></i>
-              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">País de Operación</h3>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settings.country || "País de Operación"}</h3>
             </div>
             <p className="text-[8px] md:text-[10px] text-slate-400 mb-4 font-medium leading-relaxed">
               Ajusta festivos y formato de moneda.
@@ -817,7 +817,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-2xl md:rounded-[2rem] shadow-xl shadow-emerald-500/20 transition-all active:scale-95 uppercase tracking-[0.2em] text-xs md:text-sm flex items-center justify-center gap-3 border-b-4 border-emerald-800"
           >
             <i className="fa-solid fa-cloud-arrow-up text-lg"></i>
-            GUARDAR Y SALIR
+            {t.settingsPage?.saveAndExit || "GUARDAR Y SALIR"}
           </button>
         </div>
       </div>
