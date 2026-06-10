@@ -197,46 +197,27 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
             <i className="fa-solid fa-arrow-left"></i>
           </button>
           <div>
-            <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter leading-none">Rutas / Cobradores</h2>
+            <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter leading-none">{(t as any).collectors?.titleTabs || 'RUTAS/COBRADORES'}</h2>
             <p className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">
-              {isAdmin ? 'Gestión de mis cobradores personales' : 'Gestión de sucursal aislada'}
+              {isAdmin ? ((t as any).collectors?.managementMsg || 'Gestión de mis cobradores personales') : ((t as any).collectors?.isolatedManagementMsg || 'Gestión de sucursal aislada')}
             </p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          {isAdmin && (
-            <button
-              onClick={() => {
-                setReceiptData({
-                  companyName: state.settings.companyName || 'ANEXO COBRO',
-                  contactPhone: state.settings.contactPhone || '',
-                  transferAlias: state.settings.transferAlias || ''
-                });
-                setShowReceiptModal(true);
-              }}
-              className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl flex items-center justify-center gap-2 transition-all font-bold shadow-lg active:scale-95 text-[10px] uppercase tracking-widest"
-            >
-              <i className="fa-solid fa-file-invoice"></i>
-              CONFIGURAR RECIBO
-            </button>
-          )}
+
 
           <button
             onClick={() => setActiveTab(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER ? 'dashboard' : 'route')}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 px-6 py-4 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border border-slate-200 shadow-sm"
           >
-            <i className="fa-solid fa-arrow-left-long"></i>
-            SALIR
-          </button>
+            <i className="fa-solid fa-arrow-left-long"></i>{(t as any).collectors?.exitBtn || 'SALIR'}</button>
 
           {isAdmin && (
             <button
               onClick={() => setShowModal(true)}
               className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-4 md:py-3 rounded-xl md:rounded-2xl flex items-center justify-center transition-all font-bold shadow-lg shadow-blue-500/20 active:scale-95 text-[10px] uppercase tracking-widest"
             >
-              <i className="fa-solid fa-user-plus"></i>
-              NUEVA RUTA
-            </button>
+              <i className="fa-solid fa-user-plus"></i>{(t as any).collectors?.newRouteBtn || 'NUEVA RUTA'}</button>
           )}
         </div>
       </div>
@@ -245,7 +226,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
         {collectors.length === 0 ? (
           <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center">
             <i className="fa-solid fa-route text-4xl md:text-5xl mb-4 opacity-20"></i>
-            <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-600">No hay rutas vinculadas directamente a su cuenta</p>
+            <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-600">{(t as any).collectors?.noRoutes || 'No hay rutas vinculadas directamente a su cuenta'}</p>
           </div>
         ) : (
           collectors.map((user) => {
@@ -300,8 +281,8 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                       <span className={`font-black tracking-widest ${isExpiringSoon ? 'text-white' : 'text-blue-700'}`}>{user.password}</span>
                     </div>
                     <div className="flex justify-between text-[9px] md:text-xs pt-1 border-t border-slate-200">
-                      <span className={`font-bold uppercase ${isExpiringSoon ? 'text-white/80' : 'text-slate-800'}`}>Corte:</span>
-                      <span className={`font-black ${isExpiringSoon ? 'text-white' : 'text-slate-950'}`}>{user.expiryDate ? new Date(user.expiryDate).toLocaleDateString() : 'SIN FECHA'}</span>
+                      <span className={`font-bold uppercase ${isExpiringSoon ? 'text-white/80' : 'text-slate-800'}`}>{(t as any).collectors?.cutoff || 'Corte:'}</span>
+                      <span className={`font-black ${isExpiringSoon ? 'text-white' : 'text-slate-950'}`}>{user.expiryDate ? new Date(user.expiryDate).toLocaleDateString() : (t as any).collectors?.noDate || 'SIN FECHA'}</span>
                     </div>
                   </div>
 
@@ -319,7 +300,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     <div className="flex items-center gap-2 mb-2">
                       <i className={`fa-solid fa-location-dot text-sm ${isExpiringSoon ? 'text-white' : 'text-blue-600'}`}></i>
                       <span className={`text-[8px] font-black uppercase ${isExpiringSoon ? 'text-white' : 'text-slate-700'}`}>
-                        GPS Obligatorio
+                        {(t as any).collectors?.gpsMandatory || 'GPS Obligatorio'}
                       </span>
                     </div>
 
@@ -339,7 +320,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                           }`}
                       >
                         <i className="fa-solid fa-check"></i>
-                        {user.requiresLocation ? ' ✔ ACTIVO' : ' ✔ ACTIVAR'}
+                        {user.requiresLocation ? ' ✓ ' + ((t as any).collectors?.activeState || 'ACTIVO') : ' ✓ ' + ((t as any).collectors?.activateBtn || 'ACTIVAR')}
                       </button>
 
                       {/* DEACTIVATE BUTTON */}
@@ -357,14 +338,12 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                           }`}
                       >
                         <i className="fa-solid fa-xmark"></i>
-                        {!user.requiresLocation ? ' ✖ INACTIVO' : ' ✖ DESACTIVAR'}
+                        {!user.requiresLocation ? ' ✕ ' + ((t as any).collectors?.inactiveState || 'INACTIVO') : ' ✕ ' + ((t as any).collectors?.deactivateBtn || 'DESACTIVAR')}
                       </button>
                     </div>
 
                     <p className={`text-[7px] mt-2 text-center ${isExpiringSoon ? 'text-white/70' : 'text-slate-500'}`}>
-                      {user.requiresLocation
-                        ? '✓ GPS requerido para usar la app'
-                        : '○ GPS no requerido'}
+                      {user.requiresLocation ? '✓ ' + ((t as any).collectors?.gpsRequiredInfo || 'GPS requerido para usar la app') : '○ ' + ((t as any).collectors?.gpsNotRequiredInfo || 'GPS no requerido')}
                     </p>
                   </div>
                 </div>
@@ -383,8 +362,8 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                   <i className={`fa-solid ${editingUserId ? 'fa-user-pen' : 'fa-user-plus'}`}></i>
                 </div>
                 <div>
-                  <h3 className="text-lg md:text-xl font-black text-slate-950 uppercase tracking-tighter leading-none">{editingUserId ? 'Editar Cobrador' : 'Nueva Ruta de Cobro'}</h3>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expediente del personal</p>
+                  <h3 className="text-lg md:text-xl font-black text-slate-950 uppercase tracking-tighter leading-none">{editingUserId ? ((t as any).collectors?.editCollector || 'Editar Cobrador') : ((t as any).collectors?.newCollectionRoute || 'Nueva Ruta de Cobro')}</h3>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{(t as any).collectors?.staffRecord || 'Expediente del personal'}</p>
                 </div>
               </div>
               <button
@@ -398,14 +377,14 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
 
             <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-6 flex-1 overflow-y-auto bg-slate-50 mobile-scroll-container">
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Credenciales de Acceso</h4>
+                <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{(t as any).collectors?.accessCredentials || 'I. Credenciales de Acceso'}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-300 shadow-sm">
                   <div className="md:col-span-2 space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Nombre Completo</label>
+                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">{(t as any).collectors?.fullName || 'Nombre Completo'}</label>
                     <input required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">Usuario ID</label>
+                    <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">{(t as any).collectors?.userId || 'Usuario ID'}</label>
                     <input
                       required
                       type="text"
@@ -418,7 +397,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">PIN / Clave</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{(t as any).collectors?.pinPassword || 'PIN / Clave'}</label>
                     <label className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                       <i className="fa-solid fa-key text-slate-400"></i>
                       <input
@@ -443,7 +422,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                 {/* LÓGICA DE SUSCRIPCIÓN / FECHA DE VENCIMIENTO */}
                 {(isAdmin || state.currentUser?.role === Role.MANAGER) && (
                   <div className="mt-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha Vencimiento Licencia</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{(t as any).collectors?.licenseExpiration || 'Fecha Vencimiento Licencia'}</label>
                     <label className={`flex items-center gap-3 p-3 rounded-xl border ${isManager ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-75' : 'bg-white border-slate-200'}`}>
                       <i className="fa-regular fa-calendar-xmark text-slate-400"></i>
                       <input
@@ -464,31 +443,31 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2">II. Expediente Fotográfico</h4>
+                <h4 className="text-[10px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2">{(t as any).collectors?.photoRecord || 'II. Expediente Fotográfico'}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[8px] font-black text-slate-800 uppercase ml-1">Foto Perfil</label>
+                    <label className="text-[8px] font-black text-slate-800 uppercase ml-1">{(t as any).collectors?.profilePhoto || 'Foto Perfil'}</label>
                     <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center overflow-hidden hover:border-indigo-500 transition-all cursor-pointer">
                       {formData.profilePic ? (
                         <img src={formData.profilePic} className="w-full h-full object-cover" />
                       ) : (
                         <div className="text-center p-4">
                           <i className="fa-solid fa-user-plus text-slate-400 text-3xl"></i>
-                          <p className="text-[7px] font-black text-slate-700 uppercase mt-2">Subir Foto</p>
+                          <p className="text-[7px] font-black text-slate-700 uppercase mt-2">{(t as any).collectors?.uploadPhoto || 'Subir Foto'}</p>
                         </div>
                       )}
                       <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'profilePic')} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[8px] font-black text-slate-800 uppercase ml-1">Foto Fachada Casa</label>
+                    <label className="text-[8px] font-black text-slate-800 uppercase ml-1">{(t as any).collectors?.housePhoto || 'Foto Fachada Casa'}</label>
                     <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center overflow-hidden hover:border-indigo-500 transition-all cursor-pointer">
                       {formData.homePic ? (
                         <img src={formData.homePic} className="w-full h-full object-cover" />
                       ) : (
                         <div className="text-center p-4">
                           <i className="fa-solid fa-house-chimney text-slate-400 text-3xl"></i>
-                          <p className="text-[7px] font-black text-slate-700 uppercase mt-2">Subir Fachada</p>
+                          <p className="text-[7px] font-black text-slate-700 uppercase mt-2">{(t as any).collectors?.uploadFacade || 'Subir Fachada'}</p>
                         </div>
                       )}
                       <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'homePic')} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -498,7 +477,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2">III. Ubicación Domiciliaria GPS</h4>
+                <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2">{(t as any).collectors?.gpsHome || 'III. Ubicación Domiciliaria GPS'}</h4>
                 <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm space-y-4">
                   <button
                     type="button"
@@ -507,7 +486,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${formData.homeLocation ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-900 text-white active:scale-95'}`}
                   >
                     {isCapturingGPS ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-location-crosshairs"></i>}
-                    {formData.homeLocation ? 'UBICACIÓN CAPTURADA OK' : 'CAPTURAR GPS CASA'}
+                    {formData.homeLocation ? ((t as any).collectors?.gpsCaptured || 'UBICACIÓN CAPTURADA OK') : ((t as any).collectors?.captureGps || 'CAPTURAR GPS CASA')}
                   </button>
                   {formData.homeLocation && (
                     <p className="text-[8px] font-black text-emerald-800 uppercase text-center bg-emerald-50 py-2 rounded-lg border border-emerald-200 animate-fadeIn">
@@ -523,13 +502,12 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                   onClick={closeModal}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-4 rounded-xl md:rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-[9px] md:text-xs"
                 >
-                  <i className="fa-solid fa-xmark mr-1"></i> SALIR
-                </button>
+                  <i className="fa-solid fa-xmark mr-1"></i>{(t as any).collectors?.exitBtn || 'SALIR'}</button>
                 <button
                   type="submit"
                   className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl md:rounded-2xl shadow-xl shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest text-[10px] md:text-sm"
                 >
-                  <i className="fa-solid fa-floppy-disk mr-1"></i> {editingUserId ? 'GUARDAR CAMBIOS' : 'CREAR RUTA'}
+                  <i className="fa-solid fa-floppy-disk mr-1"></i> {editingUserId ? ((t as any).collectors?.saveChanges || 'GUARDAR CAMBIOS') : ((t as any).collectors?.createRoute || 'CREAR RUTA')}
                 </button>
               </div>
             </form>

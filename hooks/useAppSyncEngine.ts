@@ -379,36 +379,50 @@ export const useAppSyncEngine = (
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
       const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       if (uManagerId === branchIdLower) {
-        myBranchIds.add(u.id.toLowerCase()); // Incluir gerentes que dependen de mí
-        if (u.role === Role.COLLECTOR) {
-          myDirectCollectorIds.add(u.id.toLowerCase());
+          if (u.role === Role.COLLECTOR) {
+            myDirectCollectorIds.add(u.id.toLowerCase());
+          }
         }
-      }
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
       const uName = (user.name || '').toUpperCase().trim();
-      const isSuperUser = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'].includes(uName);
+      const isSuperUser = ['FABIAN PEDROZO', 'ALTERFINZONA01'].includes(uName);
       if (isSuperUser) return true;
       
       const itemBranchLower = itemBranchId?.toLowerCase();
       const addedByLower = itemAddedBy?.toLowerCase() || '';
       const collectorIdLower = itemCollectorId?.toLowerCase() || '';
 
-      if (itemBranchLower) {
-        return myBranchIds.has(itemBranchLower);
-      } else {
-        return addedByLower === myIdLower ||
-          myDirectCollectorIds.has(addedByLower) ||
-          collectorIdLower === myIdLower ||
-          myDirectCollectorIds.has(collectorIdLower);
-      }
+      if (collectorIdLower) {
+          return collectorIdLower === myIdLower || myDirectCollectorIds.has(collectorIdLower);
+        }
+        
+        if (itemBranchLower) {
+            return myBranchIds.has(itemBranchLower);
+        }
+        
+        return addedByLower === myIdLower || myDirectCollectorIds.has(addedByLower);
     };
 
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c =>
-      isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) &&
-      c.isActive !== false
-    );
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+          const loans = Array.isArray(state.loans) ? state.loans : [];
+          const activeLoan = loans.find(l => 
+            ((l.clientId || (l as any).client_id) === c.id) && 
+            (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+          );
+          let collectorId = activeLoan ? (activeLoan.collectorId || (activeLoan as any).collector_id) : undefined;
+          
+          if (!collectorId) {
+             const anyLoan = loans.find(l => (l.clientId || (l as any).client_id) === c.id);
+             if (anyLoan) {
+                 collectorId = anyLoan.collectorId || (anyLoan as any).collector_id;
+             }
+          }
+          
+          return isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, collectorId) && 
+c.isActive !== false;
+      });
     const activeClientIds = new Set(clients.filter(c => !c.deletedAt).map(c => c.id));
 
     let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>

@@ -100,7 +100,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
     for (let i = 2; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       monthlySummary.push({
-        name: d.toLocaleString('es-ES', { month: 'short' }).toUpperCase().replace('.', ''),
+        name: d.toLocaleString(state.settings.language || 'es', { month: 'short' }).toUpperCase().replace('.', ''),
         year: d.getFullYear(),
         month: d.getMonth(),
         utilidad: 0,
@@ -137,7 +137,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       const renewals = dayLoans.filter((l: Loan) => l.isRenewal).length;
       const nuevos = count - renewals;
 
-      const label = d.getDate() === 1 || i === 179 ? d.toLocaleString('es-ES', { month: 'short' }).toUpperCase().replace('.', '') : '';
+      const label = d.getDate() === 1 || i === 179 ? d.toLocaleString(state.settings.language || 'es', { month: 'short' }).toUpperCase().replace('.', '') : '';
 
       dailyPoints.push({
         dateKey: dayIso,
@@ -203,8 +203,8 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* HEADER Y CARGA DE CAPITAL */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm text-center sm:text-left">
         <div className="w-full sm:w-auto">
-          <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter">Control de Capital</h2>
-          <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Gestión de flujo de caja operativo</p>
+          <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter">{(t as any).capitalBlock?.title || 'Control de Capital'}</h2>
+          <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalBlock?.subtitle || 'Gestión de flujo de caja operativo'}</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button
@@ -212,14 +212,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             className="flex-1 sm:flex-none bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-vault"></i>
-            CARGAR CAPITAL INICIAL
+            {(t as any).capitalBlock?.loadCapitalBtn || 'CARGAR CAPITAL INICIAL'}
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-minus-circle"></i>
-            GASTO OPERATIVO
+            {(t as any).capitalBlock?.expenseBtn || 'GASTO OPERATIVO'}
           </button>
         </div>
       </div>
@@ -230,9 +230,9 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 1: CAPITAL DE TRABAJO */}
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital de Trabajo</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.workingCapital || 'Capital de Trabajo'}</p>
             <h3 className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">Fondo base inicial cargado</p>
+            <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">{(t as any).capitalBlock?.mainFund || 'Fondo base inicial cargado'}</p>
           </div>
           <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
         </div>
@@ -240,17 +240,17 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 2: EFECTIVO EN CAJA (CON GANANCIAS Y DESCUENTOS) */}
         <div className="bg-slate-900 p-5 rounded-[2rem] shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Efectivo Real en Caja</p>
+            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.realCash || 'Efectivo Real en Caja'}</p>
             <h3 className={`text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
               {formatCurrency(currentCashInHand, state.settings)}
             </h3>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
-                <span>Base + Cobros:</span>
+                <span>{(t as any).capitalBlock?.basePlusCollections || 'Base + Cobros:'}</span>
                 <span className="text-emerald-400">+{formatCurrency(state.initialCapital + collectedCash, state.settings)}</span>
               </div>
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
-                <span>Entregado + Gastos:</span>
+                <span>{(t as any).capitalBlock?.deliveredPlusExpenses || 'Entregado + Gastos:'}</span>
                 <span className="text-red-400">-{formatCurrency(lentCash + totalOperatingExpenses, state.settings)}</span>
               </div>
             </div>
@@ -261,13 +261,13 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 3: CRÉDITOS OTORGADOS */}
         <div className="bg-blue-600 p-5 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">Créditos Otorgados</p>
+            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.creditsGranted || 'Créditos Otorgados'}</p>
             <div className="flex items-end gap-2">
               <h3 className="text-3xl font-black">{totalLoansCount}</h3>
-              <span className="text-[8px] font-black mb-1 opacity-70 uppercase">Operaciones</span>
+              <span className="text-[8px] font-black mb-1 opacity-70 uppercase">{(t as any).capitalBlock?.operations || 'Operaciones'}</span>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-[8px] font-black text-blue-200 uppercase">Utilidad Proyectada</p>
+              <p className="text-[8px] font-black text-blue-200 uppercase">{(t as any).capitalBlock?.projectedProfit || 'Utilidad Proyectada'}</p>
               <p className="text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
             </div>
           </div>
@@ -279,7 +279,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="relative z-10">
             <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">Mora Crítica (+40 d)</p>
             <h3 className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">Capital en alto riesgo de pérdida</p>
+            <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">{(t as any).capitalBlock?.highRiskCapital || 'Capital en alto riesgo de pérdida'}</p>
           </div>
           <div className="absolute -right-2 top-2 w-12 h-12 bg-rose-200/30 rounded-full flex items-center justify-center animate-bounce">
             <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
@@ -296,24 +296,24 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
               <i className="fa-solid fa-chart-line text-blue-600"></i>
               Balance Histórico de Créditos
             </h3>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Rendimiento proyectado y mora de los últimos 6 meses</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalBlock?.performanceAndArrears || 'Rendimiento proyectado y mora de los últimos 6 meses'}</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-black"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">UTILIDAD</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.profit || 'UTILIDAD'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">MORA</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.arrears || 'MORA'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">RENOVACIONES</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.renewals || 'RENOVACIONES'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-indigo-400"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">C. NUEVOS</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.newCredits || 'C. NUEVOS'}</span>
             </div>
           </div>
         </div>
@@ -391,7 +391,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 stroke="transparent"
                 fill="transparent"
                 strokeWidth={0}
-                name="CRÉDITOS NUEVOS"
+                name={(t as any).capitalBlock?.newCreditsFull?.toUpperCase() || 'CRÉDITOS NUEVOS'}
                 animationDuration={2500}
               />
               <Area
@@ -403,7 +403,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 strokeDasharray="4 2"
                 fillOpacity={1}
                 fill="url(#colorMora)"
-                name="MORA PENDIENTE"
+                name={(t as any).capitalBlock?.pendingArrears?.toUpperCase() || 'MORA PENDIENTE'}
                 animationDuration={2500}
               />
               <Area
@@ -413,7 +413,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 stroke="transparent"
                 fill="transparent"
                 strokeWidth={0}
-                name="RENOVACIONES"
+                name={(t as any).capitalBlock?.renewals?.toUpperCase() || 'RENOVACIONES'}
                 animationDuration={2500}
               />
               <Area
@@ -424,7 +424,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorUtility)"
-                name="UTILIDAD PROYECTADA"
+                name={(t as any).capitalBlock?.projectedProfit?.toUpperCase() || 'UTILIDAD PROYECTADA'}
                 animationDuration={2500}
               />
             </AreaChart>
@@ -438,10 +438,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div key={idx} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-center hover:bg-white hover:shadow-xl transition-all group">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">{month.name}</p>
             <div className="flex flex-col gap-2">
-              <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} TOTALES</p>
+              <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} {(t as any).capitalBlock?.totals || 'TOTALES'}</p>
               <div className="flex flex-col items-center gap-1 mt-1">
-                <span className="text-[14px] font-black text-indigo-600 uppercase">{month.nuevos} NUEVOS</span>
-                <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} RENOV.</span>
+                <span className="text-[14px] font-black text-indigo-600 uppercase">{month.nuevos} {(t as any).capitalBlock?.newLabel || 'NUEVOS'}</span>
+                <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} {(t as any).capitalBlock?.renovLabel || 'RENOV.'}</span>
               </div>
             </div>
             <div className="mt-4 h-2 bg-slate-200/50 rounded-full overflow-hidden flex shadow-inner">
@@ -461,16 +461,16 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* TABLA DE GASTOS / SALIDAS DE CAPITAL */}
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-50 bg-slate-50/30">
-          <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Historial de Salidas (Gastos)</h3>
+          <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{(t as any).capitalBlock?.expensesHistory || 'Historial de Salidas (Gastos)'}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[500px]">
             <thead className="bg-slate-50">
               <tr className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-4">Descripción</th>
-                <th className="px-5 py-4">Categoría</th>
-                <th className="px-5 py-4">Fecha</th>
-                <th className="px-5 py-4">Monto</th>
+                <th className="px-5 py-4">{(t as any).capitalBlock?.desc || 'Descripción'}</th>
+                <th className="px-5 py-4">{(t as any).capitalBlock?.category || 'Categoría'}</th>
+                <th className="px-5 py-4">{(t as any).capitalBlock?.date || 'Fecha'}</th>
+                <th className="px-5 py-4">{(t as any).capitalBlock?.amount || 'Monto'}</th>
                 <th className="px-5 py-4 text-right">---</th>
               </tr>
             </thead>
@@ -480,7 +480,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center">
                       <i className="fa-solid fa-receipt text-3xl mb-3 opacity-10"></i>
-                      <p className="text-[10px] font-black uppercase tracking-widest">No hay gastos registrados</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">{(t as any).capitalBlock?.noExpenses || 'No hay gastos registrados'}</p>
                     </div>
                   </td>
                 </tr>
@@ -517,7 +517,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
-                <h3 className="text-lg font-black uppercase tracking-tighter">Base de Capital</h3>
+                <h3 className="text-lg font-black uppercase tracking-tighter">{(t as any).capitalBlock?.capitalBase || 'Base de Capital'}</h3>
                 <button onClick={() => setShowCapitalModal(false)} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all">
                   <i className="fa-solid fa-xmark text-lg"></i>
                 </button>
@@ -527,7 +527,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <div className="w-16 h-16 bg-slate-200 text-slate-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
                     <i className="fa-solid fa-money-bill-transfer text-2xl"></i>
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Establecer Capital de Trabajo</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(t as any).capitalBlock?.setWorkingCapital || 'Establecer Capital de Trabajo'}</p>
                 </div>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
@@ -558,14 +558,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn flex flex-col border border-white/20">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">Registrar Gasto</h3>
+                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">{(t as any).capitalBlock?.registerExpense || 'Registrar Gasto'}</h3>
                 <button onClick={() => setShowModal(false)} className="w-8 h-8 text-slate-400 hover:text-slate-600 active:scale-95 transition-all">
                   <i className="fa-solid fa-xmark text-xl"></i>
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-4 flex-1 overflow-y-auto bg-slate-50">
                 <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">Descripción del Gasto</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.expenseDesc || 'Descripción del Gasto'}</label>
                   <input
                     required
                     type="text"
@@ -575,7 +575,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">Categoría</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.category || 'Categoría'}</label>
                   <select
                     required
                     value={formData.category}
@@ -589,7 +589,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">Monto ($)</label>
+                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.amountSign || 'Monto ($)'}</label>
                     <input
                       required
                       type="number"
@@ -599,7 +599,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">Fecha</label>
+                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.date || 'Fecha'}</label>
                     <input
                       required
                       type="date"

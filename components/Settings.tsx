@@ -289,7 +289,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-headset"></i>
-            CONFIGURAR SOPORTE TÉCNICO
+            {t.settingsPage?.supportBtn || "CONFIGURAR SOPORTE TÉCNICO"}
           </button>
         )}
       </div>
@@ -368,7 +368,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       onClick={() => setLocalForm({ ...localForm, shareLabelBold: !localForm.shareLabelBold })}
                       className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareLabelBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
-                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                      <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
                     <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
@@ -377,7 +377,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                           onClick={() => setLocalForm({ ...localForm, shareLabelSize: size as any })}
                           className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareLabelSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
-                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Med.' : 'Gnd.'}
+                          {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
                       ))}
                     </div>
@@ -399,7 +399,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       onClick={() => setLocalForm({ ...localForm, shareValueBold: !localForm.shareValueBold })}
                       className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareValueBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
-                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                      <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
                     <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
@@ -408,7 +408,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                           onClick={() => setLocalForm({ ...localForm, shareValueSize: size as any })}
                           className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareValueSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
-                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Med.' : 'Gnd.'}
+                          {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
                       ))}
                     </div>
@@ -433,7 +433,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       onClick={() => setLocalForm({ ...localForm, companyNameBold: !localForm.companyNameBold })}
                       className={`w-fit px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyNameBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
-                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                      <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
                     <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 w-fit shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
@@ -442,7 +442,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                           onClick={() => setLocalForm({ ...localForm, companyNameSize: size as any })}
                           className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.companyNameSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
-                          {size === 'normal' ? 'Normal' : size === 'medium' ? 'Mediano' : 'Grande'}
+                          {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
                       ))}
                     </div>
@@ -457,7 +457,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       onClick={() => setLocalForm({ ...localForm, companyIdentifierBold: !localForm.companyIdentifierBold })}
                       className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyIdentifierBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
-                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                      <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
                   </div>
                 </div>
@@ -470,7 +470,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       onClick={() => setLocalForm({ ...localForm, contactPhoneBold: !localForm.contactPhoneBold })}
                       className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.contactPhoneBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
-                      <i className="fa-solid fa-bold mr-1"></i> Negrita
+                      <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
                   </div>
                 </div>
@@ -751,7 +751,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
           </button>
         </div>
         <p className="text-[9px] font-bold text-slate-400 mt-4 uppercase tracking-widest leading-relaxed">
-          * Conecte su impresora térmica vía Bluetooth para imprimir recibos automáticamente tras cada cobro.
+          {t.settingsPage?.printerWarning || "* Conecte su impresora térmica vía Bluetooth para imprimir recibos automáticamente tras cada cobro."}
         </p>
       </div>
 
@@ -870,7 +870,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <div className="bg-slate-900 p-6 flex justify-between items-center">
                 <h3 className="text-white font-black uppercase text-lg tracking-tighter">
                   <i className="fa-brands fa-bluetooth-b text-blue-400 mr-2"></i>
-                  Vincular Impresora
+                  {t.settingsPage?.linkPrinterTitle || "Vincular Impresora"}
                 </h3>
                 <button onClick={() => setShowPrinterModal(false)} className="text-white/50 hover:text-white">
                   <i className="fa-solid fa-xmark text-xl"></i>
@@ -885,11 +885,11 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   >
                     {scanningPrinters ? (
                       <>
-                        <i className="fa-solid fa-circle-notch fa-spin"></i> BUSCANDO...
+                        <i className="fa-solid fa-circle-notch fa-spin"></i> {t.settingsPage?.searching || "BUSCANDO..."}
                       </>
                     ) : (
                       <>
-                        <i className="fa-solid fa-magnifying-glass"></i> BUSCAR VINCULADOS
+                        <i className="fa-solid fa-magnifying-glass"></i> {t.settingsPage?.searchLinkedBtn || "BUSCAR VINCULADOS"}
                       </>
                     )}
                   </button>
@@ -899,8 +899,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   {printerDevices.length === 0 ? (
                     <div className="text-center py-8 text-slate-400">
                       <i className="fa-solid fa-print text-4xl mb-2 opacity-20"></i>
-                      <p className="text-[10px] font-bold uppercase">No se encontraron dispositivos</p>
-                      <p className="text-[9px] mt-2">Asegúrate de haber vinculado tu impresora en los ajustes de Bluetooth del celular.</p>
+                      <p className="text-[10px] font-bold uppercase">{t.settingsPage?.noDevicesFound || "No se encontraron dispositivos"}</p>
+                      <p className="text-[9px] mt-2">{t.settingsPage?.printerBluetoothHint || "Asegúrate de haber vinculado tu impresora en los ajustes de Bluetooth del celular."}</p>
                     </div>
                   ) : (
                     printerDevices.map((dev, idx) => (
@@ -911,7 +911,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="font-black text-slate-700 uppercase text-xs">{dev.name || 'Desconocido'}</p>
+                            <p className="font-black text-slate-700 uppercase text-xs">{dev.name || (t.settingsPage?.unknownDevice || 'Desconocido')}</p>
                             <p className="font-mono text-[9px] text-slate-400">{dev.address || dev.id}</p>
                           </div>
                           <i className="fa-solid fa-chevron-right text-slate-300 group-hover:text-blue-500"></i>

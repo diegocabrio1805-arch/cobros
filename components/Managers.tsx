@@ -269,7 +269,11 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                         <i className="fa-solid fa-pen-to-square text-xs"></i>
                       </button>
                       <button
-                        onClick={() => onDeleteUser(user.id)}
+                        onClick={() => {
+                          if (window.confirm('¿Está seguro de que desea eliminar este gerente?')) {
+                            onDeleteUser(user.id);
+                          }
+                        }}
                         className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white border-red-200 text-red-600 hover:bg-red-50' : 'bg-white border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'}`}
                       >
                         <i className="fa-solid fa-trash-can text-xs"></i>
@@ -421,7 +425,11 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                             </div>
                             <div className="flex gap-2">
                               <button onClick={() => handleEditCollector(col)} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-blue-600 transition-all flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-pen-to-square"></i></button>
-                              <button onClick={() => onDeleteUser(col.id)} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-red-600 transition-all flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
+                              <button onClick={() => {
+                                if (window.confirm('¿Está seguro de que desea eliminar este cobrador?')) {
+                                  onDeleteUser(col.id);
+                                }
+                              }} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-red-600 transition-all flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
                             </div>
                           </div>
                           <h5 className="font-black text-slate-950 text-lg uppercase tracking-tight truncate mb-4">{col.name}</h5>

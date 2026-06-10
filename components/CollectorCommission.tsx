@@ -118,7 +118,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       daysStats.push({
         rate: delinquencyRate,
-        name: formatLocalDate(currentDay, state.settings.country, { weekday: 'short' })
+        name: formatLocalDate(currentDay, state.settings.country, { weekday: 'short' }, state.settings.language)
       });
     }
 
@@ -426,7 +426,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         filteredHistory.forEach(week => {
           wsData.push([
-            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
+            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}`,
             c(week.Lunes), c(week.Martes), c(week.Miércoles), c(week.Jueves), c(week.Viernes), c(week.Sábado),
             c(week.Total),
             c(week.Total * (historyCommissionPercent / 100))
@@ -455,7 +455,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         filteredColocacionHistory.forEach(week => {
           wsData.push([
-            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
+            `${formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}`,
             c(sumarDia(week.Lunes)), c(sumarDia(week.Martes)), c(sumarDia(week.Miércoles)), c(sumarDia(week.Jueves)), c(sumarDia(week.Viernes)), c(sumarDia(week.Sábado)),
             c(week.TotalNuevos + week.TotalRenovados)
           ]);
@@ -988,7 +988,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 value={expenseNote} 
                 onChange={(e) => setExpenseNote(e.target.value)} 
                 className="w-full max-w-[120px] bg-slate-50 text-center font-bold rounded-lg py-1 text-xs outline-none focus:ring-1 focus:ring-red-400 text-slate-600 border border-slate-200" 
-                placeholder="Observacion"
+                placeholder={t.commission?.expensePlaceholder || "Observacion"}
               />
               <div className="flex items-center justify-center gap-1">
                 <span className="text-xl font-black text-red-400">$</span>
@@ -1052,7 +1052,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <div className={`w-4 h-4 rounded-[4px] border ${selectedHistoricalRoutes.includes('all') ? 'bg-blue-600 border-blue-600' : 'border-slate-300'} flex items-center justify-center`}>
                       {selectedHistoricalRoutes.includes('all') && <i className="fa-solid fa-check text-[10px] text-white"></i>}
                     </div>
-                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">TODOS (CONSOLIDADO)</span>
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{t.commission?.allConsolidated || "TODOS (CONSOLIDADO)"}</span>
                   </div>
                   
                   {state.users.filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
@@ -1188,7 +1188,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     const comm = (log.amount || 0) * (localCommissionPercent / 100);
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
-                        <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country)}</span></td>
+                        <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
                         <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : log.isVirtual ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -1208,7 +1208,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                               {isGeneratingImage && sharingLog?.id === log.id ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-image"></i>}
                             </button>
                             {isPowerUser && (
-                              <button onClick={() => { if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                              <button onClick={() => { if (confirm(t.confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
                             )}
                           </div>
                         </td>
@@ -1261,53 +1261,53 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <div className="bg-red-600 rounded-[2rem] p-8 text-center text-white mb-10 shadow-lg">
                 <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{settingsToUse.companyName || 'ANEXO COBRO'}</h1>
                 <p className="text-lg font-bold opacity-90 uppercase tracking-widest">
-                  {isNoPay ? 'NOTIFICACIÓN DE VISITA (MORA)' : 'COMPROBANTE OFICIAL DE PAGO'}
+                  {isNoPay ? (t.receiptImage?.visitNotification || 'NOTIFICACIÓN DE VISITA (MORA)') : (t.receiptImage?.officialReceipt || 'COMPROBANTE OFICIAL DE PAGO')}
                 </p>
               </div>
 
               {/* Data Section */}
               <div className="space-y-8 px-4">
                 <div className="border-b-2 border-slate-100 pb-6">
-                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">CLIENTE / TITULAR</p>
+                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">{t.receiptImage?.clientTitular || 'CLIENTE / TITULAR'}</p>
                   <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-normal py-4 break-words">{client.name}</h2>
                 </div>
 
                 <div className="grid grid-cols-2 gap-10">
                    <div>
-                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">FECHA</p>
-                    <p className="text-3xl font-black text-slate-900">{formatLocalDate(sharingLog.date, settingsToUse.country)}</p>
+                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{t.receiptImage?.date || 'FECHA'}</p>
+                    <p className="text-3xl font-black text-slate-900">{formatLocalDate(sharingLog.date, settingsToUse.country, {}, state.settings.language)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">HORA</p>
-                    <p className="text-3xl font-black text-slate-900">{formatLocalTime(sharingLog.date, settingsToUse.country)}</p>
+                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{t.receiptImage?.time || 'HORA'}</p>
+                    <p className="text-3xl font-black text-slate-900">{formatLocalTime(sharingLog.date, settingsToUse.country, {}, state.settings.language)}</p>
                   </div>
                 </div>
 
                 {/* Status Box */}
                 <div className={`rounded-[2.5rem] p-10 text-center border-2 ${isNoPay ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
                   <p className={`text-xs font-black uppercase tracking-widest mb-2 ${isNoPay ? 'text-red-500' : 'text-emerald-600'}`}>
-                    ESTADO REGISTRADO
+                    {t.receiptImage?.statusRegistered || 'ESTADO REGISTRADO'}
                   </p>
                   <h3 className={`text-5xl font-black uppercase tracking-tighter mb-2 ${isNoPay ? 'text-red-700' : 'text-emerald-700'}`}>
-                    {isNoPay ? 'SIN ABONO HOY' : 'PAGO REGISTRADO'}
+                    {isNoPay ? (t.receiptImage?.noPaymentToday || 'SIN ABONO HOY') : (t.receiptImage?.paymentRegistered || 'PAGO REGISTRADO')}
                   </h3>
                   <p className={`text-xs font-bold uppercase italic ${isNoPay ? 'text-red-400' : 'text-emerald-500'}`}>
-                    {isNoPay ? 'FAVOR COMUNICARSE CON ADMINISTRACIÓN' : '¡GRACIAS POR SU PUNTUALIDAD!'}
+                    {isNoPay ? (t.receiptImage?.pleaseContactAdmin || 'FAVOR COMUNICARSE CON ADMINISTRACIÓN') : (t.receiptImage?.thanksForPunctuality || '¡GRACIAS POR SU PUNTUALIDAD!')}
                   </p>
                 </div>
 
                 {/* Metrics Box */}
                 <div className="bg-slate-50 rounded-[2rem] p-8 space-y-4 border border-slate-200">
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">SALDO RESTANTE:</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.remainingBalance || 'SALDO RESTANTE:'}</p>
                     <p className="text-3xl font-black text-red-600 font-mono">{formatCurrency(balance, settingsToUse)}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">DÍAS EN MORA:</p>
-                    <p className="text-3xl font-black text-slate-900">{daysOverdue} días</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.daysOverdue || 'DÍAS EN MORA:'}</p>
+                    <p className="text-3xl font-black text-slate-900">{daysOverdue} {t.receiptImage?.days || 'días'}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">CUOTAS PAGADAS:</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.installmentsPaid || 'CUOTAS PAGADAS:'}</p>
                     <p className="text-3xl font-black text-slate-900">{paidInstallments} / {loan.totalInstallments}</p>
                   </div>
                 </div>
@@ -1316,7 +1316,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div className="text-center pt-8 border-t-2 border-dashed border-slate-200 space-y-4">
                   <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed">
                     EVITE EL REPORTE NEGATIVO EN CENTRALES.<br />
-                    DOCUMENTO GENERADO POR SISTEMA AUTOMATIZADO.<br />
+                    {t.receiptImage?.autoGenerated || 'DOCUMENTO GENERADO POR SISTEMA AUTOMATIZADO'}.<br />
                     SOPORTE: {settingsToUse.contactPhone || 'NO ASIGNADO'}
                   </p>
                   <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto">
@@ -1477,7 +1477,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     {filteredHistory.map((week, idx) => (
                       <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
                         <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
-                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
+                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}
                         </td>
                         <td className="px-4 py-4 text-right font-mono">{week.Lunes > 0 ? formatCurrency(week.Lunes, state.settings) : '-'}</td>
                         <td className="px-4 py-4 text-right font-mono">{week.Martes > 0 ? formatCurrency(week.Martes, state.settings) : '-'}</td>
@@ -1578,7 +1578,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       return (
                       <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800 align-top">
                         <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500 align-middle">
-                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
+                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}
                         </td>
                         <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Lunes)}</td>
                         <td className="px-2 py-4 text-center min-w-[120px] align-middle">{showDay(week.Martes)}</td>

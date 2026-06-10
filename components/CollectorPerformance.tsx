@@ -88,7 +88,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
   const handleExportDetailedPDF = (collector: any, stats: any) => {
     const doc = new jsPDF();
-    const dateStr = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
+    const dateStr = new Date().toLocaleDateString(state.settings.language || 'es', { day: '2-digit', month: 'long', year: 'numeric' });
 
     // --- ESTILO EXCEL ---
     const drawCell = (text: string, x: number, y: number, w: number, h: number, isHeader = false) => {
@@ -153,7 +153,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     stats.monthlyLogs.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20).forEach((log: CollectionLog) => {
       if (currentY > 270) { doc.addPage(); currentY = 20; }
       const client = state.clients.find(c => c.id === log.clientId)?.name || 'Desconocido';
-      const logDate = new Date(log.date).toLocaleDateString();
+      const logDate = new Date(log.date).toLocaleDateString(state.settings.language || 'es');
 
       const rowX = 20;
       drawCell(logDate, rowX, currentY, logsCols[0], rowH);
@@ -210,7 +210,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
           <div className="text-right">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).performanceDashboard?.currentPeriod || 'Periodo Actual'}</p>
             <p className="text-xs font-black text-slate-800 uppercase">
-              {new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+              {new Date().toLocaleDateString(state.settings.language || 'es', { month: 'long', year: 'numeric' })}
             </p>
           </div>
           <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">

@@ -595,8 +595,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Body Section
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(14);
-      doc.text(`Información del Cobrador: ${collectorName}`, 20, 55);
-      doc.text(`Periodo Auditado: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+      doc.text(`${t.auditPdf?.collectorInfo || 'Información del Cobrador:'} ${collectorName}`, 20, 55);
+      doc.text(`${t.auditPdf?.auditedPeriod || 'Periodo Auditado:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
       // Score area
       doc.setDrawColor(226, 232, 240); // Slate 200
@@ -664,14 +664,14 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
-      doc.text('AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
+      doc.text(t.auditPdf?.title || 'AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
       doc.setFontSize(10);
-      doc.text(`SISTEMA DE GESTIÓN DE CARTERA - ${dateStr}`, 105, 30, { align: 'center' });
+      doc.text(`${t.auditPdf?.subtitle || 'SISTEMA DE GESTIÓN DE CARTERA'} - ${dateStr}`, 105, 30, { align: 'center' });
       // Info
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text(`Cobrador: ${collectorName}`, 20, 55);
-      doc.text(`Periodo: ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+      doc.text(`${t.auditPdf?.collector || 'Cobrador:'} ${collectorName}`, 20, 55);
+      doc.text(`${t.auditPdf?.period || 'Periodo:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
       // Calculations - DASHBOARD ALIGNMENT (CLIENT-FIRST)
       const collectorLower = selectedCollector.toLowerCase();
@@ -726,10 +726,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          // REGLA: Si no debe nada y no tiene atraso, ignorar (préstamo pagado y al día)
          if (balance <= 0 && daysOverdue <= 0) return null;
 
-         let gapStatus = 'NORMAL';
-         if (daysSinceVisit >= 20) gapStatus = 'CRÍTICO';
-         else if (daysSinceVisit >= 8) gapStatus = 'ALERTA';
-         else if (daysSinceVisit >= 4) gapStatus = 'ATENCIÓN';
+         let gapStatus = t.auditPdf?.normal || 'NORMAL';
+         if (daysSinceVisit >= 20) gapStatus = t.auditPdf?.critical || 'CRÍTICO';
+         else if (daysSinceVisit >= 8) gapStatus = t.auditPdf?.alert || 'ALERTA';
+         else if (daysSinceVisit >= 4) gapStatus = t.auditPdf?.attention || 'ATENCIÓN';
 
          // Último pago real del préstamo ACTIVO
          const lastPaymentLog = allClientLogs
@@ -760,26 +760,26 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.rect(20, 75, 170, 20, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Cartera Auditada: ${auditData.length} Clientes con Saldo`, 30, 87);
+      doc.text(`${t.auditPdf?.totalAudited || 'Total Cartera Auditada:'} ${auditData.length} ${t.auditPdf?.clientsWithBalance || 'Clientes con Saldo'}`, 30, 87);
       doc.setTextColor(220, 38, 38); // Red
-      doc.text(`FUERA DE RANGO (>=4 Días): ${alertasCount}`, 125, 87);
+      doc.text(`${t.auditPdf?.outOfRange || 'FUERA DE RANGO'} (>=4 ${t.auditPdf?.days || 'Días'}): ${alertasCount}`, 125, 87);
 
       // Detail List
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text('Control de Gestión y Morosidad (Prioridad S/ REGISTRO):', 20, 105);
+      doc.text(t.auditPdf?.controlTitle || 'Control de Gestión y Morosidad (Prioridad S/ REGISTRO):', 20, 105);
 
       let currentY = 115;
       doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
       doc.text('#', 20, currentY);
-      doc.text('CLIENTE', 26, currentY);
-      doc.text('SALDO', 72, currentY);
-      doc.text('ATRASO', 95, currentY);
-      doc.text('S/ REGIST.', 114, currentY);
+      doc.text(t.auditPdf?.client || 'CLIENTE', 26, currentY);
+      doc.text(t.auditPdf?.balance || 'SALDO', 72, currentY);
+      doc.text(t.auditPdf?.overdue || 'ATRASO', 95, currentY);
+      doc.text(t.auditPdf?.unregistered || 'S/ REGIST.', 114, currentY);
       doc.text('ÚLT. PAGO', 136, currentY);
-      doc.text('ESTADO', 160, currentY);
-      doc.text('UBICACION', 176, currentY);
+      doc.text(t.auditPdf?.status || 'ESTADO', 160, currentY);
+      doc.text(t.auditPdf?.location || 'UBICACION', 176, currentY);
 
       doc.line(20, currentY + 2, 210, currentY + 2);
       currentY += 10;
@@ -802,9 +802,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          // Determinar Color del Estado según Inactividad
          let stR = 30, stG = 41, stB = 59;
-         if (item.gapStatus === 'CRÍTICO') { stR = 220; stG = 38; stB = 38; }
-         else if (item.gapStatus === 'ALERTA') { stR = 234; stG = 88; stB = 12; }
-         else if (item.gapStatus === 'ATENCIÓN') { stR = 245; stG = 158; stB = 11; }
+         if (item.gapStatus === (t.auditPdf?.critical || 'CRÍTICO')) { stR = 220; stG = 38; stB = 38; }
+         else if (item.gapStatus === (t.auditPdf?.alert || 'ALERTA')) { stR = 234; stG = 88; stB = 12; }
+         else if (item.gapStatus === (t.auditPdf?.attention || 'ATENCIÓN')) { stR = 245; stG = 158; stB = 11; }
 
          doc.setFontSize(6.5);
          // Número de fila
@@ -821,8 +821,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          // Atraso y Registro
          doc.setTextColor(30, 41, 59);
-         doc.text(`${item.atraso} d.`, 95, currentY);
-         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' d.'}`, 114, currentY);
+         doc.text(`${item.atraso} ${t.auditPdf?.d || 'd.'}`, 95, currentY);
+         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' ' + (t.auditPdf?.d || 'd.')}`, 114, currentY);
 
          // Último Pago
          if (item.lastPaymentDays !== null && item.lastPaymentDays !== undefined) {
@@ -831,7 +831,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             const lpB = item.lastPaymentDays <= 7 ? 129 : item.lastPaymentDays <= 14 ? 6 : 38;
             doc.setTextColor(lpR, lpG, lpB);
             doc.setFont('helvetica', 'bold');
-            doc.text(`${item.lastPaymentDays} d.`, 136, currentY);
+            doc.text(`${item.lastPaymentDays} ${t.auditPdf?.d || 'd.'}`, 136, currentY);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(5.5);
             doc.setTextColor(100, 116, 139);
@@ -840,7 +840,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          } else {
             doc.setTextColor(220, 38, 38);
             doc.setFont('helvetica', 'bold');
-            doc.text('NUNCA', 136, currentY);
+            doc.text(t.auditPdf?.never || 'NUNCA', 136, currentY);
             doc.setFont('helvetica', 'normal');
          }
 
@@ -854,10 +854,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          doc.setFont('helvetica', 'bold');
          if (item.hasLocation) {
             doc.setTextColor(16, 185, 129); // Verde
-            doc.text('UBICACION R', 176, currentY);
+            doc.text(t.auditPdf?.locR || 'UBICACION R', 176, currentY);
          } else {
             doc.setTextColor(220, 38, 38); // Rojo
-            doc.text('UBICACION NR', 176, currentY);
+            doc.text(t.auditPdf?.locNr || 'UBICACION NR', 176, currentY);
          }
          doc.setFont('helvetica', 'normal');
 
@@ -1083,9 +1083,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
           // Determine Status based on Registry Gap
           let gapStatus: 'NORMAL' | 'ATENCIÓN' | 'ALERTA' | 'CRÍTICO' = 'NORMAL';
-          if (daysSinceInteraction >= 20) gapStatus = 'CRÍTICO';
-          else if (daysSinceInteraction >= 8) gapStatus = 'ALERTA';
-          else if (daysSinceInteraction >= 4) gapStatus = 'ATENCIÓN';
+          if (daysSinceInteraction >= 20) gapStatus = t.auditPdf?.critical || 'CRÍTICO';
+          else if (daysSinceInteraction >= 8) gapStatus = t.auditPdf?.alert || 'ALERTA';
+          else if (daysSinceInteraction >= 4) gapStatus = t.auditPdf?.attention || 'ATENCIÓN';
 
           return {
             id: c.id,

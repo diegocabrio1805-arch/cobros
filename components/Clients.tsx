@@ -2024,15 +2024,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <thead>
               <tr>
                 <th>Registro</th>
-                <th>Cliente / ID</th>
-                <th>Teléfono</th>
-                <th class="text-right">Habilitado</th>
-                <th class="text-right">Monto</th>
-                <th class="text-right">Cobrado</th>
+                <th>{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
+                <th>{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
+                <th class="text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
+                <th class="text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
+                <th class="text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
                 <th class="text-right">Saldo</th>
-                <th class="text-center">Cuotas</th>
+                <th class="text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
                 <th class="text-center">Pagadas</th>
-                <th class="text-center">Atraso</th>
+                <th class="text-center">{((t as any).clients.list?.thArrears || 'Atraso')}</th>
               </tr>
             </thead>
             <tbody>
@@ -2127,7 +2127,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
-      doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+      doc.text(((t as any).clients.list?.thClientId || "CLIENTE / ID").toUpperCase(), margin + 2, y + 5.5);
       doc.text("TELÉFONO", margin + 35, y + 5.5);
       doc.text("HABILITADO", margin + 65, y + 5.5, { align: 'right' });
       doc.text("V. CUOTA", margin + 85, y + 5.5, { align: 'right' });
@@ -2156,7 +2156,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
-          doc.text("CLIENTE / ID", margin + 2, y + 5.5);
+          doc.text(((t as any).clients.list?.thClientId || "CLIENTE / ID").toUpperCase(), margin + 2, y + 5.5);
           doc.text("TELÉFONO", margin + 35, y + 5.5);
           doc.text("HABILITADO", margin + 65, y + 5.5, { align: 'right' });
           doc.text("V. CUOTA", margin + 85, y + 5.5, { align: 'right' });
@@ -2481,18 +2481,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">Fecha Alta</th>
-                      <th className="px-6 py-4">Cliente / ID</th>
-                      <th className="px-6 py-4">Teléfono</th>
-                      <th className="px-6 py-4 text-right">Crédito</th>
-                      <th className="px-6 py-4 text-right">Monto</th>
-                      <th className="px-6 py-4 text-right">Interés</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thRegDateFull || 'Fecha Alta')}</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInterest || 'Interés')}</th>
                       <th className="px-6 py-4 text-center">%</th>
-                      <th className="px-6 py-4 text-right">Cobrado</th>
-                      <th className="px-6 py-4 text-right">Valor Cuota</th>
-                      <th className="px-6 py-4 text-center">Cuotas</th>
-                      <th className="px-6 py-4 text-right">Mora</th>
-                      <th className="px-6 py-4 text-center">Acciones</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInstallmentValue || 'Valor Cuota')}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thMora || 'Mora')}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2525,7 +2525,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{((t as any).clients.list?.btnView || 'VER')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(client.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -2556,16 +2556,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">Fecha Renov.</th>
-                      <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4 text-right">Crédito</th>
-                      <th className="px-6 py-4 text-right">Monto</th>
-                      <th className="px-6 py-4 text-right">Interés</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thRenovDate || 'Fecha Renov.')}</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thClient || 'Cliente')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInterest || 'Interés')}</th>
                       <th className="px-6 py-4 text-center">%</th>
-                      <th className="px-6 py-4 text-right">Cobrado</th>
-                      <th className="px-6 py-4 text-center">Cuotas</th>
-                      <th className="px-6 py-4 text-right">Atraso</th>
-                      <th className="px-6 py-4 text-center">Acciones</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thArrears || 'Atraso')}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2596,7 +2596,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">DETALLE</button>
+                            <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{((t as any).clients.list?.btnDetail || 'DETALLE')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(item.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -2718,11 +2718,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-red-800 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">Fecha Reg.</th>
-                      <th className="px-6 py-4">Cliente / ID</th>
-                      <th className="px-6 py-4">Teléfono</th>
-                      <th className="px-6 py-4 text-right">Saldo</th>
-                      <th className="px-6 py-4 text-center">Acciones</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thRegDateFull || 'Fecha Reg.')}</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
+                      <th className="px-6 py-4">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.balance || 'Saldo')}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2745,8 +2745,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">VER</button>
-                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i> RESTAURAR</button>
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{((t as any).clients.list?.btnView || 'VER')}</button>
+                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i>{((t as any).clients.list?.btnRestore || 'RESTAURAR')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handlePermanentDeleteClient(client.id)} className="text-red-600 hover:underline" title="Eliminar"><i className="fa-solid fa-trash"></i> ELIMINAR</button>
                             )}
@@ -2783,7 +2783,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                    <div className="flex items-center gap-3">
                      <i className="fa-solid fa-flag-checkered text-xl"></i>
                      <div>
-                       <p className="font-black text-sm uppercase tracking-tight">Créditos Finalizados</p>
+                       <p className="font-black text-sm uppercase tracking-tight">{((t as any).clients.list?.thFinished || 'Créditos Finalizados')}</p>
                        <p className="text-[9px] font-bold text-slate-200 uppercase tracking-widest">
                           {finalizadosDate === finalizadosEndDate ? finalizadosDate : `${finalizadosDate} AL ${finalizadosEndDate}`} · {finalizadosData.length} CRÉDITO{finalizadosData.length !== 1 ? 'S' : ''}
                         </p>
@@ -2794,15 +2794,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                    <table className="w-full text-left border-collapse min-w-[700px]">
                      <thead>
                        <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                         <th className="px-5 py-4 border-r border-white/10">Cliente</th>
-                         <th className="px-5 py-4 border-r border-white/10">Teléfono</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">Frecuencia</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-right">Habilitado</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-right">Total</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">Cuotas</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">Créditos</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">Estado</th>
-                         <th className="px-5 py-4 text-center">Acciones</th>
+                         <th className="px-5 py-4 border-r border-white/10">{((t as any).clients.list?.thClient || 'Cliente')}</th>
+                         <th className="px-5 py-4 border-r border-white/10">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thFrequency || 'Frecuencia')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">{((t as any).clients.list?.thTotal || 'Total')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.credits || 'Créditos')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thState || 'Estado')}</th>
+                         <th className="px-5 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
@@ -2847,16 +2847,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                  totalCredits >= 3 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                                  'bg-slate-100 text-slate-600 border border-slate-200'
                                }`}>
-                                  {totalCredits} CRÉD. FINALIZADOS
+                                  {totalCredits} {((t as any).clients.list?.thFinished || 'CRÉD. FINALIZADOS')}
                                </span>
                              </td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
                                <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider ${hasActiveLoan ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
-                                 {hasActiveLoan ? '● ACTIVO' : '● INACTIVO'}
+                                 {hasActiveLoan ? ((t as any).clients.list?.btnActive ? '● ' + (t as any).clients.list.btnActive : '● ACTIVO') : '● INACTIVO'}
                                </span>
                              </td>
                              <td className="px-5 py-4 text-center">
-                               <button onClick={() => setShowLegajo(client.id)} className="text-orange-600 hover:underline">DETALLE</button>
+                               <button onClick={() => setShowLegajo(client.id)} className="text-orange-600 hover:underline">{((t as any).clients.list?.btnDetail || 'DETALLE')}</button>
                              </td>
                            </tr>
                          );
@@ -3401,7 +3401,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <div className="max-h-[400px] overflow-y-auto mobile-scroll-container">
                               <table className="w-full text-[10px] border-collapse min-w-[350px]">
                                 <thead className="bg-slate-800 sticky top-0 font-black text-slate-100 border-b border-slate-700 uppercase tracking-widest">
-                                  <tr><th className="px-4 py-3 text-left">Fecha / Hora</th><th className="px-4 py-3 text-left">Concepto</th><th className="px-4 py-3 text-right">Monto</th><th className="px-4 py-3 text-center">Acciones</th></tr>
+                                  <tr><th className="px-4 py-3 text-left">Fecha / Hora</th><th className="px-4 py-3 text-left">Concepto</th><th className="px-4 py-3 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th><th className="px-4 py-3 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 font-bold">
                                   {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
@@ -3437,7 +3437,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           {isAdminOrManager && !isLoanGrant && (
                                             <div className="flex items-center justify-center gap-1">
                                               <button onClick={() => {
-                                                if (confirm('¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.')) {
+                                                if (confirm(t.confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) {
                                                   deleteCollectionLog?.(log.id);
                                                   if (log.loanId && recalculateLoanStatus) {
                                                     // Pequeño delay para asegurar que el estado local se actualice antes del recalculo si es necesario
@@ -3490,8 +3490,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   <thead className="bg-slate-100 text-[7px] text-slate-500 uppercase sticky top-0">
                                     <tr>
                                       <th className="p-2 border-b border-slate-200">Fecha</th>
-                                      <th className="p-2 border-b border-slate-200 text-right">Crédito</th>
-                                      <th className="p-2 border-b border-slate-200 text-right">Habilitado</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
                                       <th className="p-2 border-b border-slate-200 text-center">Días de Mora</th>
                                     </tr>
                                   </thead>
@@ -4546,10 +4546,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-900 text-white sticky top-0 z-10">
                       <tr>
-                        <th className="p-3 text-[9px] font-black uppercase text-left">Cliente</th>
-                        <th className="p-3 text-[9px] font-black uppercase text-right">Habilitado</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-left">{((t as any).clients.list?.thClient || 'Cliente')}</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
                         <th className="p-3 text-[9px] font-black uppercase text-right">V. Cuota</th>
-                        <th className="p-3 text-[9px] font-black uppercase text-right">Monto</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Tot</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pag</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pend</th>

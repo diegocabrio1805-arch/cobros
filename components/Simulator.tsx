@@ -13,7 +13,8 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
    const [interestRate, setInterestRate] = useState<string>('20');
    const [installments, setInstallments] = useState<string>('24');
    const [frequency, setFrequency] = useState<Frequency>(Frequency.DAILY);
-   const t = getTranslation('es').simulator;
+   const trans = getTranslation(settings?.language || 'es');
+   const t = trans.simulator;
 
    const simulation = useMemo(() => {
       const p = Number(principal) || 0;
@@ -54,7 +55,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
 
                   <div className="space-y-4 md:space-y-5">
                      <div>
-                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Capital</label>
+                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t.principal || 'Capital'}</label>
                         <div className="relative">
                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                            <input
@@ -68,7 +69,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
 
                      <div className="grid grid-cols-2 gap-3 md:gap-4">
                         <div className="space-y-1.5">
-                           <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Int %</label>
+                           <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.interest || 'Int %'}</label>
                            <input
                               type="text"
                               value={interestRate}
@@ -77,7 +78,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                            />
                         </div>
                         <div className="space-y-1.5">
-                           <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuotas</label>
+                           <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.installments || 'Cuotas'}</label>
                            <input
                               type="text"
                               value={installments}
@@ -88,16 +89,14 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                      </div>
 
                      <div>
-                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Frecuencia</label>
+                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t.frequency || 'Frecuencia'}</label>
                         <div className="grid grid-cols-2 gap-2">
                            {Object.values(Frequency).map((freq) => (
                               <button
                                  key={freq}
                                  onClick={() => setFrequency(freq)}
                                  className={`py-2.5 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-wider transition-all border-2 ${frequency === freq ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-400 border-slate-100 active:border-blue-200'}`}
-                              >
-                                 {freq}
-                              </button>
+                              >{(trans as any).clients?.registrationForm?.frequencies?.[freq] || freq}</button>
                            ))}
                         </div>
                      </div>
@@ -106,7 +105,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
 
                <div className="bg-[#0f172a] p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
                   <div className="relative z-10 text-center md:text-left">
-                     <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Estimada</p>
+                     <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.profit || 'Utilidad Estimada'}</p>
                      <p className="text-2xl md:text-3xl font-black text-emerald-400 font-mono">{formatCurrency(simulation.profit, settings)}</p>
                   </div>
                   <i className="fa-solid fa-chart-line absolute -bottom-2 -right-2 text-6xl md:text-8xl text-white/5 pointer-events-none"></i>
@@ -120,19 +119,19 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                   </div>
                   <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 items-center text-center md:text-left">
                      <div>
-                        <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1 md:mb-2">Cuota Estimada</p>
+                        <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1 md:mb-2">{t.installmentValue || 'Cuota Estimada'}</p>
                         <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter font-mono">{formatCurrency(simulation.installmentValue, settings)}</h2>
                         <span className="inline-block mt-2 md:mt-3 px-3 py-1 bg-white/20 rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider">
-                           {frequency}
+                           {(trans as any).clients?.registrationForm?.frequencies?.[frequency] || frequency}
                         </span>
                      </div>
                      <div className="space-y-3 md:space-y-4 md:border-l md:border-white/10 md:pl-8 text-center md:text-left border-t md:border-t-0 border-white/10 pt-4 md:pt-0">
                         <div>
-                           <p className="text-[8px] md:text-[10px] font-black text-blue-200 uppercase tracking-widest">Monto Total</p>
+                           <p className="text-[8px] md:text-[10px] font-black text-blue-200 uppercase tracking-widest">{t.totalPay || 'Monto Total'}</p>
                            <p className="text-lg md:text-2xl font-black font-mono">{formatCurrency(simulation.totalAmount, settings)}</p>
                         </div>
                         <div>
-                           <p className="text-[8px] md:text-[10px] font-black text-blue-200 uppercase tracking-widest">Finaliza</p>
+                           <p className="text-[8px] md:text-[10px] font-black text-blue-200 uppercase tracking-widest">{t.endDate || 'Finaliza'}</p>
                            <p className="text-base md:text-xl font-black uppercase">{simulation.table.length > 0 ? formatDate(simulation.table[simulation.table.length - 1].dueDate) : '---'}</p>
                         </div>
                      </div>
@@ -141,9 +140,9 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
 
                <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-[350px] md:h-[500px]">
                   <div className="p-4 md:p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center sticky top-0 z-10">
-                     <h3 className="text-[10px] md:text-sm font-black text-slate-800 uppercase tracking-wide">Amortización Preliminar</h3>
+                     <h3 className="text-[10px] md:text-sm font-black text-slate-800 uppercase tracking-wide">{t.plan || 'Amortización Preliminar'}</h3>
                      <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">
-                        {simulation.table.length} Cuotas
+                        {simulation.table.length} {t.installments || 'Cuotas'}
                      </span>
                   </div>
 
