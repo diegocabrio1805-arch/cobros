@@ -1939,6 +1939,33 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const previousActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === clientInLegajo.id && l.id !== newLoan.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       const previousLoanIds = previousActiveLoans.map(l => l.id);
+
+      // --- REGLA SIMPLE Y PRECISA ---
+      // Solo mirar el ÚLTIMO log de pago del cliente (excluye el nuevo crédito)
+      // Si el último registro es RENOVACIÓN → descuenta el monto
+      // Si el último registro es ABONO RECIBIDO → entrega el monto completo sin descuento
+      const lastLogForClient = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+        .filter(l => 
+          l.clientId === clientInLegajo.id && 
+          !l.deletedAt && 
+          !l.isOpening && 
+          l.type === CollectionLogType.PAYMENT &&
+          l.loanId !== newLoan.id
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      const lastLogIsRenewal = lastLogForClient?.isRenewal === true;
+
+      let calculatedRenewalDeduction = 0;
+      let isRenewalMessage = false;
+
+      if (lastLogIsRenewal) {
+        // Último pago fue RENOVACIÓN → aplicar descuento
+        isRenewalMessage = true;
+        calculatedRenewalDeduction = lastLogForClient?.amount || 0;
+      }
+      // Si el último log fue ABONO RECIBIDO (o no hay logs) → sin descuento, entrega completa
+
       if (renewLoan) {
         await renewLoan(newLoan, previousLoanIds);
       } else {
@@ -1959,39 +1986,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const contactPhone = state.settings.contactPhone ? ` ${state.settings.contactPhone}` : '';
         const currSym = state.settings.currencySymbol || '$';
 
-        // Detectar si hay un log de RENOVACIÓN explícito reciente (última hora)
-        const now = Date.now();
-        const recentRenewalLog = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-          .filter(l => l.clientId === clientInLegajo.id && l.isRenewal && !l.deletedAt && !l.isOpening && l.type === CollectionLogType.PAYMENT)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-          
-        const isRecentRenewal = recentRenewalLog && (now - new Date(recentRenewalLog.date).getTime() < 1000 * 60 * 60);
-
-        // Si no hay log de renovación explícito, calculamos el saldo pendiente de los créditos activos a cancelar
-        let renewalDeduction = 0;
-        if (isRecentRenewal) {
-           renewalDeduction = recentRenewalLog.amount || 0;
-        } else {
-           renewalDeduction = previousActiveLoans.reduce((acc, l) => {
-             const tPaid = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-               .filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt && !log.isOpening)
-               .reduce((sum, log) => sum + (log.amount || 0), 0);
-             return acc + Math.max(0, l.totalAmount - tPaid);
-           }, 0);
-        }
-
-        const isRenewalMessage = previousActiveLoans.length > 0 || isRecentRenewal;
+        const renewalDeduction = calculatedRenewalDeduction;
         const efectivoEntregado = Math.max(0, p - renewalDeduction);
+        
         const fmtPrincipal = formatRawNumber(p, state.settings);
         const fmtDeduccion = formatRawNumber(renewalDeduction, state.settings);
         const fmtEfectivo = formatRawNumber(efectivoEntregado, state.settings);
+        
         let msgText;
         if (isRenewalMessage && renewalDeduction > 0) {
           msgText = state.settings.language === 'fr' 
-            ? `MESSAGE DE CONFIRMATION DE REMISE DE CRÉDIT CLIENT : ${clientInLegajo.name.toUpperCase()} CONFIRMATION DE RENOUVELLEMENT DE CRÉDIT ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SOLDE TOTAL ESPÈCES REMISES ${currSym}${fmtEfectivo} À ${inst} QUOTAS POUR TOUTE QUESTION OU DOUTE SUR VOTRE MONTANT, VEUILLEZ CONTACTER ${companyName}${contactPhone}`
+            ? `MESSAGE DE CONFIRMATION DE REMISE DE CRÉDIT CLIENT : ${clientInLegajo.name.toUpperCase()} CONFIRMATION DE CRÉDIT ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SOLDE ANTÉRIEUR TOTAL ESPÈCES REMISES ${currSym}${fmtEfectivo} CRÉDIT DE ${currSym}${fmtPrincipal} À ${inst} QUOTAS POUR TOUTE QUESTION OU DOUTE SUR VOTRE MONTANT, VEUILLEZ CONTACTER ${companyName}${contactPhone}`
             : state.settings.language === 'pt'
-            ? `MENSAGEM DE CONFIRMAÇÃO DE ENTREGA DE CRÉDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMAÇÃO DE RENOVAÇÃO DE CRÉDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO TOTAL DINHEIRO ENTREGUE ${currSym}${fmtEfectivo} EM ${inst} PARCELAS QUALQUER DÚVIDA OU CONSULTA SOBRE SEU VALOR COMUNICAR-SE COM ${companyName}${contactPhone}`
-            : `MENSAJE DE CONFIRMACION DE ENTREGA DE CREDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMACION DE RENOVACION DE CREDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO TOTAL EFECTIVO ENTREGADO ${currSym}${fmtEfectivo} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
+            ? `MENSAGEM DE CONFIRMAÇÃO DE ENTREGA DE CRÉDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMAÇÃO DE CRÉDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO ANTERIOR TOTAL DINHEIRO ENTREGUE ${currSym}${fmtEfectivo} CRÉDITO DE ${currSym}${fmtPrincipal} EM ${inst} PARCELAS QUALQUER DÚVIDA OU CONSULTA SOBRE SEU VALOR COMUNICAR-SE COM ${companyName}${contactPhone}`
+            : `MENSAJE DE CONFIRMACION DE ENTREGA DE CREDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMACION DE CREDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO ANTERIOR TOTAL EFECTIVO ENTREGADO ${currSym}${fmtEfectivo} CREDITO DE ${currSym}${fmtPrincipal} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
         } else {
           msgText = state.settings.language === 'fr'
             ? `MESSAGE DE CONFIRMATION DE REMISE DE CRÉDIT CLIENT : ${clientInLegajo.name.toUpperCase()} CONFIRMATION DE CRÉDIT ${currSym}${fmtPrincipal} TOTAL ESPÈCES REMISES ${currSym}${fmtEfectivo} À ${inst} QUOTAS POUR TOUTE QUESTION OU DOUTE SUR VOTRE MONTANT, VEUILLEZ CONTACTER ${companyName}${contactPhone}`
@@ -3480,7 +3488,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 font-bold">
                                   {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
-                                    const logDate = log.date ? new Date(log.date.split('T')[0] + 'T00:00:00') : null;
+                                    const logDate = log.date ? new Date(log.date) : null;
                                     const formattedDate = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleDateString() : '---';
                                     const formattedTime = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -4209,14 +4217,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-2 overflow-y-auto pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
-                  <h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Registrar Gestión</h3>
+                  <h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Enregistrer Gestion' : state.settings.language === 'pt' ? 'Registrar Gestão' : 'Registrar Gestión'}</h3>
                   <button onClick={() => setShowDossierPaymentModal(false)} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <div className="p-5 md:p-6 space-y-4 md:space-y-6">
                   <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => setDossierPaymentMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!dossierIsVirtual && !dossierIsRenewal ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Efectivo</button>
-                    <button onClick={() => setDossierPaymentMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsVirtual ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Transf.</button>
-                    <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Renovar</button>
+                    <button onClick={() => setDossierPaymentMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!dossierIsVirtual && !dossierIsRenewal ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
+                    <button onClick={() => setDossierPaymentMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsVirtual ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Transf.' : 'Transf.'}</button>
+                    <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Renouveler' : 'Renovar'}</button>
                   </div>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
@@ -4224,13 +4232,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     {dossierIsRenewal && (
                       <div className="text-center mt-2">
                         <span className="text-xs font-black text-amber-600 uppercase tracking-wider">
-                          💰 Saldo Pendiente para Cancelar Crédito
+                          {state.settings.language === 'fr' ? '💰 Solde en attente pour annuler le crédit' : state.settings.language === 'pt' ? '💰 Saldo Pendente para Cancelar o Crédito' : '💰 Saldo Pendiente para Cancelar Crédito'}
                         </span>
                       </div>
                     )}
                   </div>
                   <button onClick={() => handleDossierAction(CollectionLogType.PAYMENT)} disabled={isProcessingDossierAction} className="w-full py-4 md:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl md:rounded-[2rem] font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all">
-                    {isProcessingDossierAction ? <i className="fa-solid fa-spinner animate-spin"></i> : 'Confirmar Registro'}
+                    {isProcessingDossierAction ? <i className="fa-solid fa-spinner animate-spin"></i> : (state.settings.language === 'fr' ? 'Confirmer le Registre' : state.settings.language === 'pt' ? 'Confirmar Registro' : 'Confirmar Registro')}
                   </button>
                 </div>
               </div>
