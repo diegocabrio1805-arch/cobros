@@ -48,10 +48,26 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [expenseNote, setExpenseNote] = useState<string>('');
   const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
 
-  // Salary Mode and inputs
+  // Salary Mode and inputs — persisted per collector in localStorage
   const [paymentScheme, setPaymentScheme] = useState<'percent' | 'weekly' | 'monthly'>('percent');
   const [weeklySalaryInput, setWeeklySalaryInput] = useState<number>(0);
   const [monthlySalaryInput, setMonthlySalaryInput] = useState<number>(0);
+
+  // Helpers para guardar/cargar config de pago por cobrador
+  const saveCollectorPayConfig = (collectorId: string, scheme: 'percent' | 'weekly' | 'monthly', pct: number, weekly: number, monthly: number) => {
+    try {
+      const key = `pay_cfg_${collectorId}`;
+      localStorage.setItem(key, JSON.stringify({ scheme, pct, weekly, monthly }));
+    } catch {}
+  };
+
+  const loadCollectorPayConfig = (collectorId: string) => {
+    try {
+      const raw = localStorage.getItem(`pay_cfg_${collectorId}`);
+      if (raw) return JSON.parse(raw) as { scheme: 'percent' | 'weekly' | 'monthly', pct: number, weekly: number, monthly: number };
+    } catch {}
+    return null;
+  };
 
   const getActiveWorkingDaysInWeek = (
     weekStart: Date,
@@ -94,6 +110,21 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       d.setDate(d.getDate() - 28);
       setHistoryStartDate(d.toISOString().split('T')[0]);
       setHistoryEndDate(countryTodayStr);
+
+      // Cargar configuración de pago guardada para este cobrador
+      const saved = loadCollectorPayConfig(showCollectorHistoryId);
+      if (saved) {
+        setPaymentScheme(saved.scheme);
+        setHistoryCommissionPercent(saved.pct ?? 10);
+        setWeeklySalaryInput(saved.weekly ?? 0);
+        setMonthlySalaryInput(saved.monthly ?? 0);
+      } else {
+        // Si no hay config guardada, resetear a valores por defecto
+        setPaymentScheme('percent');
+        setHistoryCommissionPercent(10);
+        setWeeklySalaryInput(0);
+        setMonthlySalaryInput(0);
+      }
     }
   }, [showCollectorHistoryId, countryTodayStr]);
 
@@ -1508,7 +1539,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
                   {/* Scheme 1: Pago % */}
                   <div 
-                    onClick={() => setPaymentScheme('percent')} 
+                    onClick={() => {
+                      setPaymentScheme('percent');
+                      if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'percent', historyCommissionPercent, weeklySalaryInput, monthlySalaryInput);
+                    }} 
                     className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'percent' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
                   >
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago %</span>
@@ -1517,8 +1551,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         type="number" 
                         value={historyCommissionPercent} 
                         onChange={(e) => {
-                          setHistoryCommissionPercent(Number(e.target.value));
+                          const val = Number(e.target.value);
+                          setHistoryCommissionPercent(val);
                           setPaymentScheme('percent');
+                          if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'percent', val, weeklySalaryInput, monthlySalaryInput);
                         }} 
                         onClick={(e) => e.stopPropagation()}
                         className="w-10 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
@@ -1529,7 +1565,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
                   {/* Scheme 2: Pago Semanal */}
                   <div 
-                    onClick={() => setPaymentScheme('weekly')} 
+                    onClick={() => {
+                      setPaymentScheme('weekly');
+                      if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'weekly', historyCommissionPercent, weeklySalaryInput, monthlySalaryInput);
+                    }} 
                     className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'weekly' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
                   >
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Semanal</span>
@@ -1539,8 +1578,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         type="number" 
                         value={weeklySalaryInput === 0 ? '' : weeklySalaryInput} 
                         onChange={(e) => {
-                          setWeeklySalaryInput(Number(e.target.value));
+                          const val = Number(e.target.value);
+                          setWeeklySalaryInput(val);
                           setPaymentScheme('weekly');
+                          if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'weekly', historyCommissionPercent, val, monthlySalaryInput);
                         }} 
                         onClick={(e) => e.stopPropagation()}
                         className="w-14 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
@@ -1551,7 +1592,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
                   {/* Scheme 3: Pago Mensual */}
                   <div 
-                    onClick={() => setPaymentScheme('monthly')} 
+                    onClick={() => {
+                      setPaymentScheme('monthly');
+                      if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'monthly', historyCommissionPercent, weeklySalaryInput, monthlySalaryInput);
+                    }} 
                     className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'monthly' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
                   >
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Mensual</span>
@@ -1561,8 +1605,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         type="number" 
                         value={monthlySalaryInput === 0 ? '' : monthlySalaryInput} 
                         onChange={(e) => {
-                          setMonthlySalaryInput(Number(e.target.value));
+                          const val = Number(e.target.value);
+                          setMonthlySalaryInput(val);
                           setPaymentScheme('monthly');
+                          if (showCollectorHistoryId) saveCollectorPayConfig(showCollectorHistoryId, 'monthly', historyCommissionPercent, weeklySalaryInput, val);
                         }} 
                         onClick={(e) => e.stopPropagation()}
                         className="w-14 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
