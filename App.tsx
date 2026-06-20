@@ -36,6 +36,7 @@ import MobileCollectorMode from './components/MobileCollectorMode';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [initialDossierClientId, setInitialDossierClientId] = useState<string | null>(null);
   const [pullY, setPullY] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const pullStartY = useRef(0);
@@ -311,6 +312,8 @@ const App: React.FC = () => {
                 setState={setState}
                 pushLoan={sync.pushLoan}
                 activeLocation={activeLocation}
+                initialDossierClientId={initialDossierClientId}
+                onClearInitialDossier={() => setInitialDossierClientId(null)}
               />
             )}
             {activeTab === 'loans' && (
@@ -352,6 +355,10 @@ const App: React.FC = () => {
                 addExpense={addExpense} 
                 removeExpense={removeExpense} 
                 updateInitialCapital={updateInitialCapital} 
+                onViewClientDossier={(clientId) => {
+                  setInitialDossierClientId(clientId);
+                  setActiveTab('clients');
+                }}
               />
             )}
             {activeTab === 'commission' && (

@@ -74,6 +74,8 @@ interface ClientsProps {
   setState?: React.Dispatch<React.SetStateAction<AppState>>;
   pushLoan?: (loan: Loan) => Promise<boolean>;
   activeLocation?: { lat: number, lng: number, timestamp: number } | null;
+  initialDossierClientId?: string | null;
+  onClearInitialDossier?: () => void;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -226,7 +228,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan, activeLocation }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan, activeLocation, initialDossierClientId, onClearInitialDossier }) => {
   const t = getTranslation(state.settings.language);
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -640,6 +642,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
     }
   }, [showLegajo, state.clients.length]); // Usar length para detectar nuevos clientes sin disparar por cada cambio de atributo
+
+  useEffect(() => {
+    if (initialDossierClientId) {
+      setShowLegajo(initialDossierClientId);
+      if (onClearInitialDossier) {
+        onClearInitialDossier();
+      }
+    }
+  }, [initialDossierClientId, onClearInitialDossier]);
 
   const shareCardRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLDivElement>(null);

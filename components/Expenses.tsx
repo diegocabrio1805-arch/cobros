@@ -10,9 +10,10 @@ interface ExpensesProps {
   addExpense: (expense: Expense) => void;
   removeExpense: (id: string) => void;
   updateInitialCapital: (amount: number) => void;
+  onViewClientDossier?: (clientId: string) => void;
 }
 
-const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateInitialCapital }) => {
+const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateInitialCapital, onViewClientDossier }) => {
   // PROTECTION: If settings are not loaded yet, prevent crash
   if (!state.settings || !state.settings.country) {
     return <div className="p-10 text-center animate-pulse text-slate-400 font-bold uppercase tracking-widest">Cargando Configuración...</div>;
@@ -23,6 +24,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
   const [showModal, setShowModal] = useState(false);
   const [showCapitalModal, setShowCapitalModal] = useState(false);
   const [initialCapitalForm, setInitialCapitalForm] = useState(state.initialCapital);
+  const [selectedMonthDetail, setSelectedMonthDetail] = useState<{ month: number; year: number; name: string } | null>(null);
 
   const [formData, setFormData] = useState({
     description: '',
@@ -169,6 +171,17 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
   }, [state.loans, state.collectionLogs]);
 
   const { dailyPoints, monthlySummary } = chartData;
+
+  const newLoansInMonth = useMemo(() => {
+    if (!selectedMonthDetail) return [];
+    return (Array.isArray(state.loans) ? state.loans : [])
+      .filter((l: Loan) => {
+        const lDate = new Date(l.createdAt);
+        return lDate.getMonth() === selectedMonthDetail.month && 
+               lDate.getFullYear() === selectedMonthDetail.year && 
+               !l.isRenewal;
+      });
+  }, [state.loans, selectedMonthDetail]);
 
   const handleUpdateCapital = (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,7 +453,21 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             <div className="flex flex-col gap-2">
               <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} {state.settings.language === 'fr' ? 'TOTAUX' : state.settings.language === 'pt' ? 'TOTAIS' : 'TOTALES'}</p>
               <div className="flex flex-col items-center gap-1 mt-1">
-                <span className="text-[14px] font-black text-indigo-600 uppercase">{month.nuevos} {state.settings.language === 'fr' ? 'NOUVEAUX' : state.settings.language === 'pt' ? 'NOVOS' : 'NUEVOS'}</span>
+                <div className="flex items-center gap-2 justify-center">
+                  <span className="text-[14px] font-black text-indigo-600 uppercase">
+                    {month.nuevos} {state.settings.language === 'fr' ? 'NOUVEAUX' : state.settings.language === 'pt' ? 'NOVOS' : 'NUEVOS'}
+                  </span>
+                  {month.nuevos > 0 && (
+                    <button
+                      onClick={() => setSelectedMonthDetail(month)}
+                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer flex items-center gap-1 border border-indigo-100"
+                      title={state.settings.language === 'fr' ? 'Voir nouveaux clients' : state.settings.language === 'pt' ? 'Ver novos clientes' : 'Ver clientes nuevos'}
+                    >
+                      <i className="fa-solid fa-user-plus text-[8px]"></i>
+                      {state.settings.language === 'fr' ? 'Voir Client' : state.settings.language === 'pt' ? 'Ver Cliente' : 'Ver Cliente'}
+                    </button>
+                  )}
+                </div>
                 <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} {state.settings.language === 'fr' ? 'RENOUV.' : state.settings.language === 'pt' ? 'RENOV.' : 'RENOV.'}</span>
               </div>
             </div>
@@ -514,7 +541,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* MODAL CARGA CAPITAL INICIAL */}
       {
         showCapitalModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
                 <h3 className="text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Base de Capital' : state.settings.language === 'pt' ? 'Base de Capital' : 'Base de Capital'}</h3>
@@ -541,7 +568,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </div>
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-[8px] font-bold text-blue-700 leading-relaxed uppercase">
                   <i className="fa-solid fa-circle-info mr-1"></i>
-                  {state.settings.language === 'fr' ? 'Ce montant est le fonds initial avec lequel le système commencera à déduire les prêts accordés.' : state.settings.language === 'pt' ? 'Este valor é o fundo inicial com o qual o sistema começará a descontar os empréstimos concedidos.' : 'Este monto es el fondo inicial con el que el sistema empezará a descontar los préstamos otorgados.'}
+                  {state.settings.language === 'fr' ? 'Ce montant est le fonds initial avec lequel le sistema commencera à déduire les prêts accordés.' : state.settings.language === 'pt' ? 'Este valor é o fundo inicial com o qual o sistema começará a descontar os empréstimos concedidos.' : 'Este monto es el fondo inicial con el que el sistema empezará a descontar los préstamos otorgados.'}
                 </div>
                 <button type="submit" className="w-full font-black py-5 bg-slate-900 text-white rounded-2xl shadow-xl uppercase text-xs tracking-widest active:scale-95 transition-all">
                   {state.settings.language === 'fr' ? 'METTRE À JOUR LE FONDS' : state.settings.language === 'pt' ? 'ATUALIZAR FUNDO' : 'ACTUALIZAR FONDO'}
@@ -555,7 +582,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* MODAL REGISTRAR GASTO */}
       {
         showModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-4 overflow-y-auto pt-10 md:pt-20">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start justify-center z-[150] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn flex flex-col border border-white/20">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Enregistrer Dépense' : state.settings.language === 'pt' ? 'Registrar Despesa' : 'Registrar Gasto'}</h3>
@@ -621,6 +648,99 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           </div>
         )
       }
+
+      {/* MODAL DETALLE DE CLIENTES NUEVOS DEL MES */}
+      {selectedMonthDetail && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-white/20">
+            <div className="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tighter">
+                  {state.settings.language === 'fr' ? 'Nouveaux Clients' : state.settings.language === 'pt' ? 'Novos Clientes' : 'Clientes Nuevos'}
+                </h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  {selectedMonthDetail.name} {selectedMonthDetail.year} - {newLoansInMonth.length} {state.settings.language === 'fr' ? 'ENREGISTRÉS' : state.settings.language === 'pt' ? 'REGISTRADOS' : 'REGISTRADOS'}
+                </p>
+              </div>
+              <button 
+                onClick={() => setSelectedMonthDetail(null)} 
+                className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+            
+            <div className="p-6 md:p-8 space-y-6 bg-slate-50 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {newLoansInMonth.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 font-bold uppercase tracking-widest text-xs">
+                  {state.settings.language === 'fr' ? 'Aucun nouveau client ce mois-ci' : state.settings.language === 'pt' ? 'Nenhum cliente novo este mês' : 'No hay clientes nuevos registrados en este mes'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-[9px] font-black text-slate-500 uppercase border-b border-slate-200">
+                        <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Client' : state.settings.language === 'pt' ? 'Cliente' : 'Cliente'}</th>
+                        <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Collecteur' : state.settings.language === 'pt' ? 'Cobrador' : 'Cobrador'}</th>
+                        <th className="px-5 py-4 text-center">{state.settings.language === 'fr' ? 'Date d\'Entrée' : state.settings.language === 'pt' ? 'Data de Entrada' : 'Fecha de Ingreso'}</th>
+                        <th className="px-5 py-4 text-right">{state.settings.language === 'fr' ? 'Montant' : state.settings.language === 'pt' ? 'Monto' : 'Monto'}</th>
+                        <th className="px-5 py-4 text-center">{state.settings.language === 'fr' ? 'Action' : state.settings.language === 'pt' ? 'Ação' : 'Acción'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {newLoansInMonth.map((loan) => {
+                        const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
+                        const collectorId = loan.collectorId || (loan as any).collector_id || client?.addedBy || (client as any)?.added_by;
+                        const collector = (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId);
+                        
+                        return (
+                          <tr key={loan.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
+                            <td className="px-5 py-4 text-slate-800 uppercase font-black">
+                              {client?.name || 'Desconocido'}
+                            </td>
+                            <td className="px-5 py-4 text-slate-600 uppercase">
+                              {collector?.name || 'Sin Asignar'}
+                            </td>
+                            <td className="px-5 py-4 text-center text-slate-400 whitespace-nowrap">
+                              {formatLocalDate(new Date(loan.createdAt), state.settings.country, { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </td>
+                            <td className="px-5 py-4 text-right font-black text-indigo-600 font-mono">
+                              {formatCurrency(loan.principal, state.settings)}
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              {client?.id && onViewClientDossier && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedMonthDetail(null);
+                                    onViewClientDossier(client.id);
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm border border-blue-100 cursor-pointer flex items-center gap-1 mx-auto"
+                                >
+                                  <i className="fa-solid fa-folder-open text-[8px]"></i>
+                                  {state.settings.language === 'fr' ? 'Détails' : state.settings.language === 'pt' ? 'Ver Ficha' : 'Ver Detalle'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 bg-slate-900 flex justify-end shrink-0">
+              <button 
+                onClick={() => setSelectedMonthDetail(null)} 
+                className="px-6 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all"
+              >
+                {state.settings.language === 'fr' ? 'Fermer' : state.settings.language === 'pt' ? 'Fechar' : 'Cerrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

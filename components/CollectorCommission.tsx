@@ -1185,7 +1185,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       {/* MODAL REGLAS DE COMISIÓN (EDITABLE) */}
       {showBracketModal && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[300] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[300] p-4 overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="text-lg font-black uppercase tracking-tighter">Reglas de Pago x Mora</h3>
@@ -1245,7 +1245,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       {/* MODAL HISTORIAL EXCEL / AUDITORÍA */}
       {showExcelModal && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[250] p-0 md:p-4 animate-fadeIn overflow-y-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[250] p-0 md:p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-white w-full md:rounded-[2.5rem] shadow-2xl flex flex-col border border-white/20">
             <div className="p-4 md:p-6 bg-slate-900 text-white flex flex-col gap-4 shrink-0">
               <div className="flex justify-between items-center">
@@ -1431,7 +1431,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       {/* RESUMEN GLOBAL RUTAS (SI ES MANAGER/ADMIN) */}
       {showGlobalSummary && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
             <div className="p-6 md:p-8 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="text-xl font-black uppercase tracking-tighter">{(t as any).commissionBook?.comparison?.title || 'Comparativa de Desempeño'}</h3>
@@ -1462,7 +1462,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       )}
       {/* MODAL HISTORIAL 30 DIAS */}
       {showCollectorHistoryId && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[350] p-0 md:p-4 animate-fadeIn overflow-y-auto">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[350] p-0 md:p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-white w-full max-w-6xl md:rounded-[2.5rem] shadow-2xl flex flex-col border border-white/20">
             <div className="p-4 md:p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
