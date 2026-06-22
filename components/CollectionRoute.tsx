@@ -9,8 +9,6 @@ import PullToRefresh from './PullToRefresh';
 import { getFastLocation } from '../utils/gpsHelper';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
-
 // Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
 const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
@@ -19,7 +17,7 @@ const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
     : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
   const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
   if (Capacitor.isNativePlatform()) {
-    CapApp.openUrl({ url: wpUrl }).catch(() => window.open(wpUrl, '_blank'));
+    window.open(wpUrl, '_system');
   } else {
     window.open(wpUrl, '_blank');
   }
