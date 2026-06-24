@@ -34,6 +34,23 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [excelEndDate, setExcelEndDate] = useState(countryTodayStr);
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'cash' | 'virtual' | 'renewal' | 'nopay'>('all');
 
+  const [likedLogs, setLikedLogs] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('liked_logs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleLikeLog = (logId: string) => {
+    setLikedLogs(prev => {
+      const updated = { ...prev, [logId]: !prev[logId] };
+      localStorage.setItem('liked_logs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const [localCommissionPercent, setLocalCommissionPercent] = useState<number>(0);
   const [editingBrackets, setEditingBrackets] = useState<CommissionBracket[]>([...(Array.isArray(state.commissionBrackets) ? state.commissionBrackets : [])]);
 
@@ -680,6 +697,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       wsData.push([
         { v: "Fecha", t: "s", s: headerStyle },
         { v: "Cliente", t: "s", s: headerStyle },
+        { v: "Confirmación", t: "s", s: headerStyle },
         { v: "Medio", t: "s", s: headerStyle },
         { v: "Monto", t: "s", s: headerStyle },
         { v: "Comisión Base", t: "s", s: headerStyle },
@@ -692,6 +710,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const commBase = (log.amount || 0) * (localCommissionPercent / 100);
         const gestor = state.users.find(u => u.id === log.recordedBy)?.name || '---';
         const medioPago = isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo';
+        const isTransfer = log.isVirtual && !isNoPay;
+        const isLiked = isTransfer ? (likedLogs[log.id] ? '👍' : '-') : '-';
 
         let fontColor = "FF000000"; // Black
         if (medioPago === 'Efectivo') fontColor = "FF166534"; // Green
@@ -707,6 +727,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         const fechaStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "left" } };
         const clienteStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "left" } };
+        const likeStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
         const medioStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
         const montoStyle = { ...baseStyle, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
         const gestorStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "center" } };
@@ -714,6 +735,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         wsData.push([
           { v: new Date(log.date).toLocaleString(), t: "s", s: fechaStyle },
           { v: log._clientName, t: "s", s: clienteStyle },
+          { v: isLiked, t: "s", s: likeStyle },
           { v: medioPago, t: "s", s: medioStyle },
           { v: isNoPay ? '-' : (log.amount || 0), t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
           { v: isNoPay ? '-' : commBase, t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
@@ -733,6 +755,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: 'Recaudo Bruto:', t: "s", s: summaryLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
         { v: totalCollectedInRange, t: "n", s: summaryMoneyStyle },
         "", "" // Empty
       ]);
@@ -740,6 +763,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const summaryRow2Idx = wsData.length;
       wsData.push([
         { v: 'Base / Sencillo:', t: "s", s: summaryLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: sencilloAmount, t: "n", s: summaryMoneyStyle },
@@ -754,6 +778,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: gastoLabel, t: "s", s: gastoLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
         { v: expenseAmount, t: "n", s: gastoMoneyStyle },
         "", "" // Empty
       ]);
@@ -765,6 +790,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: 'Total a Rendir:', t: "s", s: rendirLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
         { v: totalCollectedInRange + sencilloAmount - expenseAmount, t: "n", s: rendirMoneyStyle },
         "", "" // Empty
       ]);
@@ -772,6 +798,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const summaryRow5Idx = wsData.length;
       wsData.push([
         { v: 'Total Liquidación:', t: "s", s: summaryLabelStyle },
+        { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: finalCommissionValue, t: "n", s: summaryMoneyStyle },
@@ -783,18 +810,19 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       // Merge Cells Configuration
       if (!ws['!merges']) ws['!merges'] = [];
-      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }); // Title Merge A1:F1
-      ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 4 } }); // Period Merge B3:E3
-      ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 2 } });
-      ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 2 } });
-      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 2 } });
-      ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 2 } });
-      ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }); // Title Merge A1:G1
+      ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 5 } }); // Period Merge B3:F3
+      ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 3 } });
+      ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 3 } });
+      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 3 } });
+      ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 3 } });
+      ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 3 } });
 
       // Column Widths
       ws['!cols'] = [
         { wpx: 130 }, // Fecha
         { wpx: 250 }, // Cliente
+        { wpx: 85 },  // Confirmación
         { wpx: 80 },  // Medio
         { wpx: 100 }, // Monto
         { wpx: 100 }, // Comision
@@ -1275,6 +1303,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <tr className="text-[9px] font-black text-slate-500 uppercase border-b border-slate-200">
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.date || 'Fecha'}</th>
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.client || 'Cliente'}</th>
+                    <th className="px-5 py-4 text-center font-bold text-blue-600">Confirmación</th>
                     <th className="px-5 py-4 text-center">{(t as any).commissionBook?.auditModal?.table?.method || 'Medio'}</th>
                     <th className="px-5 py-4 text-right">{(t as any).commissionBook?.auditModal?.table?.amount || 'Monto'}</th>
                     <th className="px-5 py-4 text-right text-blue-600">{(t as any).commissionBook?.auditModal?.table?.baseCommission || 'Comisión Base'}</th>
@@ -1286,10 +1315,32 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   {(Array.isArray(auditLogs) ? auditLogs : []).map((log) => {
                     const isNoPay = log.type === CollectionLogType.NO_PAGO;
                     const comm = (log.amount || 0) * (localCommissionPercent / 100);
+                    const isTransfer = log.isVirtual && !isNoPay;
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
                         <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
+                        <td className="px-5 py-3 text-center">
+                          {isTransfer ? (
+                            likedLogs[log.id] ? (
+                              <button
+                                onClick={() => toggleLikeLog(log.id)}
+                                className="w-6 h-6 text-blue-500 hover:text-blue-600 hover:scale-125 active:scale-95 transition-all duration-200 flex items-center justify-center mx-auto cursor-pointer"
+                                title="Desmarcar"
+                              >
+                                <i className="fa-solid fa-thumbs-up text-lg filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)]"></i>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => toggleLikeLog(log.id)}
+                                className="w-5 h-5 bg-red-500 hover:bg-red-600 rounded-md shadow-[0_2px_6px_rgba(239,68,68,0.3)] hover:shadow-[0_4px_10px_rgba(239,68,68,0.5)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center mx-auto cursor-pointer border border-red-400"
+                                title="Marcar"
+                              />
+                            )
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </td>
                         <td className="px-5 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : log.isVirtual ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                             {isNoPay ? ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago') : log.isRenewal ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : log.isVirtual ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.') : ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo')}
