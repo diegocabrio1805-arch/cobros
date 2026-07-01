@@ -625,6 +625,24 @@ export const useAppActions = (
 
   const removeExpense = async (id: string) => {
     setState(prev => ({ ...prev, expenses: prev.expenses.filter(x => x.id !== id) }));
+    if (navigator.onLine) {
+      try {
+        await supabase.from('expenses').delete().eq('id', id);
+      } catch (e) { console.error('Error deleting expense remotely', e); }
+    }
+    await handleForceSync(false);
+  };
+
+  const updateExpense = async (updatedExpense: Expense) => {
+    setState(prev => ({
+      ...prev,
+      expenses: prev.expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e)
+    }));
+    if (navigator.onLine) {
+      try {
+        await supabase.from('expenses').update({ amount: updatedExpense.amount, description: updatedExpense.description, category: updatedExpense.category }).eq('id', updatedExpense.id);
+      } catch (e) { console.error('Error updating expense remotely', e); }
+    }
     await handleForceSync(false);
   };
 
@@ -701,7 +719,7 @@ export const useAppActions = (
     addClient, addLoan, updateClient, deleteClient, updateLoan, recalculateAllLoansBalances,
     recalculateLoanStatus, deleteLoan, addCollectionAttempt, deleteCollectionLog,
     updateCollectionLog, addBulkData, updateCollectionLogNotes, addExpense, removeExpense,
-    updateInitialCapital, updateCommissionBrackets, handleSyncUser, deleteRemoteClientAction,
-    renewLoan
+    updateExpense, updateInitialCapital, updateCommissionBrackets, handleSyncUser,
+    deleteRemoteClientAction, renewLoan
   };
 };

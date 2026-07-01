@@ -4,16 +4,19 @@ import { Expense, AppState, ExpenseCategory, CollectionLogType, LoanStatus, Loan
 import { formatCurrency, formatDate, getLocalDateStringForCountry, getDaysOverdue, generateUUID, calculateTotalPaidFromLogs, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ExpenseSpreadsheetModal } from './ExpenseSpreadsheetModal';
 
 interface ExpensesProps {
   state: AppState;
   addExpense: (expense: Expense) => void;
   removeExpense: (id: string) => void;
+  updateExpense: (expense: Expense) => void;
   updateInitialCapital: (amount: number) => void;
   onViewClientDossier?: (clientId: string) => void;
 }
 
-const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateInitialCapital, onViewClientDossier }) => {
+const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier }) => {
+
   // PROTECTION: If settings are not loaded yet, prevent crash
   if (!state.settings || !state.settings.country) {
     return <div className="p-10 text-center animate-pulse text-slate-400 font-bold uppercase tracking-widest">Cargando Configuración...</div>;
@@ -22,6 +25,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const [showModal, setShowModal] = useState(false);
+  const [showSpreadsheetModal, setShowSpreadsheetModal] = useState(false);
   const [showCapitalModal, setShowCapitalModal] = useState(false);
   const [initialCapitalForm, setInitialCapitalForm] = useState(state.initialCapital);
   const [selectedMonthDetail, setSelectedMonthDetail] = useState<{ month: number; year: number; name: string } | null>(null);
@@ -72,6 +76,22 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         return acc + (loan.totalAmount - paid);
       }, 0);
   }, [state.loans, state.collectionLogs, state.settings]);
+
+  // 6.5 Gastos de Mantenimiento / Gomería del Mes Actual
+  const currentMonthMaintenance = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => {
+      const d = new Date(e.date);
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        const desc = (e.description || '').toLowerCase();
+        return desc.includes('mantenimiento') || desc.includes('gomeria') || desc.includes('gomería') || desc.includes('cadena') || desc.includes('taller') || e.category === 'Mantenimiento';
+      }
+      return false;
+    }).reduce((acc, curr) => acc + curr.amount, 0);
+  }, [state.expenses]);
 
   // 7. Balance Histórico (Rendimiento Operativo Diario - Últimos 180 días)
   const chartData = useMemo(() => {
@@ -244,7 +264,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Capital de Travail' : state.settings.language === 'pt' ? 'Capital de Giro' : 'Capital de Trabajo'}</p>
-            <h3 className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
+            <h3 className="text-xl lg:text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
             <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">{state.settings.language === 'fr' ? 'Fonds de base initial chargé' : state.settings.language === 'pt' ? 'Fundo base inicial carregado' : 'Fondo base inicial cargado'}</p>
           </div>
           <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
@@ -254,7 +274,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         <div className="bg-slate-900 p-5 rounded-[2rem] shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Trésorerie Réelle' : state.settings.language === 'pt' ? 'Dinheiro Real em Caixa' : 'Efectivo Real en Caja'}</p>
-            <h3 className={`text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
+            <h3 className={`text-xl lg:text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
               {formatCurrency(currentCashInHand, state.settings)}
             </h3>
             <div className="mt-2 space-y-1">
@@ -276,12 +296,12 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="relative z-10">
             <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Crédits Accordés' : state.settings.language === 'pt' ? 'Créditos Concedidos' : 'Créditos Otorgados'}</p>
             <div className="flex items-end gap-2">
-              <h3 className="text-3xl font-black">{totalLoansCount}</h3>
+              <h3 className="text-2xl lg:text-3xl font-black">{totalLoansCount}</h3>
               <span className="text-[8px] font-black mb-1 opacity-70 uppercase">{state.settings.language === 'fr' ? 'Opérations' : state.settings.language === 'pt' ? 'Operações' : 'Operaciones'}</span>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10">
               <p className="text-[8px] font-black text-blue-200 uppercase">{state.settings.language === 'fr' ? 'Bénéfice Projeté' : state.settings.language === 'pt' ? 'Lucro Projetado' : 'Utilidad Proyectada'}</p>
-              <p className="text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
+              <p className="text-base lg:text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
             </div>
           </div>
           <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-7xl text-white/10 group-hover:rotate-12 transition-transform"></i>
@@ -291,7 +311,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         <div className="bg-rose-50 p-5 rounded-[2rem] border border-rose-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Retard Critique (+40 j)' : state.settings.language === 'pt' ? 'Inadimplência Crítica (+40 d)' : 'Mora Crítica (+40 d)'}</p>
-            <h3 className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
+            <h3 className="text-xl lg:text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
             <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">{state.settings.language === 'fr' ? 'Capital à haut risque de perte' : state.settings.language === 'pt' ? 'Capital em alto risco de perda' : 'Capital en alto riesgo de pérdida'}</p>
           </div>
           <div className="absolute -right-2 top-2 w-12 h-12 bg-rose-200/30 rounded-full flex items-center justify-center animate-bounce">
@@ -514,7 +534,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
               ) : (
                 (Array.isArray(state.expenses) ? [...state.expenses] : []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors text-[11px] font-bold">
-                    <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]">{exp.description}</td>
+                    <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]" title={exp.description || exp.category}>{exp.description || exp.category}</td>
                     <td className="px-5 py-4">
                       <span className="px-2 py-0.5 rounded-md text-[7px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200">
                         {exp.category}
@@ -534,6 +554,18 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 ))
               )}
             </tbody>
+            {Array.isArray(state.expenses) && state.expenses.length > 0 && (
+              <tfoot className="bg-red-50/50 border-t border-red-100">
+                <tr>
+                  <td colSpan={3} className="px-5 py-4 text-right text-[10px] font-black text-red-800 uppercase tracking-widest">
+                    {state.settings.language === 'fr' ? 'TOTAL DES DÉPENSES :' : state.settings.language === 'pt' ? 'DESPESA TOTAL :' : 'GASTO TOTAL :'}
+                  </td>
+                  <td colSpan={2} className="px-5 py-4 font-black font-mono text-red-700 text-sm">
+                    {formatCurrency(state.expenses.reduce((acc, curr) => acc + curr.amount, 0), state.settings)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -591,28 +623,104 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-4 flex-1 overflow-y-auto bg-slate-50">
+                <div className="flex gap-2 mb-2">
+                    {(() => {
+                      let totalSueldos = 0;
+                      (Array.isArray(state.users) ? state.users : []).forEach((u) => {
+                         try {
+                           const raw = localStorage.getItem(`pay_cfg_${u.id}`);
+                           if (raw) {
+                              const cfg = JSON.parse(raw);
+                              if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+                              if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
+                           }
+                         } catch {}
+                      });
+
+                      const fuelAmount = Number(localStorage.getItem('default_fuel') || 0);
+                      const projectedFuel = (fuelAmount / 6) * 26;
+                      const totalNominaConCombustible = totalSueldos + projectedFuel;
+                      
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                               setFormData({ ...formData, description: 'PAGO DE NÓMINA', amount: totalSueldos });
+                            }}
+                            className="flex-1 px-1 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[8px] sm:text-[9px] font-black uppercase transition-colors text-center border border-emerald-200 active:scale-95 flex flex-col items-center justify-center gap-0.5"
+                          >
+                            <span className="flex items-center gap-1"><i className="fa-solid fa-money-check-dollar"></i> SUMA SUELDOS</span>
+                            {totalSueldos > 0 && <span className="text-[10px] font-mono text-emerald-600 block leading-tight">{formatCurrency(totalSueldos, state.settings)}</span>}
+                          </button>
+                          <div className="flex-1 flex bg-orange-50 rounded-lg border border-orange-200 overflow-hidden active:scale-95 transition-transform">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                 const fuel = Number(localStorage.getItem('default_fuel') || 0);
+                                 if (fuel > 0) {
+                                   setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: fuel });
+                                 } else {
+                                   setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO' });
+                                 }
+                              }}
+                              className="flex-1 px-1 py-2 text-orange-700 hover:bg-orange-100 text-[8px] sm:text-[9px] font-black uppercase transition-colors text-center flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span className="flex items-center gap-1"><i className="fa-solid fa-gas-pump"></i> COMBUSTIBLE DIARIO</span>
+                              {Number(localStorage.getItem('default_fuel') || 0) > 0 ? (
+                                <span className="text-[10px] font-mono text-orange-600 block leading-tight">{formatCurrency(Number(localStorage.getItem('default_fuel')), state.settings)}</span>
+                              ) : (
+                                <span className="text-[10px] font-mono opacity-50 block leading-tight">Monto Libre</span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const saved = localStorage.getItem('default_fuel') || '';
+                                const ans = window.prompt("Ingrese el monto diario para el combustible:", saved);
+                                if (ans !== null && !isNaN(Number(ans))) {
+                                  localStorage.setItem('default_fuel', ans);
+                                  // Save history for daily tracking
+                                  const today = new Date().toISOString().split('T')[0];
+                                  try {
+                                    const historyRaw = localStorage.getItem('fuel_history');
+                                    let history = historyRaw ? JSON.parse(historyRaw) : [];
+                                    history.push({ date: today, amount: Number(ans) });
+                                    localStorage.setItem('fuel_history', JSON.stringify(history));
+                                  } catch (e) {
+                                    console.error("Error saving fuel history", e);
+                                  }
+                                  setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: Number(ans) });
+                                }
+                              }}
+                              className="px-2 bg-orange-100 hover:bg-orange-200 text-orange-600 flex items-center justify-center transition-colors border-l border-orange-200"
+                              title="Configurar monto de combustible diario"
+                            >
+                              <i className="fa-solid fa-pencil text-[9px]"></i>
+                            </button>
+                          </div>
+                        </>
+                      );
+                   })()}                </div>
+
                 <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Description de la Dépense' : state.settings.language === 'pt' ? 'Descrição da Despesa' : 'Descripción del Gasto'}</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">
+                    {state.settings.language === 'fr' ? 'Description ou Catégorie' : state.settings.language === 'pt' ? 'Descrição ou Categoria' : 'Descripción o Categoría'}
+                  </label>
                   <input
                     required
                     type="text"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700 uppercase text-xs shadow-sm"
+                    list="expense-categories"
+                    placeholder="EJ. MANTENIMIENTO, ALIMENTOS..."
+                    value={formData.description || formData.category}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value.toUpperCase(), category: ExpenseCategory.OTHERS })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-black text-slate-700 text-xs shadow-sm uppercase"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Catégorie' : state.settings.language === 'pt' ? 'Categoria' : 'Categoría'}</label>
-                  <select
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as ExpenseCategory })}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-black text-slate-700 text-xs shadow-sm"
-                  >
+                  <datalist id="expense-categories">
                     {Object.values(ExpenseCategory).map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat} value={cat.toUpperCase()} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -637,17 +745,39 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                     />
                   </div>
                 </div>
-                <button
-                  type="submit"
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 rounded-xl shadow-lg shadow-red-500/20 transition-all active:scale-95 mt-4 uppercase text-[10px] tracking-widest"
-                >
-                  {state.settings.language === 'fr' ? 'CONFIRMER LA SORTIE' : state.settings.language === 'pt' ? 'CONFIRMAR SAÍDA' : 'CONFIRMAR SALIDA'}
-                </button>
+                <div className="flex flex-col gap-2 mt-4">
+                  <button type="submit" className="w-full font-black py-4 bg-red-600 text-white rounded-xl shadow-xl shadow-red-600/20 uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-700">
+                    <i className="fa-solid fa-check"></i>
+                    GUARDAR GASTO DEL DÍA
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setShowModal(false);
+                      setShowSpreadsheetModal(true);
+                    }}
+                    className="w-full font-black py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-100"
+                  >
+                    <i className="fa-solid fa-file-excel"></i>
+                    ABRIR PLANILLA EXCEL
+                  </button>
+                </div>
               </form>
             </div>
           </div>
         )
       }
+
+      {/* MODAL PLANILLA EXCEL */}
+      {showSpreadsheetModal && (
+        <ExpenseSpreadsheetModal 
+          state={state} 
+          onClose={() => setShowSpreadsheetModal(false)} 
+          addExpense={addExpense}
+          removeExpense={removeExpense}
+          updateExpense={updateExpense}
+        />
+      )}
 
       {/* MODAL DETALLE DE CLIENTES NUEVOS DEL MES */}
       {selectedMonthDetail && (

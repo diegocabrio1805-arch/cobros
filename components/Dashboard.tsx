@@ -136,27 +136,49 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const validClients = clientsSafe.filter(c => !c.isHidden && !c.deletedAt);
       const validClientIdsSet = new Set(validClients.map(c => c.id));
 
-      const clientsMappedToLoans = new Set(
-        assignedLoans
-          .map(l => l.clientId || (l as any).client_id)
-          .filter(id => validClientIdsSet.has(id))
-      );
-      const clientsAddedByThisCollector = validClients
-        .filter(c => c.addedBy?.toLowerCase() === uidLower)
-        .map(c => c.id);
-      
-      const allClientIdsForCollector = new Set([...Array.from(clientsMappedToLoans), ...clientsAddedByThisCollector]);
-      const totalClientsCount = allClientIdsForCollector.size;
-      
-      const assignedActiveLoans = assignedLoans.filter(l => l.status === LoanStatus.ACTIVE);
+      const validClientsForCollector = validClients.filter(c => {
+        const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
+        const activeLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const anyHistoricLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === uidLower);
+        return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!anyHistoricLoan;
+      });
 
-      const overdueLoansCount = assignedActiveLoans.filter(loan => {
-        return (loansOverdueMap.get(loan.id) || 0) > 0;
-      }).length;
+      let uniqueActiveClients = 0;
+      let cancelledClientsCount = 0;
+      let mora35ClientsCount = 0;
+      let overdueLoansCount = 0;
 
-      const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;
-      const routeCompletionRate = totalClientsCount > 0 ? (uniqueClientsVisitedToday / totalClientsCount) * 100 : 0;
-      const isRouteCompleted = totalClientsCount > 0 && uniqueClientsVisitedToday >= totalClientsCount;
+      validClientsForCollector.forEach(c => {
+        const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const activeLoan = sortedLoans[0];
+        
+        let balance = 0;
+        let daysOverdue = 0;
+        
+        if (activeLoan) {
+           const paid = logsByLoanId.get(activeLoan.id) || 0;
+           balance = Math.max(0, activeLoan.totalAmount - paid);
+           
+           daysOverdue = Math.max(...clientLoans.map(l => loansOverdueMap.get(l.id) || 0));
+        }
+        
+        if (balance > 0.01) {
+           uniqueActiveClients++;
+           if (daysOverdue > 35) {
+             mora35ClientsCount++;
+           }
+           if (daysOverdue > 0) {
+             overdueLoansCount++;
+           }
+        } else {
+           cancelledClientsCount++;
+        }
+      });
+
+      const financialMoraRate = uniqueActiveClients > 0 ? (overdueLoansCount / uniqueActiveClients) * 100 : 0;
+      const routeCompletionRate = uniqueActiveClients > 0 ? (uniqueClientsVisitedToday / uniqueActiveClients) * 100 : 0;
+      const isRouteCompleted = uniqueActiveClients > 0 && uniqueClientsVisitedToday >= uniqueActiveClients;
       const monthlyStats = calculateMonthlyStats(loansSafe, collectionLogsSafe, new Date().getMonth(), new Date().getFullYear(), user.id);
 
       return {
@@ -167,7 +189,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         remainingGoal: monthlyStats.remainingBalance,
         financialMora: financialMoraRate,
         routeCompletion: routeCompletionRate,
-        clientes: totalClientsCount,
+        clientes: uniqueActiveClients,
+        activeClients: uniqueActiveClients,
+        mora35Clients: mora35ClientsCount,
+        cancelledClients: cancelledClientsCount,
         visitados: uniqueClientsVisitedToday,
         isCompleted: isRouteCompleted,
         overdueCount: overdueLoansCount
@@ -220,6 +245,194 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return collectorStats.slice(start, start + ITEMS_PER_PAGE);
   }, [collectorStats, currentPage]);
+
+  // --- RESUMEN SEMANAL (Dom-Sáb) - 3 semanas ---
+  const weeklyData = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+
+    const buildWeek = (weeksAgo: number) => {
+      const weekStart = new Date(now);
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(now.getDate() - dayOfWeek - weeksAgo * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(weekStart);
+        date.setDate(weekStart.getDate() + i);
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        const dayLabel = new Intl.DateTimeFormat('es', { weekday: 'short' }).format(date).replace('.', '');
+        const dateStr = `${date.getDate()}/${date.getMonth() + 1}`;
+        const isToday = getLocalDateStringForCountry(state.settings.country, date) === countryTodayStr;
+        const isFuture = weeksAgo === 0 && date > now && !isToday;
+        const logsDay = logsSafe.filter(log => {
+          if (log.deletedAt) return false;
+          if (log.type !== CollectionLogType.PAYMENT) return false;
+          if (log.isOpening || (log as any).is_opening) return false;
+          const logDate = new Date(log.date);
+          return logDate >= date && logDate < nextDate;
+        });
+        const recaudo = logsDay.reduce((acc, log) => acc + (log.amount || 0), 0);
+        
+        const uniqueClientsDay = new Set(logsDay.map(log => log.clientId || (log as any).client_id));
+        uniqueClientsDay.delete(undefined);
+        const clientesCobrados = uniqueClientsDay.size;
+        const renovacionesList = loansSafe.filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanDate = new Date(loan.createdAt);
+          return loanDate >= date && loanDate < nextDate && !!loan.isRenewal;
+        });
+        const renovaciones = renovacionesList.length;
+        const montoRenovaciones = renovacionesList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
+
+        const nuevosList = loansSafe.filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanDate = new Date(loan.createdAt);
+          return loanDate >= date && loanDate < nextDate && !loan.isRenewal;
+        });
+        const montoNuevos = nuevosList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
+
+        const clientesNuevos = clientsSafe.filter(c => {
+          if (!c.createdAt || c.deletedAt || c.isHidden) return false;
+          const cDate = new Date(c.createdAt);
+          return cDate >= date && cDate < nextDate;
+        }).length;
+        
+        return { 
+          day: dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1), 
+          dateStr, 
+          recaudo, 
+          clientesCobrados,
+          renovaciones, 
+          montoRenovaciones,
+          clientesNuevos, 
+          montoNuevos,
+          isToday, 
+          isFuture 
+        };
+      });
+
+      const labels = ['Semana Actual', 'Semana Anterior', 'Hace 2 Semanas', 'Hace 3 Semanas', 'Hace 4 Semanas'];
+      return {
+        label: labels[weeksAgo],
+        rangeStr: `${weekStart.getDate()}/${weekStart.getMonth() + 1} – ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`,
+        days,
+        totalRecaudo: days.reduce((a, d) => a + d.recaudo, 0),
+        totalClientesCobrados: days.reduce((a, d) => a + d.clientesCobrados, 0),
+        totalRenovaciones: days.reduce((a, d) => a + d.renovaciones, 0),
+        totalMontoRenovaciones: days.reduce((a, d) => a + d.montoRenovaciones, 0),
+        totalClientesNuevos: days.reduce((a, d) => a + d.clientesNuevos, 0),
+        totalMontoNuevos: days.reduce((a, d) => a + d.montoNuevos, 0)
+      };
+    };
+
+    const weeks = [0, 1, 2, 3, 4].map(buildWeek);
+    const current = weeks[0];
+    return {
+      weeks,
+      days: current.days,
+      totalRecaudo: current.totalRecaudo,
+      totalClientesCobrados: current.totalClientesCobrados,
+      totalRenovaciones: current.totalRenovaciones,
+      totalMontoRenovaciones: current.totalMontoRenovaciones,
+      totalClientesNuevos: current.totalClientesNuevos,
+      totalMontoNuevos: current.totalMontoNuevos
+    };
+  }, [state.collectionLogs, state.loans, state.clients, state.settings, countryTodayStr]);
+
+  // --- RECIENTES COBRADORES (Hoy y Ayer) ---
+  const collectorRecentPayments = useMemo(() => {
+    const todayStr = getLocalDateStringForCountry(state.settings.country, new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateStringForCountry(state.settings.country, yesterday);
+
+    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+
+    const getClientName = (log: any) => {
+      if (!log) return null;
+      const cId = log.clientId || (log as any).client_id;
+      const client = clientsSafe.find(c => c.id === cId);
+      if (!client) return 'Desconocido';
+      const parts = client.name.split(' ');
+      return parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
+    };
+
+    const result = visibleCollectors.map(collector => {
+      const uidLower = collector.id.toLowerCase();
+      // Filtrar logs de este cobrador para hoy y ayer
+      const logsToday = logsSafe.filter(log => {
+        if (log.deletedAt) return false;
+        if (log.type !== CollectionLogType.PAYMENT) return false;
+        if (log.isOpening || (log as any).is_opening) return false;
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        if (logRecordedBy !== uidLower) return false;
+        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === todayStr;
+      });
+
+      const logsYesterday = logsSafe.filter(log => {
+        if (log.deletedAt) return false;
+        if (log.type !== CollectionLogType.PAYMENT) return false;
+        if (log.isOpening || (log as any).is_opening) return false;
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        if (logRecordedBy !== uidLower) return false;
+        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === yesterdayStr;
+      });
+
+      // Ordenar descendente para obtener el más reciente de cada día
+      const latestToday = [...logsToday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const latestYesterday = [...logsYesterday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      // Calcular Ganancia Neta de 4 Semanas para este cobrador
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const fourWeeksAgo = new Date(now);
+      fourWeeksAgo.setHours(0, 0, 0, 0);
+      fourWeeksAgo.setDate(now.getDate() - dayOfWeek - 3 * 7);
+
+      const recaudo4Sem = logsSafe
+        .filter(log => {
+          if (log.deletedAt || log.type !== CollectionLogType.PAYMENT || log.isOpening || (log as any).is_opening) return false;
+          const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+          if (logRecordedBy !== uidLower) return false;
+          return new Date(log.date) >= fourWeeksAgo;
+        })
+        .reduce((acc, log) => acc + (log.amount || 0), 0);
+
+      const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+      
+      const prestado4Sem = loansSafe
+        .filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanCollectorId = (loan.collectorId || (loan as any).collector_id)?.toLowerCase();
+          if (loanCollectorId !== uidLower) return false;
+          return new Date(loan.createdAt) >= fourWeeksAgo;
+        })
+        .reduce((acc, loan) => acc + (loan.principal || loan.totalAmount || 0), 0);
+
+      const ganancia4Sem = recaudo4Sem - prestado4Sem;
+
+      return {
+        id: collector.id,
+        name: collector.name || collector.username || 'Cobrador',
+        todayAmount: latestToday ? latestToday.amount : null,
+        todayTimeStr: latestToday ? formatLocalTime(latestToday.date, state.settings.country) : null,
+        todayClient: getClientName(latestToday),
+        yesterdayAmount: latestYesterday ? latestYesterday.amount : null,
+        yesterdayTimeStr: latestYesterday ? formatLocalTime(latestYesterday.date, state.settings.country) : null,
+        yesterdayClient: getClientName(latestYesterday),
+        ganancia4Sem,
+      };
+    });
+
+    return result.filter(r => r.todayAmount !== null || r.yesterdayAmount !== null);
+  }, [state.collectionLogs, state.clients, visibleCollectors, state.settings]);
 
   // --- LÓGICA AUDITOR GENERAL ---
   const [auditCollector, setAuditCollector] = useState<string>('all');
@@ -525,6 +738,61 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     { name: (t as any).charts?.utility || 'Utilidad', value: netUtility, color: '#3b82f6' },
   ];
 
+  const currentMonthTotalExpenses = useMemo(() => {
+    const today = new Date();
+    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = today.toISOString().split('T')[0];
+
+    let totalSueldos = 0;
+    (Array.isArray(state.users) ? state.users : []).forEach(user => {
+      try {
+        const raw = localStorage.getItem(`pay_cfg_${user.id}`);
+        if (raw) {
+          const cfg = JSON.parse(raw);
+          if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+          if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
+        }
+      } catch {}
+    });
+
+    let totalMonthGastos = 0;
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const existingExpenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.date.startsWith(currentMonthPrefix));
+    
+    let fuelHistory: any[] = [];
+    try {
+      const fuelHistoryRaw = localStorage.getItem('fuel_history');
+      if (fuelHistoryRaw) fuelHistory = JSON.parse(fuelHistoryRaw);
+    } catch {}
+
+    const getFuelAmountForDay = (dateStr: string) => {
+      const record = fuelHistory.slice().reverse().find((h: any) => h.date <= dateStr);
+      return record ? Number(record.amount) : Number(localStorage.getItem('default_fuel') || 0);
+    };
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayDate = `${currentMonthPrefix}-${String(day).padStart(2, '0')}`;
+      const dayExpenses = existingExpenses.filter(e => e.date.startsWith(dayDate));
+      const realTotal = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+      let virtualTotal = 0;
+      if (dayDate <= todayStr) {
+        const [y, m, d] = dayDate.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        if (dateObj.getDay() !== 0) { 
+          const hasRealFuel = dayExpenses.some(e => e.description?.includes('COMBUSTIBLE'));
+          if (!hasRealFuel) {
+            virtualTotal = getFuelAmountForDay(dayDate);
+          }
+        }
+      }
+      totalMonthGastos += realTotal + (virtualTotal > 0 ? virtualTotal : 0);
+    }
+
+    return totalSueldos + totalMonthGastos;
+  }, [state.expenses, state.users]);
+
+
   return (
     <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
       {/* CABECERA SUPERIOR - Premium Glassmorphism */}
@@ -626,30 +894,32 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).monthlyGoal || 'Meta Mensual'}</th>
                     <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">{(t as any).effectiveness || 'Efectividad'}</th>
                     <th className="px-6 py-4 border-r border-white/5 w-[20%]">{(t as any).visitProgress || 'Progreso de Visitas'}</th>
-                    <th className="px-6 py-4 text-center w-[13%]">{(t as any).status || 'Estado'}</th>
+                    <th className="px-6 py-4 text-center w-[18%]">Clientes Act. / Mora</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
                   {paginatedCollectors.map((stat) => (
-                    <tr key={stat.id} className="hover:bg-slate-50 transition-colors group text-sm">
-                      <td className="px-6 py-3 border-r border-slate-50 bg-white group-hover:bg-slate-50">
+                    <tr key={stat.id} className="bg-white hover:bg-slate-700 hover:shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group text-sm relative z-10 hover:z-20 border-b border-slate-50">
+                      <td className="px-6 py-4 border-r border-slate-50 group-hover:border-transparent transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold group-hover:bg-emerald-500 group-hover:text-white transition-all text-xs">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-700 font-black group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white transition-all duration-500 shadow-sm text-sm border border-white group-hover:border-transparent">
                             {stat.name.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-slate-800 font-bold uppercase truncate">{stat.name}</p>
-                            <p className="text-[10px] text-emerald-600 font-semibold uppercase mt-0.5 opacity-80">{stat.clientes} Clientes</p>
+                            <p className="text-slate-800 group-hover:text-white font-black uppercase truncate tracking-tight transition-colors">{stat.name}</p>
+                            <p className="text-[10px] text-indigo-600 group-hover:text-indigo-300 font-bold uppercase mt-0.5 opacity-80 flex items-center gap-1.5 transition-colors">
+                              <i className="fa-solid fa-users"></i> {stat.activeClients + stat.cancelledClients} Clientes
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center font-mono font-bold text-emerald-600">
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-emerald-600 group-hover:text-emerald-400 transition-colors">
                         {formatCurrency(stat.recaudo, state.settings)}
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center font-mono font-bold text-blue-600">
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-blue-600 group-hover:text-blue-400 transition-colors">
                         {formatCurrency(stat.monthlyGoal, state.settings)}
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-50 text-center">
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center transition-colors">
                         <div className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold font-mono border ${
                           stat.financialMora > 30 ? 'bg-rose-50 text-rose-600 border-rose-100' :
                           stat.financialMora > 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
@@ -658,35 +928,238 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                           {Math.round(stat.financialMora)}%
                         </div>
                       </td>
-                      <td className="px-6 py-3 border-r border-slate-50">
+                      <td className="px-6 py-3 border-r border-slate-50 group-hover:border-transparent transition-colors">
                         <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-300 transition-colors">
                              <span>{(t as any).performance || 'Rendimiento'}</span>
                              <span>{stat.visitados} / {stat.clientes}</span>
                           </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                          <div className="h-2 bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200/50 group-hover:border-slate-800 shadow-inner transition-colors">
                             <div
-                              className={`h-full rounded-full transition-all duration-1000 ${stat.isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                              className={`h-full rounded-full transition-all duration-1000 shadow-sm bg-gradient-to-r ${stat.isCompleted ? 'from-emerald-400 to-emerald-500 shadow-emerald-500/20' : 'from-indigo-400 to-blue-500 shadow-blue-500/20'}`}
                               style={{ width: `${Math.max(5, stat.routeCompletion)}%` }}
                             />
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-3 text-center">
-                        {stat.isCompleted ? (
-                          <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-check"></i> {(t as any).ready || 'Listo'}
-                          </span>
-                        ) : (
-                          <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-clock opacity-50"></i> {(t as any).pending || 'PEND.'}
-                          </span>
-                        )}
+                        <p className="text-[11px] font-black uppercase flex items-center justify-center gap-1.5">
+                          <span className="text-emerald-600 group-hover:text-emerald-400 transition-colors">{stat.activeClients} Act.</span>
+                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
+                          <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span>
+                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
+                          <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span>
+                        </p>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESUMEN SEMANAL DOM-SÁB */}
+      {isAdmin && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden w-fit">
+          {/* Header */}
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <i className="fa-solid fa-table-cells text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Resumen Semanal</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                  Domingo a Sábado · Últimas 5 Semanas
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+              <i className="fa-solid fa-calendar-week"></i>
+              <span>{weeklyData.days[0]?.dateStr} – {weeklyData.days[6]?.dateStr}</span>
+            </div>
+          </div>
+
+          {/* Contenido: Tabla + Gráfico en un solo bloque vertical */}
+          <div className="p-5 space-y-5">
+            {/* Grid de 6 cuadros (5 semanas + Último Registro) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch pb-2">
+              {weeklyData.weeks.map((week, wi) => (
+                <div key={wi} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
+                  <div className="overflow-x-auto flex-1 h-full">
+                    <table className="w-full text-sm border-collapse h-full">
+                      <thead>
+                        <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
+                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
+                            {week.label}
+                            <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
+                          </th>
+                        </tr>
+                        <tr>
+                          <th style={{background:'#1e293b'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Día</th>
+                          <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10">💰 Recaudo</th>
+                          <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right border-r border-white/10 w-14">🔄 Renov.</th>
+                          <th style={{background:'#7c3aed'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right w-14">👤 Cli.N</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {week.days.map((d, i) => (
+                          <tr key={i} className={`border-b border-slate-100 transition-colors ${
+                            d.isFuture ? 'opacity-40' : d.isToday ? 'bg-amber-50 group hover:bg-slate-700' : 'group hover:bg-slate-700'
+                          }`}>
+                            <td className="px-3 py-1.5 font-bold text-xs border-r border-slate-100 group-hover:border-transparent transition-colors">
+                              <div className="flex items-center gap-2">
+                                {d.isToday && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
+                                <span className={d.isToday ? 'text-amber-700 group-hover:text-amber-300 transition-colors' : 'text-slate-700 group-hover:text-white transition-colors'}>{d.day}</span>
+                                <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-300 transition-colors">{d.dateStr}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-emerald-600 group-hover:text-emerald-400 transition-colors">
+                              {d.isFuture ? '—' : formatCurrency(d.recaudo, state.settings)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-blue-600 group-hover:text-blue-400 transition-colors">
+                              {d.isFuture ? '—' : d.renovaciones}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs text-violet-600 group-hover:text-violet-400 transition-colors">
+                              {d.isFuture ? '—' : d.clientesNuevos}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Subtotal por semana */}
+                        <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
+                          <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
+                          <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
+                          <td className="px-2 py-2 text-right font-black text-xs border-r border-slate-200 text-blue-700">{week.totalRenovaciones}</td>
+                          <td className="px-2 py-2 text-right font-black text-xs text-violet-700">{week.totalClientesNuevos}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+
+              {/* Tabla de Cobros de Hoy y Ayer (6to cuadro en la grilla) */}
+              <div className="border border-slate-100 rounded-xl shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
+                <div className="overflow-x-auto flex-1 h-full">
+                  <table className="w-full text-sm border-collapse h-full">
+                    <thead>
+                      <tr style={{background: '#1e293b'}}>
+                        <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
+                          ⚡ Último Registro (Hoy y Ayer)
+                        </th>
+                      </tr>
+                      <tr>
+                        <th style={{background:'#475569'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Cobrador</th>
+                        <th style={{background:'#d97706'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Ganancia (5 Sem)</th>
+                        <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Último Hoy</th>
+                        <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right w-28">Último Ayer</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {collectorRecentPayments.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                            Sin registros de cobro hoy ni ayer
+                          </td>
+                        </tr>
+                      ) : (
+                        collectorRecentPayments.map((item) => (
+                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-700 group transition-colors">
+                            <td className="px-3 py-2 font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-slate-700 group-hover:text-white transition-colors">
+                              {item.name}
+                            </td>
+                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent bg-amber-50/30 group-hover:bg-amber-900/30 transition-colors">
+                              <span className="font-mono font-black text-xs text-amber-600 group-hover:text-amber-400 transition-colors leading-tight block">
+                                {formatCurrency(item.ganancia4Sem || 0, state.settings)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent transition-colors">
+                              {item.todayAmount !== null ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="font-mono font-bold text-xs text-emerald-600 group-hover:text-emerald-400 transition-colors leading-tight">{formatCurrency(item.todayAmount || 0, state.settings)}</span>
+                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.todayClient}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.todayTimeStr}</span>
+                                </div>
+                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {item.yesterdayAmount !== null ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="font-mono font-bold text-xs text-blue-600 group-hover:text-blue-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
+                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.yesterdayClient}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.yesterdayTimeStr}</span>
+                                </div>
+                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Total global 5 semanas */}
+            <div className="bg-slate-900 text-white rounded-2xl p-4 md:p-5 w-full shadow-inner overflow-hidden border border-slate-700/50 mt-2">
+              <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-6 h-full">
+                <span className="font-black text-sm lg:text-base uppercase tracking-widest px-2 whitespace-nowrap text-slate-300">TOTAL 5 SEM.</span>
+                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-0 border-t xl:border-t-0 xl:border-l border-white/20 pt-4 xl:pt-0 w-full">
+                  {/* Recaudo */}
+                  <div className="px-4 py-2 border-b md:border-b-0 border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Recaudo</span>
+                    <span className="font-mono font-bold text-emerald-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesCobrados, 0)} clientes</span>
+                  </div>
+                  {/* Monto Renovac. */}
+                  <div className="px-4 py-2 border-b md:border-b-0 border-r xl:border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Renovac.</span>
+                    <span className="font-mono font-bold text-blue-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalRenovaciones, 0)} renovaciones</span>
+                  </div>
+                  {/* Monto Nuevos */}
+                  <div className="px-4 py-2 border-b xl:border-b-0 border-r md:border-r-0 xl:border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Nuevos</span>
+                    <span className="font-mono font-bold text-violet-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesNuevos, 0)} clientes</span>
+                  </div>
+                  {/* Ganancia Neta */}
+                  <div className="px-4 py-2 border-r xl:border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Ganancia Neta</span>
+                    <span className="font-mono font-black text-amber-400 text-base lg:text-xl xl:text-2xl leading-none">
+                      {formatCurrency(
+                        weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
+                        (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0)), 
+                        state.settings
+                      )}
+                    </span>
+                  </div>
+                  {/* Gastos */}
+                  <div className="px-4 py-2 border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Gastos</span>
+                    <span className="font-mono font-black text-rose-400 text-base lg:text-xl xl:text-2xl leading-none">
+                      {formatCurrency(currentMonthTotalExpenses, state.settings)}
+                    </span>
+                  </div>
+                  {/* Ganancia Real */}
+                  <div className="px-4 py-3 bg-emerald-900/40 border-l xl:border-l-0 border-emerald-500/30 xl:rounded-r-xl flex flex-col justify-center shadow-inner relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent"></div>
+                    <div className="relative z-10">
+                      <span className="text-[10px] lg:text-xs text-emerald-300 font-black uppercase tracking-wider mb-1 block">Ganancia Real</span>
+                      <span className="font-mono font-black text-emerald-400 text-base lg:text-xl xl:text-2xl leading-none block mt-1">
+                        {formatCurrency(
+                          (weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
+                          (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0))) - currentMonthTotalExpenses, 
+                          state.settings
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

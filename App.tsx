@@ -63,7 +63,7 @@ const App: React.FC = () => {
     addClient, addLoan, updateClient, deleteClient, updateLoan, 
     recalculateLoanStatus, deleteLoan: deleteLoanAction, addCollectionAttempt, 
     deleteCollectionLog, updateCollectionLog, addBulkData, updateCollectionLogNotes, 
-    addExpense, removeExpense, updateInitialCapital, updateCommissionBrackets, 
+    addExpense, removeExpense, updateExpense, updateInitialCapital, updateCommissionBrackets, 
     handleSyncUser, deleteRemoteClientAction, renewLoan 
   } = actions;
 
@@ -354,6 +354,7 @@ const App: React.FC = () => {
                 state={filteredState} 
                 addExpense={addExpense} 
                 removeExpense={removeExpense} 
+                updateExpense={updateExpense}
                 updateInitialCapital={updateInitialCapital} 
                 onViewClientDossier={(clientId) => {
                   setInitialDossierClientId(clientId);

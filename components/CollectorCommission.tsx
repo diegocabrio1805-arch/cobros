@@ -1695,36 +1695,132 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       </div>
 
       {/* RESUMEN GLOBAL RUTAS (SI ES MANAGER/ADMIN) */}
-      {showGlobalSummary && (
+      {showGlobalSummary && (() => {
+        let totalMonthly = 0;
+        let totalWeekly = 0;
+        (Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).forEach(({ user }) => {
+           try {
+             const raw = localStorage.getItem(`pay_cfg_${user.id}`);
+             if (raw) {
+                const cfg = JSON.parse(raw);
+                if (cfg.scheme === 'monthly') totalMonthly += (cfg.monthly || 0);
+                if (cfg.scheme === 'weekly') totalWeekly += (cfg.weekly || 0);
+             }
+           } catch {}
+        });
+
+        // Add projected fuel to totalMonthly so the global view matches the expenses registration
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+        const todayStr = currentDate.toISOString().split('T')[0];
+        
+        let fuelHistory: any[] = [];
+        try {
+          const raw = localStorage.getItem('fuel_history');
+          if (raw) fuelHistory = JSON.parse(raw);
+        } catch(e) {}
+        
+        const getFuelAmountForDay = (dateStr: string) => {
+          if (fuelHistory.length === 0) return Number(localStorage.getItem('default_fuel') || 0);
+          const sorted = [...fuelHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          let activeAmount = sorted[0].amount;
+          for (const entry of sorted) {
+            if (entry.date <= dateStr) activeAmount = entry.amount;
+          }
+          return activeAmount;
+        };
+
+        for (let i = 1; i <= daysInCurrentMonth; i++) {
+          const dayDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+          // Regla 1: No proyectar en el futuro
+          if (dayDate <= todayStr) {
+            // Regla 2: No sumar domingos
+            const dateObj = new Date(year, month, i);
+            if (dateObj.getDay() !== 0) {
+               totalMonthly += getFuelAmountForDay(dayDate);
+            }
+          }
+        }
+
+        return (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
-            <div className="p-6 md:p-8 bg-slate-900 text-white flex justify-between items-center">
+            <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl font-black uppercase tracking-tighter">{(t as any).commissionBook?.comparison?.title || 'Comparativa de Desempeño'}</h3>
-              <button onClick={() => setShowGlobalSummary(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
+              <div className="flex items-center gap-4 flex-wrap">
+                {(totalMonthly > 0 || totalWeekly > 0) && (
+                  <div className="flex items-center gap-3 bg-white/10 border border-white/20 px-4 py-2 rounded-xl">
+                    <i className="fa-solid fa-wallet text-emerald-400"></i>
+                    {totalMonthly > 0 && (
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Nómina Mensual</span>
+                        <span className="text-[13px] font-mono font-black text-emerald-400 leading-none">{formatCurrency(totalMonthly, state.settings)}</span>
+                      </div>
+                    )}
+                    {totalMonthly > 0 && totalWeekly > 0 && <div className="w-px h-6 bg-white/20 mx-1"></div>}
+                    {totalWeekly > 0 && (
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Nómina Semanal</span>
+                        <span className="text-[13px] font-mono font-black text-blue-400 leading-none">{formatCurrency(totalWeekly, state.settings)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => setShowGlobalSummary(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors shrink-0"><i className="fa-solid fa-xmark"></i></button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-800">
-              {(Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).map(({ user, stats }) => (
-                <div key={user.id} className="bg-slate-900 p-6 rounded-[2rem] border border-slate-700 shadow-lg space-y-4 hover:shadow-2xl transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center font-black text-xl text-white">{user.name.charAt(0)}</div>
-                    <div>
-                      <h4 className="font-black text-white uppercase text-sm truncate">{user.name}</h4>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.cutToday || 'Corte hoy:'} {formatCurrency(stats.recaudoHoy, state.settings)}</p>
+              {(Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).map(({ user, stats }) => {
+                let savedPayConfig = null;
+                try {
+                  const raw = localStorage.getItem(`pay_cfg_${user.id}`);
+                  if (raw) savedPayConfig = JSON.parse(raw);
+                } catch {}
+                
+                let payDisplay = '0';
+                if (savedPayConfig) {
+                  if (savedPayConfig.scheme === 'percent') {
+                     payDisplay = `${savedPayConfig.pct}% COMISIÓN`;
+                  } else if (savedPayConfig.scheme === 'weekly') {
+                     payDisplay = `${formatCurrency(savedPayConfig.weekly, state.settings)} SEMANAL`;
+                  } else if (savedPayConfig.scheme === 'monthly') {
+                     payDisplay = `${formatCurrency(savedPayConfig.monthly, state.settings)} MENSUAL`;
+                  }
+                }
+
+                return (
+                <div key={user.id} className="bg-slate-900 p-6 rounded-[2rem] border border-slate-700 shadow-lg space-y-4 hover:shadow-2xl transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center font-black text-xl text-white">{user.name.charAt(0)}</div>
+                      <div>
+                        <h4 className="font-black text-white uppercase text-sm truncate">{user.name}</h4>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.cutToday || 'Corte hoy:'} {formatCurrency(stats.recaudoHoy, state.settings)}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
+                      <span className="text-[9px] font-black text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.mora || 'Mora:'} <span className={stats.averageDelinquency > 20 ? 'text-red-400' : 'text-emerald-400'}>{Math.round(stats.averageDelinquency)}%</span></span>
+                      <span className="text-[9px] font-black text-blue-400 uppercase">{(t as any).commissionBook?.comparison?.payment || 'PAGO:'} {Math.round(stats.performanceFactor * 100)}%</span>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
-                    <span className="text-[9px] font-black text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.mora || 'Mora:'} <span className={stats.averageDelinquency > 20 ? 'text-red-400' : 'text-emerald-400'}>{Math.round(stats.averageDelinquency)}%</span></span>
-                    <span className="text-[9px] font-black text-blue-400 uppercase">{(t as any).commissionBook?.comparison?.payment || 'PAGO:'} {Math.round(stats.performanceFactor * 100)}%</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">{(t as any).commissionBook?.comparison?.historyBtn || 'HISTORIAL DE COBROS DETALLADO'}</button>
+                  <div className="space-y-3 mt-auto">
+                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all shadow-md">
+                      {(t as any).commissionBook?.comparison?.historyBtn || 'HISTORIAL DE COBROS DETALLADO'}
+                    </button>
+                    <div className="text-center pt-2 border-t border-slate-700/50">
+                       <p className="text-[8px] font-black uppercase text-slate-500 mb-0.5 tracking-widest">Sueldo Asignado</p>
+                       <p className="text-[11px] font-mono font-black text-emerald-400">{payDisplay}</p>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* MODAL HISTORIAL 30 DIAS */}
       {showCollectorHistoryId && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[350] p-0 md:p-4 animate-fadeIn overflow-y-auto">
@@ -1856,7 +1952,32 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </div>
                 </div>
 
-                <button onClick={() => setShowCollectorHistoryId(null)} className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                <button 
+                  id="save-pay-btn"
+                  onClick={() => {
+                    if (showCollectorHistoryId) {
+                      saveCollectorPayConfig(showCollectorHistoryId, paymentScheme, historyCommissionPercent, weeklySalaryInput, monthlySalaryInput);
+                      const btn = document.getElementById('save-pay-btn');
+                      if (btn) {
+                        const originalHTML = btn.innerHTML;
+                        btn.innerHTML = '<i class="fa-solid fa-check"></i> GUARDADO';
+                        btn.classList.replace('bg-emerald-600', 'bg-blue-600'); // reset just in case
+                        btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+                        btn.classList.replace('hover:bg-blue-500', 'hover:bg-emerald-500');
+                        setTimeout(() => {
+                          btn.innerHTML = originalHTML;
+                          btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+                          btn.classList.replace('hover:bg-emerald-500', 'hover:bg-blue-500');
+                        }, 1500);
+                      }
+                    }
+                  }}
+                  className="px-4 py-3 h-[42px] bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-[9px] uppercase transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 whitespace-nowrap border border-blue-400/50"
+                >
+                  <i className="fa-solid fa-floppy-disk"></i> GUARDAR
+                </button>
+
+                <button onClick={() => setShowCollectorHistoryId(null)} className="w-10 h-[42px] bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"><i className="fa-solid fa-xmark"></i></button>
               </div>
             </div>
 
