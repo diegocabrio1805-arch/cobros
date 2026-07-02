@@ -426,6 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         todayTimeStr: latestToday ? formatLocalTime(latestToday.date, state.settings.country) : null,
         todayClient: getClientName(latestToday),
         yesterdayAmount: latestYesterday ? latestYesterday.amount : null,
+        yesterdayIsVirtual: latestYesterday ? (latestYesterday.isVirtual || (latestYesterday as any).is_virtual || false) : false,
         yesterdayTimeStr: latestYesterday ? formatLocalTime(latestYesterday.date, state.settings.country) : null,
         yesterdayClient: getClientName(latestYesterday),
         ganancia4Sem,
@@ -1016,7 +1017,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                                 <div className="flex flex-col items-end">
                                   <span className={`font-mono font-bold text-xs transition-colors leading-tight ${item.todayIsVirtual ? 'text-blue-600 group-hover:text-blue-400' : 'text-emerald-600 group-hover:text-emerald-400'}`}>{formatCurrency(item.todayAmount || 0, state.settings)}</span>
                                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.todayClient}</span>
-                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.todayTimeStr}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
+                                    {item.todayTimeStr}
+                                    {item.todayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
+                                  </span>
                                 </div>
                               ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
                             </td>
@@ -1025,7 +1029,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                                 <div className="flex flex-col items-end">
                                   <span className="font-mono font-bold text-xs text-orange-600 group-hover:text-orange-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
                                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.yesterdayClient}</span>
-                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.yesterdayTimeStr}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
+                                    {item.yesterdayTimeStr}
+                                    {item.yesterdayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
+                                  </span>
                                 </div>
                               ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
                             </td>
