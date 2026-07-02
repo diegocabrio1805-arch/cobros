@@ -756,15 +756,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const existingExpenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.date.startsWith(currentMonthPrefix));
     
-    let fuelHistory: any[] = [];
-    try {
-      const fuelHistoryRaw = localStorage.getItem('fuel_history');
-      if (fuelHistoryRaw) fuelHistory = JSON.parse(fuelHistoryRaw);
-    } catch {}
+    const fuelHistory = state.settings?.fuelHistory || [];
 
     const getFuelAmountForDay = (dateStr: string) => {
       const record = fuelHistory.slice().reverse().find((h: any) => h.date <= dateStr);
-      return record ? Number(record.amount) : Number(localStorage.getItem('default_fuel') || 0);
+      return record ? Number(record.amount) : (state.settings?.defaultFuel || 0);
     };
 
     for (let day = 1; day <= daysInMonth; day++) {

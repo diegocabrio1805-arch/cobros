@@ -33,17 +33,13 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
 
   // Lee el historial de combustible
   const fuelHistory = useMemo(() => {
-    try {
-      const historyRaw = localStorage.getItem('fuel_history');
-      if (historyRaw) return JSON.parse(historyRaw);
-    } catch (e) {}
-    return [];
-  }, []);
+    return state.settings?.fuelHistory || [];
+  }, [state.settings]);
 
   const getFuelAmountForDay = (dateStr: string) => {
-    // Si no hay historial, usa default_fuel
+    // Si no hay historial, usa defaultFuel
     if (fuelHistory.length === 0) {
-      return Number(localStorage.getItem('default_fuel') || 0);
+      return state.settings?.defaultFuel || 0;
     }
     // Ordenar historial cronológicamente ascendente
     const sorted = [...fuelHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

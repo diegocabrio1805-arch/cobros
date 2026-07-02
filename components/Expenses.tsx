@@ -13,9 +13,10 @@ interface ExpensesProps {
   updateExpense: (expense: Expense) => void;
   updateInitialCapital: (amount: number) => void;
   onViewClientDossier?: (clientId: string) => void;
+  updateSettings?: (settings: any) => void;
 }
 
-const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier }) => {
+const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier, updateSettings }) => {
 
   // PROTECTION: If settings are not loaded yet, prevent crash
   if (!state.settings || !state.settings.country) {
@@ -634,7 +635,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                          }
                       });
 
-                      const fuelAmount = Number(localStorage.getItem('default_fuel') || 0);
+                      const fuelAmount = state.settings.defaultFuel || 0;
                       const projectedFuel = (fuelAmount / 6) * 26;
                       const totalNominaConCombustible = totalSueldos + projectedFuel;
                       
@@ -651,10 +652,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                             {totalSueldos > 0 && <span className="text-[10px] font-mono text-emerald-600 block leading-tight">{formatCurrency(totalSueldos, state.settings)}</span>}
                           </button>
                           <div className="flex-1 flex bg-orange-50 rounded-lg border border-orange-200 overflow-hidden active:scale-95 transition-transform">
-                            <button
+                             <button
                               type="button"
                               onClick={() => {
-                                 const fuel = Number(localStorage.getItem('default_fuel') || 0);
+                                 const fuel = state.settings.defaultFuel || 0;
                                  if (fuel > 0) {
                                    setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: fuel });
                                  } else {
@@ -664,8 +665,8 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                               className="flex-1 px-1 py-2 text-orange-700 hover:bg-orange-100 text-[8px] sm:text-[9px] font-black uppercase transition-colors text-center flex flex-col items-center justify-center gap-0.5"
                             >
                               <span className="flex items-center gap-1"><i className="fa-solid fa-gas-pump"></i> COMBUSTIBLE DIARIO</span>
-                              {Number(localStorage.getItem('default_fuel') || 0) > 0 ? (
-                                <span className="text-[10px] font-mono text-orange-600 block leading-tight">{formatCurrency(Number(localStorage.getItem('default_fuel')), state.settings)}</span>
+                              {state.settings.defaultFuel && state.settings.defaultFuel > 0 ? (
+                                <span className="text-[10px] font-mono text-orange-600 block leading-tight">{formatCurrency(state.settings.defaultFuel, state.settings)}</span>
                               ) : (
                                 <span className="text-[10px] font-mono opacity-50 block leading-tight">Monto Libre</span>
                               )}
@@ -673,21 +674,18 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                             <button
                               type="button"
                               onClick={() => {
-                                const saved = localStorage.getItem('default_fuel') || '';
+                                const saved = (state.settings.defaultFuel || '').toString();
                                 const ans = window.prompt("Ingrese el monto diario para el combustible:", saved);
                                 if (ans !== null && !isNaN(Number(ans))) {
-                                  localStorage.setItem('default_fuel', ans);
-                                  // Save history for daily tracking
+                                  const newVal = Number(ans);
                                   const today = new Date().toISOString().split('T')[0];
-                                  try {
-                                    const historyRaw = localStorage.getItem('fuel_history');
-                                    let history = historyRaw ? JSON.parse(historyRaw) : [];
-                                    history.push({ date: today, amount: Number(ans) });
-                                    localStorage.setItem('fuel_history', JSON.stringify(history));
-                                  } catch (e) {
-                                    console.error("Error saving fuel history", e);
+                                  const newHistory = [...(state.settings.fuelHistory || []), { date: today, amount: newVal }];
+                                  
+                                  if (updateSettings) {
+                                    updateSettings({ ...state.settings, defaultFuel: newVal, fuelHistory: newHistory });
                                   }
-                                  setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: Number(ans) });
+                                  
+                                  setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: newVal });
                                 }
                               }}
                               className="px-2 bg-orange-100 hover:bg-orange-200 text-orange-600 flex items-center justify-center transition-colors border-l border-orange-200"
