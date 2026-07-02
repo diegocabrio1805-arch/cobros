@@ -318,9 +318,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       });
 
       const labels = ['Semana Actual', 'Semana Anterior', 'Hace 2 Semanas', 'Hace 3 Semanas', 'Hace 4 Semanas'];
+      const monthName = new Intl.DateTimeFormat('es', { month: 'long' }).format(weekEnd).toUpperCase();
       return {
         label: labels[weeksAgo],
         rangeStr: `${weekStart.getDate()}/${weekStart.getMonth() + 1} – ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`,
+        monthName,
         days,
         totalRecaudo: days.reduce((a, d) => a + d.recaudo, 0),
         totalClientesCobrados: days.reduce((a, d) => a + d.clientesCobrados, 0),
@@ -1050,9 +1052,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     <table className="w-full text-sm border-collapse h-full">
                       <thead>
                         <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
-                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
-                            {week.label}
-                            <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
+                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left relative">
+                            <div className="flex items-center">
+                              <div>
+                                {week.label}
+                                <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
+                              </div>
+                              <div className="absolute left-1/2 -translate-x-1/2 opacity-90 text-[11px] font-bold tracking-[0.2em]">
+                                {week.monthName}
+                              </div>
+                            </div>
                           </th>
                         </tr>
                         <tr>
