@@ -422,6 +422,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         id: collector.id,
         name: collector.name || collector.username || 'Cobrador',
         todayAmount: latestToday ? latestToday.amount : null,
+        todayIsVirtual: latestToday ? (latestToday.isVirtual || (latestToday as any).is_virtual || false) : false,
         todayTimeStr: latestToday ? formatLocalTime(latestToday.date, state.settings.country) : null,
         todayClient: getClientName(latestToday),
         yesterdayAmount: latestYesterday ? latestYesterday.amount : null,
@@ -989,7 +990,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         <th style={{background:'#475569'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Cobrador</th>
                         <th style={{background:'#d97706'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Ganancia (5 Sem)</th>
                         <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Último Hoy</th>
-                        <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right w-28">Último Ayer</th>
+                        <th style={{background:'#ea580c'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right w-28">Último Ayer</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1013,7 +1014,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                             <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent transition-colors">
                               {item.todayAmount !== null ? (
                                 <div className="flex flex-col items-end">
-                                  <span className="font-mono font-bold text-xs text-emerald-600 group-hover:text-emerald-400 transition-colors leading-tight">{formatCurrency(item.todayAmount || 0, state.settings)}</span>
+                                  <span className={`font-mono font-bold text-xs transition-colors leading-tight ${item.todayIsVirtual ? 'text-blue-600 group-hover:text-blue-400' : 'text-emerald-600 group-hover:text-emerald-400'}`}>{formatCurrency(item.todayAmount || 0, state.settings)}</span>
                                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.todayClient}</span>
                                   <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.todayTimeStr}</span>
                                 </div>
@@ -1022,7 +1023,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                             <td className="px-3 py-2 text-right">
                               {item.yesterdayAmount !== null ? (
                                 <div className="flex flex-col items-end">
-                                  <span className="font-mono font-bold text-xs text-blue-600 group-hover:text-blue-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
+                                  <span className="font-mono font-bold text-xs text-orange-600 group-hover:text-orange-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
                                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.yesterdayClient}</span>
                                   <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none">{item.yesterdayTimeStr}</span>
                                 </div>
