@@ -3590,7 +3590,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           {isAdminOrManager && !isLoanGrant && (
                                             <div className="flex items-center justify-center gap-1">
                                               <button onClick={() => {
-                                                if (confirm(t.confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) {
+                                                if (confirm((t as any).confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) {
                                                   deleteCollectionLog?.(log.id);
                                                   if (log.loanId && recalculateLoanStatus) {
                                                     // Pequeño delay para asegurar que el estado local se actualice antes del recalculo si es necesario

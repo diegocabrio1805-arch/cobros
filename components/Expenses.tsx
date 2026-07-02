@@ -627,14 +627,11 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                     {(() => {
                       let totalSueldos = 0;
                       (Array.isArray(state.users) ? state.users : []).forEach((u) => {
-                         try {
-                           const raw = localStorage.getItem(`pay_cfg_${u.id}`);
-                           if (raw) {
-                              const cfg = JSON.parse(raw);
-                              if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
-                              if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
-                           }
-                         } catch {}
+                         const cfg = u.payConfig;
+                         if (cfg) {
+                            if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+                            if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
+                         }
                       });
 
                       const fuelAmount = Number(localStorage.getItem('default_fuel') || 0);

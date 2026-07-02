@@ -1338,7 +1338,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                       <td className="px-3 py-2 text-center">
                                         {isAdminOrManager && (
                                           <button 
-                                            onClick={() => { if(confirm(t.confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }}
+                                            onClick={() => { if(confirm((t as any).confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }}
                                             className="w-6 h-6 bg-red-500/10 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition-all"
                                           >
                                             <i className="fa-solid fa-trash-can text-[8px]"></i>

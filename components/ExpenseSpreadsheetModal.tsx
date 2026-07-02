@@ -109,14 +109,11 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
   const totalSueldos = useMemo(() => {
     let total = 0;
     (Array.isArray(state.users) ? state.users : []).forEach(user => {
-       try {
-         const raw = localStorage.getItem(`pay_cfg_${user.id}`);
-         if (raw) {
-            const cfg = JSON.parse(raw);
-            if (cfg.scheme === 'monthly') total += (cfg.monthly || 0);
-            if (cfg.scheme === 'weekly') total += (cfg.weekly || 0);
-         }
-       } catch {}
+      const cfg = user.payConfig;
+      if (cfg) {
+        if (cfg.scheme === 'monthly') total += (cfg.monthly || 0);
+        if (cfg.scheme === 'weekly') total += (cfg.weekly || 0);
+      }
     });
     return total;
   }, [state.users]);

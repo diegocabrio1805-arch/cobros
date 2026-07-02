@@ -745,14 +745,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
     let totalSueldos = 0;
     (Array.isArray(state.users) ? state.users : []).forEach(user => {
-      try {
-        const raw = localStorage.getItem(`pay_cfg_${user.id}`);
-        if (raw) {
-          const cfg = JSON.parse(raw);
-          if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
-          if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
-        }
-      } catch {}
+      const cfg = user.payConfig;
+      if (cfg) {
+        if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+        if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
+      }
     });
 
     let totalMonthGastos = 0;

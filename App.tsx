@@ -356,13 +356,15 @@ const App: React.FC = () => {
                 removeExpense={removeExpense} 
                 updateExpense={updateExpense}
                 updateInitialCapital={updateInitialCapital} 
+                updateUser={updateUser}
+                updateSettings={updateSettings}
                 onViewClientDossier={(clientId) => {
                   setInitialDossierClientId(clientId);
                   setActiveTab('clients');
                 }}
               />
             )}
-            {activeTab === 'commission' && (
+            {activeTab === 'commission' && isPowerUser && (
               <CollectorCommission 
                 state={filteredState} 
                 setCommissionPercentage={(p) => { 
@@ -371,6 +373,7 @@ const App: React.FC = () => {
                 }} 
                 updateCommissionBrackets={updateCommissionBrackets} 
                 deleteCollectionLog={deleteCollectionLog} 
+                updateUser={updateUser}
               />
             )}
             {activeTab === 'collectors' && (

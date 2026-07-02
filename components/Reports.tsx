@@ -595,8 +595,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       // Body Section
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(14);
-      doc.text(`${t.auditPdf?.collectorInfo || 'Información del Cobrador:'} ${collectorName}`, 20, 55);
-      doc.text(`${t.auditPdf?.auditedPeriod || 'Periodo Auditado:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+      doc.text(`${(t as any).auditPdf?.collectorInfo || 'Información del Cobrador:'} ${collectorName}`, 20, 55);
+      doc.text(`${(t as any).auditPdf?.auditedPeriod || 'Periodo Auditado:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
       // Score area
       doc.setDrawColor(226, 232, 240); // Slate 200
@@ -1083,9 +1083,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
           // Determine Status based on Registry Gap
           let gapStatus: 'NORMAL' | 'ATENCIÓN' | 'ALERTA' | 'CRÍTICO' = 'NORMAL';
-          if (daysSinceInteraction >= 20) gapStatus = t.auditPdf?.critical || 'CRÍTICO';
-          else if (daysSinceInteraction >= 8) gapStatus = t.auditPdf?.alert || 'ALERTA';
-          else if (daysSinceInteraction >= 4) gapStatus = t.auditPdf?.attention || 'ATENCIÓN';
+          if (daysSinceInteraction >= 20) gapStatus = (t as any).auditPdf?.critical || 'CRÍTICO';
+          else if (daysSinceInteraction >= 8) gapStatus = (t as any).auditPdf?.alert || 'ALERTA';
+          else if (daysSinceInteraction >= 4) gapStatus = (t as any).auditPdf?.attention || 'ATENCIÓN';
 
           return {
             id: c.id,

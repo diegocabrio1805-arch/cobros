@@ -60,7 +60,7 @@ const CURRENCIES = [
 
 const Generator: React.FC<GeneratorProps> = ({ settings }) => {
     const t = getTranslation(settings?.language || 'es');
-    const tg = t.generator;
+    const tg = (t as any).generator;
     const [documents, setDocuments] = useState<DocumentData[]>([]);
     const [templates, setTemplates] = useState<TextTemplate[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);

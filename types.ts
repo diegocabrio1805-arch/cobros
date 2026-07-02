@@ -71,6 +71,17 @@ export interface AppSettings {
   shareLabelSize?: 'normal' | 'medium' | 'large';
   shareValueBold?: boolean;
   shareValueSize?: 'normal' | 'medium' | 'large';
+  // Fuel Configuration
+  defaultFuel?: number;
+  fuelHistory?: { date: string; amount: number }[];
+}
+
+export interface PayConfig {
+  scheme: 'percent' | 'fixed' | 'monthly' | 'weekly';
+  pct?: number;
+  fixed?: number;
+  monthly?: number;
+  weekly?: number;
 }
 
 export interface User {
@@ -87,6 +98,7 @@ export interface User {
   homeLocation?: { lat: number; lng: number }; // Ubicación GPS de la casa
   requiresLocation?: boolean; // Si está activado, obliga a tener GPS encendido
   deletedAt?: string; // Soft delete timestamp para ocular gerentes eliminados
+  payConfig?: PayConfig; // Configuración de sueldo o comisión
 }
 
 export interface Client {

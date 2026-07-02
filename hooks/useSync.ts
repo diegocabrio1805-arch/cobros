@@ -412,7 +412,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
                 })) as CollectionLog[],
                 expenses: (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[],
-                users: (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location })) as unknown as User[],
+                users: (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config })) as unknown as User[],
                 branchSettings: (settingsResult.data || []).reduce((acc: any, s: any) => {
                     acc[s.id] = s.settings;
                     return acc;
@@ -506,6 +506,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     managed_by: d.managedBy || null, profile_pic: d.profilePic,
                     home_pic: d.homePic, home_location: d.homeLocation,
                     requires_location: d.requiresLocation, deleted_at: d.deletedAt || null,
+                    pay_config: d.payConfig || null,
                     updated_at: new Date().toISOString()
                 })},
                 'ADD_CLIENT': { items: [], table: 'clients', isDelete: false, mapper: (d) => {

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket } from '../types';
+import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
 import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
@@ -198,9 +198,10 @@ interface CollectorCommissionProps {
   setCommissionPercentage: (percentage: number) => void;
   updateCommissionBrackets: (brackets: CommissionBracket[]) => void;
   deleteCollectionLog?: (logId: string) => void;
+  updateUser?: (user: User) => void;
 }
 
-const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCommissionPercentage, updateCommissionBrackets, deleteCollectionLog }) => {
+const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCommissionPercentage, updateCommissionBrackets, deleteCollectionLog, updateUser }) => {
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
   const isAdmin = state.currentUser?.role === Role.ADMIN;
@@ -259,16 +260,29 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   // Helpers para guardar/cargar config de pago por cobrador
   const saveCollectorPayConfig = (collectorId: string, scheme: 'percent' | 'weekly' | 'monthly', pct: number, weekly: number, monthly: number) => {
     try {
-      const key = `pay_cfg_${collectorId}`;
-      localStorage.setItem(key, JSON.stringify({ scheme, pct, weekly, monthly }));
-    } catch {}
+      if (updateUser) {
+        const userToUpdate = (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId);
+        if (userToUpdate) {
+            updateUser({
+                ...userToUpdate,
+                payConfig: { scheme, pct, weekly, monthly }
+            });
+        }
+      }
+    } catch (e) {
+        console.error("Error al guardar config de pago en la nube:", e);
+    }
   };
 
   const loadCollectorPayConfig = (collectorId: string) => {
     try {
-      const raw = localStorage.getItem(`pay_cfg_${collectorId}`);
-      if (raw) return JSON.parse(raw) as { scheme: 'percent' | 'weekly' | 'monthly', pct: number, weekly: number, monthly: number };
-    } catch {}
+      const userToUpdate = (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId);
+      if (userToUpdate && userToUpdate.payConfig) {
+          return userToUpdate.payConfig;
+      }
+    } catch (e) {
+        console.error("Error al cargar config de pago de la nube:", e);
+    }
     return null;
   };
 
@@ -1573,7 +1587,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                               {isGeneratingImage && sharingLog?.id === log.id ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-image"></i>}
                             </button>
                             {isPowerUser && (
-                              <button onClick={() => { if (confirm(t.confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                              <button onClick={() => { if (confirm((t as any).confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
                             )}
                           </div>
                         </td>
@@ -1626,24 +1640,24 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <div className="bg-red-600 rounded-[2rem] p-8 text-center text-white mb-10 shadow-lg">
                 <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{settingsToUse.companyName || 'ANEXO COBRO'}</h1>
                 <p className="text-lg font-bold opacity-90 uppercase tracking-widest">
-                  {isNoPay ? (t.receiptImage?.visitNotification || 'NOTIFICACIÓN DE VISITA (MORA)') : (t.receiptImage?.officialReceipt || 'COMPROBANTE OFICIAL DE PAGO')}
+                  {isNoPay ? ((t as any).receiptImage?.visitNotification || 'NOTIFICACIÓN DE VISITA (MORA)') : ((t as any).receiptImage?.officialReceipt || 'COMPROBANTE OFICIAL DE PAGO')}
                 </p>
               </div>
 
               {/* Data Section */}
               <div className="space-y-8 px-4">
                 <div className="border-b-2 border-slate-100 pb-6">
-                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">{t.receiptImage?.clientTitular || 'CLIENTE / TITULAR'}</p>
+                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">{(t as any).receiptImage?.clientTitular || 'CLIENTE / TITULAR'}</p>
                   <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tight leading-normal py-4 break-words">{client.name}</h2>
                 </div>
 
                 <div className="grid grid-cols-2 gap-10">
                    <div>
-                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{t.receiptImage?.date || 'FECHA'}</p>
+                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{(t as any).receiptImage?.date || 'FECHA'}</p>
                     <p className="text-3xl font-black text-slate-900">{formatLocalDate(sharingLog.date, settingsToUse.country, {}, state.settings.language)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{t.receiptImage?.time || 'HORA'}</p>
+                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{(t as any).receiptImage?.time || 'HORA'}</p>
                     <p className="text-3xl font-black text-slate-900">{formatLocalTime(sharingLog.date, settingsToUse.country, {}, state.settings.language)}</p>
                   </div>
                 </div>
@@ -1651,28 +1665,28 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 {/* Status Box */}
                 <div className={`rounded-[2.5rem] p-10 text-center border-2 ${isNoPay ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
                   <p className={`text-xs font-black uppercase tracking-widest mb-2 ${isNoPay ? 'text-red-500' : 'text-emerald-600'}`}>
-                    {t.receiptImage?.statusRegistered || 'ESTADO REGISTRADO'}
+                    {(t as any).receiptImage?.statusRegistered || 'ESTADO REGISTRADO'}
                   </p>
                   <h3 className={`text-5xl font-black uppercase tracking-tighter mb-2 ${isNoPay ? 'text-red-700' : 'text-emerald-700'}`}>
-                    {isNoPay ? (t.receiptImage?.noPaymentToday || 'SIN ABONO HOY') : (t.receiptImage?.paymentRegistered || 'PAGO REGISTRADO')}
+                    {isNoPay ? ((t as any).receiptImage?.noPaymentToday || 'SIN ABONO HOY') : ((t as any).receiptImage?.paymentRegistered || 'PAGO REGISTRADO')}
                   </h3>
                   <p className={`text-xs font-bold uppercase italic ${isNoPay ? 'text-red-400' : 'text-emerald-500'}`}>
-                    {isNoPay ? (t.receiptImage?.pleaseContactAdmin || 'FAVOR COMUNICARSE CON ADMINISTRACIÓN') : (t.receiptImage?.thanksForPunctuality || '¡GRACIAS POR SU PUNTUALIDAD!')}
+                    {isNoPay ? ((t as any).receiptImage?.pleaseContactAdmin || 'FAVOR COMUNICARSE CON ADMINISTRACIÓN') : ((t as any).receiptImage?.thanksForPunctuality || '¡GRACIAS POR SU PUNTUALIDAD!')}
                   </p>
                 </div>
 
                 {/* Metrics Box */}
                 <div className="bg-slate-50 rounded-[2rem] p-8 space-y-4 border border-slate-200">
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.remainingBalance || 'SALDO RESTANTE:'}</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{(t as any).receiptImage?.remainingBalance || 'SALDO RESTANTE:'}</p>
                     <p className="text-3xl font-black text-red-600 font-mono">{formatCurrency(balance, settingsToUse)}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.daysOverdue || 'DÍAS EN MORA:'}</p>
-                    <p className="text-3xl font-black text-slate-900">{daysOverdue} {t.receiptImage?.days || 'días'}</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{(t as any).receiptImage?.daysOverdue || 'DÍAS EN MORA:'}</p>
+                    <p className="text-3xl font-black text-slate-900">{daysOverdue} {(t as any).receiptImage?.days || 'días'}</p>
                   </div>
                   <div className="flex justify-between items-center border-t border-slate-200 pt-4">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t.receiptImage?.installmentsPaid || 'CUOTAS PAGADAS:'}</p>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{(t as any).receiptImage?.installmentsPaid || 'CUOTAS PAGADAS:'}</p>
                     <p className="text-3xl font-black text-slate-900">{paidInstallments} / {loan.totalInstallments}</p>
                   </div>
                 </div>
@@ -1681,7 +1695,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div className="text-center pt-8 border-t-2 border-dashed border-slate-200 space-y-4">
                   <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] leading-relaxed">
                     EVITE EL REPORTE NEGATIVO EN CENTRALES.<br />
-                    {t.receiptImage?.autoGenerated || 'DOCUMENTO GENERADO POR SISTEMA AUTOMATIZADO'}.<br />
+                    {(t as any).receiptImage?.autoGenerated || 'DOCUMENTO GENERADO POR SISTEMA AUTOMATIZADO'}.<br />
                     SOPORTE: {settingsToUse.contactPhone || 'NO ASIGNADO'}
                   </p>
                   <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto">
@@ -1699,50 +1713,11 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         let totalMonthly = 0;
         let totalWeekly = 0;
         (Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).forEach(({ user }) => {
-           try {
-             const raw = localStorage.getItem(`pay_cfg_${user.id}`);
-             if (raw) {
-                const cfg = JSON.parse(raw);
-                if (cfg.scheme === 'monthly') totalMonthly += (cfg.monthly || 0);
-                if (cfg.scheme === 'weekly') totalWeekly += (cfg.weekly || 0);
-             }
-           } catch {}
+           if (user.payConfig) {
+              if (user.payConfig.scheme === 'monthly') totalMonthly += (user.payConfig.monthly || 0);
+              if (user.payConfig.scheme === 'weekly') totalWeekly += (user.payConfig.weekly || 0);
+           }
         });
-
-        // Add projected fuel to totalMonthly so the global view matches the expenses registration
-        const currentDate = new Date();
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
-        const todayStr = currentDate.toISOString().split('T')[0];
-        
-        let fuelHistory: any[] = [];
-        try {
-          const raw = localStorage.getItem('fuel_history');
-          if (raw) fuelHistory = JSON.parse(raw);
-        } catch(e) {}
-        
-        const getFuelAmountForDay = (dateStr: string) => {
-          if (fuelHistory.length === 0) return Number(localStorage.getItem('default_fuel') || 0);
-          const sorted = [...fuelHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          let activeAmount = sorted[0].amount;
-          for (const entry of sorted) {
-            if (entry.date <= dateStr) activeAmount = entry.amount;
-          }
-          return activeAmount;
-        };
-
-        for (let i = 1; i <= daysInCurrentMonth; i++) {
-          const dayDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-          // Regla 1: No proyectar en el futuro
-          if (dayDate <= todayStr) {
-            // Regla 2: No sumar domingos
-            const dateObj = new Date(year, month, i);
-            if (dateObj.getDay() !== 0) {
-               totalMonthly += getFuelAmountForDay(dayDate);
-            }
-          }
-        }
 
         return (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
@@ -1773,20 +1748,16 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-800">
               {(Array.isArray(allCollectorsSummary) ? allCollectorsSummary : []).map(({ user, stats }) => {
-                let savedPayConfig = null;
-                try {
-                  const raw = localStorage.getItem(`pay_cfg_${user.id}`);
-                  if (raw) savedPayConfig = JSON.parse(raw);
-                } catch {}
+                let savedPayConfig = user.payConfig;
                 
                 let payDisplay = '0';
                 if (savedPayConfig) {
                   if (savedPayConfig.scheme === 'percent') {
                      payDisplay = `${savedPayConfig.pct}% COMISIÓN`;
                   } else if (savedPayConfig.scheme === 'weekly') {
-                     payDisplay = `${formatCurrency(savedPayConfig.weekly, state.settings)} SEMANAL`;
+                     payDisplay = `${formatCurrency(savedPayConfig.weekly || 0, state.settings)} SEMANAL`;
                   } else if (savedPayConfig.scheme === 'monthly') {
-                     payDisplay = `${formatCurrency(savedPayConfig.monthly, state.settings)} MENSUAL`;
+                     payDisplay = `${formatCurrency(savedPayConfig.monthly || 0, state.settings)} MENSUAL`;
                   }
                 }
 
