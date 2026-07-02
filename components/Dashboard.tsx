@@ -783,7 +783,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     }
 
     return totalSueldos + totalMonthGastos;
-  }, [state.expenses, state.users]);
+  }, [state.expenses, state.users, state.settings]);
 
 
   return (
