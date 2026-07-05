@@ -557,9 +557,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 const isToday = dateStr === new Date().toLocaleDateString('en-CA');
                 const sym = state.settings.country === 'CO' ? '$' : 'Gs.';
                 const fmtNum = (n: number) => formatCurrency(n, state.settings).replace(/[^0-9.,]/g, '').trim();
-                
+                const fuelPreset = optimisticFuel !== null ? optimisticFuel : (activeSettings?.defaultFuel || 0);
+
                 return (
-                  <tr key={index} className={`transition-colors text-[11px] font-bold ${isToday ? 'bg-slate-800 text-white' : 'hover:bg-slate-50/50'}`}>
+                  <tr key={index} className={`transition-colors text-[11px] font-bold group ${isToday ? 'bg-slate-800 text-white' : 'hover:bg-slate-50/50'}`}>
                     <td className={`px-5 py-3 align-top border-r ${isToday ? 'border-slate-700' : 'border-slate-50'}`}>
                       <span className={`text-[9px] block uppercase font-black ${isToday ? 'text-slate-400' : 'text-slate-400'}`}>{d.toLocaleDateString('es', { weekday: 'short' })}</span>
                       <span className={`text-sm ${isToday ? 'text-white font-black' : 'text-slate-600'}`}>{d.toLocaleDateString('es', { day: '2-digit', month: '2-digit' })}</span>
@@ -570,53 +571,60 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                            {dayExpenses.map(exp => {
                              const isEditing = topEditId === exp.id;
                              return (
-                               <div key={exp.id} className="flex justify-between items-center bg-white border border-slate-100 p-2 rounded-lg shadow-sm group">
+                               <div key={exp.id} className={`flex justify-between items-center bg-white border p-2 rounded-lg shadow-sm group ${isEditing ? 'border-orange-400 ring-2 ring-orange-100' : 'border-slate-100'}`}>
                                  <div className="flex items-center gap-2">
                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-slate-100 text-slate-500">{exp.category}</span>
                                    <span className="text-slate-700">{exp.description || exp.category}</span>
                                  </div>
                                  <div className="flex items-center gap-2">
-                                   {isEditing ? (
-                                     <div className="flex items-center gap-1">
-                                       <input 
-                                         type="number" 
-                                         autoFocus
-                                         className="w-20 border border-emerald-300 rounded px-1 py-0.5 text-xs font-black text-right outline-none focus:ring-1 focus:ring-emerald-500" 
-                                         value={topEditAmt} 
-                                         onChange={e => setTopEditAmt(e.target.value)} 
-                                       />
-                                       <button onClick={() => {
-                                         const amt = Number(topEditAmt);
-                                         if (amt > 0 && removeIsolatedExpenseAction && addIsolatedExpenseAction) {
-                                           removeIsolatedExpenseAction(exp.id);
-                                           addIsolatedExpenseAction({ ...exp, amount: amt, updated_at: new Date().toISOString() });
-                                         }
-                                         setTopEditId(null);
-                                       }} className="w-5 h-5 rounded bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex items-center justify-center">✓</button>
-                                       <button onClick={() => setTopEditId(null)} className="w-5 h-5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center">✕</button>
-                                     </div>
-                                   ) : (
-                                     <>
-                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mr-2">
-                                         <button onClick={() => { setTopEditId(exp.id); setTopEditAmt(String(exp.amount)); }} className="w-5 h-5 rounded bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-all"><i className="fa-solid fa-pen text-[9px]"></i></button>
-                                         <button onClick={() => { if(window.confirm('¿Eliminar este gasto?')) removeIsolatedExpenseAction?.(exp.id); }} className="w-5 h-5 rounded bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all"><i className="fa-solid fa-trash text-[9px]"></i></button>
-                                       </div>
-                                       <span className="font-mono font-black text-slate-800">{sym}{fmtNum(exp.amount)}</span>
-                                     </>
-                                   )}
+                                    {isEditing ? (
+                                      <div className="flex items-center gap-1">
+                                        <input type="number" autoFocus value={topEditAmt} onChange={e => setTopEditAmt(e.target.value)} className="w-20 text-right text-xs font-black border border-slate-300 rounded px-1" />
+                                        <button onClick={() => {
+                                          const amt = Number(topEditAmt);
+                                          if (amt > 0 && removeIsolatedExpenseAction && addIsolatedExpenseAction) {
+                                            removeIsolatedExpenseAction(exp.id);
+                                            addIsolatedExpenseAction({ ...exp, amount: amt, updated_at: new Date().toISOString() });
+                                          }
+                                          setTopEditId(null);
+                                        }} className="w-5 h-5 rounded bg-green-100 text-green-700 flex items-center justify-center hover:bg-green-200">✓</button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button onClick={() => { setTopEditId(exp.id); setTopEditAmt(String(exp.amount)); }} className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-all"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                                        <button onClick={() => removeIsolatedExpenseAction && removeIsolatedExpenseAction(exp.id)} className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                                        <span className="text-xs font-black text-red-500 ml-2">{sym}{fmtNum(exp.amount)}</span>
+                                      </>
+                                    )}
                                  </div>
                                </div>
                              );
                            })}
                         </div>
                       ) : (
-                        <span className="text-slate-300 italic text-[10px] uppercase font-black">{state.settings.language === 'fr' ? 'Aucune dépense' : state.settings.language === 'pt' ? 'Sem despesas' : 'Sin gastos'}</span>
+                        <div className="flex items-center gap-4 py-2">
+                          <span className="text-[9px] font-black italic text-slate-300 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Sans Dépenses' : state.settings.language === 'pt' ? 'Sem Despesas' : 'Sin Gastos'}</span>
+                          {fuelPreset > 0 && addIsolatedExpenseAction && (
+                            <button onClick={() => {
+                              addIsolatedExpenseAction({
+                                id: Math.random().toString(36).substr(2, 9),
+                                branchId: currentBranchId,
+                                description: 'Combustible diario',
+                                amount: fuelPreset,
+                                category: 'COMBUSTIBLE',
+                                date: dateStr + 'T12:00:00.000Z',
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                              });
+                            }} className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-black uppercase text-orange-500 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-orange-100">
+                              <i className="fa-solid fa-gas-pump"></i> CARGAR
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
-                    <td className="px-5 py-3 align-top text-right">
-                       <span className={`font-black font-mono text-sm ${totalDay > 0 ? (isToday ? 'text-red-400' : 'text-red-500') : (isToday ? 'text-slate-600' : 'text-slate-300')}`}>
-                         {totalDay > 0 ? `${sym}${fmtNum(totalDay)}` : '-'}
-                       </span>
+                    <td className={`px-5 py-3 align-middle text-right font-black ${isToday ? 'text-white' : totalDay > 0 ? 'text-red-500' : 'text-slate-300'}`}>
+                      {totalDay > 0 ? `${sym}${fmtNum(totalDay)}` : '-'}
                     </td>
                   </tr>
                 );
