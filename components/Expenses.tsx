@@ -1017,40 +1017,6 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
     if (isNaN(n) || n < 0) return;
     setFuelPreset(n);
     try { localStorage.setItem(FUEL_KEY, String(n)); } catch {}
-
-    if (n > 0 && addIsolatedExpenseAction) {
-      if (window.confirm(`¿Desea rellenar todos los días sin gastos de combustible del mes actual con ${fmtNum(n)}?`)) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        let addedCount = 0;
-        
-        for (let i = 1; i <= daysInMonth; i++) {
-          const d = new Date(year, month, i);
-          const dateStr = d.toLocaleDateString('en-CA');
-          
-          // Buscar si ya hay un gasto de COMBUSTIBLE en este día
-          const hasFuel = (state.isolatedExpenses || []).some(e => 
-            e.branchId === currentBranchId && 
-            e.category === 'COMBUSTIBLE' && 
-            e.date.startsWith(dateStr)
-          );
-          
-          if (!hasFuel) {
-            addedCount++;
-            setTimeout(() => {
-              addIsolatedExpenseAction({
-                id: generateUUID(),
-                branchId: currentBranchId,
-                description: 'Combustible diario',
-                amount: n,
-                category: 'COMBUSTIBLE',
-                date: dateStr + 'T12:00:00.000Z',
-                created_at: new Date().toISOString()
-              });
-            }, addedCount * 150); // Retardo escalonado para no saturar el estado
-          }
-        }
-      }
-    }
   };
 
   // Nueva fila

@@ -678,12 +678,8 @@ export const useAppActions = (
 
   const removeIsolatedExpenseAction = async (id: string) => {
     setState(prev => ({ ...prev, isolatedExpenses: (prev.isolatedExpenses || []).filter(x => x.id !== id) }));
-    if (navigator.onLine) {
-      try {
-        await supabase.from('isolated_expenses').delete().eq('id', id);
-      } catch (e) { console.error('Error deleting isolated expense remotely', e); }
-    }
-    await handleForceSync(false);
+    addToQueue('DELETE_ISOLATED_EXPENSE', { id });
+    handleForceSync(true);
   };
 
   const updateInitialCapital = async (amount: number) => {
