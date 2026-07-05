@@ -1088,8 +1088,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
                           <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
                           <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
-                          <td className="px-2 py-2 text-right font-black text-xs border-r border-slate-200 text-blue-700">{week.totalRenovaciones}</td>
-                          <td className="px-2 py-2 text-right font-black text-xs text-violet-700">{week.totalClientesNuevos}</td>
+                          <td className="px-2 py-2 text-right border-r border-slate-200">
+                             <div className="flex flex-col items-end leading-tight gap-0.5">
+                               <span className="text-xs font-bold text-blue-800/70">{week.totalRenovaciones}</span>
+                               <span className="font-mono font-black text-xs sm:text-[13px] text-blue-700 tracking-tight">{formatCurrency(week.totalMontoRenovaciones, state.settings)}</span>
+                             </div>
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                             <div className="flex flex-col items-end leading-tight gap-0.5">
+                               <span className="text-xs font-bold text-violet-800/70">{week.totalClientesNuevos}</span>
+                               <span className="font-mono font-black text-xs sm:text-[13px] text-violet-700 tracking-tight">{formatCurrency(week.totalMontoNuevos, state.settings)}</span>
+                             </div>
+                          </td>
                         </tr>
                       </tbody>
                     </table>
