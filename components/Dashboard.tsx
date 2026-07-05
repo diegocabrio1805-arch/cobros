@@ -1000,7 +1000,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                               {item.name}
                             </td>
                             <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent bg-amber-50/30 group-hover:bg-amber-900/30 transition-colors">
-                              <span className="font-mono font-black text-xs text-amber-600 group-hover:text-amber-400 transition-colors leading-tight block">
+                              <span className={`font-mono font-black text-xs transition-colors leading-tight block ${
+                                (item.ganancia4Sem || 0) < 0 
+                                  ? 'text-rose-600 group-hover:text-rose-400' 
+                                  : 'text-amber-600 group-hover:text-amber-400'
+                              }`}>
                                 {formatCurrency(item.ganancia4Sem || 0, state.settings)}
                               </span>
                             </td>
