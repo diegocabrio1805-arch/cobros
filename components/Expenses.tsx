@@ -551,10 +551,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             </thead>
             <tbody className="divide-y divide-slate-50">
               {currentMonthDays.map((d, index) => {
-                const dateStr = d.toLocaleDateString('en-CA');
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const dayExpenses = (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId && e.date.startsWith(dateStr));
                 const totalDay = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
-                const isToday = dateStr === new Date().toLocaleDateString('en-CA');
+                const isToday = dateStr === new Date().toLocaleDateString('en-CA') || dateStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
                 const sym = state.settings.country === 'CO' ? '$' : 'Gs.';
                 const fmtNum = (n: number) => formatCurrency(n, state.settings).replace(/[^0-9.,]/g, '').trim();
                 const fuelPreset = optimisticFuel !== null ? optimisticFuel : (activeSettings?.defaultFuel || 0);
@@ -607,7 +607,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                           {fuelPreset > 0 && addIsolatedExpenseAction && (
                             <button onClick={() => {
                               addIsolatedExpenseAction({
-                                id: Math.random().toString(36).substr(2, 9),
+                                id: generateUUID(),
                                 branchId: currentBranchId,
                                 description: 'Combustible diario',
                                 amount: fuelPreset,

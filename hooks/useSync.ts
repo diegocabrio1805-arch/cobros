@@ -556,11 +556,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     date: d.date, branch_id: d.branchId, added_by: d.addedBy,
                     updated_at: new Date().toISOString()
                 })},
-                'ADD_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: false, mapper: (d) => ({
-                    id: d.id, description: d.description, amount: d.amount, category: d.category,
-                    date: d.date, branch_id: d.branchId,
-                    updated_at: new Date().toISOString()
-                })},
+                'ADD_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: false, mapper: (d) => {
+                    // Auto-heal: Si el ID es de 9 caracteres (inválido para UUID), generamos uno nuevo y válido.
+                    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.id);
+                    const safeId = isValidUUID ? d.id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + '000000').replace(/./g, (c, i) => i===8||i===13||i===18||i===23?'-':c).substring(0,36);
+                    return {
+                        id: safeId, description: d.description, amount: d.amount, category: d.category,
+                        date: d.date, branch_id: d.branchId,
+                        updated_at: new Date().toISOString()
+                    };
+                }},
                 'UPDATE_SETTINGS': { items: [], table: 'branch_settings', isDelete: false, mapper: (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() }) },
                 'DELETE_LOG': { items: [], table: 'collection_logs', isDelete: true, mapper: (d) => d },
                 'DELETE_PAYMENT': { items: [], table: 'payments', isDelete: true, mapper: (d) => d },
