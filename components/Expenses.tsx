@@ -298,25 +298,29 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
         </div>
 
-        {/* CUADRO 2: EFECTIVO EN CAJA (CON GANANCIAS Y DESCUENTOS) */}
-        <div className="bg-slate-900 p-5 rounded-[2rem] shadow-xl relative overflow-hidden group">
+        {/* CUADRO 2: EFECTIVO EN CAJA (IMPECCABLE NEO KINPAKU) */}
+        <div className="bg-[oklch(11%_0.006_95)] p-6 rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[oklch(84%_0.19_80.46)] to-transparent opacity-80"></div>
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Trésorerie Réelle' : state.settings.language === 'pt' ? 'Dinheiro Real em Caixa' : 'Efectivo Real en Caja'}</p>
-            <h3 className={`text-xl lg:text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
+            <p className="text-[10px] font-mono font-medium text-[oklch(88%_0_0)] uppercase tracking-[0.18em] mb-2">{state.settings.language === 'fr' ? 'Trésorerie Réelle' : state.settings.language === 'pt' ? 'Dinheiro Real em Caixa' : 'Efectivo Real en Caja'}</p>
+            <h3 className={`text-2xl lg:text-3xl font-light tracking-tight ${currentCashInHand >= 0 ? 'text-[oklch(91%_0_0)]' : 'text-[#ff5f56]'}`}>
               {formatCurrency(currentCashInHand, state.settings)}
             </h3>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
+            <div className="mt-4 pt-4 space-y-2 border-t border-[oklch(78%_0_0/0.16)]">
+              <div className="flex justify-between text-[9px] font-mono tracking-widest text-[oklch(72%_0_0)] uppercase">
                 <span>{state.settings.language === 'fr' ? 'Base + Recouv.:' : state.settings.language === 'pt' ? 'Base + Cobranças:' : 'Base + Cobros:'}</span>
-                <span className="text-emerald-400">+{formatCurrency(state.initialCapital + collectedCash, state.settings)}</span>
+                <span className="text-[oklch(70%_0.12_188)]">+{formatCurrency(state.initialCapital + collectedCash, state.settings)}</span>
               </div>
-              <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
+              <div className="flex justify-between text-[9px] font-mono tracking-widest text-[oklch(72%_0_0)] uppercase">
                 <span>{state.settings.language === 'fr' ? 'Livré + Dépenses:' : state.settings.language === 'pt' ? 'Entregue + Despesas:' : 'Entregado + Gastos:'}</span>
-                <span className="text-red-400">-{formatCurrency(lentCash + totalOperatingExpenses, state.settings)}</span>
+                <span className="text-[#ff5f56]">-{formatCurrency(lentCash + totalOperatingExpenses, state.settings)}</span>
               </div>
             </div>
           </div>
-          <div className="absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[6px] font-black border border-emerald-500/30 animate-pulse">{state.settings.language === 'fr' ? 'EN DIRECT' : state.settings.language === 'pt' ? 'AO VIVO' : 'EN VIVO'}</div>
+          <div className="absolute top-4 right-4 flex items-center gap-2 px-2.5 py-1 bg-[oklch(70%_0.105_190/0.15)] text-[oklch(76%_0.088_190)] rounded-full text-[8px] font-mono font-medium tracking-widest border border-[oklch(70%_0.105_190/0.3)]">
+            <div className="w-1.5 h-1.5 rounded-full bg-[oklch(70%_0.12_188)] animate-pulse"></div>
+            {state.settings.language === 'fr' ? 'EN DIRECT' : state.settings.language === 'pt' ? 'AO VIVO' : 'EN VIVO'}
+          </div>
         </div>
 
         {/* CUADRO 3: CRÉDITOS OTORGADOS */}
