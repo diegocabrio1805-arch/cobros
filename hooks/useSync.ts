@@ -559,11 +559,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 })},
                 'ADD_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: false, mapper: (d) => {
                     // Auto-heal: Si el ID es de 9 caracteres (inválido para UUID), generamos uno nuevo y válido.
-                    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.id);
-                    const safeId = isValidUUID ? d.id : generateUUID();
+                    const isValUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.id);
+                    const safeId = isValUUID ? d.id : generateUUID();
                     return {
                         id: safeId, description: d.description, amount: d.amount, category: d.category,
                         date: d.date, branch_id: d.branchId,
+                        created_at: d.created_at || new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     };
                 }},
@@ -614,8 +615,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     deleted_at: new Date().toISOString()
                                 }), 15000).catch(e => console.warn('Ignored deleted_items insert error:', e));
                             }
-                            const { error } = await withTimeout(supabase.from(table).delete().eq('id', item.data.id), 15000);
-                            if (error) throw error;
+                            
+                            // Auto-heal para DELETE: Si el ID no es un UUID válido, nunca pudo haber existido en Supabase.
+                            // Por lo tanto, no intentamos borrarlo (para evitar error 400), simplemente lo marcamos como procesado.
+                            const isValUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.data.id);
+                            if (isValUUID) {
+                                const { error } = await withTimeout(supabase.from(table).delete().eq('id', item.data.id), 15000);
+                                if (error) throw error;
+                            } else {
+                                console.log(`[Auto-Heal] Ignorando DELETE para ID inválido ${item.data.id} en ${table}. Nunca existió en BD.`);
+                            }
+                            
                             processedIds.add(item._id);
                             setQueueLength(prev => Math.max(0, prev - 1));
                         } catch (err) {
