@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
 import { User, Role, AppState, CountryCode } from '../types';
 import { getTranslation } from '../utils/translations';
-import { formatCountryTime, getCountryName } from '../utils/helpers';
+import { formatCountryTime, getCountryName, getTimeZoneForCountry } from '../utils/helpers';
 
 interface SidebarProps {
   activeTab: string;
@@ -19,7 +19,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
   const isManager = user.role === Role.MANAGER;
   const isPowerUser = isAdmin || isManager;
 
-  const [currentTime, setCurrentTime] = useState<string>('');
+  const [currentDateStr, setCurrentDateStr] = useState<string>('');
+  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
   const t = getTranslation(state.settings.language).menu;
 
   const countryCode = state.settings.country as CountryCode;
@@ -34,10 +35,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
   };
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(formatCountryTime(countryCode));
-    }, 1000);
-    setCurrentTime(formatCountryTime(countryCode));
+    const updateDateTime = () => {
+      const now = new Date();
+      const tz = getTimeZoneForCountry(countryCode);
+      
+      const dateOpts: Intl.DateTimeFormatOptions = { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' };
+      const timeOpts: Intl.DateTimeFormatOptions = { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+      
+      setCurrentDateStr(new Intl.DateTimeFormat('es-ES', dateOpts).format(now).toUpperCase());
+      setCurrentTimeStr(new Intl.DateTimeFormat('es-ES', timeOpts).format(now));
+    };
+
+    const timer = setInterval(updateDateTime, 1000);
+    updateDateTime();
     return () => clearInterval(timer);
   }, [countryCode]);
 
@@ -91,17 +101,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         </div>
 
         {/* Sección de País y Hora Local - Premium Card */}
-        <div className="bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xl leading-none drop-shadow-sm">{flags[countryCode] || '🌎'}</span>
-              <span className="text-[10px] font-black text-white/80 uppercase tracking-tighter truncate">{countryName}</span>
-            </div>
+        <div className="bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-black text-white uppercase tracking-wider truncate leading-none">{countryName}</span>
             <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
           </div>
-          <div className="flex items-center gap-2 text-emerald-400/90">
-            <i className="fa-regular fa-clock text-[10px]"></i>
-            <span className="text-sm font-black font-mono tracking-[0.15em]">{currentTime}</span>
+          <div className="flex flex-col gap-1.5 text-emerald-400/90">
+            <span className="text-[10px] font-black tracking-widest leading-none text-emerald-400/90">{currentDateStr}</span>
+            <div className="flex items-center gap-2">
+              <i className="fa-regular fa-clock text-xs opacity-80"></i>
+              <span className="text-base font-black font-serif tracking-wider tabular-nums lining-nums leading-none">{currentTimeStr}</span>
+            </div>
           </div>
         </div>
       </div>

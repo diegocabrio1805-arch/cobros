@@ -58,7 +58,7 @@ const COUNTRY_TIMEZONES: Record<string, string> = {
   'KN': 'America/St_Kitts'
 };
 
-const getTimeZoneForCountry = (country: string): string => {
+export const getTimeZoneForCountry = (country: string): string => {
   return COUNTRY_TIMEZONES[country] || 'America/Bogota';
 };
 

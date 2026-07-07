@@ -12,6 +12,74 @@ interface DashboardProps {
   state: AppState;
 }
 
+const Custom3DBar = (props: any) => {
+  const { fill, x, y, width, height } = props;
+  const depth = 20; // Mayor profundidad para parecer fajo de billetes
+
+  if (!height || height <= 0) return null;
+
+  const cx = x + width / 2 + depth / 2;
+  const cy = y - depth / 2;
+  const patternId = `stack-${fill.replace('#', '')}`;
+
+  return (
+    <g>
+      <defs>
+        <pattern id={`${patternId}-front`} width="10" height="6" patternUnits="userSpaceOnUse">
+          <rect width="10" height="6" fill={fill} />
+          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+        </pattern>
+        <pattern id={`${patternId}-side`} width="10" height="6" patternUnits="userSpaceOnUse">
+          <rect width="10" height="6" fill={fill} />
+          <rect width="10" height="6" fill="black" fillOpacity="0.2" />
+          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+        </pattern>
+      </defs>
+
+      {/* Cara Frontal (Líneas de billetes apilados) */}
+      <rect x={x} y={y} width={width} height={height} fill={`url(#${patternId}-front)`} stroke="rgba(0,0,0,0.4)" strokeWidth={1} />
+      
+      {/* Cara Lateral Derecha */}
+      <polygon 
+        points={`${x + width},${y} ${x + width + depth},${y - depth} ${x + width + depth},${y + height - depth} ${x + width},${y + height}`} 
+        fill={`url(#${patternId}-side)`} 
+        stroke="rgba(0,0,0,0.4)" 
+        strokeWidth={1}
+        strokeLinejoin="round"
+      />
+      
+      {/* Cara Superior (Billete Principal) */}
+      <g>
+        <polygon 
+          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
+          fill={fill}
+          stroke="rgba(0,0,0,0.4)" 
+          strokeWidth={1}
+          strokeLinejoin="round"
+        />
+        <polygon 
+          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
+          fill="white"
+          fillOpacity={0.15}
+        />
+        {/* Marco interno del billete */}
+        <polygon 
+          points={`${x + 4},${y - 2} ${x + depth + 1},${y - depth + 2} ${x + width + depth - 4},${y - depth + 2} ${x + width - 1},${y - 2}`} 
+          fill="none"
+          stroke="rgba(255,255,255,0.6)" 
+          strokeWidth={1}
+        />
+        {/* Sello central del billete */}
+        <polygon 
+          points={`${cx},${cy - 4} ${cx + 8},${cy} ${cx},${cy + 4} ${cx - 8},${cy}`} 
+          fill="rgba(255,255,255,0.8)"
+        />
+        <circle cx={cx} cy={cy} r={2} fill={fill} opacity={0.9} />
+      </g>
+    </g>
+  );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const [insights, setInsights] = useState<any>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -735,12 +803,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
   };
 
-  const chartData = [
-    { name: (t as any).charts?.capital || 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
-    { name: (t as any).charts?.income || 'Ingresos', value: totalProfit, color: '#10b981' },
-    { name: (t as any).charts?.expenses || 'Gastos', value: totalExpenses, color: '#f43f5e' },
-    { name: (t as any).charts?.utility || 'Utilidad', value: netUtility, color: '#3b82f6' },
-  ];
+  // chartData se mueve abajo para tener acceso a currentMonthTotalExpenses
 
   const currentMonthTotalExpenses = useMemo(() => {
     const today = new Date();
@@ -774,6 +837,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     return totalSueldos + totalMonthGastos;
   }, [state.users, state.isolatedExpenses, state.currentUser]);
 
+  const chartData = [
+    { name: (t as any).charts?.capital || 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
+    { name: (t as any).charts?.income || 'Ingresos', value: totalProfit, color: '#10b981' },
+    { name: (t as any).charts?.expenses || 'Gastos', value: currentMonthTotalExpenses, color: '#f43f5e' },
+    { name: (t as any).charts?.utility || 'Utilidad', value: totalProfit - currentMonthTotalExpenses, color: '#3b82f6' },
+  ];
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
@@ -1190,39 +1259,40 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             </div>
           </div>
 
-          <div className="h-[280px] w-full mt-auto bg-slate-50/50 rounded-md p-4 border border-slate-100 relative">
+          <div className="h-[280px] w-full mt-auto bg-slate-900 rounded-md p-4 border border-slate-800 relative shadow-inner">
             <ResponsiveContainer width="100%" height={250} minWidth={0}>
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <BarChart data={chartData} margin={{ top: 30, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }}
+                  tick={{ fontSize: 10, fill: '#f8fafc', fontWeight: 700 }}
                   dy={10}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}
+                  tick={{ fontSize: 9, fill: '#e2e8f0', fontWeight: 600 }}
                   tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
-                  cursor={{ fill: '#f1f5f9', opacity: 0.6 }}
-                  contentStyle={{
-                    borderRadius: '1rem',
-                    border: 'none',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    backgroundColor: '#1e293b',
-                    color: '#fff',
-                    padding: '12px'
+                  cursor={{ fill: '#1e293b', opacity: 0.6 }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
+                          <p className="text-slate-300 font-bold text-[10px] uppercase tracking-wider mb-1">{label}</p>
+                          <p className="text-emerald-400 font-mono font-black text-sm">
+                            {formatCurrency(payload[0].value, state.settings)}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
-                  itemStyle={{ color: '#fff', padding: '2px 0' }}
-                  formatter={(value: number) => formatCurrency(value, state.settings)}
                 />
-                <Bar dataKey="value" name={(t as any).charts?.value || 'Value'} radius={[12, 12, 0, 0]} barSize={40}>
+                <Bar dataKey="value" name={(t as any).charts?.value || 'Value'} shape={<Custom3DBar />} barSize={45}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
