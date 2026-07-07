@@ -464,7 +464,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const dayOfWeek = now.getDay();
       const fourWeeksAgo = new Date(now);
       fourWeeksAgo.setHours(0, 0, 0, 0);
-      fourWeeksAgo.setDate(now.getDate() - dayOfWeek - 3 * 7);
+      fourWeeksAgo.setDate(now.getDate() - dayOfWeek - 4 * 7);
 
       const recaudo4Sem = logsSafe
         .filter(log => {
