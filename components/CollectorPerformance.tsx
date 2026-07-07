@@ -206,14 +206,14 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
           </h2>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{(t as any).performanceDashboard?.subtitle || 'Análisis de Gestión Mensual'}</p>
         </div>
-        <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white px-5 py-3 rounded-md border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="text-right">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).performanceDashboard?.currentPeriod || 'Periodo Actual'}</p>
             <p className="text-xs font-black text-slate-800 uppercase">
               {new Date().toLocaleDateString(state.settings.language || 'es', { month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-md flex items-center justify-center">
             <i className="fa-solid fa-calendar-check"></i>
           </div>
         </div>
@@ -221,7 +221,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
       <div className="grid grid-cols-1 gap-6">
         {(Array.isArray(collectors) ? collectors : []).length === 0 ? (
-          <div className="py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400">
+          <div className="py-20 bg-white rounded-md border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400">
             <i className="fa-solid fa-user-tag text-5xl mb-4 opacity-20"></i>
             <p className="text-lg font-bold">{(t as any).performanceDashboard?.noCollectors || 'No hay cobradores para auditar.'}</p>
           </div>
@@ -230,12 +230,12 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
             const stats = getMonthlyStats(collector.id);
 
             return (
-              <div key={collector.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl hover:border-blue-100 transition-all duration-300 group">
+              <div key={collector.id} className="bg-white rounded-md border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl hover:border-blue-100 transition-all duration-300 group">
                 <div className="p-8 flex flex-col lg:flex-row gap-8 items-center">
                   {/* Perfil y Cobertura */}
                   <div className="w-full lg:w-1/4 flex flex-col items-center text-center space-y-4 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-8">
                     <div className="relative">
-                      <div className="w-20 h-20 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black shadow-2xl transition-transform group-hover:scale-110 duration-500">
+                      <div className="w-20 h-20 bg-slate-900 text-white rounded-md flex items-center justify-center text-3xl font-black shadow-2xl transition-transform group-hover:scale-110 duration-500">
                         {collector.name.charAt(0)}
                       </div>
                       {stats.allVisited && (
@@ -267,8 +267,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
                   {/* Métricas Financieras Mensuales */}
                   <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div className="p-6 bg-emerald-50/50 rounded-[2rem] border border-emerald-100 flex flex-col justify-between group-hover:bg-emerald-50 transition-colors">
-                      <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+                    <div className="p-6 bg-emerald-50/50 rounded-md border border-emerald-100 flex flex-col justify-between group-hover:bg-emerald-50 transition-colors">
+                      <div className="w-10 h-10 bg-emerald-600 text-white rounded-md flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
                         <i className="fa-solid fa-money-bill-trend-up"></i>
                       </div>
                       <div>
@@ -277,8 +277,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                       </div>
                     </div>
 
-                    <div className="p-6 bg-red-50/50 rounded-[2rem] border border-red-100 flex flex-col justify-between group-hover:bg-red-50 transition-colors">
-                      <div className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-red-500/20">
+                    <div className="p-6 bg-red-50/50 rounded-md border border-red-100 flex flex-col justify-between group-hover:bg-red-50 transition-colors">
+                      <div className="w-10 h-10 bg-red-600 text-white rounded-md flex items-center justify-center mb-4 shadow-lg shadow-red-500/20">
                         <i className="fa-solid fa-hand-holding-dollar"></i>
                       </div>
                       <div>
@@ -287,8 +287,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                       </div>
                     </div>
 
-                    <div className="p-6 bg-slate-900 rounded-[2rem] text-white flex flex-col justify-between relative overflow-hidden group-hover:shadow-2xl transition-all duration-500">
-                      <div className="w-10 h-10 bg-white/20 text-white rounded-xl flex items-center justify-center mb-4">
+                    <div className="p-6 bg-slate-900 rounded-md text-white flex flex-col justify-between relative overflow-hidden group-hover:shadow-2xl transition-all duration-500">
+                      <div className="w-10 h-10 bg-white/20 text-white rounded-md flex items-center justify-center mb-4">
                         <i className="fa-solid fa-star text-amber-400"></i>
                       </div>
                       <div className="relative z-10">
@@ -303,7 +303,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
                   {/* Status Final */}
                   <div className="w-full lg:w-48 flex flex-col gap-3">
-                    <div className={`p-4 rounded-2xl border text-center ${stats.allVisited ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100 animate-pulse'}`}>
+                    <div className={`p-4 rounded-md border text-center ${stats.allVisited ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100 animate-pulse'}`}>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).performanceDashboard?.pendingClients || 'Clientes Pendientes'}</p>
                       <p className={`text-xs font-black uppercase ${stats.allVisited ? 'text-emerald-600' : 'text-red-600'}`}>
                         {stats.allVisited ? ((t as any).performanceDashboard?.yesCompleted || 'SÍ, CUMPLIÓ') : `${stats.missedClients.length} ${((t as any).performanceDashboard?.withoutVisit || 'SIN VISITA')}`}
@@ -311,7 +311,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                     </div>
                     <button
                       onClick={() => handleExportDetailedPDF(collector, stats)}
-                      className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-700"
+                      className="w-full py-3 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-700"
                     >
                       {(t as any).performanceDashboard?.fullDetail || 'DETALLE COMPLETO'}
                     </button>

@@ -150,8 +150,8 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
       <div className="flex justify-between items-center mb-4">
         <h5 className="text-[10px] font-black uppercase text-slate-900">{monthNames[month]} {year}</h5>
         <div className="flex gap-1">
-          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month - 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-left text-[10px]"></i></button>
-          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month + 1))} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-right text-[10px]"></i></button>
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month - 1))} className="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-left text-[10px]"></i></button>
+          <button type="button" onClick={() => setCurrentCalDate(new Date(year, month + 1))} className="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-500"><i className="fa-solid fa-chevron-right text-[10px]"></i></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center mb-1">
@@ -196,7 +196,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   return (
     <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
       <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
-      <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
+      <div className={`relative group aspect-square rounded-md border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
         {value ? (
           <>
             {isPdf ? (
@@ -221,7 +221,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
               </div>
             )}
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-lg">{lang === 'fr' ? 'Agrandir' : lang === 'pt' ? 'Ampliar' : 'Ampliar'}</span>
+              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-md">{lang === 'fr' ? 'Agrandir' : lang === 'pt' ? 'Ampliar' : 'Ampliar'}</span>
             </div>
           </>
         ) : (
@@ -2384,18 +2384,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     <>
       <PullToRefresh onRefresh={async () => { if (onForceSync) await onForceSync(true, 'Actualizando clientes...', true); }}>
         <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
-        <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
-          <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> {((t as any).clients?.tabs || {}).records}</button>
-          <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> {((t as any).clients?.tabs || {}).add}</button>
-          <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> {((t as any).clients?.tabs || {}).renewals}</button>
-          <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> {((t as any).clients?.tabs || {}).portfolio}</button>
-          <button onClick={() => setViewMode('finalizados')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'finalizados' ? 'bg-slate-500 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-flag-checkered"></i> {((t as any).clients?.tabs || {}).finished}</button>
+        <div className="bg-white p-2 rounded-md md:rounded-md border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
+          <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> {((t as any).clients?.tabs || {}).records}</button>
+          <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> {((t as any).clients?.tabs || {}).add}</button>
+          <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> {((t as any).clients?.tabs || {}).renewals}</button>
+          <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> {((t as any).clients?.tabs || {}).portfolio}</button>
+          <button onClick={() => setViewMode('finalizados')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'finalizados' ? 'bg-slate-500 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-flag-checkered"></i> {((t as any).clients?.tabs || {}).finished}</button>
           {(isAdmin || isManager) && (
-            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> {((t as any).clients?.tabs || {}).hidden}</button>
+            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> {((t as any).clients?.tabs || {}).hidden}</button>
           )}
         </div>
 
-        <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="bg-white p-4 md:p-6 rounded-md md:rounded-md border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
               <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : viewMode === 'finalizados' ? 'fa-flag-checkered text-slate-600' : 'fa-briefcase text-slate-950'}`}></i>
@@ -2406,25 +2406,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={handlePrintCartera}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-md font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <i className="fa-solid fa-print text-xs text-indigo-500"></i> {((t as any).clients?.headers || {}).print}
                 </button>
                 <button
                   onClick={handleExportPDF}
-                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-md font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <i className="fa-solid fa-file-pdf text-xs"></i> {((t as any).clients?.headers || {}).pdf}
                 </button>
                 <button
                   onClick={() => setShowImportModal(true)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Upload className="h-3 w-3" /> {((t as any).clients?.headers || {}).importExcel}
                 </button>
                 <button
                   onClick={() => exportClientsToExcel(carteraExcelData, state.loans)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
                 </button>
@@ -2433,7 +2433,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             {isAdminOrManager && (
-              <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
+              <div className="bg-slate-50 px-4 py-2 rounded-md border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-lg">👩‍🚀</span>
                 <select
                   value={selectedCollector}
@@ -2449,7 +2449,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             )}
             {viewMode === 'finalizados' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
-                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
+                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-300 shadow-inner w-full sm:w-auto">
                   <input type="date" value={finalizadosDate} onChange={(e) => setFinalizadosDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                   <span className="text-slate-500 font-bold">-</span>
                   <input type="date" value={finalizadosEndDate} onChange={(e) => setFinalizadosEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
@@ -2457,14 +2457,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
             ) : viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
-                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
+                <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-300 shadow-inner w-full sm:w-auto">
                   <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                   <span className="text-slate-500 font-bold">-</span>
                   <input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                 </div>
               </div>
             ) : (
-              <button onClick={() => setShowModal(true)} className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg active:scale-95 transition-all"><i className="fa-solid fa-user-plus mr-2"></i> {(((t as any).clients?.list || {})?.newClient) || 'NUEVO CLIENTE'}</button>
+              <button onClick={() => setShowModal(true)} className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4 rounded-md font-black text-[11px] uppercase shadow-lg active:scale-95 transition-all"><i className="fa-solid fa-user-plus mr-2"></i> {(((t as any).clients?.list || {})?.newClient) || 'NUEVO CLIENTE'}</button>
             )}
           </div>
         </div>
@@ -2476,7 +2476,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
               placeholder={(t as any).clients.search}
-              className="w-full bg-white border border-slate-300 rounded-2xl py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950"
+              className="w-full bg-white border border-slate-300 rounded-md py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950"
             />
             <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"></i>
           </div>
@@ -2484,12 +2484,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           {viewMode === 'gestion' && (
             <div className="space-y-4">
               <div className="px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-md">
                   <i className="fa-solid fa-database mr-1"></i> {(((t as any).clients?.list || {})?.total) || 'Total:'} <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> {(((t as any).clients?.list || {})?.viewing) || 'Viendo:'} <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+              <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead>
@@ -2518,7 +2518,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         return (
                           <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                             <td className="px-4 py-3">
-                              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                              <div className="w-10 h-10 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                                 {client.profilePic
                                   ? <img src={client.profilePic} className="w-full h-full object-cover" />
                                   : <i className="fa-solid fa-user text-slate-400 text-sm"></i>
@@ -2569,7 +2569,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <td className="px-6 py-3 text-center">
                               <button
                                 onClick={() => setShowLegajo(client.id)}
-                                className="px-5 py-2 bg-blue-50 text-blue-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100"
+                                className="px-5 py-2 bg-blue-50 text-blue-800 rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100"
                               >
                                 {(((t as any).clients?.list || {})?.dossier) || 'EXPEDIENTE'}
                               </button>
@@ -2587,11 +2587,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                      className="w-10 h-10 bg-white border border-slate-200 rounded-md text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
                     >
                       <i className="fa-solid fa-chevron-left text-xs"></i>
                     </button>
-                    <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
                       <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
                         Página <span className="text-emerald-600 text-sm">{currentPage}</span> / {totalPages}
                       </span>
@@ -2599,7 +2599,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                      className="w-10 h-10 bg-white border border-slate-200 rounded-md text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
                     >
                       <i className="fa-solid fa-chevron-right text-xs"></i>
                     </button>
@@ -2611,7 +2611,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         </div>
         {
           viewMode === 'nuevos' && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
@@ -2676,7 +2676,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               {nuevosExcelData.length > displayLimit && (
                 <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
-                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({nuevosExcelData.length - displayLimit} restantes)</button>
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-md transition-all">Mostrar Más ({nuevosExcelData.length - displayLimit} restantes)</button>
                 </div>
               )}
             </div>
@@ -2686,7 +2686,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* VISTA EXCEL: RENOVACIONES */}
         {
           viewMode === 'renovaciones' && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
@@ -2747,7 +2747,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               {renovacionesExcelData.length > displayLimit && (
                 <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
-                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({renovacionesExcelData.length - displayLimit} restantes)</button>
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-md transition-all">Mostrar Más ({renovacionesExcelData.length - displayLimit} restantes)</button>
                 </div>
               )}
             </div>
@@ -2757,7 +2757,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* VISTA EXCEL: CARTERA GENERAL ORDENADA POR FECHA REGISTRO */}
         {
           viewMode === 'cartera' && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
@@ -2831,9 +2831,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
+                            <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
                             {isAdminOrManager && (
-                              <button onClick={() => handleToggleHideClient(client.id)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-600 active:scale-90 transition-all" title="Ocultar Cliente"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
+                              <button onClick={() => handleToggleHideClient(client.id)} className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-600 active:scale-90 transition-all" title="Ocultar Cliente"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
                             )}
                           </div>
                         </td>
@@ -2844,7 +2844,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               {carteraExcelData.length > displayLimit && (
                 <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
-                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({carteraExcelData.length - displayLimit} restantes)</button>
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-md transition-all">Mostrar Más ({carteraExcelData.length - displayLimit} restantes)</button>
                 </div>
               )}
             </div>
@@ -2853,7 +2853,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         {
           viewMode === 'ocultos' && (isAdmin || isManager) && (
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
@@ -2902,7 +2902,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
               {ocultosExcelData.length > displayLimit && (
                 <div className="p-4 flex justify-center bg-slate-50 border-t border-slate-200">
-                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-xl transition-all">Mostrar Más ({ocultosExcelData.length - displayLimit} restantes)</button>
+                  <button onClick={() => setDisplayLimit(d => d + 50)} className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-[10px] uppercase rounded-md transition-all">Mostrar Más ({ocultosExcelData.length - displayLimit} restantes)</button>
                 </div>
               )}
             </div>
@@ -2911,7 +2911,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
          {/* VISTA: FINALIZADOS POR FECHA */}
          {viewMode === 'finalizados' && (
-           <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+           <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden">
              {finalizadosData.length === 0 ? (
                <div className="py-24 flex flex-col items-center justify-center text-slate-400 gap-4">
                  <i className="fa-solid fa-flag-checkered text-5xl opacity-10"></i>
@@ -2990,10 +2990,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-700">{formatCurrency(loan.principal, state.settings)}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-900">{formatCurrency(loan.totalAmount, state.settings)}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
-                               <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-lg uppercase">{loan.totalInstallments} {state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'CUOTAS'}</span>
+                               <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-md uppercase">{loan.totalInstallments} {state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'CUOTAS'}</span>
                              </td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
-                               <span className={`font-black text-[10px] px-3 py-1 rounded-lg ${
+                               <span className={`font-black text-[10px] px-3 py-1 rounded-md ${
                                  totalCredits >= 5 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
                                  totalCredits >= 3 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                                  'bg-slate-100 text-slate-600 border border-slate-200'
@@ -3024,15 +3024,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showModal && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-hidden pt-4 md:pt-10">
-              <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
+              <div className="bg-white rounded-md md:rounded-md shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
                 <div className="p-4 md:p-5 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-white/10 sticky top-0 z-20">
                   <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{((t as any).clients?.registrationForm || {}).title}</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">{((t as any).clients?.registrationForm || {}).subtitle}</p></div>
-                  <button onClick={() => setShowModal(false)} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+                  <button onClick={() => setShowModal(false)} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-md flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <form onSubmit={handleSubmitNewClient} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-6 bg-slate-50 mobile-scroll-container">
                   <div className="space-y-3">
                     <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{((t as any).clients?.registrationForm || {}).sec1}</h4>
-                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).name}</div><input required type="text" value={clientData.name} onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).documentId}</div><input required type="text" value={clientData.documentId} onChange={(e: any) => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).nationality}</div><input type="text" value={clientData.nationality} onChange={(e: any) => setClientData({ ...clientData, nationality: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
@@ -3081,7 +3081,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </div>
 
                     <h4 className="text-[9px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec2}</h4>
-                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workCompany}</div><input type="text" value={clientData.workCompany} onChange={(e: any) => setClientData({ ...clientData, workCompany: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workStreetMain}</div><input type="text" value={clientData.workStreetMain} onChange={(e: any) => setClientData({ ...clientData, workStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workStreetSec}</div><input type="text" value={clientData.workStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, workStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
@@ -3096,7 +3096,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </div>
 
                     <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec3}</h4>
-                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseName}</div><input type="text" value={clientData.spouseName} onChange={(e: any) => setClientData({ ...clientData, spouseName: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseDocumentId}</div><input type="text" value={clientData.spouseDocumentId} onChange={(e: any) => setClientData({ ...clientData, spouseDocumentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                       <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseBirthDate}</div><input type="date" value={clientData.spouseBirthDate} onChange={(e: any) => setClientData({ ...clientData, spouseBirthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
@@ -3110,7 +3110,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     </div>
 
                     <h4 className="text-[9px] font-black text-orange-800 uppercase tracking-widest border-l-4 border-orange-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec4}</h4>
-                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                    <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
                       <div className="flex border-b border-slate-200">
                         <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).residenceType}</div>
                         <select value={clientData.residenceType} onChange={(e: any) => setClientData({ ...clientData, residenceType: e.target.value as any })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
@@ -3124,7 +3124,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                       <div className="space-y-2">
-                        <button type="button" onClick={() => handleCaptureLocation('home')} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <button type="button" onClick={() => handleCaptureLocation('home')} className="w-full py-4 bg-emerald-600 text-white rounded-md font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
                           {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-circle-check"></i>}
                           {((t as any).clients?.registrationForm || {}).markHomeGps}
                         </button>
@@ -3141,7 +3141,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   }
                                 }
                               }}
-                              className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-emerald-100 shadow-sm transition-all block"
+                              className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-emerald-100 shadow-sm transition-all block"
                             >
                               {clientData.location.lat.toFixed(6)}, {clientData.location.lng.toFixed(6)} <i className="fa-solid fa-pen ml-1 opacity-50"></i>
                             </div>
@@ -3159,7 +3159,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   }
                                 }
                               }}
-                              className="p-2 border border-dashed border-emerald-500/40 rounded-xl text-[10px] font-black text-emerald-600/90 uppercase text-center cursor-pointer hover:border-emerald-500/70 hover:text-emerald-700 hover:bg-emerald-600/10 transition-all block"
+                              className="p-2 border border-dashed border-emerald-500/40 rounded-md text-[10px] font-black text-emerald-600/90 uppercase text-center cursor-pointer hover:border-emerald-500/70 hover:text-emerald-700 hover:bg-emerald-600/10 transition-all block"
                             >
                               <i className="fa-solid fa-keyboard mr-1"></i> {((t as any).clients?.registrationForm || {}).enter}
                             </div>
@@ -3167,7 +3167,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         )}
                       </div>
                       <div className="space-y-2">
-                        <button type="button" onClick={() => handleCaptureLocation('domicilio')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-blue-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <button type="button" onClick={() => handleCaptureLocation('domicilio')} className="w-full py-4 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-blue-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
                           {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>}
                           {((t as any).clients?.registrationForm || {}).markBusinessGps}
                         </button>
@@ -3184,7 +3184,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   }
                                 }
                               }}
-                              className="p-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-blue-100 shadow-sm transition-all block"
+                              className="p-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-md text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-blue-100 shadow-sm transition-all block"
                             >
                               {clientData.domicilioLocation.lat.toFixed(6)}, {clientData.domicilioLocation.lng.toFixed(6)} <i className="fa-solid fa-pen ml-1 opacity-50"></i>
                             </div>
@@ -3202,7 +3202,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   }
                                 }
                               }}
-                              className="p-2 border border-dashed border-blue-500/40 rounded-xl text-[10px] font-black text-blue-600/90 uppercase text-center cursor-pointer hover:border-blue-500/70 hover:text-blue-700 hover:bg-blue-600/10 transition-all block"
+                              className="p-2 border border-dashed border-blue-500/40 rounded-md text-[10px] font-black text-blue-600/90 uppercase text-center cursor-pointer hover:border-blue-500/70 hover:text-blue-700 hover:bg-blue-600/10 transition-all block"
                             >
                               <i className="fa-solid fa-keyboard mr-1"></i> {((t as any).clients?.registrationForm || {}).enter}
                             </div>
@@ -3212,7 +3212,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                       <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
                         <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">{((t as any).clients?.registrationForm || {}).sec5}</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-md border border-slate-200">
                           <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picProfile || 'Perfil'} field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
                           <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picDocument || 'Cédula'} field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
                           <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picDocumentBack || 'Cédula Dorso'} field="documentBackPic" value={clientData.documentBackPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', clientData)} />
@@ -3228,7 +3228,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec6}</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="space-y-4">
-                          <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
+                          <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-2">
                             {/* 
                             <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div><input type="text" value={initialLoan.sellerCode} onChange={(e: any) => setInitialLoan({ ...initialLoan, sellerCode: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
                             */}
@@ -3266,7 +3266,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   const installment = total / installments;
                                   setSimulationResult({ total, installment });
                                 }}
-                                className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-lg w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
+                                className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-md w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
                               >
                                 {(((t as any).clients?.registrationForm || {}).simulate || 'SIMULAR')}
                               </button>
@@ -3301,7 +3301,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   key={freq}
                                   type="button"
                                   onClick={() => setInitialLoan((prev: any) => ({ ...prev, frequency: freq }))}
-                                  className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border-2 ${initialLoan.frequency === freq ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-emerald-200'}`}
+                                  className={`py-2.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all border-2 ${initialLoan.frequency === freq ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-emerald-200'}`}
                                 >
                                   {(((t as any).clients?.registrationForm || {}).frequencies && ((t as any).clients?.registrationForm || {}).frequencies[freq]) || freq}
                                 </button>
@@ -3315,7 +3315,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <select
                                 value={initialLoan.selectedCollectorId}
                                 onChange={e => setInitialLoan(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
-                                className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
+                                className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-md text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
                               >
                                 <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? (((t as any).clients?.registrationForm || {}).selectCollector || '-- SELECCIONAR COBRADOR --') : (((t as any).clients?.registrationForm || {}).meDefault || 'YO (POR DEFECTO)')}</option>
                                 {Array.isArray(collectors) && collectors.map(c => (
@@ -3340,7 +3340,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className={`w-full py-4 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl transition-all ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 active:scale-95 shadow-emerald-500/20'}`}
+                      className={`w-full py-4 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl transition-all ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 active:scale-95 shadow-emerald-500/20'}`}
                     >
                       {isSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -3358,7 +3358,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN PDF */}
         {receipt && (
           <div id="receipt-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
-            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-md text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
             <div className="text-center mb-4">
               <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
               <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
@@ -3377,10 +3377,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showLegajo && clientInLegajo && (
             <div className="fixed inset-0 bg-[#0f172a] flex items-start justify-center z-[120] p-2 overflow-hidden pt-2 md:pt-6">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
+              <div className="bg-white rounded-md shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
                 <div className="p-2 md:p-4 bg-[#0f172a] text-white shrink-0 flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/10 sticky top-0 z-20 gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border-2 border-white/10 overflow-hidden bg-white/5 shadow-xl shrink-0">{clientInLegajo.profilePic && <img src={clientInLegajo.profilePic} className="w-full h-full object-cover" />}</div>
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-md border-2 border-white/10 overflow-hidden bg-white/5 shadow-xl shrink-0">{clientInLegajo.profilePic && <img src={clientInLegajo.profilePic} className="w-full h-full object-cover" />}</div>
                     <div className="min-w-0">
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-tighter leading-tight truncate">{clientInLegajo.name}</h3>
                       <p className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 mt-0.5 truncate"><i className="fa-solid fa-location-dot"></i> {clientInLegajo.address === 'A COMPLETAR' ? (state.settings.language === 'fr' ? 'À COMPLÉTER' : 'A COMPLETAR') : clientInLegajo.address}</p>
@@ -3392,7 +3392,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <button
                           disabled={isSharing}
                           onClick={handleShareLegajo}
-                          className={`px-3 py-2 bg-emerald-500 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all ${isSharing ? 'opacity-50' : ''}`}
+                          className={`px-3 py-2 bg-emerald-500 text-white rounded-md font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all ${isSharing ? 'opacity-50' : ''}`}
                         >
                           {isSharing ? <i className="fa-solid fa-spinner animate-spin text-xs"></i> : <i className="fa-brands fa-whatsapp text-xs"></i>}
                           <span className="hidden xs:inline">{isSharing ? 'GENERANDO...' : 'COMPARTIR'}</span>
@@ -3400,12 +3400,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </button>
                         {isAdminOrManager && (
                           <>
-                            <button onClick={() => setActiveTab?.('settings')} className="px-3 py-2 bg-blue-600 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                            <button onClick={() => setActiveTab?.('settings')} className="px-3 py-2 bg-blue-600 text-white rounded-md font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
                               <i className="fa-solid fa-building text-xs"></i>
                               <span className="hidden sm:inline">{state.settings.language === 'fr' ? 'ÉDITER ENTREPRISE' : 'EDITAR EMPRESA'}</span>
                               <span className="sm:hidden text-[7px]">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</span>
                             </button>
-                            <button onClick={handleOpenCustomNoPay} className="px-3 py-2 bg-amber-500 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                            <button onClick={handleOpenCustomNoPay} className="px-3 py-2 bg-amber-500 text-white rounded-md font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
                               <i className="fa-solid fa-comment-slash text-xs"></i>
                               <span className="hidden sm:inline">{state.settings.language === 'fr' ? 'ÉDITER NON-PAIEMENT' : 'EDITAR NO PAGO'}</span>
                               <span className="sm:hidden text-[7px]">{state.settings.language === 'fr' ? 'NON-PAIEMENT' : 'NO PAGO'}</span>
@@ -3417,36 +3417,36 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     {(isAdminOrManager || clientInLegajo.allowCollectorLocationUpdate) && (
                       <button
                         onClick={isEditingClient ? () => setIsEditingClient(false) : handleStartEdit}
-                        className={`px-3 py-2 rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest transition-all ${isEditingClient ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                        className={`px-3 py-2 rounded-md font-black text-[8px] md:text-[9px] uppercase tracking-widest transition-all ${isEditingClient ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
                       >
                         {isEditingClient ? (state.settings.language === 'fr' ? 'ANNULER' : 'CANCELAR') : (state.settings.language === 'fr' ? 'ÉDITER' : 'EDITAR')}
                       </button>
                     )}
-                    <button onClick={() => { setShowLegajo(null); setIsEditingClient(false); }} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all shrink-0"><i className="fa-solid fa-xmark text-lg"></i></button>
+                    <button onClick={() => { setShowLegajo(null); setIsEditingClient(false); }} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-md flex items-center justify-center hover:bg-red-600 transition-all shrink-0"><i className="fa-solid fa-xmark text-lg"></i></button>
                   </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-50 space-y-4 mobile-scroll-container pb-20">
                   {!isEditingClient ? (
                     <>
-                      <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-center gap-4 animate-fadeIn">
+                      <div className="bg-white p-4 rounded-md border border-slate-300 shadow-sm flex flex-wrap items-center justify-center gap-4 animate-fadeIn">
                         <div className="flex items-center gap-2 border-r pr-4 border-slate-200">
                           <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CARTE GPS:' : 'MAPA GPS:'}</span>
-                          <button onClick={() => handleOpenMap(clientInLegajo.location)} className="px-4 py-2.5 bg-emerald-100 text-emerald-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-emerald-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-house"></i> {state.settings.language === 'fr' ? 'MAISON' : 'CASA'}</button>
-                          <button onClick={() => handleOpenMap(clientInLegajo.domicilioLocation)} className="px-4 py-2.5 bg-blue-100 text-blue-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-blue-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-briefcase"></i> {state.settings.language === 'fr' ? 'TRAVAIL' : 'NEGOCIO'}</button>
+                          <button onClick={() => handleOpenMap(clientInLegajo.location)} className="px-4 py-2.5 bg-emerald-100 text-emerald-900 rounded-md flex items-center gap-2 shadow-sm hover:bg-emerald-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-house"></i> {state.settings.language === 'fr' ? 'MAISON' : 'CASA'}</button>
+                          <button onClick={() => handleOpenMap(clientInLegajo.domicilioLocation)} className="px-4 py-2.5 bg-blue-100 text-blue-900 rounded-md flex items-center gap-2 shadow-sm hover:bg-blue-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-briefcase"></i> {state.settings.language === 'fr' ? 'TRAVAIL' : 'NEGOCIO'}</button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CONTACTS:' : 'CONTACTOS:'}</span>
                           <div className="flex flex-col gap-2">
                             <button
                               onClick={() => window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}`, '_blank')}
-                              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-black text-[9px] flex items-center gap-2 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-md font-black text-[9px] flex items-center gap-2 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                             >
                               <i className="fa-brands fa-whatsapp"></i> {clientInLegajo.phone === 'A COMPLETAR' ? (state.settings.language === 'fr' ? 'À COMPLÉTER' : 'A COMPLETAR') : clientInLegajo.phone}</button>
                             {clientInLegajo.secondaryPhone && (
                               <button
                                 onClick={() => window.open(`https://wa.me/${clientInLegajo.secondaryPhone?.replace(/\D/g, '')}`, '_blank')}
-                                className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg font-black text-[9px] flex items-center gap-2 border border-blue-100 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md font-black text-[9px] flex items-center gap-2 border border-blue-100 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                               >
                                 <i className="fa-brands fa-whatsapp"></i> {clientInLegajo.secondaryPhone}
                               </button>
@@ -3484,7 +3484,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             iconClass = 'fa-calendar';
                           }
                           return (
-                            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 font-black text-[9px] uppercase tracking-wider shadow-sm ${badgeClass}`}>
+                            <div className={`flex items-center gap-2 px-3 py-2 rounded-md border-2 font-black text-[9px] uppercase tracking-wider shadow-sm ${badgeClass}`}>
                               <i className={`fa-solid ${iconClass} text-[10px]`}></i>
                               {texto}
                             </div>
@@ -3495,7 +3495,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                         <div className="lg:col-span-3 space-y-4">
                           {activeLoanInLegajo ? (
-                            <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden" ref={statementRef}>
+                            <div className="bg-slate-900 rounded-md border border-slate-800 shadow-sm overflow-hidden" ref={statementRef}>
                               <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">{state.settings.language === 'fr' ? 'RÉSUMÉ DU COMPTE' : 'Resumen Cuenta'}</h4><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-md uppercase border border-emerald-500/30">{state.settings.language === 'fr' ? 'EN COURS' : 'En curso'}</span></div>
                               <div className="overflow-x-auto">
                                 {(() => {
@@ -3530,7 +3530,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-white p-10 rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4 shadow-inner animate-fadeIn">
+                            <div className="bg-white p-10 rounded-md border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4 shadow-inner animate-fadeIn">
                               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 text-4xl">
                                 <i className="fa-solid fa-money-bill-transfer"></i>
                               </div>
@@ -3540,14 +3540,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                               <button
                                 onClick={() => handleOpenRenewalModal(clientInLegajo)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-3 border border-blue-400/30"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-md font-black text-[11px] uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-3 border border-blue-400/30"
                               >
                                 <i className="fa-solid fa-plus-circle"></i> NUEVA RENOVACIÓN / CRÉDITO
                               </button>
                             </div>
                           )}
 
-                          <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
+                          <div className="bg-slate-900 rounded-md border border-slate-800 shadow-sm overflow-hidden">
                             <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">{state.settings.language === 'fr' ? 'HISTORIQUE RÉCENT' : 'Historial Reciente'}</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
                             <div className="max-h-[400px] overflow-y-auto mobile-scroll-container">
                               <table className="w-full text-[10px] border-collapse min-w-[350px]">
@@ -3597,13 +3597,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                                     setTimeout(() => recalculateLoanStatus(log.loanId!), 500);
                                                   }
                                                 }
-                                              }} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
+                                              }} className="w-7 h-7 rounded-md bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                                             </div>
                                           )}
                                           {isAdminOrManager && isLoanGrant && log.loanId && (
                                             <button
                                               onClick={() => { if (confirm('⚠️ ¿ELIMINAR ESTE CRÉDITO? Esta acción eliminará el crédito completo y no se puede deshacer.')) deleteLoan?.(log.loanId!); }}
-                                              className="w-7 h-7 rounded-lg bg-red-600/30 text-red-400 flex items-center justify-center border border-red-500/40 shadow-sm"
+                                              className="w-7 h-7 rounded-md bg-red-600/30 text-red-400 flex items-center justify-center border border-red-500/40 shadow-sm"
                                               title="Eliminar Crédito"
                                             >
                                               <i className="fa-solid fa-trash-can text-[10px]"></i>
@@ -3619,7 +3619,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS PERSONNELLES' : 'Información Personal'}</h4><i className="fa-solid fa-user-check text-slate-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
@@ -3636,7 +3636,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'HISTORIQUE DE CRÉDIT' : 'Historial Crediticio'}</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
                               <div className="p-0 max-h-[220px] overflow-y-auto">
                                 <table className="w-full text-left border-collapse">
@@ -3713,7 +3713,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden col-span-1 md:col-span-2">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden col-span-1 md:col-span-2">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS RÉSIDENTIELLES ET PRO.' : 'Información de Vivienda y Laboral'}</h4><i className="fa-solid fa-house-laptop text-slate-400"></i></div>
                               <div className="p-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                                 <div>
@@ -3743,7 +3743,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS DU CONJOINT' : 'Información del Cónyuge'}</h4><i className="fa-solid fa-heart text-red-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
@@ -3759,7 +3759,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'RÉFÉRENCES PERSONNELLES' : 'Referencias Personales'}</h4><i className="fa-solid fa-users text-blue-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
@@ -3775,7 +3775,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                           {/* CRONOGRAMA DE PAGOS VISIBLE */}
                           {activeLoanInLegajo && (
-                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden animate-fadeIn">
+                            <div className="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden animate-fadeIn">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                 <h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CALENDRIER DE PAIEMENT' : 'Cronograma de Pagos'}</h4>
                                 <span className="text-[8px] font-bold text-slate-400 uppercase">{(Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).length} {state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'CUOTAS'}</span>
@@ -3811,9 +3811,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                     const isPartial = amountPaidForThisOne > 0 && amountPaidForThisOne < installmentAmount;
 
                                     return (
-                                      <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border ${isPaid ? 'bg-emerald-50 border-emerald-200' : isPartial ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                      <div key={idx} className={`flex items-center justify-between p-3 rounded-md border ${isPaid ? 'bg-emerald-50 border-emerald-200' : isPartial ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 shadow-sm'}`}>
                                         <div className="flex items-center gap-2">
-                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isPaid ? 'bg-emerald-600 text-white' : isPartial ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+                                          <div className={`w-8 h-8 rounded-md flex items-center justify-center font-black text-[10px] ${isPaid ? 'bg-emerald-600 text-white' : isPartial ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
                                             {inst.number}
                                           </div>
                                           <div className="flex flex-col">
@@ -3844,7 +3844,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           )}
                         </div>
                         <div className="space-y-4">
-                          <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm space-y-3">
+                          <div className="bg-white p-4 rounded-md border border-slate-300 shadow-sm space-y-3">
                             <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">{state.settings.language === 'fr' ? 'PHOTOS DU DOSSIER' : 'Fotos del Expediente'}</h4>
                             <div className="grid grid-cols-2 gap-2">
                               {[{ key: 'profilePic', label: state.settings.language === 'fr' ? 'Profil' : 'Perfil' }, { key: 'documentPic', label: state.settings.language === 'fr' ? 'Identité' : 'Cédula' }, { key: 'documentBackPic', label: state.settings.language === 'fr' ? 'Identité Verso' : 'Cédula Dorso' }, { key: 'businessPic', label: state.settings.language === 'fr' ? 'Travail' : 'Negocio' }, { key: 'housePic', label: state.settings.language === 'fr' ? 'Façade' : 'Fachada' }].map((item: { key: string, label: string }) => {
@@ -3854,7 +3854,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                                 return (
                                   <div key={item.key} className="flex flex-col items-center">
-                                    <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
+                                    <div className="aspect-square w-full bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center relative group">
                                       {photoUrl ? (
                                         <img
                                           src={photoUrl}
@@ -3876,13 +3876,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </div>
                           </div>
                           {activeLoanInLegajo && (
-                            <div className="bg-white rounded-2xl border-2 border-emerald-200 shadow-lg overflow-hidden flex flex-col animate-fadeIn sticky bottom-4 z-10">
+                            <div className="bg-white rounded-md border-2 border-emerald-200 shadow-lg overflow-hidden flex flex-col animate-fadeIn sticky bottom-4 z-10">
                               <div className="p-4 space-y-3 flex-1 bg-gradient-to-b from-white to-emerald-50/20">
                                 <div className="flex justify-between items-center">
                                   <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'GESTION RAPIDE' : 'Gestión Rápida'}</h4>
                                   {(() => { const m = getClientMetrics(clientInLegajo!); return (<span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase border ${m.daysOverdue > 0 ? 'bg-red-50 text-red-800 border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{m.daysOverdue > 0 ? `${m.daysOverdue} ${state.settings.language === 'fr' ? 'j retard' : 'd mora'}` : (state.settings.language === 'fr' ? 'À Jour' : 'Al Día')}</span>); })()}
                                 </div>
-                                <div className="bg-white p-3 rounded-xl space-y-2 border border-emerald-200 shadow-inner">
+                                <div className="bg-white p-3 rounded-md space-y-2 border border-emerald-200 shadow-inner">
                                   <div className="flex justify-between items-center"><p className="text-[7px] font-black text-slate-700 uppercase">{state.settings.language === 'fr' ? 'VALEUR MENSUALITÉ' : 'Valor Cuota'}</p><p className="text-base font-black text-blue-800 font-mono">{formatCurrency(activeLoanInLegajo.installmentValue, state.settings)}</p></div>
                                 </div>
                               </div>
@@ -3892,10 +3892,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   const isFullyPaid = m.balance <= 0.01;
                                   return (
                                     <>
-                                      <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">{state.settings.language === 'fr' ? 'NON-PAIEMENT' : 'No Pago'}</button>
+                                      <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-md font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">{state.settings.language === 'fr' ? 'NON-PAIEMENT' : 'No Pago'}</button>
                                       <button
                                         onClick={isFullyPaid ? () => handleOpenRenewalModal(clientInLegajo) : handleOpenDossierPayment}
-                                        className={`py-2.5 ${getRenewalButtonColor(m.maxDaysOverdue)} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
+                                        className={`py-2.5 ${getRenewalButtonColor(m.maxDaysOverdue)} text-white rounded-md font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
                                       >
                                         {isFullyPaid ? (state.settings.language === 'fr' ? 'RENOUVELER CRÉDIT' : 'Renovar Crédito') : (state.settings.language === 'fr' ? 'ENCAISSER / RENOUVELLEMENT' : 'Cobrar / Renovación')}
                                       </button>
@@ -3904,7 +3904,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 })()}
                               </div>
                               <div className="px-3 pb-3 bg-white">
-                                <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                                <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-md font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
                                   <i className="fa-solid fa-print"></i> {state.settings.language === 'fr' ? 'RÉIMPRIMER DERNIER REÇU' : 'REIMPRIMIR ÚLTIMO RECIBO'}
                                 </button>
                               </div>
@@ -3914,14 +3914,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </div>
                     </>
                   ) : (
-                    <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-300 shadow-sm max-w-5xl mx-auto space-y-10 animate-fadeIn pb-32 mobile-scroll-container">
+                    <div className="bg-white p-4 md:p-6 rounded-md border border-slate-300 shadow-sm max-w-5xl mx-auto space-y-10 animate-fadeIn pb-32 mobile-scroll-container">
                       <div className="flex justify-between items-center border-b border-slate-300 pb-3 sticky top-0 bg-white z-10">
                         <h4 className="text-lg font-black text-slate-950 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'MODIFIER DOSSIER COMPLET' : state.settings.language === 'pt' ? 'MODIFICAR FICHA COMPLETA' : 'Modificar Expediente Completo'}</h4>
                       </div>
 
                       <div className="space-y-4">
                         <h5 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{state.settings.language === 'fr' ? 'I. DONNÉES DU CLIENT' : 'I. Datos del Cliente'}</h5>
-                        <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
+                        <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'NOM' : 'Nombre'}</div><input type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'}</div><input type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-amber-500 uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° OPÉRATION' : 'Nro Operación'}</div><input type="text" placeholder={state.settings.language === 'fr' ? 'CHIFFRES SEULEMENT' : state.settings.language === 'pt' ? 'SOMENTE NÚMEROS' : 'SOLO NÚMEROS'} value={editClientFormData?.externalId || ''} onChange={e => setEditClientFormData(prev => prev ? { ...prev, externalId: e.target.value.replace(/\D/g, '') } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-amber-400 outline-none`} /></div>
@@ -3937,7 +3937,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
                         </div>
 
-                        <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm mt-2">
+                        <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm mt-2">
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'DOMICILE VILLE' : 'Particular Ciudad'}</div><input type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'RUE PRINCIPALE' : 'Calle Princ.'}</div><input type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'QUARTIER DOM.' : 'Barrio Part.'}</div><input type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
@@ -3945,7 +3945,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </div>
 
                         <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest border-l-4 border-indigo-500 pl-2 mt-4">{state.settings.language === 'fr' ? 'II. DONNÉES PROFESSIONNELLES' : 'II. Datos Laborales'}</h5>
-                        <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
+                        <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</div><input type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
                           <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'POSTE' : 'Cargo'}</div><input type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'SALAIRE' : 'Salario'}</div><input type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none`} /></div>
@@ -3961,7 +3961,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l-4 border-emerald-600 pl-2">{state.settings.language === 'fr' ? 'II. LOCALISATION GPS' : 'II. Ubicación GPS'}</h5>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-2">
-                                <button type="button" onClick={() => handleCaptureLocation('home', true)} className="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-emerald-600/30 flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all">
+                                <button type="button" onClick={() => handleCaptureLocation('home', true)} className="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-md font-black text-[8px] uppercase tracking-widest border border-emerald-600/30 flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all">
                                   {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-signal"></i>} {state.settings.language === 'fr' ? 'CAPTURER MAISON' : 'Capturar Casa'}
                                 </button>
                                 {editClientFormData?.location ? (
@@ -3977,7 +3977,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           }
                                         }
                                       }}
-                                      className="p-2 bg-emerald-600/10 text-emerald-500 rounded-lg text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-emerald-600/20 transition-all block border border-emerald-600/20"
+                                      className="p-2 bg-emerald-600/10 text-emerald-500 rounded-md text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-emerald-600/20 transition-all block border border-emerald-600/20"
                                     >
                                       {editClientFormData.location.lat.toFixed(5)}, {editClientFormData.location.lng.toFixed(5)} <i className="fa-solid fa-pen ml-1 opacity-60"></i>
                                     </div>
@@ -3995,7 +3995,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           }
                                         }
                                       }}
-                                      className="p-2 border border-dashed border-emerald-500/40 rounded-lg text-[10px] font-black text-emerald-500/80 uppercase text-center cursor-pointer hover:border-emerald-500/60 hover:text-emerald-500 hover:bg-emerald-600/10 transition-all block"
+                                      className="p-2 border border-dashed border-emerald-500/40 rounded-md text-[10px] font-black text-emerald-500/80 uppercase text-center cursor-pointer hover:border-emerald-500/60 hover:text-emerald-500 hover:bg-emerald-600/10 transition-all block"
                                     >
                                       <i className="fa-solid fa-keyboard mr-1"></i> {state.settings.language === 'fr' ? 'SAISIR' : state.settings.language === 'pt' ? 'INSERIR' : 'INGRESAR'}
                                     </div>
@@ -4003,7 +4003,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 )}
                               </div>
                               <div className="space-y-2">
-                                <button type="button" onClick={() => handleCaptureLocation('domicilio', true)} className="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
+                                <button type="button" onClick={() => handleCaptureLocation('domicilio', true)} className="w-full py-3 bg-blue-600/20 text-blue-400 rounded-md font-black text-[8px] uppercase tracking-widest border border-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
                                   {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>} {state.settings.language === 'fr' ? 'CAPTURER TRAVAIL' : 'Capturar Negocio'}
                                 </button>
                                 {editClientFormData?.domicilioLocation ? (
@@ -4019,7 +4019,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           }
                                         }
                                       }}
-                                      className="p-2 bg-blue-600/10 text-blue-500 rounded-lg text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-blue-600/20 transition-all block border border-blue-600/20"
+                                      className="p-2 bg-blue-600/10 text-blue-500 rounded-md text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-blue-600/20 transition-all block border border-blue-600/20"
                                     >
                                       {editClientFormData.domicilioLocation.lat.toFixed(5)}, {editClientFormData.domicilioLocation.lng.toFixed(5)} <i className="fa-solid fa-pen ml-1 opacity-60"></i>
                                     </div>
@@ -4037,7 +4037,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           }
                                         }
                                       }}
-                                      className="p-2 border border-dashed border-blue-500/40 rounded-lg text-[10px] font-black text-blue-500/80 uppercase text-center cursor-pointer hover:border-blue-500/60 hover:text-blue-500 hover:bg-blue-600/10 transition-all block"
+                                      className="p-2 border border-dashed border-blue-500/40 rounded-md text-[10px] font-black text-blue-500/80 uppercase text-center cursor-pointer hover:border-blue-500/60 hover:text-blue-500 hover:bg-blue-600/10 transition-all block"
                                     >
                                       <i className="fa-solid fa-keyboard mr-1"></i> {state.settings.language === 'fr' ? 'SAISIR' : state.settings.language === 'pt' ? 'INSERIR' : 'INGRESAR'}
                                     </div>
@@ -4057,7 +4057,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">{state.settings.language === 'fr' ? 'III. DOCUMENTATION PHOTOGRAPHIQUE' : 'III. Documentación Fotográfica'}</h5>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-md border border-slate-900/10">
                                 <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'PROFIL' : 'Perfil'} field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
                                 <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'} field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
                                 <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'IDENTITÉ VERSO' : 'Cédula Dorso'} field="documentBackPic" value={editClientFormData?.documentBackPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', editClientFormData!)} />
@@ -4071,7 +4071,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           {isAdminOrManager && editLoanFormData && (
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-orange-500 uppercase tracking-widest border-l-4 border-orange-500 pl-2">{state.settings.language === 'fr' ? 'IV. ÉDITER CRÉDIT ACTIF' : 'IV. Editar Crédito Activo'}</h5>
-                              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-2">
+                              <div className="bg-slate-900 border border-slate-800 rounded-md overflow-hidden grid grid-cols-2">
                                 <div className="flex border-b border-r border-slate-800 p-2 items-center gap-2">
                                   <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</label>
                                   <input type="text" value={editLoanFormData.principal} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, principal: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
@@ -4106,7 +4106,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </div>
 
                       <div className="pt-6 sticky bottom-0 bg-white/98 z-10 pb-4">
-                        <button onClick={handleSaveEditedClient} className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
+                        <button onClick={handleSaveEditedClient} className="w-full py-5 bg-emerald-600 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
                           <i className="fa-solid fa-cloud-arrow-up"></i>
                           {isCollector ? 'GUARDAR UBICACIONES' : (state.settings.language === 'fr' ? 'ENREGISTRER TOUS LES CHANGEMENTS' : 'GUARDAR TODOS LOS CAMBIOS')}
                         </button>
@@ -4123,10 +4123,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showRenewModal && clientInLegajo && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[250] p-4 overflow-y-auto pt-6 pb-20">
-              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-white/20">
+              <div className="bg-white rounded-md shadow-2xl w-full max-w-2xl overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center sticky top-0 z-10">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">
+                    <div className="w-10 h-10 bg-white/20 rounded-md flex items-center justify-center text-xl">
                       <i className="fa-solid fa-rotate"></i>
                     </div>
                     <div>
@@ -4141,7 +4141,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-600 pl-2">Datos del Crédito / Pagaré</h4>
                     <div className="grid grid-cols-1 gap-6">
                       <div className="space-y-4">
-                        <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
+                        <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm grid grid-cols-2">
                           {/* 
                           <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2">
                             <div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div>
@@ -4184,7 +4184,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 const installment = total / installments;
                                 setRenewSimulationResult({ total, installment });
                               }}
-                              className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-lg w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
+                              className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-md w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
                             >
                               {(((t as any).clients?.registrationForm || {}).simulate || 'SIMULAR')}
                             </button>
@@ -4229,7 +4229,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 key={freq}
                                 type="button"
                                 onClick={() => setRenewForm((prev: any) => ({ ...prev, frequency: freq }))}
-                                className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border-2 ${renewForm.frequency === freq ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-blue-200'}`}
+                                className={`py-2.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all border-2 ${renewForm.frequency === freq ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-blue-200'}`}
                               >
                                 {freq}
                               </button>
@@ -4243,7 +4243,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <select
                               value={renewForm.selectedCollectorId}
                               onChange={e => setRenewForm(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
-                              className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all uppercase"
+                              className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-md text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all uppercase"
                             >
                               <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? '-- SELECCIONAR COBRADOR --' : 'YO (POR DEFECTO)'}</option>
                               {Array.isArray(collectors) && collectors.map(c => (
@@ -4255,7 +4255,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         )}
                       </div>
                       
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="bg-white p-4 rounded-md border border-slate-200 shadow-sm">
                         <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1 mb-2 block text-center">Seleccionar Fecha de Inicio</label>
                         <GenericCalendar
                           language={state.settings.language}
@@ -4267,7 +4267,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </div>
                     </div>
                   </div>
-                  <button onClick={handleRenewLoan} className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-blue-800">
+                  <button onClick={handleRenewLoan} className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-blue-800">
                     {isSubmitting ? <i className="fa-solid fa-spinner animate-spin mr-2"></i> : <i className="fa-solid fa-check-circle mr-2"></i>}
                     CONFIRMAR E INICIAR CRÉDITO
                   </button>
@@ -4283,20 +4283,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showDossierPaymentModal && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-2 overflow-y-auto pt-10 md:pt-20">
-              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
+              <div className="bg-white rounded-md shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
                   <h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Enregistrer Gestion' : state.settings.language === 'pt' ? 'Registrar Gestão' : 'Registrar Gestión'}</h3>
-                  <button onClick={() => setShowDossierPaymentModal(false)} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+                  <button onClick={() => setShowDossierPaymentModal(false)} className="w-8 h-8 bg-white/10 text-white rounded-md flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <div className="p-5 md:p-6 space-y-4 md:space-y-6">
                   <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => setDossierPaymentMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!dossierIsVirtual && !dossierIsRenewal ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
-                    <button onClick={() => setDossierPaymentMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsVirtual ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Transf.' : 'Transf.'}</button>
-                    <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Renouveler' : 'Renovar'}</button>
+                    <button onClick={() => setDossierPaymentMethod('cash')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${!dossierIsVirtual && !dossierIsRenewal ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
+                    <button onClick={() => setDossierPaymentMethod('virtual')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${dossierIsVirtual ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Transf.' : 'Transf.'}</button>
+                    <button onClick={() => setDossierPaymentMethod('renewal')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${dossierIsRenewal ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{state.settings.language === 'fr' ? 'Renouveler' : 'Renovar'}</button>
                   </div>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                    <input type="text" autoFocus value={dossierPaymentAmount} onChange={(e) => setDossierPaymentAmount(e.target.value)} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-2xl md:rounded-[2.5rem] text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
+                    <input type="text" autoFocus value={dossierPaymentAmount} onChange={(e) => setDossierPaymentAmount(e.target.value)} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
                     {dossierIsRenewal && (
                       <div className="text-center mt-2">
                         <span className="text-xs font-black text-amber-600 uppercase tracking-wider">
@@ -4305,7 +4305,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </div>
                     )}
                   </div>
-                  <button onClick={() => handleDossierAction(CollectionLogType.PAYMENT)} disabled={isProcessingDossierAction} className="w-full py-4 md:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl md:rounded-[2rem] font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all">
+                  <button onClick={() => handleDossierAction(CollectionLogType.PAYMENT)} disabled={isProcessingDossierAction} className="w-full py-4 md:py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md md:rounded-md font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all">
                     {isProcessingDossierAction ? <i className="fa-solid fa-spinner animate-spin"></i> : (state.settings.language === 'fr' ? 'Confirmer le Registre' : state.settings.language === 'pt' ? 'Confirmar Registro' : 'Confirmar Registro')}
                   </button>
                 </div>
@@ -4318,7 +4318,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showEditLogModal && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-20">
-              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
+              <div className="bg-white rounded-md shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">Corregir Pago</h3>
                   <button onClick={() => setShowEditLogModal(false)}><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -4326,9 +4326,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <div className="p-8 space-y-6">
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-xl font-black">$</span>
-                    <input type="text" value={newLogAmount} onChange={e => setNewLogAmount(e.target.value)} className="w-full pl-10 pr-4 py-6 text-3xl font-black text-center bg-slate-50 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500" />
+                    <input type="text" value={newLogAmount} onChange={e => setNewLogAmount(e.target.value)} className="w-full pl-10 pr-4 py-6 text-3xl font-black text-center bg-slate-50 rounded-md outline-none border-2 border-transparent focus:border-blue-500" />
                   </div>
-                  <button onClick={handleSaveEditedLog} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest shadow-xl">GUARDAR CORRECCIÓN</button>
+                  <button onClick={handleSaveEditedLog} className="w-full py-4 bg-blue-600 text-white rounded-md font-black uppercase tracking-widest shadow-xl">GUARDAR CORRECCIÓN</button>
                 </div>
               </div>
             </div>
@@ -4339,14 +4339,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           showCustomNoPayModal && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-20">
-              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-md overflow-hidden animate-scaleIn">
+              <div className="bg-white rounded-md shadow-2xl w-full max-md overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">{state.settings.language === 'fr' ? 'Message Personnalisé de Retard' : state.settings.language === 'pt' ? 'Mensagem Personalizada de Atraso' : 'Mensaje Personalizado Mora'}</h3>
                   <button onClick={() => setShowCustomNoPayModal(false)}><i className="fa-solid fa-xmark text-xl"></i></button>
                 </div>
                 <div className="p-8 space-y-6">
-                  <textarea value={customNoPayText} onChange={e => setCustomNoPayText(e.target.value)} placeholder={state.settings.language === 'fr' ? 'Ex: Bonjour, nous avons enregistré votre retard. Veuillez payer demain sans faute...' : state.settings.language === 'pt' ? 'Ex: Olá, registramos seu atraso. Favor pagar amanhã sem falta...' : 'Ej: Hola, registramos su mora. Favor pagar mañana sin falta...'} className="w-full h-32 p-4 rounded-xl border border-slate-300 font-bold outline-none focus:ring-2 focus:ring-amber-500"></textarea>
-                  <button onClick={handleSaveCustomNoPay} className="w-full py-4 bg-amber-500 text-white rounded-xl font-black uppercase tracking-widest shadow-xl">{state.settings.language === 'fr' ? 'ENREGISTRER LE MESSAGE' : state.settings.language === 'pt' ? 'SALVAR MENSAGEM' : 'GUARDAR MENSAJE'}</button>
+                  <textarea value={customNoPayText} onChange={e => setCustomNoPayText(e.target.value)} placeholder={state.settings.language === 'fr' ? 'Ex: Bonjour, nous avons enregistré votre retard. Veuillez payer demain sans faute...' : state.settings.language === 'pt' ? 'Ex: Olá, registramos seu atraso. Favor pagar amanhã sem falta...' : 'Ej: Hola, registramos su mora. Favor pagar mañana sin falta...'} className="w-full h-32 p-4 rounded-md border border-slate-300 font-bold outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                  <button onClick={handleSaveCustomNoPay} className="w-full py-4 bg-amber-500 text-white rounded-md font-black uppercase tracking-widest shadow-xl">{state.settings.language === 'fr' ? 'ENREGISTRER LE MESSAGE' : state.settings.language === 'pt' ? 'SALVAR MENSAGEM' : 'GUARDAR MENSAJE'}</button>
                 </div>
               </div>
             </div>
@@ -4359,7 +4359,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               {/* COMPACT HEADER */}
               <div className="bg-[#1e293b] px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center text-2xl text-white shadow-lg overflow-hidden">
+                  <div className="w-12 h-12 bg-[#10b981] rounded-md flex items-center justify-center text-2xl text-white shadow-lg overflow-hidden">
                     <i className="fa-solid fa-sack-dollar"></i>
                   </div>
                   <div>
@@ -4369,7 +4369,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">{state.settings.language === 'fr' ? 'ACTIF' : state.settings.language === 'pt' ? 'ATIVO' : 'ACTIVO'}</span>
+                  <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-md uppercase tracking-wider">{state.settings.language === 'fr' ? 'ACTIF' : state.settings.language === 'pt' ? 'ATIVO' : 'ACTIVO'}</span>
                   <div className="text-right">
                     <p className="text-xs font-black text-white uppercase tracking-widest">{state.settings.language === 'fr' ? 'TOTAL' : 'TOTAL'}: {formatCurrency(getClientMetrics(clientInLegajo!).totalCreditAmount || activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
                     <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">{state.settings.language === 'fr' ? 'PAYÉ' : state.settings.language === 'pt' ? 'PAGO' : 'ABONADO'}: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
@@ -4406,7 +4406,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         const pendingAmount = installmentAmount - amountPaidForThisOne;
 
                         return (
-                          <div key={idx} className={`flex flex-col p-2 rounded-lg border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
+                          <div key={idx} className={`flex flex-col p-2 rounded-md border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
                             <div className="flex justify-between items-center mb-0.5 leading-none">
                               <span className={`text-[11px] font-black ${isPaid ? 'text-[#10b981]' : 'text-slate-800'}`}>#{inst.number}</span>
                               <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
@@ -4470,7 +4470,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {
           receipt && (
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[210] p-4 overflow-y-auto pt-10 md:pt-20">
-              <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
+              <div className="bg-white rounded-md text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
                 {/* Header de navegación en el ticket */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
                   <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
@@ -4483,28 +4483,28 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </div>
 
                 <div className="p-6 md:p-8">
-                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-md flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
                     <i className="fa-solid fa-check-double"></i>
                   </div>
                   <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
-                  <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
+                  <div className="bg-slate-50 p-4 md:p-6 rounded-md md:rounded-md font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                     {convertReceiptForWhatsApp(receipt || '')}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
+                    <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                     <button
                       onClick={async () => {
                         const { printText } = await import('../services/bluetoothPrinterService');
                         printText(receipt || '').catch(e => alert("Error impresión: " + e));
                       }}
-                      className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                      className="w-full py-4 bg-purple-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                     >
                       <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                     </button>
                     <button
                       disabled={isSharing}
                       onClick={handleShareReceiptPDF}
-                      className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                      className={`w-full py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                     >
                       {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
                       {isSharing ? ((t as any).receipt?.generatingPdf || 'GENERANDO PDF...') : ((t as any).receipt?.sendWhatsapp || 'Enviar por WhatsApp (PDF)')}
@@ -4512,7 +4512,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <button
                       disabled={isSharing}
                       onClick={handleShareReceiptPhoto}
-                      className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                      className={`w-full py-4 bg-emerald-500 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                     >
                       {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
                       {isSharing ? ((t as any).receipt?.generatingPhoto || 'GENERANDO FOTO...') : ((t as any).receipt?.sendPhoto || 'ENVIAR FOTO DE RECIBO')}
@@ -4544,7 +4544,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         };
         return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-16 md:pt-24 px-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
+          <div className="bg-white rounded-md p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
             <button 
               onClick={() => setShowImportModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all font-black text-[10px] uppercase"
@@ -4552,7 +4552,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               {im.close}
             </button>
 
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-md flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
               <Upload />
             </div>
 
@@ -4564,15 +4564,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="space-y-4">
               <button 
                 onClick={() => downloadExcelTemplate(lang)}
-                className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all uppercase tracking-widest border border-slate-200 shadow-sm"
+                className="w-full py-3 bg-slate-100 text-slate-700 rounded-md font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all uppercase tracking-widest border border-slate-200 shadow-sm"
               >
                 <Download size={14} /> {im.download}
               </button>
 
-              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+              <div className="bg-emerald-50 p-4 rounded-md border border-emerald-100">
                 <p className="text-[10px] font-black text-emerald-800 uppercase mb-2">{im.selectCollector}</p>
                 <select 
-                  className="w-full bg-white border border-emerald-200 rounded-lg p-3 text-xs font-black text-emerald-900 outline-none focus:border-emerald-500 transition-all uppercase"
+                  className="w-full bg-white border border-emerald-200 rounded-md p-3 text-xs font-black text-emerald-900 outline-none focus:border-emerald-500 transition-all uppercase"
                   value={selectedCollectorForImport}
                   onChange={(e) => setSelectedCollectorForImport(e.target.value)}
                 >
@@ -4583,7 +4583,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </select>
               </div>
 
-              <label className={`w-full py-10 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl transition-all cursor-pointer ${!selectedCollectorForImport ? 'bg-slate-50 border-slate-200 opacity-50 grayscale' : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-500'}`}>
+              <label className={`w-full py-10 flex flex-col items-center justify-center border-2 border-dashed rounded-md transition-all cursor-pointer ${!selectedCollectorForImport ? 'bg-slate-50 border-slate-200 opacity-50 grayscale' : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-500'}`}>
                 <input 
                   type="file" 
                   className="hidden" 
@@ -4606,7 +4606,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
               <button 
                 onClick={() => setShowImportModal(false)}
-                className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
+                className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-md transition-all"
               >
                 {im.cancel}
               </button>
@@ -4618,10 +4618,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       {previewData && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[999999] flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-scaleIn border border-slate-200">
+          <div className="bg-white rounded-md w-full max-w-2xl shadow-2xl overflow-hidden animate-scaleIn border border-slate-200">
             <div className="bg-emerald-600 p-6 flex justify-between items-center text-white">
               <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-xl">
+                <div className="bg-white/20 p-2 rounded-md">
                   <Info size={24} />
                 </div>
                 <div>
@@ -4640,23 +4640,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
               {/* STATS */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Clientes</p>
                   <p className="text-xl font-black text-slate-900">{previewData.clients.length}</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Monto Total</p>
                   <p className="text-xl font-black text-emerald-600">{formatCurrency(previewData.loans.reduce((acc, l) => acc + l.totalAmount, 0), state.settings)}</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Saldo Total</p>
                   <p className="text-xl font-black text-blue-600">{formatCurrency(previewData.loans.reduce((acc, l) => acc + l.balance, 0), state.settings)}</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Pagos Detectados</p>
                   <p className="text-xl font-black text-orange-600">{previewData.loans.filter(l => l.totalPaid > 0).length}</p>
                 </div>
-                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                <div className="bg-red-50 p-4 rounded-md border border-red-100">
                   <p className="text-[8px] font-black text-red-500 uppercase mb-1">Filas con Error</p>
                   <p className="text-xl font-black text-red-700">{previewData.errors.length}</p>
                 </div>
@@ -4669,10 +4669,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <div className="w-1.5 h-4 bg-red-500 rounded-full"></div>
                     Filas que se saltarán (Acción requerida)
                   </h4>
-                  <div className="bg-red-50 rounded-2xl border border-red-100 overflow-hidden">
+                  <div className="bg-red-50 rounded-md border border-red-100 overflow-hidden">
                     {previewData.errors.slice(0, 10).map((err, idx) => (
                       <div key={idx} className="p-3 border-b border-red-100 last:border-0 flex items-start gap-3">
-                        <div className="bg-red-200 text-red-800 text-[8px] font-black px-2 py-1 rounded-lg">Fila {err.row}</div>
+                        <div className="bg-red-200 text-red-800 text-[8px] font-black px-2 py-1 rounded-md">Fila {err.row}</div>
                         <div>
                           <p className="text-[10px] font-black text-red-900 uppercase">{err.clientName || 'Cliente desconocido'}</p>
                           <p className="text-[8px] text-red-600 font-bold uppercase tracking-tight">{err.reason}</p>
@@ -4696,7 +4696,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(previewData.discoveryMeta).map(([key, val]) => (
-                    <div key={key} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm">
+                    <div key={key} className="bg-white border border-slate-200 px-3 py-1.5 rounded-md flex items-center gap-2 shadow-sm">
                       <span className="text-[7px] font-black text-slate-400 uppercase">{key}:</span>
                       <span className="text-[9px] font-black text-slate-800 uppercase">{val}</span>
                       <i className="fa-solid fa-check text-emerald-500 text-[8px]"></i>
@@ -4711,7 +4711,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
                   Muestra de Datos ({previewData.clients.length})
                 </h4>
-                <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-inner max-h-[400px]">
+                <div className="overflow-x-auto rounded-md border border-slate-100 shadow-inner max-h-[400px]">
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-900 text-white sticky top-0 z-10">
                       <tr>
@@ -4772,7 +4772,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="bg-slate-50 p-6 flex flex-col gap-3 border-t border-slate-100">
               {importSummary ? (
                 <div className="w-full">
-                  <div className="bg-emerald-100 p-4 rounded-2xl border border-emerald-200 mb-4 flex items-center justify-between">
+                  <div className="bg-emerald-100 p-4 rounded-md border border-emerald-200 mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="bg-emerald-500 text-white p-2 rounded-full"><i className="fa-solid fa-check"></i></div>
                       <span className="text-xs font-black text-emerald-900 uppercase">Carga de {importSummary.success} clientes completada</span>
@@ -4781,14 +4781,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <div className="flex gap-3">
                     <button 
                       onClick={() => { setPreviewData(null); setImportSummary(null); setShowImportModal(false); }}
-                      className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                      className="flex-1 py-4 bg-slate-900 text-white rounded-md font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all active:scale-95"
                     >
                       Finalizar
                     </button>
                     {importSummary.failed > 0 && (
                       <button 
                         onClick={handleResetImport}
-                        className="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95"
+                        className="flex-1 py-4 bg-orange-500 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95"
                       >
                         <i className="fa-solid fa-rotate-right mr-2"></i> RESUBIR FALLIDOS
                       </button>
@@ -4800,7 +4800,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <div className="flex flex-col gap-3 w-full">
                     <button 
                       onClick={() => { setPreviewData(null); setShowImportModal(true); }}
-                      className="w-full py-4 bg-white text-orange-600 rounded-2xl border border-orange-200 font-black uppercase text-xs tracking-widest hover:bg-orange-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-white text-orange-600 rounded-md border border-orange-200 font-black uppercase text-xs tracking-widest hover:bg-orange-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
                       <i className="fa-solid fa-file-excel"></i>
                       CARGAR OTRO ARCHIVO / CAMBIAR
@@ -4808,14 +4808,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <div className="flex gap-3 w-full">
                       <button 
                         onClick={() => setPreviewData(null)}
-                        className="flex-1 py-4 bg-white text-slate-600 rounded-2xl border border-slate-200 font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                        className="flex-1 py-4 bg-white text-slate-600 rounded-md border border-slate-200 font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all active:scale-95"
                       >
                         Cancelar
                       </button>
                       <button 
                         disabled={isSubmitting || previewData.errors.length > 0}
                         onClick={handleConfirmImport}
-                        className={`flex-[2] py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 ${previewData.errors.length > 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700 active:scale-95'}`}
+                        className={`flex-[2] py-4 rounded-md font-black uppercase text-xs tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 ${previewData.errors.length > 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700 active:scale-95'}`}
                         title={previewData.errors.length > 0 ? "Corrija los errores en rojo antes de subir" : ""}
                       >
                         {isSubmitting ? <i className="fa-solid fa-spinner animate-spin"></i> : previewData.errors.length > 0 ? <i className="fa-solid fa-ban text-red-400 text-lg"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
@@ -4832,7 +4832,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
         {receipt && (
           <div id="receipt-container-hidden-clients" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
-            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-md text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
               <div className="text-center mb-4">
                 <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
                 <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>

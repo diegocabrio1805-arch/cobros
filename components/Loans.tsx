@@ -991,38 +991,38 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   return (
     <div className="space-y-4 md:space-y-6 pb-20 animate-fadeIn px-1">
       {/* SELECTOR DE OPCIONES DE COBRO */}
-      <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
+      <div className="bg-white p-2 rounded-md md:rounded-md border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
         <button
           onClick={() => setViewMode('gestion')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-hand-holding-dollar"></i>
           {((t as any).loans?.tabs || {}).management}
         </button>
         <button
           onClick={() => setViewMode('renovaciones')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'renovaciones' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'renovaciones' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-rotate"></i>
           {((t as any).loans?.tabs || {}).renewals}
         </button>
         <button
           onClick={() => setViewMode('vencidos')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-calendar-xmark"></i>
           {((t as any).loans?.tabs || {}).overdue}
         </button>
         <button
           onClick={() => setViewMode('ocultos')}
-          className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 rounded-md md:rounded-md font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-eye-slash"></i>
           {((t as any).loans?.tabs || {}).hidden}
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-md md:rounded-md border border-slate-100 shadow-sm">
         <div className="w-full md:w-auto text-center md:text-left">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center justify-center md:justify-start gap-3">
             <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-money-bill-wave text-blue-600' : viewMode === 'renovaciones' ? 'fa-rotate text-emerald-600' : viewMode === 'vencidos' ? 'fa-triangle-exclamation text-red-600' : 'fa-eye-slash text-slate-900'}`}></i>
@@ -1037,7 +1037,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           {viewMode === 'vencidos' && filteredLoans.length > 0 && (
             <button
               onClick={handlePrintOverdueReport}
-              className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-md font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <i className="fa-solid fa-print"></i>
               {(t as any).loans.actions.print}
@@ -1049,7 +1049,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               placeholder={state.settings.language === 'fr' ? 'Rechercher...' : state.settings.language === 'pt' ? 'Pesquisar...' : 'Buscar...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl py-3 md:py-4 pl-10 md:pl-12 pr-4 text-xs md:sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
+              className="w-full bg-slate-50 border border-slate-200 rounded-md md:rounded-md py-3 md:py-4 pl-10 md:pl-12 pr-4 text-xs md:sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
             />
             <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
           </div>
@@ -1058,7 +1058,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       {/* FILTROS POR FRECUENCIA - solo en Gestión */}
       {viewMode === 'gestion' && (
-        <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
+        <div className="bg-white p-2 rounded-md border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
           {([
             { key: 'all',              label: ((t as any).loans?.filters || {}).all,          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
             { key: 'Diaria',           label: ((t as any).loans?.filters || {}).daily,        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
@@ -1069,7 +1069,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             <button
               key={tab.key}
               onClick={() => setFrequencyFilter(tab.key as any)}
-              className={`flex-1 py-2.5 md:py-3 rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 min-w-[70px] ${frequencyFilter === tab.key ? tab.active : tab.idle}`}
+              className={`flex-1 py-2.5 md:py-3 rounded-md font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 min-w-[70px] ${frequencyFilter === tab.key ? tab.active : tab.idle}`}
             >
               <i className={`fa-solid ${tab.icon}`}></i>
               {tab.label}
@@ -1089,7 +1089,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         <>
           <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {paginatedLoans.length === 0 ? (
-              <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center px-4">
+              <div className="col-span-full py-16 md:py-20 bg-white rounded-md md:rounded-md border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center px-4">
                 <i className="fa-solid fa-folder-open text-4xl md:text-5xl mb-4 opacity-10"></i>
                 <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">
                   {viewMode === 'renovaciones' ? ((t as any).loans?.emptyStates || {}).noRenewals : ((t as any).loans?.emptyStates || {}).noPending}
@@ -1116,19 +1116,19 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 const lastPayLog = [...cardLoanLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
                 return (
-                  <div key={loan.id} className="bg-slate-900 rounded-2xl md:rounded-[2.5rem] border border-slate-800 shadow-xl hover:shadow-2xl transition-all group overflow-hidden flex flex-col">
+                  <div key={loan.id} className="bg-slate-900 rounded-md md:rounded-md border border-slate-800 shadow-xl hover:shadow-2xl transition-all group overflow-hidden flex flex-col">
                     <div className="p-4 md:p-6 space-y-3 md:space-y-4 flex-1">
                       <div className="flex justify-between items-start">
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-800 text-slate-300 rounded-xl md:rounded-2xl flex items-center justify-center text-lg md:text-xl font-black shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all uppercase border border-slate-700">
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-800 text-slate-300 rounded-md md:rounded-md flex items-center justify-center text-lg md:text-xl font-black shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all uppercase border border-slate-700">
                           {client?.name.charAt(0)}
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
-                          <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg text-[7px] md:text-[8px] font-black uppercase border ${daysOverdue > 0 ? 'bg-red-900/30 text-red-400 border-red-900/50 animate-pulse' : 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50'}`}>
+                          <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-md text-[7px] md:text-[8px] font-black uppercase border ${daysOverdue > 0 ? 'bg-red-900/30 text-red-400 border-red-900/50 animate-pulse' : 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50'}`}>
                             {daysOverdue > 0 ? `${daysOverdue} ${((t as any).loans?.card || {}).daysOverdue}` : ((t as any).loans?.card || {}).upToDate}
                           </span>
                           <button 
                             onClick={() => handleDirectWhatsApp(client?.phone || '')}
-                            className="w-8 h-8 bg-emerald-900/30 text-emerald-400 rounded-lg flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-900/50"
+                            className="w-8 h-8 bg-emerald-900/30 text-emerald-400 rounded-md flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-900/50"
                             title="Chat Directo"
                           >
                             <i className="fa-brands fa-whatsapp"></i>
@@ -1200,7 +1200,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
                       {balance > 0.01 ? (
                         <>
-                          <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
+                          <div className="bg-slate-950 p-3 md:p-4 rounded-md md:rounded-md space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
                             <div className="flex justify-between items-center opacity-60">
                               <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{((t as any).loans?.card || {}).approvedAmount}</p>
                               <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency((loan as any)._consolidatedPrincipal || loan.principal, state.settings)}</p>
@@ -1234,7 +1234,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           </div>
                         </>
                       ) : (loan as any)._isNewClient ? (
-                        <div className="bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
+                        <div className="bg-slate-900/50 rounded-md p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
                           {/* Sello de Nuevo Cliente */}
                           <div className="absolute -right-4 -top-4 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
                           
@@ -1259,7 +1259,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                   window.dispatchEvent(new CustomEvent('open_add_loan_modal', { detail: client }));
                                 }, 100);
                               }}
-                              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-blue-800"
+                              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-blue-800"
                             >
                               <i className="fa-solid fa-plus-circle text-xs"></i>
                               CARGAR CREDITO
@@ -1267,7 +1267,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-slate-900/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
+                        <div className="bg-slate-900/50 rounded-md p-5 flex flex-col items-center text-center space-y-4 border border-white/5 shadow-2xl relative overflow-hidden group">
                           {/* Sello de Liquidado */}
                           <div className="absolute -right-4 -top-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
                           
@@ -1292,7 +1292,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                   window.dispatchEvent(new CustomEvent('open_add_loan_modal', { detail: client }));
                                 }, 100);
                               }}
-                              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-emerald-700"
+                              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md font-black text-[10px] uppercase tracking-[0.15em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-emerald-700"
                             >
                               <i className="fa-solid fa-bolt-lightning text-xs"></i>
                               Nueva Renovación Directa
@@ -1309,7 +1309,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
                       {/* TABLA DE HISTORIAL DESPLEGABLE (ESTILO IMAGEN 2) */}
                       {expandedHistory[loan.id] && (
-                        <div className="mt-4 bg-slate-900 rounded-2xl overflow-hidden animate-slideDown border border-white/5 shadow-2xl">
+                        <div className="mt-4 bg-slate-900 rounded-md overflow-hidden animate-slideDown border border-white/5 shadow-2xl">
                           <div className="p-3 bg-slate-800/50 flex justify-between items-center border-b border-white/5">
                             <h5 className="text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                               <i className="fa-solid fa-clock-rotate-left"></i> {state.settings.language === 'fr' ? 'HISTORIQUE RÉCENT' : state.settings.language === 'pt' ? 'HISTÓRICO RECENTE' : 'Historial Reciente'}
@@ -1359,21 +1359,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleReprintLastReceipt(loan.id)}
-                          className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-slate-600"
+                          className="w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-slate-600"
                           title={((t as any).loans?.card || {}).printLast || "Imprimir Último"}
                         >
                           <i className="fa-solid fa-print text-sm"></i>
                         </button>
                         <button
                           onClick={() => handleShareLastReceiptAsPhoto(loan.id)}
-                          className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-emerald-900/40 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-emerald-800"
+                          className="w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md bg-emerald-900/40 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-emerald-800"
                           title={((t as any).loans?.card || {}).photoWhatsApp || "Foto WhatsApp"}
                         >
                           <i className="fa-solid fa-camera text-sm"></i>
                         </button>
                         <button
                           onClick={() => toggleHistory(loan.id)}
-                          className={`w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl transition-all flex items-center justify-center shadow-sm active:scale-95 border ${expandedHistory[loan.id] ? 'bg-blue-600 text-white border-blue-500' : 'bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-800'}`}
+                          className={`w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md transition-all flex items-center justify-center shadow-sm active:scale-95 border ${expandedHistory[loan.id] ? 'bg-blue-600 text-white border-blue-500' : 'bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-800'}`}
                           title={((t as any).loans?.card || {}).paymentHistory || "Historial de Pagos"}
                         >
                           <i className="fa-solid fa-history text-sm"></i>
@@ -1381,7 +1381,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         {isAdminOrManager && lastPayLog && (
                           <button
                             onClick={() => { if (confirm('¿BORRAR ÚLTIMO PAGO? Se revertirá el saldo.')) deleteCollectionLog?.(lastPayLog.id); }}
-                            className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-red-800"
+                            className="w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-red-800"
                             title={((t as any).loans?.card || {}).deleteLast || "Borrar Último"}
                           >
                             <i className="fa-solid fa-trash-can text-sm"></i>
@@ -1393,13 +1393,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           <>
                             <button
                               onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
-                              className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
+                              className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-md md:rounded-md font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
                             >
                               {((t as any).loans?.card || {}).noPaymentBtn || 'No Pago'}
                             </button>
                             <button
                               onClick={() => handleOpenPayment(loan)}
-                              className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
+                              className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-md md:rounded-md font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
                             >
                               {((t as any).loans?.card || {}).payBtn || 'Pagar'}
                             </button>
@@ -1419,7 +1419,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
+                className="px-6 py-3 bg-white border border-slate-200 rounded-md font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
                 {((t as any).loans?.pagination || {}).prev}
               </button>
@@ -1429,7 +1429,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
+                className="px-6 py-3 bg-white border border-slate-200 rounded-md font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
                 {((t as any).loans?.pagination || {}).next}
               </button>
@@ -1439,7 +1439,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       )}
 
       {viewMode === 'vencidos' && (
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col">
+        <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden flex flex-col">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
@@ -1478,7 +1478,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <td className="px-6 py-4 border-r border-slate-100 uppercase text-blue-600 font-black">{client?.phone}</td>
                         <td className="px-6 py-4 border-r border-slate-100 uppercase truncate max-w-[200px] text-slate-400">{client?.address}</td>
                         <td className="px-6 py-4 border-r border-slate-100 text-center">
-                          <span className="inline-flex items-center justify-center w-10 h-10 bg-red-100 text-red-600 rounded-xl font-black shadow-inner">
+                          <span className="inline-flex items-center justify-center w-10 h-10 bg-red-100 text-red-600 rounded-md font-black shadow-inner">
                             {mora}
                           </span>
                         </td>
@@ -1490,7 +1490,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <td className="px-6 py-4 text-center">
                           <button
                             onClick={() => handleOpenPayment(loan)}
-                            className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all active:scale-90 flex items-center justify-center mx-auto shadow-sm"
+                            className="w-10 h-10 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all active:scale-90 flex items-center justify-center mx-auto shadow-sm"
                           >
                             <i className="fa-solid fa-dollar-sign"></i>
                           </button>
@@ -1509,7 +1509,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
+                className="px-6 py-3 bg-white border border-slate-200 rounded-md font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >{(((t as any).loans?.pagination || {})?.prev || 'Anterior')}</button>
               <span className="text-[10px] font-black text-slate-400">
                 {(((t as any).loans?.pagination || {})?.page || 'Página')} {currentPage} {(((t as any).loans?.pagination || {})?.of || 'de')} {totalPages}
@@ -1517,7 +1517,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
+                className="px-6 py-3 bg-white border border-slate-200 rounded-md font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >{(((t as any).loans?.pagination || {})?.next || 'Siguiente')}</button>
             </div>
           )}
@@ -1526,7 +1526,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       {/* NUEVA VISTA: CLIENTES OCULTOS (EXCEL) */}
       {viewMode === 'ocultos' && (
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col">
+        <div className="bg-white rounded-md border border-slate-200 shadow-xl overflow-hidden flex flex-col">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
@@ -1554,7 +1554,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         {isAdminOrManager && (
                           <button
                             onClick={() => handleRestoreClient(client)}
-                            className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-black text-[9px] uppercase tracking-widest active:scale-90 transition-all shadow-md flex items-center justify-center mx-auto gap-2"
+                            className="px-4 py-2 bg-emerald-500 text-white rounded-md font-black text-[9px] uppercase tracking-widest active:scale-90 transition-all shadow-md flex items-center justify-center mx-auto gap-2"
                           >
                             <i className="fa-solid fa-eye"></i>{(((t as any).loans?.filters || {})?.tableHeaders?.restore || 'RESTAURAR')}</button>
                         )}
@@ -1575,26 +1575,26 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       {/* MODALES DE PAGO OMITIDOS POR BREVEDAD */}
       {showPaymentInput && (
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
+          <div className="bg-white rounded-md shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'ENREGISTRER PAIEMENT' : state.settings.language === 'pt' ? 'REGISTRAR PAGAMENTO' : 'Registrar Abono'}</h3></div>
-              <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+              <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-md flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div className="p-5 md:p-6 space-y-4 md:space-y-6">
-              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200`}>
-                <button onClick={() => setMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualPayment && !isRenewalPayment && !isQrPayment ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
-                <button onClick={() => setMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualPayment ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Virement' : state.settings.language === 'pt' ? 'Transfer.' : 'Transf.'}</button>
+              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-md border border-slate-200`}>
+                <button onClick={() => setMethod('cash')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${!isVirtualPayment && !isRenewalPayment && !isQrPayment ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
+                <button onClick={() => setMethod('virtual')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${isVirtualPayment ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Virement' : state.settings.language === 'pt' ? 'Transfer.' : 'Transf.'}</button>
                 {state.currentUser?.role === Role.ADMIN && (
-                  <button onClick={() => setMethod('qr')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isQrPayment ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>QR</button>
+                  <button onClick={() => setMethod('qr')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${isQrPayment ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>QR</button>
                 )}
-                <button onClick={() => setMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalPayment ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Renouveler' : state.settings.language === 'pt' ? 'Renovar' : 'Renovar'}</button>
+                <button onClick={() => setMethod('renewal')} className={`py-2 rounded-md text-[8px] font-black uppercase border transition-all ${isRenewalPayment ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Renouveler' : state.settings.language === 'pt' ? 'Renovar' : 'Renovar'}</button>
               </div>
 
               {isWaitingForQrPayment ? (
                 <div className="space-y-6 py-4 animate-scaleIn">
                   {qrCodePayload ? (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="p-3 bg-white rounded-2xl border-2 border-purple-200 shadow-lg">
+                      <div className="p-3 bg-white rounded-md border-2 border-purple-200 shadow-lg">
                         <img src={qrCodePayload} alt="QR de Pago" className="w-48 h-48 mx-auto" />
                       </div>
                       <p className="text-[10px] font-black text-slate-800 uppercase mt-4 tracking-widest animate-pulse flex items-center justify-center gap-2">
@@ -1612,7 +1612,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="pt-4 border-t border-slate-100">
                     <button
                       onClick={handleCancelQrLoans}
-                      className="w-full py-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-red-50 text-red-600 border border-red-200 rounded-md font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
                       <i className="fa-solid fa-ban"></i> Cancelar Espera
                     </button>
@@ -1621,7 +1621,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               ) : (
                 <>
                   {isQrPayment && !hasQrConfig && (
-                    <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200 text-center mb-4 animate-fadeIn">
+                    <div className="bg-purple-50 p-4 rounded-md border border-purple-200 text-center mb-4 animate-fadeIn">
                       <i className="fa-solid fa-triangle-exclamation text-purple-600 text-xl mb-2"></i>
                       <p className="text-[10px] font-black text-purple-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Configuration Requise' : state.settings.language === 'pt' ? 'Configuração Necessária' : 'Configuración Requerida'}</p>
                       <p className="text-[8px] text-purple-600 mt-1 uppercase font-bold leading-normal">{state.settings.language === 'fr' ? 'Le gérant doit configurer les identifiants Bancard dans les Options pour activer ce paiement.' : state.settings.language === 'pt' ? 'O gerente deve configurar as credenciais Bancard em Opções para ativar este pagamento.' : 'El Gerente debe configurar las credenciales de Bancard en Opciones para habilitar este cobro.'}</p>
@@ -1631,7 +1631,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   {(!isQrPayment || hasQrConfig) && (
                     <div className="relative mb-6">
                       <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                      <input type="number" autoFocus value={paymentAmount === 0 ? '' : paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-2xl md:rounded-[2.5rem] text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
+                      <input type="number" autoFocus value={paymentAmount === 0 ? '' : paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
                     </div>
                   )}
 
@@ -1645,7 +1645,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         }
                       }}
                       disabled={isProcessingPayment}
-                      className={`w-full py-4 md:py-5 ${isQrPayment ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'} text-white rounded-xl md:rounded-[2rem] font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
+                      className={`w-full py-4 md:py-5 ${isQrPayment ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'} text-white rounded-md md:rounded-md font-black uppercase text-xs md:text-sm tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
                     >
                       {isProcessingPayment ? (
                         <i className="fa-solid fa-circle-notch animate-spin mr-2"></i>
@@ -1665,13 +1665,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       {editingReceipt && (
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[170] p-4 overflow-y-auto pt-10 md:pt-20">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn border border-white/20">
+          <div className="bg-white rounded-md shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div>
                 <h3 className="text-base font-black uppercase tracking-tighter leading-none">Editor de Recibo</h3>
                 <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mt-1">Verifique y edite los datos</p>
               </div>
-              <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all">
+              <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-md flex items-center justify-center hover:bg-red-600 transition-all">
                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
@@ -1690,7 +1690,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="text"
                       value={editingReceipt.companyNameManual ?? state.settings.companyName ?? ''}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, companyNameManual: e.target.value })}
-                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-md text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -1701,7 +1701,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         disabled
                         value="MARCA:"
-                        className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 cursor-not-allowed"
+                        className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-[10px] font-black text-slate-500 cursor-not-allowed"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1710,7 +1710,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.companyAliasManual ?? state.settings.companyAlias ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyAliasManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -1722,7 +1722,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.contactLabelManual ?? ((t as any).receipt?.publicPhone || "TEL. PUBLICO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, contactLabelManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1731,7 +1731,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.contactPhoneManual ?? state.settings.contactPhone ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, contactPhoneManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -1743,7 +1743,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.companyIdentifierLabelManual ?? ((t as any).receipt?.companyId || "ID EMPRESA")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierLabelManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1752,7 +1752,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.companyIdentifierManual ?? state.settings.companyIdentifier ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -1764,7 +1764,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.shareLabelManual ?? state.settings.shareLabel ?? 'BANCO'}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareLabelManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1773,7 +1773,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.shareValueManual ?? state.settings.shareValue ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareValueManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -1785,7 +1785,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.supportLabelManual ?? ((t as any).receipt?.publicPhone || "NUMERO CO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, supportLabelManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1794,7 +1794,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.supportPhoneManual ?? state.settings.technicalSupportPhone ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, supportPhoneManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -1811,7 +1811,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="text"
                       value={editingReceipt.clientName}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, clientName: e.target.value })}
-                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-md text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1822,7 +1822,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         value={editingReceipt.fullDateTimeManual ?? ''}
                         placeholder="Automático (Ahora)"
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, fullDateTimeManual: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-md text-[10px] font-black text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1831,7 +1831,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="number"
                         value={editingReceipt.daysOverdue}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, daysOverdue: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   </div>
@@ -1842,7 +1842,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.startDate}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, startDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[10px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1851,7 +1851,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         type="text"
                         value={editingReceipt.expiryDate}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, expiryDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[10px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   </div>
@@ -1864,7 +1864,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="number"
                       value={editingReceipt.previousBalance}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, previousBalance: Number(e.target.value) })}
-                      className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-800 outline-none"
+                      className="w-full px-2 py-2 bg-white border border-slate-200 rounded-md text-[10px] font-black text-slate-800 outline-none"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1873,7 +1873,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="number"
                       value={editingReceipt.amountPaid}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, amountPaid: Number(e.target.value) })}
-                      className="w-full px-2 py-2 bg-white border border-emerald-300 rounded-lg text-[10px] font-black text-emerald-700 outline-none shadow-sm"
+                      className="w-full px-2 py-2 bg-white border border-emerald-300 rounded-md text-[10px] font-black text-emerald-700 outline-none shadow-sm"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1882,7 +1882,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="number"
                       value={editingReceipt.remainingBalance}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, remainingBalance: Number(e.target.value) })}
-                      className="w-full px-2 py-2 bg-white border border-red-300 rounded-lg text-[10px] font-black text-red-700 outline-none shadow-sm"
+                      className="w-full px-2 py-2 bg-white border border-red-300 rounded-md text-[10px] font-black text-red-700 outline-none shadow-sm"
                     />
                   </div>
                 </div>
@@ -1894,7 +1894,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="number"
                       value={editingReceipt.paidInstallments}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, paidInstallments: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 text-center"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 text-center"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1903,7 +1903,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       type="number"
                       value={editingReceipt.totalInstallments}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, totalInstallments: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-800 text-center"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-[11px] font-black text-slate-800 text-center"
                     />
                   </div>
                 </div>
@@ -1931,7 +1931,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
                   }
                 }}
-                className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <i className="fa-solid fa-paper-plane"></i> FINALIZAR Y ENVIAR
               </button>
@@ -1942,7 +1942,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       {receipt && (
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[160] p-4 overflow-y-auto pt-10 md:pt-20">
-          <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
+          <div className="bg-white rounded-md text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
             {/* Header de navegación en el ticket */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
               <button onClick={resetUI} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
@@ -1955,28 +1955,28 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             </div>
 
             <div className="p-6 md:p-8">
-              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
+              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-md flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
                 <i className="fa-solid fa-check-double"></i>
               </div>
               <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
-              <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
+              <div className="bg-slate-50 p-4 md:p-6 rounded-md md:rounded-md font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                 {receipt}
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
+                <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                 <button
                   onClick={async () => {
                     const { printText } = await import('../services/bluetoothPrinterService');
                     printText(receipt || '').catch(e => alert("Error impresión: " + e));
                   }}
-                  className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                  className="w-full py-4 bg-purple-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                 >
                   <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                 </button>
                 <button
                   disabled={isSharing}
                   onClick={handleShareReceiptPDF}
-                  className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                  className={`w-full py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                 >
                   {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
                   {isSharing ? ((t as any).receipt?.generatingPdf || 'GENERANDO PDF...') : ((t as any).receipt?.sendWhatsapp || 'Enviar por WhatsApp (PDF)')}
@@ -1984,7 +1984,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <button
                   disabled={isSharing}
                   onClick={handleShareReceiptPhoto}
-                  className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                  className={`w-full py-4 bg-emerald-500 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                 >
                   {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
                   {isSharing ? ((t as any).receipt?.generatingPhoto || 'GENERANDO FOTO...') : ((t as any).receipt?.sendPhoto || 'ENVIAR FOTO DE RECIBO')}
@@ -1997,7 +1997,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
       {receipt && (
         <div id="receipt-container-hidden-loans" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
-          <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+          <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-md text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
             <div className="text-center mb-4">
               <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
               <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>

@@ -704,10 +704,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   return (
     <PullToRefresh onRefresh={async () => { if (onForceSync) await onForceSync(false); }}>
       <div className="w-full max-w-6xl mx-auto space-y-4 pb-32 animate-fadeIn px-1 md:px-0">
-        <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white p-4 md:p-5 rounded-md md:rounded-md border border-slate-200 shadow-sm space-y-4">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
-              <div className={`w-10 h-10 md:w-12 md:h-12 shrink-0 ${isViewingToday ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xl`}>
+              <div className={`w-10 h-10 md:w-12 md:h-12 shrink-0 ${isViewingToday ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-md md:rounded-md flex items-center justify-center text-white shadow-xl`}>
                 <i className={`fa-solid ${isViewingToday ? 'fa-route' : 'fa-clock-rotate-left'} text-lg md:text-xl`}></i>
               </div>
               <div className="min-w-0">
@@ -723,7 +723,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
               {isAdminOrManager && (
-                <div className="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 shadow-inner">
+                <div className="bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200 flex items-center gap-2 shadow-inner">
                   <i className="fa-solid fa-user-gear text-emerald-600 text-[10px]"></i>
                   <select
                     value={selectedCollectorFilter}
@@ -746,7 +746,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                   </select>
                 </div>
               )}
-              <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shadow-inner">
+              <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200 shadow-inner">
                 <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
                 <span className="text-slate-400 font-bold">-</span>
                 <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[9px] font-black text-black outline-none uppercase w-full" />
@@ -754,7 +754,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               {onForceSync && (
                 <button
                   onClick={() => onForceSync(false)}
-                  className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl border border-emerald-200 flex items-center gap-2 hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
+                  className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-md border border-emerald-200 flex items-center gap-2 hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
                 >
                   <i className="fa-solid fa-rotate text-[10px] animate-spin-slow"></i>
                   <span className="text-[9px] font-black uppercase tracking-widest">Sincronizar</span>
@@ -763,24 +763,24 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
             </div>
 
             <div className="flex gap-2 border-t border-slate-100 pt-3">
-              <button onClick={() => setViewMode('active')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'active' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ruta Activa</button>
-              <button onClick={() => setViewMode('hidden')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${viewMode === 'hidden' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ocultos / Incobrables</button>
+              <button onClick={() => setViewMode('active')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${viewMode === 'active' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ruta Activa</button>
+              <button onClick={() => setViewMode('hidden')} className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${viewMode === 'hidden' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Ocultos / Incobrables</button>
             </div>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-3 w-full border-t border-slate-100 pt-3 md:pt-4">
             <div className="relative w-full">
-              <input type="text" placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
+              <input type="text" placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-[10px] md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
               <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-[10px] md:text-xs"></i>
             </div>
-            <div className="bg-slate-900 px-5 md:px-6 py-3 rounded-xl md:rounded-2xl border border-slate-800 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end shrink-0 shadow-xl w-full md:w-auto">
+            <div className="bg-slate-900 px-5 md:px-6 py-3 rounded-md md:rounded-md border border-slate-800 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end shrink-0 shadow-xl w-full md:w-auto">
               <span className="text-[7px] font-black text-slate-500 uppercase md:mb-0.5">Recaudo</span>
               <span className="text-base md:text-lg font-black text-emerald-400 font-mono leading-none">{formatCurrency(totalCollectedInView, state.settings)}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-md md:rounded-md border border-slate-200 shadow-xl overflow-hidden">
           <div className="overflow-x-auto mobile-scroll-container">
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
@@ -840,32 +840,32 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                       <div className="flex items-center justify-center gap-2">
                         {viewMode === 'hidden' ? (
                           <div className="flex gap-2">
-                            <button onClick={() => item.client && handleRecoverClient(item.client)} className="px-4 py-3 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">RECUPERAR</button>
-                            {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
+                            <button onClick={() => item.client && handleRecoverClient(item.client)} className="px-4 py-3 bg-blue-600 text-white rounded-md font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">RECUPERAR</button>
+                            {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-md font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
                           </div>
                         ) : isViewingToday ? (
                           item.paidPeriod === 0 && !item.visitedNoPayment ? (
                             <div className="flex gap-2">
-                              <button onClick={() => handleOpenPayment(item.clientId, item)} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">Abonar</button>
-                              {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
+                              <button onClick={() => handleOpenPayment(item.clientId, item)} className="px-4 py-3 bg-emerald-600 text-white rounded-md font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">Abonar</button>
+                              {isAdminOrManager && <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-4 py-3 bg-red-600 text-white rounded-md font-black text-[9px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>}
                             </div>
                           ) : (
                             <div className="flex gap-1.5">
-                              <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-2 rounded-lg flex items-center ${item.paidPeriod > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.paidPeriod > 0 ? 'RECIBIDO' : 'MORA'}</span>
+                              <span className={`text-[7px] md:text-[8px] font-black uppercase px-2 py-2 rounded-md flex items-center ${item.paidPeriod > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.paidPeriod > 0 ? 'RECIBIDO' : 'MORA'}</span>
                               {isAdminOrManager && (
                                 <>
-                                  <button onClick={() => handleOpenPayment(item.clientId, item)} className="w-9 h-9 text-blue-500 bg-white border border-blue-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-plus-circle"></i></button>
+                                  <button onClick={() => handleOpenPayment(item.clientId, item)} className="w-9 h-9 text-blue-500 bg-white border border-blue-100 rounded-md flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-plus-circle"></i></button>
                                   {item.paidPeriod > 0 && (
-                                    <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 text-red-500 bg-white border border-red-100 rounded-lg flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
+                                    <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 text-red-500 bg-white border border-red-100 rounded-md flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
                                   )}
-                                  <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-3 py-2 bg-red-600 text-white rounded-lg font-black text-[8px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>
+                                  <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-3 py-2 bg-red-600 text-white rounded-md font-black text-[8px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>
                                 </>
                               )}
                             </div>
                           )
                         ) : (
                           isAdminOrManager && item.paidPeriod > 0 && (
-                            <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100 active:scale-90 transition-all shadow-sm">
+                            <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 rounded-md bg-red-50 text-red-600 flex items-center justify-center border border-red-100 active:scale-90 transition-all shadow-sm">
                               <i className="fa-solid fa-trash-can"></i>
                             </button>
                           )
@@ -881,34 +881,34 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 py-6">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-3 bg-white border border-slate-200 rounded-md text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">{currentPage} de {totalPages}</span>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-right"></i></button>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-3 bg-white border border-slate-200 rounded-md text-slate-400 disabled:opacity-30 active:scale-90 shadow-sm"><i className="fa-solid fa-chevron-right"></i></button>
           </div>
         )}
 
         {selectedClient && (
           <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-2">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm p-6 text-center animate-scaleIn border border-white/20">
-              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl border border-emerald-100">
+            <div className="bg-white rounded-md shadow-2xl w-full max-sm p-6 text-center animate-scaleIn border border-white/20">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-md flex items-center justify-center mx-auto mb-4 text-xl border border-emerald-100">
                 <i className="fa-solid fa-hand-holding-dollar"></i>
               </div>
               <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tighter">Registrar Abono</h3>
 
-              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200`}>
-                <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Efectivo</button>
-                <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Transf.</button>
+              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-md border border-slate-200`}>
+                <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-md text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Efectivo</button>
+                <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-md text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Transf.</button>
                 {state.currentUser?.role === Role.ADMIN && (
-                  <button onClick={() => setMethodInRoute('qr')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>QR</button>
+                  <button onClick={() => setMethodInRoute('qr')} className={`py-3 rounded-md text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>QR</button>
                 )}
-                <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Renovar</button>
+                <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-md text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Renovar</button>
               </div>
 
               {isWaitingForQrPayment ? (
                 <div className="space-y-6 py-4 animate-scaleIn">
                   {qrCodePayload ? (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="p-3 bg-white rounded-2xl border-2 border-purple-200 shadow-lg">
+                      <div className="p-3 bg-white rounded-md border-2 border-purple-200 shadow-lg">
                         <img src={qrCodePayload} alt="QR de Pago" className="w-48 h-48 mx-auto" />
                       </div>
                       <p className="text-[10px] font-black text-slate-800 uppercase mt-4 tracking-widest animate-pulse flex items-center justify-center gap-2">
@@ -926,7 +926,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                   <div className="pt-4 border-t border-slate-100">
                     <button
                       onClick={handleCancelQr}
-                      className="w-full py-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-red-50 text-red-600 border border-red-200 rounded-md font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
                       <i className="fa-solid fa-ban"></i> Cancelar Espera
                     </button>
@@ -935,7 +935,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               ) : (
                 <>
                   {isQrProcessing && !hasQrConfig && (
-                    <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200 text-center mb-4 animate-fadeIn">
+                    <div className="bg-purple-50 p-4 rounded-md border border-purple-200 text-center mb-4 animate-fadeIn">
                       <i className="fa-solid fa-triangle-exclamation text-purple-600 text-xl mb-2"></i>
                       <p className="text-[10px] font-black text-purple-800 uppercase tracking-widest">Configuración Requerida</p>
                       <p className="text-[8px] text-purple-600 mt-1 uppercase font-bold leading-normal">El Gerente debe configurar las credenciales de Bancard en Opciones para habilitar este cobro.</p>
@@ -951,7 +951,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                         autoFocus
                         value={amountInput}
                         onChange={(e) => setAmountInput(e.target.value)}
-                        className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-2xl text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner"
+                        className="w-full pl-12 pr-5 py-8 text-3xl font-black bg-slate-50 rounded-md text-center outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-slate-900 shadow-inner"
                       />
                     </div>
                   )}
@@ -979,7 +979,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                             handleAction(selectedClient!, item.id, CollectionLogType.PAYMENT, finalAmount, isVirtualProcessing, isRenewalProcessing);
                           }
                         }}
-                        className={`w-full font-black py-5 ${isQrProcessing ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'} text-white rounded-xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2`}
+                        className={`w-full font-black py-5 ${isQrProcessing ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'} text-white rounded-md shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2`}
                       >
                         {isQrProcessing ? (
                           <>
@@ -1000,7 +1000,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
         {receipt && (
           <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[160] p-4 overflow-y-auto">
-            <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
+            <div className="bg-white rounded-md text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
               {/* Header de navegación en el ticket */}
               <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
                 <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
@@ -1013,28 +1013,28 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               </div>
 
               <div className="p-6 md:p-8">
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
+                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-md flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
                   <i className="fa-solid fa-check-double"></i>
                 </div>
                 <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
-                <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
+                <div className="bg-slate-50 p-4 md:p-6 rounded-md md:rounded-md font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                   {receipt}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
+                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                   <button
                     onClick={async () => {
                       const { printText } = await import('../services/bluetoothPrinterService');
                       printText(receipt || '').catch(e => alert("Error impresión: " + e));
                     }}
-                    className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                    className="w-full py-4 bg-purple-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                   >
                     <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                   </button>
                   <button
                     disabled={isSharing}
                     onClick={handleShareReceiptPDF}
-                    className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                    className={`w-full py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                   >
                     {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
                     {isSharing ? ((t as any).receipt?.generatingPdf || 'GENERANDO PDF...') : ((t as any).receipt?.sendWhatsapp || 'Enviar por WhatsApp (PDF)')}
@@ -1042,7 +1042,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                   <button
                     disabled={isSharing}
                     onClick={handleShareReceiptPhoto}
-                    className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
+                    className={`w-full py-4 bg-emerald-500 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                   >
                     {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
                     {isSharing ? ((t as any).receipt?.generatingPhoto || 'GENERANDO FOTO...') : ((t as any).receipt?.sendPhoto || 'ENVIAR FOTO DE RECIBO')}
@@ -1056,7 +1056,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
         {receipt && (
           <div id="receipt-container-hidden-route" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
-            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-md text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
               <div className="text-center mb-4">
                 <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
                 <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>

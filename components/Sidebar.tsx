@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
     <div className="w-72 charcoal-gradient h-screen sticky top-0 hidden md:flex flex-col text-slate-400 border-r border-white/5 shadow-2xl z-[100]">
       <div className="p-8 border-b border-white/5 space-y-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 premium-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-3 group hover:rotate-0 transition-transform duration-300">
+          <div className="w-12 h-12 premium-gradient rounded-md flex items-center justify-center shadow-lg shadow-emerald-500/20 rotate-3 group hover:rotate-0 transition-transform duration-300">
             <i className="fa-solid fa-sack-dollar text-2xl text-white"></i>
           </div>
           <div className="min-w-0">
@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         </div>
 
         {/* Sección de País y Hora Local - Premium Card */}
-        <div className="bg-white/5 backdrop-blur-md rounded-[1.5rem] p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10">
+        <div className="bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xl leading-none drop-shadow-sm">{flags[countryCode] || '🌎'}</span>
@@ -111,12 +111,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
           <React.Fragment key={item.id}>
             <button
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition-all group relative overflow-hidden ${activeTab === item.id
+              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-md text-[10px] font-black uppercase tracking-[0.15em] transition-all group relative overflow-hidden ${activeTab === item.id
                 ? 'premium-gradient text-white shadow-xl shadow-emerald-500/10'
                 : 'hover:bg-white/5 hover:text-white text-slate-500'
                 }`}
             >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-800/50 group-hover:bg-slate-700 text-emerald-500'}`}>
+              <div className={`w-8 h-8 rounded-md flex items-center justify-center transition-all ${activeTab === item.id ? 'bg-white/20' : 'bg-slate-800/50 group-hover:bg-slate-700 text-emerald-500'}`}>
                 <i className={`fa-solid ${item.icon} text-sm ${activeTab === item.id ? 'text-white' : ''}`}></i>
               </div>
               <span className="relative z-10">{item.label}</span>
@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
             </button>
 
             {item.id === 'settings' && isPowerUser && technicalSupportPhone && (
-              <div className="px-5 py-4 mt-2 bg-amber-500/5 rounded-2xl border border-amber-500/10 animate-fadeIn">
+              <div className="px-5 py-4 mt-2 bg-amber-500/5 rounded-md border border-amber-500/10 animate-fadeIn">
                 <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Soporte VIP</p>
                 <a 
                   href={`https://wa.me/${technicalSupportPhone.replace(/[^\d]/g, '')}?text=${encodeURIComponent("¡Hola! Me comunico desde el panel del sistema Anexo Cobro.")}`}
@@ -134,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
                   rel="noopener noreferrer"
                   className="text-sm font-black text-amber-400 flex items-center gap-3 hover:text-amber-300 transition-colors"
                 >
-                  <div className="w-6 h-6 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                  <div className="w-6 h-6 bg-amber-500/20 rounded-md flex items-center justify-center">
                     <i className="fa-brands fa-whatsapp text-xs"></i>
                   </div>
                   {technicalSupportPhone}
@@ -145,10 +145,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
             {item.id === 'settings' && (
               <div className="px-5 py-3">
                 <div
-                  className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all ${isSyncing ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-600'}`}
+                  className={`w-full flex items-center justify-between p-3 rounded-md border transition-all ${isSyncing ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-600'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isSyncing ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800/80 text-slate-600'}`}>
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center ${isSyncing ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800/80 text-slate-600'}`}>
                       <i className={`fa-solid fa-rotate text-xs ${isSyncing ? 'animate-spin' : ''}`}></i>
                     </div>
                     <div className="flex flex-col">
@@ -170,10 +170,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
 
       <div className="p-6 border-t border-white/5 bg-black/20">
         <div 
-          className="flex items-center gap-4 p-4 bg-white/5 rounded-[1.5rem] border border-white/5 cursor-pointer hover:bg-white/10 transition-all group" 
+          className="flex items-center gap-4 p-4 bg-white/5 rounded-md border border-white/5 cursor-pointer hover:bg-white/10 transition-all group" 
           onClick={() => setActiveTab('profile')}
         >
-          <div className="w-12 h-12 rounded-2xl premium-gradient flex items-center justify-center text-white text-lg font-black shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-md premium-gradient flex items-center justify-center text-white text-lg font-black shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             {user.name.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
 
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-4 px-5 py-4 mt-4 rounded-2xl text-[10px] font-black text-rose-400 hover:bg-rose-500/10 transition-colors uppercase tracking-[0.2em]"
+          className="w-full flex items-center gap-4 px-5 py-4 mt-4 rounded-md text-[10px] font-black text-rose-400 hover:bg-rose-500/10 transition-colors uppercase tracking-[0.2em]"
         >
           <i className="fa-solid fa-power-off text-lg"></i>
           {t.logout}

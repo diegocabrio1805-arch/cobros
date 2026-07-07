@@ -778,9 +778,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   return (
     <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
       {/* CABECERA SUPERIOR - Premium Glassmorphism */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 glass-card p-6 rounded-3xl border-white/40">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 glass-card p-6 rounded-md border-white/40">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 premium-gradient rounded-xl flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
+          <div className="w-12 h-12 premium-gradient rounded-md flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
              <i className="fa-solid fa-chart-pie text-xl text-white"></i>
           </div>
           <div>
@@ -794,7 +794,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-xl border border-white/5">
+        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5">
           <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
           <span className="text-xs font-bold uppercase tracking-widest opacity-90">
             {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
@@ -812,10 +812,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           { label: (t as any).registeredCapital || 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
           { label: (t as any).collectedToday || 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
+          <div key={i} className="bg-white p-5 rounded-md border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
             <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
             <div className="relative z-10 flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
+              <div className={`w-12 h-12 rounded-md ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
                 <i className={`fa-solid ${stat.icon}`}></i>
               </div>
               <div>
@@ -829,10 +829,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
             {/* AUDITORÍA DE RUTAS - Premium Table */}
       {isAdmin && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
+        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
           <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-md">
+              <div className="w-10 h-10 bg-slate-900 rounded-md flex items-center justify-center text-white shadow-md">
                 <i className="fa-solid fa-list-check text-lg"></i>
               </div>
               <div>
@@ -844,11 +844,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
               >
                 <i className="fa-solid fa-chevron-left text-sm"></i>
               </button>
@@ -859,7 +859,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <button
                 disabled={currentPage === totalPages || totalPages === 0}
                 onClick={() => setCurrentPage(p => p + 1)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
               >
                 <i className="fa-solid fa-chevron-right text-sm"></i>
               </button>
@@ -884,7 +884,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     <tr key={stat.id} className="bg-white hover:bg-slate-700 hover:shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group text-sm relative z-10 hover:z-20 border-b border-slate-50">
                       <td className="px-6 py-4 border-r border-slate-50 group-hover:border-transparent transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-700 font-black group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white transition-all duration-500 shadow-sm text-sm border border-white group-hover:border-transparent">
+                          <div className="w-10 h-10 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-700 font-black group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white transition-all duration-500 shadow-sm text-sm border border-white group-hover:border-transparent">
                             {stat.name.charAt(0)}
                           </div>
                           <div>
@@ -944,11 +944,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
       {/* RESUMEN SEMANAL DOM-SÁB */}
       {isAdmin && (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden w-fit">
+        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden w-fit">
           {/* Header */}
           <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+              <div className="w-10 h-10 bg-indigo-600 rounded-md flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
                 <i className="fa-solid fa-table-cells text-lg"></i>
               </div>
               <div>
@@ -959,7 +959,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100">
               <i className="fa-solid fa-calendar-week"></i>
               <span>{weeklyData.days[0]?.dateStr} – {weeklyData.days[6]?.dateStr}</span>
             </div>
@@ -970,7 +970,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             {/* Grid de 6 cuadros (5 semanas + Último Registro) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch pb-2">
               {/* Tabla de Cobros de Hoy y Ayer (Ahora en el 1er cuadro de la grilla) */}
-              <div className="border border-slate-100 rounded-xl shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
+              <div className="border border-slate-100 rounded-md shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
                 <div className="overflow-x-auto flex-1 h-full">
                   <table className="w-full text-sm border-collapse h-full">
                     <thead>
@@ -1041,7 +1041,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
 
               {weeklyData.weeks.map((week, wi) => (
-                <div key={wi} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
+                <div key={wi} className="border border-slate-100 rounded-md overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
                   <div className="overflow-x-auto flex-1 h-full">
                     <table className="w-full text-sm border-collapse h-full">
                       <thead>
@@ -1113,7 +1113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             </div>
 
             {/* Total global 5 semanas */}
-            <div className="bg-slate-900 text-white rounded-2xl p-4 md:p-5 w-full shadow-inner overflow-hidden border border-slate-700/50 mt-2">
+            <div className="bg-slate-900 text-white rounded-md p-4 md:p-5 w-full shadow-inner overflow-hidden border border-slate-700/50 mt-2">
               <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-6 h-full">
                 <span className="font-black text-sm lg:text-base uppercase tracking-widest px-2 whitespace-nowrap text-slate-300">TOTAL 5 SEM.</span>
                 <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-0 border-t xl:border-t-0 xl:border-l border-white/20 pt-4 xl:pt-0 w-full">
@@ -1177,10 +1177,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* SECCIÓN INFERIOR: GRÁFICOS E INSIGHTS - High-End Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* GRÁFICO DE RENDIMIENTO */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-xl flex flex-col transition-all">
+        <div className="lg:col-span-8 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+              <div className="w-10 h-10 bg-emerald-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                 <i className="fa-solid fa-chart-line text-lg"></i>
               </div>
               <div>
@@ -1190,7 +1190,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             </div>
           </div>
 
-          <div className="h-[280px] w-full mt-auto bg-slate-50/50 rounded-2xl p-4 border border-slate-100 relative">
+          <div className="h-[280px] w-full mt-auto bg-slate-50/50 rounded-md p-4 border border-slate-100 relative">
             <ResponsiveContainer width="100%" height={250} minWidth={0}>
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -1233,9 +1233,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         </div>
 
         {/* MÓDULO AUDITOR GENERAL PDF */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xl flex flex-col transition-all">
+        <div className="lg:col-span-4 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
           <div className="flex flex-col items-center text-center space-y-3 mb-6">
-            <div className="w-14 h-14 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-500/20 rotate-3">
+            <div className="w-14 h-14 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-rose-500/20 rotate-3">
               <i className="fa-solid fa-file-pdf text-2xl"></i>
             </div>
             <div>
@@ -1245,11 +1245,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           </div>
 
           <div className="space-y-4 flex-1 flex flex-col justify-between">
-            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="space-y-3 p-4 bg-slate-50 rounded-md border border-slate-100">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.fieldAuditor || 'Auditor de Campo'}</label>
                 <select
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
+                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
                   value={auditCollector}
                   onChange={(e) => setAuditCollector(e.target.value)}
                 >
@@ -1271,13 +1271,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
                     value={auditStartDate}
                     onChange={(e) => setAuditStartDate(e.target.value)}
                   />
                   <input
                     type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
                     value={auditEndDate}
                     onChange={(e) => setAuditEndDate(e.target.value)}
                   />
@@ -1287,14 +1287,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
             <button
               onClick={handleGenerateAuditPDF}
-              className="w-full py-3 premium-gradient text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3 premium-gradient text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
             >
               <i className="fa-solid fa-file-export text-sm"></i>
               {(t as any).pdfGenerator?.generalAuditBtn || 'AUDITORÍA GENERAL'}
             </button>
             <button
               onClick={handleGenerateDeletedPaymentsPDF}
-              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
             >
               <i className="fa-solid fa-trash-can-arrow-up text-sm"></i>
               {(t as any).pdfGenerator?.deletedAuditBtn || 'Auditoría Eliminados'}
@@ -1305,10 +1305,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
       {/* HISTORIAL DE PAPELERA (PAGOS ELIMINADOS) */}
       {isAdmin && (
-        <div className="bg-white rounded-3xl border border-rose-100 shadow-xl overflow-hidden flex flex-col transition-all mt-6">
+        <div className="bg-white rounded-md border border-rose-100 shadow-xl overflow-hidden flex flex-col transition-all mt-6">
           <div className="p-6 border-b border-rose-50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-rose-50/50">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-md shadow-rose-500/20">
+              <div className="w-10 h-10 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-md shadow-rose-500/20">
                 <i className="fa-solid fa-trash-can-arrow-up text-lg"></i>
               </div>
               <div>
@@ -1320,12 +1320,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
               <div className="flex items-center gap-2 shrink-0">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.from || 'Desde:'}</label>
                 <input
                   type="date"
-                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
                   value={deletedStartDate}
                   onChange={(e) => { setDeletedStartDate(e.target.value); setDeletedPage(1); }}
                 />
@@ -1334,7 +1334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.to || 'Hasta:'}</label>
                 <input
                   type="date"
-                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
                   value={deletedEndDate}
                   onChange={(e) => { setDeletedEndDate(e.target.value); setDeletedPage(1); }}
                 />
@@ -1346,17 +1346,17 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <button
                   disabled={deletedPage === 1}
                   onClick={() => setDeletedPage(p => p - 1)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
                 >
                   <i className="fa-solid fa-chevron-left text-sm"></i>
                 </button>
-                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
                   {deletedPage} / {Math.max(1, totalDeletedPages)}
                 </span>
                 <button
                   disabled={deletedPage === totalDeletedPages || totalDeletedPages === 0}
                   onClick={() => setDeletedPage(p => p + 1)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
                 >
                   <i className="fa-solid fa-chevron-right text-sm"></i>
                 </button>

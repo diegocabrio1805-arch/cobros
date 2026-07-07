@@ -268,7 +268,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
     <div className="space-y-4 md:space-y-6 animate-fadeIn pb-24 px-1 max-w-[1600px] mx-auto">
 
       {/* HEADER Y CARGA DE CAPITAL */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm text-center sm:text-left">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 md:p-6 rounded-md border border-slate-100 shadow-sm text-center sm:text-left">
         <div className="w-full sm:w-auto">
           <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'CONTRÔLE DU CAPITAL' : state.settings.language === 'pt' ? 'CONTROLE DE CAPITAL' : 'CONTROL DE CAPITAL'}</h2>
           <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{state.settings.language === 'fr' ? 'Gestion des flux de trésorerie opérationnels' : state.settings.language === 'pt' ? 'Gestão de fluxo de caixa operacional' : 'Gestión de flujo de caja operativo'}</p>
@@ -289,13 +289,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* CUADRO 1: CAPITAL DE TRABAJO */}
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+        <div className="bg-[oklch(11%_0.006_95)] p-6 rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-400 to-transparent opacity-80"></div>
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Capital de Travail' : state.settings.language === 'pt' ? 'Capital de Giro' : 'Capital de Trabajo'}</p>
-            <h3 className="text-xl lg:text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">{state.settings.language === 'fr' ? 'Fonds de base initial chargé' : state.settings.language === 'pt' ? 'Fundo base inicial carregado' : 'Fondo base inicial cargado'}</p>
+            <p className="text-[10px] font-mono font-medium text-[oklch(88%_0_0)] uppercase tracking-[0.18em] mb-2">{state.settings.language === 'fr' ? 'Capital de Travail' : state.settings.language === 'pt' ? 'Capital de Giro' : 'Capital de Trabajo'}</p>
+            <h3 className="text-2xl lg:text-3xl font-light tracking-tight text-[oklch(91%_0_0)]">{formatCurrency(state.initialCapital, state.settings)}</h3>
+            <p className="text-[9px] font-mono tracking-widest text-[oklch(72%_0_0)] mt-4 pt-4 border-t border-[oklch(78%_0_0/0.16)] uppercase">{state.settings.language === 'fr' ? 'Fonds de base initial chargé' : state.settings.language === 'pt' ? 'Fundo base inicial carregado' : 'Fondo base inicial cargado'}</p>
           </div>
-          <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
+          <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-white/5 group-hover:scale-110 transition-transform"></i>
         </div>
 
         {/* CUADRO 2: EFECTIVO EN CAJA (IMPECCABLE NEO KINPAKU) */}
@@ -324,72 +325,76 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         </div>
 
         {/* CUADRO 3: CRÉDITOS OTORGADOS */}
-        <div className="bg-blue-600 p-5 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
+        <div className="bg-[oklch(11%_0.006_95)] p-6 rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-80"></div>
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Crédits Accordés' : state.settings.language === 'pt' ? 'Créditos Concedidos' : 'Créditos Otorgados'}</p>
+            <p className="text-[10px] font-mono font-medium text-[oklch(88%_0_0)] uppercase tracking-[0.18em] mb-2">{state.settings.language === 'fr' ? 'Crédits Accordés' : state.settings.language === 'pt' ? 'Créditos Concedidos' : 'Créditos Otorgados'}</p>
             <div className="flex items-end gap-2">
-              <h3 className="text-2xl lg:text-3xl font-black">{totalLoansCount}</h3>
-              <span className="text-[8px] font-black mb-1 opacity-70 uppercase">{state.settings.language === 'fr' ? 'Opérations' : state.settings.language === 'pt' ? 'Operações' : 'Operaciones'}</span>
+              <h3 className="text-2xl lg:text-3xl font-light tracking-tight text-blue-400">{totalLoansCount}</h3>
+              <span className="text-[10px] font-mono tracking-widest text-[oklch(72%_0_0)] mb-1.5 uppercase">{state.settings.language === 'fr' ? 'Opérations' : state.settings.language === 'pt' ? 'Operações' : 'Operaciones'}</span>
             </div>
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-[8px] font-black text-blue-200 uppercase">{state.settings.language === 'fr' ? 'Bénéfice Projeté' : state.settings.language === 'pt' ? 'Lucro Projetado' : 'Utilidad Proyectada'}</p>
-              <p className="text-base lg:text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
+            <div className="mt-4 pt-4 border-t border-[oklch(78%_0_0/0.16)] flex justify-between text-[9px] font-mono tracking-widest text-[oklch(72%_0_0)] uppercase">
+              <span>{state.settings.language === 'fr' ? 'Bénéfice Projeté' : state.settings.language === 'pt' ? 'Lucro Projetado' : 'Utilidad Proyectada'}</span>
+              <span className="text-blue-400">+{formatCurrency(projectedTotalProfit, state.settings)}</span>
             </div>
           </div>
-          <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-7xl text-white/10 group-hover:rotate-12 transition-transform"></i>
+          <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-6xl text-white/5 group-hover:rotate-12 transition-transform"></i>
         </div>
 
         {/* CUADRO 4: MORA CRÍTICA (+40 DÍAS) */}
-        <div className="bg-rose-50 p-5 rounded-[2rem] border border-rose-100 shadow-sm relative overflow-hidden group">
+        <div className="bg-[oklch(11%_0.006_95)] p-6 rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#ff5f56] to-transparent opacity-80"></div>
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Retard Critique (+40 j)' : state.settings.language === 'pt' ? 'Inadimplência Crítica (+40 d)' : 'Mora Crítica (+40 d)'}</p>
-            <h3 className="text-xl lg:text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">{state.settings.language === 'fr' ? 'Capital à haut risque de perte' : state.settings.language === 'pt' ? 'Capital em alto risco de perda' : 'Capital en alto riesgo de pérdida'}</p>
+             <p className="text-[10px] font-mono font-medium text-[#ff5f56] uppercase tracking-[0.18em] mb-2 flex items-center gap-2">
+               {state.settings.language === 'fr' ? 'Retard Critique (+40 j)' : state.settings.language === 'pt' ? 'Inadimplência Crítica (+40 d)' : 'Mora Crítica (+40 d)'}
+               <i className="fa-solid fa-triangle-exclamation text-[#ff5f56] animate-pulse"></i>
+             </p>
+            <h3 className="text-2xl lg:text-3xl font-light tracking-tight text-[#ff5f56]">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
+            <p className="text-[9px] font-mono tracking-widest text-[#ff5f56]/70 mt-4 pt-4 border-t border-[oklch(78%_0_0/0.16)] uppercase">{state.settings.language === 'fr' ? 'Capital à haut risque de perte' : state.settings.language === 'pt' ? 'Capital em alto risco de perda' : 'Capital en alto riesgo de pérdida'}</p>
           </div>
-          <div className="absolute -right-2 top-2 w-12 h-12 bg-rose-200/30 rounded-full flex items-center justify-center animate-bounce">
-            <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
-          </div>
+          <i className="fa-solid fa-triangle-exclamation absolute -right-4 -bottom-4 text-6xl text-white/5 group-hover:scale-110 transition-transform"></i>
         </div>
 
       </div>
 
       {/* GRÁFICO DE BALANCE HISTÓRICO - 6 MESES */}
-      <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-[oklch(11%_0.006_95)] p-6 md:p-8 rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm flex flex-col gap-6 relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-80"></div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
           <div>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-              <i className="fa-solid fa-chart-line text-blue-600"></i>
+            <h3 className="text-sm font-mono font-medium text-[oklch(91%_0_0)] uppercase tracking-[0.18em] flex items-center gap-2">
+              <i className="fa-solid fa-chart-line text-blue-500"></i>
               {state.settings.language === 'fr' ? 'Bilan Historique des Crédits' : state.settings.language === 'pt' ? 'Balanço Histórico de Créditos' : 'Balance Histórico de Créditos'}
             </h3>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{state.settings.language === 'fr' ? 'Rendement projeté et retards des 6 derniers mois' : state.settings.language === 'pt' ? 'Rendimento projetado e inadimplência dos últimos 6 meses' : 'Rendimiento proyectado y mora de los últimos 6 meses'}</p>
+            <p className="text-[9px] font-mono tracking-widest text-[oklch(72%_0_0)] mt-1">{state.settings.language === 'fr' ? 'Rendement projeté et retards des 6 derniers mois' : state.settings.language === 'pt' ? 'Rendimento projetado e inadimplência dos últimos 6 meses' : 'Rendimiento proyectado y mora de los últimos 6 meses'}</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-black"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'BÉNÉFICE' : state.settings.language === 'pt' ? 'LUCRO' : 'UTILIDAD'}</span>
+              <div className="w-3 h-3 rounded-full bg-white"></div>
+              <span className="text-[8px] font-black text-[oklch(72%_0_0)] uppercase">{state.settings.language === 'fr' ? 'BÉNÉFICE' : state.settings.language === 'pt' ? 'LUCRO' : 'UTILIDAD'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'RETARD' : state.settings.language === 'pt' ? 'INADIMPLÊNCIA' : 'MORA'}</span>
+              <span className="text-[8px] font-black text-[oklch(72%_0_0)] uppercase">{state.settings.language === 'fr' ? 'RETARD' : state.settings.language === 'pt' ? 'INADIMPLÊNCIA' : 'MORA'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'RENOUVELLEMENTS' : state.settings.language === 'pt' ? 'RENOVAÇÕES' : 'RENOVACIONES'}</span>
+              <span className="text-[8px] font-black text-[oklch(72%_0_0)] uppercase">{state.settings.language === 'fr' ? 'RENOUVELLEMENTS' : state.settings.language === 'pt' ? 'RENOVAÇÕES' : 'RENOVACIONES'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-indigo-400"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'C. NOUVEAUX' : state.settings.language === 'pt' ? 'C. NOVOS' : 'C. NUEVOS'}</span>
+              <span className="text-[8px] font-black text-[oklch(72%_0_0)] uppercase">{state.settings.language === 'fr' ? 'C. NOUVEAUX' : state.settings.language === 'pt' ? 'C. NOVOS' : 'C. NUEVOS'}</span>
             </div>
           </div>
         </div>
 
-        <div className="h-[350px] w-full bg-[#f3f4f6] rounded-[2rem] p-6 relative shadow-inner">
+        <div className="h-[350px] w-full bg-[oklch(14%_0.006_95)] border border-[oklch(78%_0_0/0.16)] rounded-md p-6 relative z-10">
           <ResponsiveContainer width="100%" height={300} minWidth={0}>
             <AreaChart data={dailyPoints} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorUtility" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#000000" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
+                  <stop offset="5%" stopColor="#ffffff" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#ffffff" stopOpacity={0.05} />
                 </linearGradient>
                 <linearGradient id="colorMora" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#fca5a5" stopOpacity={0.6} />
@@ -404,7 +409,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <stop offset="95%" stopColor="#a5b4fc" stopOpacity={0.2} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={true} horizontal={true} stroke="#ffffff" strokeWidth={2} />
+              <CartesianGrid vertical={true} horizontal={true} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
               <XAxis
                 dataKey="dateKey"
                 axisLine={false}
@@ -485,7 +490,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 yAxisId="left"
                 type="monotone"
                 dataKey="utilidad"
-                stroke="#000000"
+                stroke="#ffffff"
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorUtility)"
@@ -500,38 +505,41 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
         {monthlySummary.map((month: any, idx: number) => (
-          <div key={idx} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-center hover:bg-white hover:shadow-xl transition-all group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">{month.name}</p>
-            <div className="flex flex-col gap-2">
-              <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} {state.settings.language === 'fr' ? 'TOTAUX' : state.settings.language === 'pt' ? 'TOTAIS' : 'TOTALES'}</p>
-              <div className="flex flex-col items-center gap-1 mt-1">
-                <div className="flex items-center gap-2 justify-center">
-                  <span className="text-[14px] font-black text-indigo-600 uppercase">
-                    {month.nuevos} {state.settings.language === 'fr' ? 'NOUVEAUX' : state.settings.language === 'pt' ? 'NOVOS' : 'NUEVOS'}
-                  </span>
-                  {month.nuevos > 0 && (
-                    <button
-                      onClick={() => setSelectedMonthDetail(month)}
-                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer flex items-center gap-1 border border-indigo-100"
-                      title={state.settings.language === 'fr' ? 'Voir nouveaux clients' : state.settings.language === 'pt' ? 'Ver novos clientes' : 'Ver clientes nuevos'}
-                    >
-                      <i className="fa-solid fa-user-plus text-[8px]"></i>
-                      {state.settings.language === 'fr' ? 'Voir Client' : state.settings.language === 'pt' ? 'Ver Cliente' : 'Ver Cliente'}
-                    </button>
-                  )}
+          <div key={idx} className="bg-[oklch(11%_0.006_95)] p-6 rounded-md border border-[oklch(78%_0_0/0.16)] text-center hover:bg-[oklch(14%_0.006_95)] hover:shadow-xl transition-all relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-80"></div>
+            <div className="relative z-10">
+              <p className="text-[10px] font-mono font-medium text-[oklch(72%_0_0)] uppercase tracking-[0.3em] mb-3">{month.name}</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-[14px] font-light text-[oklch(91%_0_0)] leading-tight">{month.creditos} {state.settings.language === 'fr' ? 'TOTAUX' : state.settings.language === 'pt' ? 'TOTAIS' : 'TOTALES'}</p>
+                <div className="flex flex-col items-center gap-1 mt-1">
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="text-[14px] font-black text-indigo-400 uppercase">
+                      {month.nuevos} {state.settings.language === 'fr' ? 'NOUVEAUX' : state.settings.language === 'pt' ? 'NOVOS' : 'NUEVOS'}
+                    </span>
+                    {month.nuevos > 0 && (
+                      <button
+                        onClick={() => setSelectedMonthDetail(month)}
+                        className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer flex items-center gap-1 border border-indigo-500/20"
+                        title={state.settings.language === 'fr' ? 'Voir nouveaux clients' : state.settings.language === 'pt' ? 'Ver novos clientes' : 'Ver clientes nuevos'}
+                      >
+                        <i className="fa-solid fa-user-plus text-[8px]"></i>
+                        {state.settings.language === 'fr' ? 'Voir Client' : state.settings.language === 'pt' ? 'Ver Cliente' : 'Ver Cliente'}
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[14px] font-black text-emerald-400 uppercase">{month.renovaciones} {state.settings.language === 'fr' ? 'RENOUV.' : state.settings.language === 'pt' ? 'RENOV.' : 'RENOV.'}</span>
                 </div>
-                <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} {state.settings.language === 'fr' ? 'RENOUV.' : state.settings.language === 'pt' ? 'RENOV.' : 'RENOV.'}</span>
               </div>
-            </div>
-            <div className="mt-4 h-2 bg-slate-200/50 rounded-full overflow-hidden flex shadow-inner">
-              <div
-                className="h-full bg-indigo-500 transition-all duration-1000"
-                style={{ width: `${(month.nuevos / Math.max(1, month.creditos)) * 100}%` }}
-              ></div>
-              <div
-                className="h-full bg-emerald-500 transition-all duration-1000"
-                style={{ width: `${(month.renovaciones / Math.max(1, month.creditos)) * 100}%` }}
-              ></div>
+              <div className="mt-4 h-2 bg-white/5 rounded-full overflow-hidden flex shadow-inner border border-white/10">
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-1000"
+                  style={{ width: `${(month.nuevos / Math.max(1, month.creditos)) * 100}%` }}
+                ></div>
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-1000"
+                  style={{ width: `${(month.renovaciones / Math.max(1, month.creditos)) * 100}%` }}
+                ></div>
+              </div>
             </div>
           </div>
         ))}
@@ -1154,32 +1162,33 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
   const ci  = (key: string) => CATS.find(c => c.key === key) || CATS[5];
 
   return (
-    <div className="mt-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+    <div className="mt-6 bg-[oklch(11%_0.006_95)] rounded-md border border-[oklch(78%_0_0/0.16)] shadow-sm overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-80"></div>
 
       {/* Header */}
-      <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-6 pt-5 pb-4 border-b border-[oklch(78%_0_0/0.16)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <h2 className="text-base font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
+            <h2 className="text-base font-mono font-medium text-[oklch(91%_0_0)] uppercase tracking-[0.18em] flex items-center gap-2">
               💼 GASTOS OPERATIVOS
             </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] font-mono tracking-widest text-[oklch(72%_0_0)] mt-1">
               Solo visibles en esta sucursal
             </p>
           </div>
 
           {/* Combustible prefijado */}
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
+          <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-xl px-4 py-2.5">
             <span className="text-xl">⛽</span>
             <div>
-              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-1">Combustible diario</p>
+              <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest mb-1">Combustible diario</p>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
                   value={fuelInput}
                   onChange={e => setFuelInput(e.target.value)}
                   placeholder="0"
-                  className="w-24 bg-white border border-orange-200 rounded-lg px-2 py-1 text-xs font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-24 bg-[oklch(14%_0.006_95)] border border-orange-500/30 rounded-lg px-2 py-1 text-xs font-black text-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
                 <button
                   onClick={saveFuelPreset}
@@ -1192,49 +1201,49 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
 
           {/* Nómina Mensual */}
           {nominaMensual > 0 && (
-            <div className="bg-slate-900/5 border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-right shrink-0">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Nómina Mensual</p>
-              <p className="text-lg font-black font-mono text-emerald-600 flex items-center justify-end gap-1.5"><i className="fa-solid fa-money-check-dollar text-sm"></i>{sym}{fmtNum(nominaMensual)}</p>
+            <div className="bg-white/5 border border-white/10 text-[oklch(88%_0_0)] px-5 py-2.5 rounded-xl text-right shrink-0">
+              <p className="text-[9px] font-mono uppercase tracking-widest text-[oklch(72%_0_0)]">Nómina Mensual</p>
+              <p className="text-lg font-light font-mono text-emerald-400 flex items-center justify-end gap-1.5"><i className="fa-solid fa-money-check-dollar text-sm"></i>{sym}{fmtNum(nominaMensual)}</p>
             </div>
           )}
 
           {/* Total */}
-          <div className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-right shrink-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Total del mes</p>
-            <p className="text-lg font-black font-mono">{sym}{fmtNum(total)}</p>
+          <div className="bg-white/10 text-[oklch(91%_0_0)] px-5 py-2.5 rounded-xl text-right shrink-0">
+            <p className="text-[9px] font-mono uppercase tracking-widest text-[oklch(72%_0_0)]">Total del mes</p>
+            <p className="text-lg font-light font-mono">{sym}{fmtNum(total)}</p>
           </div>
         </div>
 
         {/* Gasto Total (Suma) */}
-        <div className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-right shrink-0 shadow-sm border border-red-700">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-red-200">Total General</p>
-          <p className="text-lg font-black font-mono">{sym}{fmtNum(total + nominaMensual)}</p>
+        <div className="bg-[#ff5f56]/10 text-[#ff5f56] px-5 py-2.5 rounded-xl text-right shrink-0 shadow-sm border border-[#ff5f56]/20">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-[#ff5f56]/70">Total General</p>
+          <p className="text-lg font-light font-mono">{sym}{fmtNum(total + nominaMensual)}</p>
         </div>
       </div>
 
       {/* Navegador de mes */}
-      <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-b border-slate-100">
-        <button onClick={prevMes} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">‹</button>
-        <span className="text-sm font-black text-slate-700 uppercase tracking-widest">{MESES[month]} {year}</span>
-        <button onClick={nextMes} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">›</button>
+      <div className="flex items-center justify-between px-6 py-3 bg-slate-200 border-b border-slate-300 relative z-10">
+        <button onClick={prevMes} className="w-8 h-8 rounded-lg bg-white border border-slate-300 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">‹</button>
+        <span className="text-sm font-black text-slate-800 uppercase tracking-widest">{MESES[month]} {year}</span>
+        <button onClick={nextMes} className="w-8 h-8 rounded-lg bg-white border border-slate-300 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">›</button>
       </div>
 
       {/* Planilla */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto relative z-10">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-24">Fecha</th>
-              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Descripción</th>
-              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-36">Categoría</th>
-              <th className="px-4 py-2 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest w-32">Monto</th>
+            <tr className="bg-slate-200 border-b border-slate-300">
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-600 uppercase tracking-widest w-24">Fecha</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-600 uppercase tracking-widest">Descripción</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-600 uppercase tracking-widest w-36">Categoría</th>
+              <th className="px-4 py-2 text-right text-[9px] font-black text-slate-600 uppercase tracking-widest w-32">Monto</th>
               <th className="w-20"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-100">
 
             {gastosHoy.length === 0 && !showForm && (
-              <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-300">
+              <tr className="bg-white"><td colSpan={5} className="px-6 py-10 text-center text-slate-400">
                 <p className="text-3xl mb-1">📭</p>
                 <p className="text-xs font-bold uppercase tracking-widest">Sin gastos hoy</p>
               </td></tr>
@@ -1273,7 +1282,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
                 );
               }
               return (
-                <tr key={g.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={g.id} className="bg-white hover:bg-slate-50 transition-colors group">
                   <td className="px-4 py-3 text-[11px] font-black text-slate-500 whitespace-nowrap uppercase">
                     {new Date(g.date).toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </td>
