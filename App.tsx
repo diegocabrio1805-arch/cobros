@@ -180,7 +180,7 @@ const App: React.FC = () => {
         </div>
 
         {/* MOBILE HEADER */}
-        <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[100] shadow-sm">
+        <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[999] shadow-sm">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <button 
