@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { User, Role, AppState } from '../types';
 import { getTranslation } from '../utils/translations';
 import { formatDate } from '../utils/helpers';
+import WeatherWidget from './WeatherWidget';
 
 interface ProfileProps {
   state: AppState;
@@ -44,6 +45,7 @@ const Profile: React.FC<ProfileProps> = ({ state, onUpdateUser }) => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn pb-24 px-1">
+      <WeatherWidget />
       <div className="bg-white p-6 md:p-8 rounded-none border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-600 rounded-none flex items-center justify-center text-white text-2xl md:text-3xl font-black shadow-xl">

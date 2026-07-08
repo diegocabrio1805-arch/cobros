@@ -32,6 +32,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
 import AutoUpdater from './components/AutoUpdater';
 import MobileCollectorMode from './components/MobileCollectorMode';
+import WeatherWidget from './components/WeatherWidget';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -212,7 +213,10 @@ const App: React.FC = () => {
 
           {/* MOBILE MENU OVERLAY */}
           {isMobileMenuOpen && (
-            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
+            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[990] overflow-y-auto">
+              <div className="col-span-2 mb-2">
+                <WeatherWidget />
+              </div>
               {[
                 { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
                 { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
