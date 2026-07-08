@@ -192,12 +192,13 @@ const WeatherWidget: React.FC = () => {
 
   const getBackgroundImage = (code: number) => {
     const isNight = currentTime.getHours() >= 19 || currentTime.getHours() < 6;
+    const base = import.meta.env.BASE_URL || './';
     
     if (code === 0 || code === 1) {
-      return isNight ? '/weather/night_clear.png' : '/weather/sunny.png';
+      return isNight ? `${base}weather/night_clear.png` : `${base}weather/sunny.png`;
     }
-    if ([2, 3, 45, 48].includes(code)) return '/weather/cloudy.png';
-    return '/weather/rainy.png';
+    if ([2, 3, 45, 48].includes(code)) return `${base}weather/cloudy.png`;
+    return `${base}weather/rainy.png`;
   };
   
   const getIconForTime = (icon: string, hours: number) => {
