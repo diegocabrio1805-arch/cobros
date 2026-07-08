@@ -21,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
 
   const [currentDateStr, setCurrentDateStr] = useState<string>('');
   const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
+  const [isDaytime, setIsDaytime] = useState<boolean>(true);
   const t = getTranslation(state.settings.language).menu;
 
   const countryCode = state.settings.country as CountryCode;
@@ -40,10 +41,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
       const tz = getTimeZoneForCountry(countryCode);
       
       const dateOpts: Intl.DateTimeFormatOptions = { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' };
-      const timeOpts: Intl.DateTimeFormatOptions = { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+      const timeOpts: Intl.DateTimeFormatOptions = { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
       
       setCurrentDateStr(new Intl.DateTimeFormat('es-ES', dateOpts).format(now).toUpperCase());
       setCurrentTimeStr(new Intl.DateTimeFormat('es-ES', timeOpts).format(now));
+
+      try {
+        const hourStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now);
+        const currentHour = parseInt(hourStr, 10);
+        setIsDaytime(currentHour >= 6 && currentHour < 19);
+      } catch (e) {
+        setIsDaytime(true);
+      }
     };
 
     const timer = setInterval(updateDateTime, 1000);
@@ -104,7 +113,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         <div className="bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-base font-black text-white uppercase tracking-wider truncate leading-none">{countryName}</span>
-            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <div className="flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+            </div>
           </div>
           <div className="flex flex-col gap-1.5 text-emerald-400/90">
             <span className="text-[10px] font-black tracking-widest leading-none text-emerald-400/90">{currentDateStr}</span>

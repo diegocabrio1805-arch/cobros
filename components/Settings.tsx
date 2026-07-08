@@ -269,9 +269,9 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 md:space-y-8 animate-fadeIn pb-32 px-1">
-      <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl md:rounded-2xl flex items-center justify-center text-white text-lg shadow-xl">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-none flex items-center justify-center text-white text-lg shadow-xl">
             <i className="fa-solid fa-gear"></i>
           </div>
           <div>
@@ -286,7 +286,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               setSupportPhone(state.settings.technicalSupportPhone || '');
               setShowSupportModal(true);
             }}
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-none font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-headset"></i>
             {t.settingsPage?.supportBtn || "CONFIGURAR SOPORTE TÉCNICO"}
@@ -296,7 +296,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
       {/* CONFIGURACIÓN DE EMPRESA Y LEGAJO */}
       {isPowerUser && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-blue-600">
+        <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-blue-600">
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-building text-xl md:text-2xl text-blue-600"></i>
             <div>
@@ -314,7 +314,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={localForm.companyName}
                   onChange={(e) => setLocalForm({ ...localForm, companyName: e.target.value })}
                   placeholder="Ej: MI COBRANZA EXPRESS"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="space-y-2">
@@ -324,7 +324,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={localForm.contactPhone}
                   onChange={(e) => setLocalForm({ ...localForm, contactPhone: e.target.value })}
                   placeholder="Ej: +57 300 000 0000"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -337,7 +337,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={localForm.companyAlias}
                   onChange={(e) => setLocalForm({ ...localForm, companyAlias: e.target.value })}
                   placeholder="Ej: DANTE"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="space-y-2">
@@ -347,7 +347,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={localForm.companyIdentifier}
                   onChange={(e) => setLocalForm({ ...localForm, companyIdentifier: e.target.value })}
                   placeholder="Ej: 900.123.456"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -361,21 +361,21 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     value={localForm.shareLabel}
                     onChange={(e) => setLocalForm({ ...localForm, shareLabel: e.target.value })}
                     placeholder="COMPLETAR"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <div className="flex flex-col sm:flex-row gap-3 ml-1 mt-1 items-start sm:items-center">
                     <button
                       onClick={() => setLocalForm({ ...localForm, shareLabelBold: !localForm.shareLabelBold })}
-                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareLabelBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                      className={`px-3 py-1.5 rounded-none text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareLabelBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
                       <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-none border border-slate-200 shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
                         <button
                           key={size}
                           onClick={() => setLocalForm({ ...localForm, shareLabelSize: size as any })}
-                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareLabelSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                          className={`px-3 py-1.5 rounded-none text-[8px] font-black uppercase transition-all ${localForm.shareLabelSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
                           {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
@@ -392,21 +392,21 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     value={localForm.shareValue}
                     onChange={(e) => setLocalForm({ ...localForm, shareValue: e.target.value })}
                     placeholder="COMPLETAR"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <div className="flex flex-col sm:flex-row gap-3 ml-1 mt-1 items-start sm:items-center">
                     <button
                       onClick={() => setLocalForm({ ...localForm, shareValueBold: !localForm.shareValueBold })}
-                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareValueBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                      className={`px-3 py-1.5 rounded-none text-[8px] font-black uppercase transition-all shadow-sm ${localForm.shareValueBold ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
                       <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-none border border-slate-200 shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
                         <button
                           key={size}
                           onClick={() => setLocalForm({ ...localForm, shareValueSize: size as any })}
-                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.shareValueSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                          className={`px-3 py-1.5 rounded-none text-[8px] font-black uppercase transition-all ${localForm.shareValueSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
                           {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
@@ -426,21 +426,21 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Nombre de la Empresa */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <div className="p-4 bg-slate-50 rounded-none border border-slate-100 space-y-3">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printNameLabel || "Nombre de Empresa"}</p>
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={() => setLocalForm({ ...localForm, companyNameBold: !localForm.companyNameBold })}
-                      className={`w-fit px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyNameBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                      className={`w-fit px-3 py-1.5 rounded-none text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyNameBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
                       <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 w-fit shadow-sm">
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-none border border-slate-200 w-fit shadow-sm">
                       {['normal', 'medium', 'large'].map((size) => (
                         <button
                           key={size}
                           onClick={() => setLocalForm({ ...localForm, companyNameSize: size as any })}
-                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${localForm.companyNameSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                          className={`px-3 py-1.5 rounded-none text-[8px] font-black uppercase transition-all ${localForm.companyNameSize === size ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
                         >
                           {size === 'normal' ? (t.settingsPage?.sizeNormal || 'Normal') : size === 'medium' ? (t.settingsPage?.sizeMedium || 'Med.') : (t.settingsPage?.sizeLarge || 'Gnd.')}
                         </button>
@@ -450,12 +450,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </div>
 
                 {/* ID Empresa */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <div className="p-4 bg-slate-50 rounded-none border border-slate-100 space-y-3">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printIdLabel || "ID Legal (NIT/RUC)"}</p>
                   <div>
                     <button
                       onClick={() => setLocalForm({ ...localForm, companyIdentifierBold: !localForm.companyIdentifierBold })}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyIdentifierBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                      className={`px-3 py-1.5 rounded-none text-[9px] font-black uppercase transition-all shadow-sm ${localForm.companyIdentifierBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
                       <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
@@ -463,12 +463,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </div>
 
                 {/* Teléfono */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <div className="p-4 bg-slate-50 rounded-none border border-slate-100 space-y-3">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.settingsPage?.printPhoneLabel || "Teléfono Soporte"}</p>
                   <div>
                     <button
                       onClick={() => setLocalForm({ ...localForm, contactPhoneBold: !localForm.contactPhoneBold })}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${localForm.contactPhoneBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
+                      className={`px-3 py-1.5 rounded-none text-[9px] font-black uppercase transition-all shadow-sm ${localForm.contactPhoneBold ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300' : 'bg-white text-slate-400 border border-slate-200'}`}
                     >
                       <i className="fa-solid fa-bold mr-1"></i> {t.settingsPage?.boldBtn || "Negrita"}
                     </button>
@@ -477,9 +477,9 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               </div>
 
               {/* Margen de Impresión */}
-              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="p-5 bg-blue-50/50 rounded-none border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                  <div className="w-8 h-8 bg-blue-100 rounded-none flex items-center justify-center text-blue-600">
                     <i className="fa-solid fa-arrows-up-down"></i>
                   </div>
                   <div>
@@ -497,7 +497,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     onChange={(e) => setLocalForm({ ...localForm, receiptPrintMargin: parseInt(e.target.value) })}
                     className="flex-1 sm:w-32 accent-blue-600"
                   />
-                  <span className="w-12 text-center py-1 bg-white border border-blue-200 rounded-lg text-[10px] font-black text-blue-700">
+                  <span className="w-12 text-center py-1 bg-white border border-blue-200 rounded-none text-[10px] font-black text-blue-700">
                     {localForm.receiptPrintMargin} <span className="text-[8px] opacity-50">{t.settingsPage?.lines || "LÍNEAS"}</span>
                   </span>
                 </div>
@@ -513,7 +513,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 localStorage.setItem('printer_margin_bottom', localForm.receiptPrintMargin.toString());
                 alert("✅ Datos de la empresa guardados correctamente.");
               }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-none font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
             >
               <i className="fa-solid fa-floppy-disk text-sm"></i>
               {t.settingsPage?.saveCompanyData || "GUARDAR DATOS DE EMPRESA"}
@@ -524,7 +524,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
       {/* INTEGRACIÓN DE BANCARD PARA QR INTEROPERABLE */}
       {isAdmin && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-purple-600">
+        <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-purple-600">
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-qrcode text-xl md:text-2xl text-purple-600"></i>
             <div>
@@ -542,7 +542,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={bancardShopId}
                   onChange={(e) => setBancardShopId(e.target.value)}
                   placeholder="Ej: 348927"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
                 />
               </div>
               <div className="space-y-2">
@@ -552,7 +552,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={bancardPublicKey}
                   onChange={(e) => setBancardPublicKey(e.target.value)}
                   placeholder="pk_bancard_..."
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
                 />
               </div>
             </div>
@@ -565,7 +565,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   value={bancardPrivateKey}
                   onChange={(e) => setBancardPrivateKey(e.target.value)}
                   placeholder="sk_bancard_..."
-                  className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 font-mono text-black font-bold"
+                  className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 font-mono text-black font-bold"
                 />
                 <button
                   type="button"
@@ -581,7 +581,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <button
                 disabled={isLoadingBancard}
                 onClick={handleSaveBancard}
-                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-purple-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-4 rounded-none font-black uppercase text-[10px] tracking-widest shadow-lg shadow-purple-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
               >
                 {isLoadingBancard ? (
                   <i className="fa-solid fa-spinner animate-spin text-sm"></i>
@@ -597,7 +597,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
       {/* ZONA DE ESTABILIZACIÓN - ACCESIBLE PARA TODOS (INCLUIDO COBRADOR) */}
       {true && (
-        <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-amber-400">
+        <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-amber-400">
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-satellite-dish text-xl md:text-2xl text-amber-500 animate-pulse"></i>
             <div>
@@ -608,8 +608,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Estado de Red */}
-            <div className={`p-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${isOnline ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-2 ${isOnline ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+            <div className={`p-5 rounded-none border-2 flex flex-col items-center justify-center gap-2 transition-all ${isOnline ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+              <div className={`w-12 h-12 rounded-none flex items-center justify-center text-2xl mb-2 ${isOnline ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                 <i className={`fa-solid ${isOnline ? 'fa-wifi' : 'fa-triangle-exclamation'}`}></i>
               </div>
               <h4 className={`text-sm font-black uppercase ${isOnline ? 'text-emerald-800' : 'text-red-800'}`}>
@@ -625,7 +625,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <button
                 onClick={onForceSync}
                 disabled={isSyncing || !isOnline}
-                className={`w-full p-4 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 ${isSyncing ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-amber-400 border-amber-400 text-amber-950 hover:bg-amber-500'}`}
+                className={`w-full p-4 rounded-none border-2 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 ${isSyncing ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-amber-400 border-amber-400 text-amber-950 hover:bg-amber-500'}`}
               >
                 <i className={`fa-solid ${isSyncing ? 'fa-arrows-rotate animate-spin' : 'fa-rotate'} text-xl`}></i>
                 <span className="text-[10px] font-black uppercase tracking-widest">
@@ -639,7 +639,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     onClearQueue && onClearQueue();
                   }
                 }}
-                className="w-full p-4 rounded-2xl border-2 border-red-600 bg-red-50 text-red-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
+                className="w-full p-4 rounded-none border-2 border-red-600 bg-red-50 text-red-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
               >
                 <i className="fa-solid fa-trash-can text-xl"></i>
                 <span className="text-[10px] font-black uppercase tracking-widest">{t.settingsPage?.clearQueueBtn || "LIMPIAR COLA"}</span>
@@ -661,7 +661,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                     if (onForceSync) onForceSync();
                   }
                 }}
-                className="w-full p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
+                className="w-full p-4 rounded-none border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
               >
                 <i className="fa-solid fa-cloud-arrow-down text-xl"></i>
                 <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.repairSyncBtn || "REPARAR PROBL. SINCRONIZACIÓN"}</span>
@@ -670,7 +670,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               {/* BOTON DE ACTUALIZACIÓN PROFUNDA (ANTES REPARACIÓN PROFUNDA) */}
               <button
                 onClick={onDeepReset}
-                className="w-full p-4 rounded-2xl border-2 border-emerald-600 bg-white text-emerald-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-emerald-50"
+                className="w-full p-4 rounded-none border-2 border-emerald-600 bg-white text-emerald-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-emerald-50"
               >
                 <i className="fa-solid fa-triangle-exclamation text-xl"></i>
                 <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.deepUpdateBtn || "ACTUALIZACIÓN PROFUNDA"}</span>
@@ -686,7 +686,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
       {
         isPowerUser && (
-          <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all">
+          <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all">
             <div className="flex items-center gap-3 mb-6">
               <i className="fa-solid fa-coins text-xl md:text-2xl text-amber-500"></i>
               <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settingsPage?.currencyFormatTitle || "Formato de Moneda"}</h3>
@@ -695,7 +695,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => handleFormatChange('dot')}
-                className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${numberFormat !== 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
+                className={`p-5 rounded-none border-2 flex flex-col items-center gap-2 transition-all ${numberFormat !== 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
               >
                 <span className={`text-xl font-black ${numberFormat !== 'comma' ? 'text-emerald-700' : 'text-slate-500'}`}>1.000.000,00</span>
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{t.settingsPage?.dotFormat || "PUNTO DE MIL"}</span>
@@ -703,7 +703,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
               <button
                 onClick={() => handleFormatChange('comma')}
-                className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${numberFormat === 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
+                className={`p-5 rounded-none border-2 flex flex-col items-center gap-2 transition-all ${numberFormat === 'comma' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 bg-slate-50 active:border-emerald-200'}`}
               >
                 <span className={`text-xl font-black ${numberFormat === 'comma' ? 'text-emerald-700' : 'text-slate-500'}`}>1,000,000.00</span>
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{t.settingsPage?.commaFormat || "PUNTO DE COMA"}</span>
@@ -714,7 +714,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       }
 
       {/* Configuración de Impresora - ACCESIBLE PARA TODOS */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all">
+      <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all">
 
         <div className="flex items-center gap-3 mb-6">
           <i className="fa-solid fa-print text-xl md:text-2xl text-blue-600"></i>
@@ -729,13 +729,13 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 handleScanPrinters();
               }}
               disabled={scanningPrinters}
-              className={`w-full p-5 rounded-2xl border-2 flex items-center justify-center gap-4 transition-all ${scanningPrinters ? 'bg-slate-100 border-slate-200' : 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20 active:scale-95 text-center'}`}
+              className={`w-full p-5 rounded-none border-2 flex items-center justify-center gap-4 transition-all ${scanningPrinters ? 'bg-slate-100 border-slate-200' : 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20 active:scale-95 text-center'}`}
             >
               {scanningPrinters ? <i className="fa-solid fa-spinner animate-spin text-xl text-center"></i> : <i className="fa-solid fa-bluetooth text-xl"></i>}
               <span className="text-[10px] font-black uppercase tracking-widest">{scanningPrinters ? (t.settingsPage?.searching || 'BUSCANDO...') : (t.settingsPage?.searchPrinterBtn || 'BUSCAR IMPRESORA')}</span>
             </button>
             {connectedDevice && (
-              <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase text-center animate-fadeIn">
+              <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-none text-[10px] font-black uppercase text-center animate-fadeIn">
                 <i className="fa-solid fa-circle-check mr-2"></i>
                 {t.settingsPage?.linked || "Vinculado:"} {connectedDevice}
               </div>
@@ -744,7 +744,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
           <button
             onClick={handleTestPrint}
-            className="w-full p-5 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
+            className="w-full p-5 rounded-none border-2 border-slate-900 bg-slate-900 text-white flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95"
           >
             <i className="fa-solid fa-vial text-xl"></i>
             <span className="text-[10px] font-black uppercase tracking-widest text-center">{t.settingsPage?.testPrintBtn || "PROBAR IMPRESIÓN"}</span>
@@ -760,7 +760,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
         {/* COLUMNA 1: IDIOMA */}
         <div className="flex flex-col gap-4 md:gap-6">
-          <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all h-full">
+          <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all h-full">
             <div className="flex items-center gap-3 mb-5 md:mb-6">
               <i className="fa-solid fa-language text-xl md:text-2xl text-blue-600"></i>
               <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settings.language || "Idioma App"}</h3>
@@ -771,7 +771,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <button
                   key={lang.code}
                   onClick={() => handleLanguageChange(lang.code as Language)}
-                  className={`w-full p-3.5 md:p-4 rounded-xl md:rounded-2xl border-2 flex items-center justify-between transition-all group ${language === lang.code ? 'border-blue-600 bg-blue-50' : 'border-slate-100 active:border-blue-200'}`}
+                  className={`w-full p-3.5 md:p-4 rounded-none border-2 flex items-center justify-between transition-all group ${language === lang.code ? 'border-blue-600 bg-blue-50' : 'border-slate-100 active:border-blue-200'}`}
                 >
                   <div className="flex items-center gap-3 md:gap-4">
                     <span className="text-xl md:text-2xl">{lang.flag}</span>
@@ -786,7 +786,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
         {/* COLUMNA 2: PAÍS + BOTÓN {t.settingsPage?.saveAndExit || "GUARDAR Y SALIR"} */}
         <div className="flex flex-col gap-4 md:gap-6">
-          <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all h-fit flex flex-col">
+          <div className="bg-white p-6 md:p-8 rounded-none border border-slate-100 shadow-sm hover:shadow-lg transition-all h-fit flex flex-col">
             <div className="flex items-center gap-3 mb-1.5 md:mb-2">
               <i className="fa-solid fa-earth-americas text-xl md:text-2xl text-emerald-600"></i>
               <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">{t.settings.country || "País de Operación"}</h3>
@@ -800,7 +800,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <button
                   key={ctry.code}
                   onClick={() => handleCountryChange(ctry.code as CountryCode)}
-                  className={`w-full p-2.5 md:p-3 rounded-xl border-2 flex items-center justify-between transition-all ${country === ctry.code ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 active:border-emerald-200'}`}
+                  className={`w-full p-2.5 md:p-3 rounded-none border-2 flex items-center justify-between transition-all ${country === ctry.code ? 'border-emerald-600 bg-emerald-50' : 'border-slate-100 active:border-emerald-200'}`}
                 >
                   <div className="flex items-center gap-2 md:gap-3">
                     <span className="text-lg md:text-2xl">{ctry.flag}</span>
@@ -814,7 +814,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
           <button
             onClick={handleSaveAndExit}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-2xl md:rounded-[2rem] shadow-xl shadow-emerald-500/20 transition-all active:scale-95 uppercase tracking-[0.2em] text-xs md:text-sm flex items-center justify-center gap-3 border-b-4 border-emerald-800"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-none shadow-xl shadow-emerald-500/20 transition-all active:scale-95 uppercase tracking-[0.2em] text-xs md:text-sm flex items-center justify-center gap-3 border-b-4 border-emerald-800"
           >
             <i className="fa-solid fa-cloud-arrow-up text-lg"></i>
             {t.settingsPage?.saveAndExit || "GUARDAR Y SALIR"}

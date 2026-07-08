@@ -209,7 +209,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24 px-1">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm text-center md:text-left">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-none border border-slate-200 shadow-sm text-center md:text-left">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -225,7 +225,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 px-6 py-4 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border border-slate-200 shadow-sm"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 px-6 py-4 md:py-3 rounded-none font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 border border-slate-200 shadow-sm"
           >
             <i className="fa-solid fa-arrow-left-long"></i>
             SALIR
@@ -233,7 +233,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
           <button
             onClick={() => setShowModal(true)}
-            className="flex-[2] md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 md:py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all font-black shadow-lg shadow-indigo-500/20 active:scale-95 uppercase text-[10px] tracking-widest"
+            className="flex-[2] md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 md:py-3.5 rounded-none flex items-center justify-center gap-3 transition-all font-black shadow-lg shadow-indigo-500/20 active:scale-95 uppercase text-[10px] tracking-widest"
           >
             <i className="fa-solid fa-user-plus text-sm"></i>
             {t.managers.newManager}
@@ -243,7 +243,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
       <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {managers.length === 0 ? (
-          <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-500 text-center">
+          <div className="col-span-full py-16 md:py-20 bg-white rounded-none border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-500 text-center">
             <i className="fa-solid fa-user-tie text-4xl md:text-5xl mb-4 opacity-20"></i>
             <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">Sin gerentes registrados</p>
           </div>
@@ -251,14 +251,14 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
           managers.map((user) => {
             const isCritical = checkNearExpiry(user.expiryDate);
             return (
-              <div key={user.id} className={`p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border transition-all group relative overflow-hidden ${isCritical ? 'bg-red-50 border-red-600 shadow-2xl animate-border-blink' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl'}`}>
+              <div key={user.id} className={`p-6 md:p-8 rounded-none border transition-all group relative overflow-hidden ${isCritical ? 'bg-red-50 border-red-600 shadow-2xl animate-border-blink' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl'}`}>
                 <div className="absolute -right-4 -top-4 text-slate-100 opacity-20 group-hover:opacity-40 transition-colors">
                   <i className="fa-solid fa-user-tie text-7xl md:text-9xl"></i>
                 </div>
 
                 <div className="relative z-10 space-y-6">
                   <div className="flex justify-between items-start">
-                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl font-black shadow-inner uppercase ${isCritical ? 'bg-white text-red-600' : 'bg-indigo-50 text-indigo-700'}`}>
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-none flex items-center justify-center text-xl md:text-2xl font-black shadow-inner uppercase ${isCritical ? 'bg-white text-red-600' : 'bg-indigo-50 text-indigo-700'}`}>
                       {user.name.charAt(0)}
                     </div>
                     <div className="flex gap-2">
@@ -290,7 +290,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl md:rounded-2xl space-y-3 border shadow-inner ${isCritical ? 'bg-black/10 border-white/20 text-slate-900' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
+                  <div className={`p-4 rounded-none space-y-3 border shadow-inner ${isCritical ? 'bg-black/10 border-white/20 text-slate-900' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
                     <div className="flex justify-between items-center text-[10px] md:text-xs">
                       <span className={`font-bold uppercase tracking-tighter ${isCritical ? 'text-slate-700' : 'text-slate-700'}`}>Corte de Licencia:</span>
                       <span className="font-black flex items-center gap-1.5 text-slate-950">
@@ -302,7 +302,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
                   <button
                     onClick={() => setShowCollectorManagerModal(user.id)}
-                    className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${isCritical ? 'bg-white text-red-600 border border-red-200' : 'bg-slate-950 text-white'}`}
+                    className={`w-full py-4 rounded-none font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${isCritical ? 'bg-white text-red-600 border border-red-200' : 'bg-slate-950 text-white'}`}
                   >
                     <i className="fa-solid fa-user-gear"></i>
                     GESTIONAR COBRADOR
@@ -317,7 +317,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       {/* MODAL COBRADOR POR SUCURSAL */}
       {showCollectorManagerModal && selectedManager && (
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-0 md:p-4 overflow-y-auto pt-10 md:pt-20">
-          <div className="bg-white w-full h-full md:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scaleIn border border-white/20">
+          <div className="bg-white w-full h-full md:rounded-none shadow-2xl flex flex-col overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-8 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
               <div>
                 <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
@@ -339,7 +339,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                 </h4>
 
                 <form onSubmit={handleCollectorSubmit} className="space-y-6">
-                  <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm space-y-4">
+                  <div className="bg-white p-5 rounded-none border border-slate-300 shadow-sm space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Nombre Completo</label>
                       <input required type="text" value={collectorForm.name} onChange={e => setCollectorForm({ ...collectorForm, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
@@ -363,22 +363,22 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Foto Perfil</label>
-                      <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-pointer shadow-sm">
+                      <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-none flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-pointer shadow-sm">
                         {collectorForm.profilePic ? <img src={collectorForm.profilePic} className="w-full h-full object-cover" /> : <i className="fa-solid fa-camera text-slate-400 text-2xl"></i>}
                         <input type="file" accept="image/*" onChange={(e) => handleCollectorFile(e, 'profilePic')} className="absolute inset-0 opacity-0 cursor-pointer" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Foto Fachada Casa</label>
-                      <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-pointer shadow-sm">
+                      <div className="relative aspect-square bg-white border-2 border-dashed border-slate-300 rounded-none flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-pointer shadow-sm">
                         {collectorForm.homePic ? <img src={collectorForm.homePic} className="w-full h-full object-cover" /> : <i className="fa-solid fa-house-user text-slate-400 text-2xl"></i>}
                         <input type="file" accept="image/*" onChange={(e) => handleCollectorFile(e, 'homePic')} className="absolute inset-0 opacity-0 cursor-pointer" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm space-y-4">
-                    <button type="button" onClick={handleCollectorGPS} disabled={isCapturingCollectorGPS} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${collectorForm.homeLocation ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-900 text-white shadow-md active:scale-95'}`}>
+                  <div className="bg-white p-5 rounded-none border border-slate-300 shadow-sm space-y-4">
+                    <button type="button" onClick={handleCollectorGPS} disabled={isCapturingCollectorGPS} className={`w-full py-4 rounded-none font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${collectorForm.homeLocation ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-900 text-white shadow-md active:scale-95'}`}>
                       {isCapturingCollectorGPS ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-location-dot"></i>}
                       {collectorForm.homeLocation ? 'CASA GEO-LOCALIZADA OK' : 'MARCAR GPS CASA'}
                     </button>
@@ -387,7 +387,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-white border border-slate-300 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between p-4 bg-white border border-slate-300 rounded-none shadow-sm">
                     <span className="text-[9px] font-black text-slate-900 uppercase">BLOQUEAR ACCESO</span>
                     <button type="button" onClick={() => setCollectorForm({ ...collectorForm, blocked: !collectorForm.blocked })} className={`w-12 h-6 rounded-full relative transition-colors ${collectorForm.blocked ? 'bg-red-600' : 'bg-slate-300'}`}>
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${collectorForm.blocked ? 'left-7' : 'left-1'}`}></div>
@@ -395,7 +395,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                   </div>
 
                   <div className="pt-2 space-y-2 pb-10">
-                    <button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
+                    <button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-none font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
                       {isEditingCollector ? 'GUARDAR EXPEDIENTE' : 'CREAR NUEVA RUTA'}
                     </button>
                     {isEditingCollector && (
@@ -410,7 +410,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 border-b border-slate-200 pb-2">PERSONAL DE CAMPO ACTIVO</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {currentCollectors.length === 0 ? (
-                    <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-[3rem]">
+                    <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-none">
                       <i className="fa-solid fa-users-slash text-5xl mb-4 opacity-10"></i>
                       <p className="text-sm font-black uppercase tracking-widest">Sin cobradores registrados</p>
                     </div>
@@ -418,9 +418,9 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                     currentCollectors.map(col => {
                       const colCritical = checkNearExpiry(col.expiryDate);
                       return (
-                        <div key={col.id} className={`p-6 rounded-3xl border transition-all group overflow-hidden relative ${colCritical ? 'bg-red-50 border-red-300 shadow-xl animate-border-blink' : 'bg-white border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-400'}`}>
+                        <div key={col.id} className={`p-6 rounded-none border transition-all group overflow-hidden relative ${colCritical ? 'bg-red-50 border-red-300 shadow-xl animate-border-blink' : 'bg-white border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-400'}`}>
                           <div className="flex justify-between items-start mb-5">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black overflow-hidden shadow-lg border-2 ${col.blocked ? 'bg-slate-300 text-slate-600' : 'bg-blue-600 text-white border-blue-100'}`}>
+                            <div className={`w-14 h-14 rounded-none flex items-center justify-center font-black overflow-hidden shadow-lg border-2 ${col.blocked ? 'bg-slate-300 text-slate-600' : 'bg-blue-600 text-white border-blue-100'}`}>
                               {col.profilePic ? <img src={col.profilePic} className="w-full h-full object-cover" /> : col.name.charAt(0)}
                             </div>
                             <div className="flex gap-2">
@@ -467,7 +467,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                           </div>
 
                           {/* GPS ENFORCEMENT - ADDED FOR MANAGERS */}
-                          <div className="mt-4 p-3 rounded-xl border bg-slate-50 border-slate-200">
+                          <div className="mt-4 p-3 rounded-none border bg-slate-50 border-slate-200">
                             <div className="flex items-center gap-2 mb-2">
                               <i className="fa-solid fa-location-dot text-sm text-blue-600"></i>
                               <span className="text-[8px] font-black uppercase text-slate-700">{state.settings.language === 'fr' ? 'GPS OBLIGATOIRE' : state.settings.language === 'pt' ? 'GPS OBRIGATÓRIO' : 'GPS OBLIGATORIO'}</span>
@@ -505,7 +505,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       {/* MODAL NUEVO/EDITAR GERENTE */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
-          <div className="bg-white rounded-[1.5rem] md:rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border border-white/20 flex flex-col">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border border-white/20 flex flex-col">
             <div className="p-5 md:p-8 bg-indigo-600 text-white flex justify-between items-center sticky top-0 z-10">
               <div>
                 <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter">{editingUserId ? 'Gestionar Gerente' : 'Nuevo Gerente'}</h3>
@@ -567,7 +567,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl md:rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95 uppercase tracking-widest text-[10px] md:text-xs"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-none shadow-xl shadow-indigo-500/20 transition-all active:scale-95 uppercase tracking-widest text-[10px] md:text-xs"
               >
                 {t.common.save}
               </button>

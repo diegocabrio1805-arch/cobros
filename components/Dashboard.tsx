@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { getTranslation } from '../utils/translations';
 import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
 import PullToRefresh from './PullToRefresh';
+import WeatherWidget from './WeatherWidget';
 
 interface DashboardProps {
   state: AppState;
@@ -847,8 +848,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   return (
     <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
       {/* CABECERA SUPERIOR - Premium Glassmorphism */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 glass-card p-6 rounded-md border-white/40">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 glass-card p-6 rounded-md border-white/40 relative z-[100]">
+        <div className="flex items-center gap-4 shrink-0">
           <div className="w-12 h-12 premium-gradient rounded-md flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
              <i className="fa-solid fa-chart-pie text-xl text-white"></i>
           </div>
@@ -863,7 +864,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5">
+
+        <WeatherWidget />
+
+        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5 shrink-0">
           <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
           <span className="text-xs font-bold uppercase tracking-widest opacity-90">
             {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}

@@ -1360,7 +1360,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
                <div className="flex flex-wrap gap-4 w-full md:w-auto">
                   <div className="flex gap-2">
-                     <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
+                     <div className="bg-slate-50 px-4 py-2 rounded-none border border-slate-100 flex items-center gap-2">
                         <span className="text-[9px] font-black text-slate-400">{(t as any).reports.dateFilters?.from || 'DESDE'}</span>
                         <input
                            type="date"
@@ -1370,7 +1370,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                            style={{ colorScheme: 'light' }}
                         />
                      </div>
-                     <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
+                     <div className="bg-slate-50 px-4 py-2 rounded-none border border-slate-100 flex items-center gap-2">
                         <span className="text-[9px] font-black text-slate-400">{(t as any).reports.dateFilters?.to || 'HASTA'}</span>
                         <input
                            type="date"
@@ -1382,7 +1382,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      </div>
                   </div>
 
-                  <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
+                  <div className="bg-slate-50 px-4 py-2 rounded-none border border-slate-100 flex items-center gap-2">
                      <i className="fa-solid fa-user-astronaut text-slate-900"></i>
                      <select
                         value={selectedCollector}
@@ -1401,25 +1401,25 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50">
                <button
                   onClick={() => setSelectedFilter('all')}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'all' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'all' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                >
                   🚀 {(t as any).reports.filters?.all || 'Todos'}
                </button>
                <button
                   onClick={() => setSelectedFilter('payment')}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'payment' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'payment' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                >
                   😊 {(t as any).reports.filters?.payments || 'Pagos'}
                </button>
                <button
                   onClick={() => setSelectedFilter('nopayment')}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
                >
                   😡 {(t as any).reports.filters?.noPayment || 'No Pago'}
                </button>
                <button
                   onClick={() => setSelectedFilter('liquidation')}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
                >
                   😇 {(t as any).reports.filters?.renew || 'Renovar'}
                </button>
@@ -1441,7 +1441,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      href="https://www.google.com/android/find/u/1/?pageId=none"
                      target="_blank"
                      rel="noopener noreferrer"
-                     className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
+                     className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-none shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
                   >
                      <i className="fa-brands fa-google"></i>
                      {(t as any).reports.buttons?.googleTracker || 'Google Localizador'}
@@ -1451,7 +1451,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                <button
                   onClick={handleLocalAuditPDF}
                   disabled={selectedCollector === 'all'}
-                  className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
+                  className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-none shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
                >
                   <i className="fa-solid fa-clipboard-check"></i>
                   {(t as any).reports.buttons?.auditor || 'Auditor'}
@@ -1460,11 +1460,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          </div>
 
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center">
+            <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm text-center">
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.reports.stops}</p>
                <p className="text-xl font-black text-slate-800">{stats.totalStops}</p>
             </div>
-            <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center relative overflow-hidden">
+            <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm text-center relative overflow-hidden">
                <div className={`absolute inset-0 opacity-10 ${(stats as any).noGpsCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></div>
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">{(t as any).reports.map?.noGps || 'SIN GPS'}</p>
                <div className="relative z-10 flex items-center justify-center gap-2">
@@ -1472,11 +1472,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   <p className={`text-xl font-black ${(stats as any).noGpsCount > 0 ? 'text-amber-600' : 'text-green-600'}`}>{(stats as any).noGpsCount || 0}</p>
                </div>
             </div>
-            <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center">
+            <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm text-center">
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.reports.distance}</p>
                <p className="text-xl font-black text-blue-600">{stats.totalDistance} km</p>
             </div>
-            <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center">
+            <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm text-center">
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.reports.status}</p>
                <p className={`text-xl font-black ${stats.totalStops > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {stats.totalStops > 0 ? ((t as any).reports.map?.active || 'Activa') : ((t as any).reports.map?.inactive || '---')}
@@ -1486,9 +1486,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          {/* OLD CARD REMOVED */}
 
-         <div className={`w-full bg-slate-900 rounded-[2rem] shadow-xl overflow-hidden relative border-4 ${isLiveTracking ? 'border-indigo-500 shadow-indigo-500/20' : 'border-slate-800'} h-[400px] transition-all`}>
+         <div className={`w-full bg-slate-900 rounded-none shadow-xl overflow-hidden relative border-4 ${isLiveTracking ? 'border-indigo-500 shadow-indigo-500/20' : 'border-slate-800'} h-[400px] transition-all`}>
             {isLiveTracking && (
-               <div className="absolute top-4 left-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 border border-indigo-400">
+               <div className="absolute top-4 left-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 border border-indigo-400">
                   <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
                   EN VIVO
                   {liveLocation && <span className="ml-2 opacity-70 text-[9px] font-mono">{new Date(liveLocation.timestamp).toLocaleTimeString()}</span>}
@@ -1504,10 +1504,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          </div>
 
          {routeData.length > 0 && (
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
                <div className="p-5 border-b border-slate-50 flex items-center justify-between">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(t as any).reports.historyTable?.title || 'Historial Detallado de Ruta'}</h3>
-                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{routeData.length} {(t as any).reports.historyTable?.records || 'Registros'}</span>
+                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-none uppercase">{routeData.length} {(t as any).reports.historyTable?.records || 'Registros'}</span>
                </div>
 
                <div className="overflow-auto max-h-[450px] scrollbar-premium">
@@ -1604,7 +1604,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
                                     <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
-                                       <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-full ${bgClass}`}>{emoji}</span>
+                                       <span className={`text-lg w-8 h-8 flex items-center justify-center ${bgClass}`}>{emoji}</span>
                                        {label}
                                     </span>
                                  </td>
@@ -1623,7 +1623,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                           href={`https://www.google.com/maps?q=${log.location.lat},${log.location.lng}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                          className="inline-flex items-center justify-center w-8 h-8 rounded-none bg-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                                        >
                                           <i className="fa-solid fa-location-dot text-[10px]"></i>
                                        </a>
