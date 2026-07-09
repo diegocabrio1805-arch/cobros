@@ -1184,6 +1184,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const baseDateStr = initialLoan.startDate || countryTodayStr;
         const startDateTime = new Date(baseDateStr + 'T00:00:00');
         const validStartDate = isNaN(startDateTime.getTime()) ? new Date() : startDateTime;
+        const now = new Date();
+        validStartDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
 
         const safeParseFloat = (val: string | number | undefined) => {
           if (!val) return 0;
@@ -1946,6 +1948,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const baseDateStr = renewForm.startDate || countryTodayStr;
       const startDateTime = new Date(baseDateStr + 'T00:00:00');
       const validStartDate = isNaN(startDateTime.getTime()) ? new Date() : startDateTime;
+      const now = new Date();
+      validStartDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
       const newLoan: Loan = {
         id: generateUUID(),
         clientId: clientInLegajo.id,
