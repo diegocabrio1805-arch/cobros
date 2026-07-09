@@ -118,9 +118,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Dynamic Background Elements */}
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-500/20 rounded-full blur-[120px] animate-pulse [animation-delay:1s]"></div>
+      {/* Dynamic Background Elements - Optimized for mobile (removed heavy blurs) */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-500/10 rounded-full"></div>
 
       <div className="glass-card rounded-[3rem] w-full max-w-md overflow-hidden animate-scaleIn relative z-10 border-white/20">
         <div className="p-12 text-center bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white relative">

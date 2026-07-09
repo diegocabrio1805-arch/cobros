@@ -386,6 +386,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             localStorage.setItem('last_sync_timestamp_ms', new Date().getTime().toString());
             localStorage.setItem('last_sync_timestamp_v8', new Date().toISOString());
 
+            // Yield thread before heavy object mapping to avoid hanging the UI
+            await new Promise(r => setTimeout(r, 100));
+
             const result = {
                 clients: (clientsResult.data || []).map((c: any) => ({
                     ...c, documentId: c.document_id, secondaryPhone: c.secondary_phone,
@@ -425,6 +428,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 deletedItems: (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[]
             };
 
+            // Yield thread before heavy React re-render
+            await new Promise(r => setTimeout(r, 100));
             if (onDataUpdated) onDataUpdated(result, fullSync);
             return result;
         } catch (err: any) {
