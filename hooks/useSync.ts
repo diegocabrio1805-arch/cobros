@@ -387,49 +387,73 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             localStorage.setItem('last_sync_timestamp_v8', new Date().toISOString());
 
             // Yield thread before heavy object mapping to avoid hanging the UI
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 50));
+            
+            const clients = (clientsResult.data || []).map((c: any) => ({
+                ...c, documentId: c.document_id, secondaryPhone: c.secondary_phone,
+                profilePic: c.profile_pic, housePic: c.house_pic, businessPic: c.business_pic,
+                documentPic: c.document_pic, domicilioLocation: c.domicilio_location,
+                creditLimit: c.credit_limit, allowCollectorLocationUpdate: c.allow_collector_location_update,
+                customNoPayMessage: c.custom_no_pay_message, isActive: c.is_active, isHidden: c.is_hidden,
+                addedBy: c.added_by, branchId: c.branch_id, createdAt: c.created_at, deletedAt: c.deleted_at,
+                ...(c.raw_data || {})
+            })) as Client[];
+            
+            await new Promise(r => setTimeout(r, 20));
+            
+            const loans = (loansResult.data || []).map((l: any) => ({
+                ...l, clientId: l.client_id, collectorId: l.collector_id, branchId: l.branch_id,
+                interestRate: l.interest_rate, totalInstallments: l.total_installments,
+                totalAmount: l.total_amount, installmentValue: l.installment_value,
+                totalPaid: l.total_paid || 0, balance: l.balance || 0,
+                createdAt: l.created_at, deletedAt: l.deleted_at, installments: l.installments,
+                isRenewal: l.is_renewal || false, frequency: l.frequency,
+                ...(l.raw_data || {})
+            })) as Loan[];
+
+            await new Promise(r => setTimeout(r, 20));
+
+            const payments = (paymentsResult.data || []).map((p: any) => ({
+                ...p, loanId: p.loan_id, clientId: p.client_id, branchId: p.branch_id,
+                installmentNumber: p.installment_number, isVirtual: p.is_virtual,
+                isRenewal: p.is_renewal, deletedAt: p.deleted_at
+            })) as PaymentRecord[];
+
+            await new Promise(r => setTimeout(r, 20));
+
+            const collectionLogs = (logsResult.data || []).map((cl: any) => ({
+                ...cl, loanId: cl.loan_id, clientId: cl.client_id, branchId: cl.branch_id,
+                isVirtual: cl.is_virtual, isRenewal: cl.is_renewal, isOpening: cl.is_opening,
+                recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
+            })) as CollectionLog[];
+
+            await new Promise(r => setTimeout(r, 20));
+
+            const expenses = (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[];
+            const isolatedExpenses = (isolatedExpensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id })) as IsolatedExpense[];
+            const users = (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config })) as unknown as User[];
+            
+            const branchSettings = (settingsResult.data || []).reduce((acc: any, s: any) => {
+                acc[s.id] = s.settings;
+                return acc;
+            }, {} as Record<string, AppSettings>);
+            
+            const deletedItems = (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[];
 
             const result = {
-                clients: (clientsResult.data || []).map((c: any) => ({
-                    ...c, documentId: c.document_id, secondaryPhone: c.secondary_phone,
-                    profilePic: c.profile_pic, housePic: c.house_pic, businessPic: c.business_pic,
-                    documentPic: c.document_pic, domicilioLocation: c.domicilio_location,
-                    creditLimit: c.credit_limit, allowCollectorLocationUpdate: c.allow_collector_location_update,
-                    customNoPayMessage: c.custom_no_pay_message, isActive: c.is_active, isHidden: c.is_hidden,
-                    addedBy: c.added_by, branchId: c.branch_id, createdAt: c.created_at, deletedAt: c.deleted_at,
-                    ...(c.raw_data || {})
-                })) as Client[],
-                loans: (loansResult.data || []).map((l: any) => ({
-                    ...l, clientId: l.client_id, collectorId: l.collector_id, branchId: l.branch_id,
-                    interestRate: l.interest_rate, totalInstallments: l.total_installments,
-                    totalAmount: l.total_amount, installmentValue: l.installment_value,
-                    totalPaid: l.total_paid || 0, balance: l.balance || 0,
-                    createdAt: l.created_at, deletedAt: l.deleted_at, installments: l.installments,
-                    isRenewal: l.is_renewal || false, frequency: l.frequency,
-                    ...(l.raw_data || {})
-                })) as Loan[],
-                payments: (paymentsResult.data || []).map((p: any) => ({
-                    ...p, loanId: p.loan_id, clientId: p.client_id, branchId: p.branch_id,
-                    installmentNumber: p.installment_number, isVirtual: p.is_virtual,
-                    isRenewal: p.is_renewal, deletedAt: p.deleted_at
-                })) as PaymentRecord[],
-                collectionLogs: (logsResult.data || []).map((cl: any) => ({
-                    ...cl, loanId: cl.loan_id, clientId: cl.client_id, branchId: cl.branch_id,
-                    isVirtual: cl.is_virtual, isRenewal: cl.is_renewal, isOpening: cl.is_opening,
-                    recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
-                })) as CollectionLog[],
-                expenses: (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[],
-                isolatedExpenses: (isolatedExpensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id })) as IsolatedExpense[],
-                users: (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config })) as unknown as User[],
-                branchSettings: (settingsResult.data || []).reduce((acc: any, s: any) => {
-                    acc[s.id] = s.settings;
-                    return acc;
-                }, {} as Record<string, AppSettings>),
-                deletedItems: (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[]
+                clients,
+                loans,
+                payments,
+                collectionLogs,
+                expenses,
+                isolatedExpenses,
+                users,
+                branchSettings,
+                deletedItems
             };
 
             // Yield thread before heavy React re-render
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 50));
             if (onDataUpdated) onDataUpdated(result, fullSync);
             return result;
         } catch (err: any) {
