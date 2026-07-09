@@ -702,19 +702,37 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       .filter(log => log.clientId === showLegajo && !log.deletedAt && log.type !== CollectionLogType.DELETED_PAYMENT)
       .map(log => ({ ...log, itemType: 'log' as const }));
 
-    // Get loan grants (créditos otorgados)
     const loanGrants = (state.loans || [])
       .filter(loan => loan.clientId === showLegajo)
-      .map(loan => ({
-        id: `loan - ${loan.id} `,
-        clientId: loan.clientId,
-        loanId: loan.id,
-        type: CollectionLogType.PAYMENT, // Dummy type for rendering
-        amount: loan.principal, // Show the granted amount
-        date: loan.createdAt,
-        itemType: 'loan' as const,
-        isRenewal: loan.isRenewal
-      }));
+      .map(loan => {
+        // Auto-heal legacy loans that were saved with exactly 00:00:00 time
+        let healedDate = loan.createdAt;
+        if (healedDate && (healedDate.includes('T00:00:00.000Z') || healedDate.includes('T00:00:00-') || healedDate.endsWith('T00:00:00'))) {
+          // Buscamos el primer pago de ese mismo día para restarle 4 minutos
+          const loanDay = loan.createdAt.split('T')[0];
+          const firstPayment = logs
+            .filter(l => l.loanId === loan.id && l.date.startsWith(loanDay))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+          if (firstPayment) {
+            const d = new Date(firstPayment.date);
+            d.setMinutes(d.getMinutes() - 4);
+            healedDate = d.toISOString();
+          } else {
+            healedDate = healedDate.replace(/T00:00:00(\.000Z)?/, 'T08:00:00$1');
+          }
+        }
+        return {
+          id: `loan - ${loan.id} `,
+          clientId: loan.clientId,
+          loanId: loan.id,
+          type: CollectionLogType.PAYMENT, // Dummy type for rendering
+          amount: loan.principal, // Show the granted amount
+          date: healedDate,
+          itemType: 'loan' as const,
+          isRenewal: loan.isRenewal
+        };
+      });
 
     // Merge and sort: primero por DIA (YYYY-MM-DD), luego CREDITO antes que pagos del mismo dia
     return [...logs, ...loanGrants]
@@ -723,9 +741,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const dayB = (b.date || '').split('T')[0];
         if (dayB > dayA) return 1;
         if (dayA > dayB) return -1;
-        // Mismo dia: CREDITO (nuevo prestamo) aparece ARRIBA, luego pagos/renovaciones
-        if (a.itemType === 'loan' && b.itemType !== 'loan') return -1;
-        if (b.itemType === 'loan' && a.itemType !== 'loan') return 1;
+        // Mismo dia: CREDITO (nuevo prestamo) es el evento más antiguo, debe aparecer ABAJO (return 1 para que vaya al final)
+        if (a.itemType === 'loan' && b.itemType !== 'loan') return 1;
+        if (b.itemType === 'loan' && a.itemType !== 'loan') return -1;
         // Mismo tipo: ordenar por timestamp exacto descendente
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
@@ -3562,10 +3580,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
                                     const logDate = log.date ? new Date(log.date) : null;
                                     const formattedDate = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleDateString() : '---';
-                                    const formattedTime = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                    let formattedTime = (logDate && !isNaN(logDate.getTime())) ? logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
                                     // Determine if this is a loan grant entry
                                     const isLoanGrant = log.itemType === 'loan';
+
+                                    if (isLoanGrant && (formattedTime === '00:00' || formattedTime === '24:00' || formattedTime.startsWith('12:00'))) {
+                                      formattedTime = '08:00';
+                                    }
 
                                     return (
                                       <tr key={log.id} className="hover:bg-slate-800 transition-colors">
