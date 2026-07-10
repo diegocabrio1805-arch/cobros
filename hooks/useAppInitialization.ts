@@ -72,8 +72,9 @@ export const useAppInitialization = () => {
     const loadData = async () => {
       const startTime = Date.now();
       try {
-        // 1. STABILIZATION DELAY
-        await new Promise(r => setTimeout(r, 600));
+        // 1. STABILIZATION DELAY (Eliminado para arranque instantáneo)
+        
+
 
         // 2. VERSION & PURGE MANAGEMENT
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
