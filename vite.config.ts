@@ -9,7 +9,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './', // Relative paths for better compatibility across environments
+    base: '/cobros/', // CAMBIO CRÍTICO PARA GITHUB PAGES: Usa la ruta de tu repo
     server: {
       port: 5177,
       strictPort: false,

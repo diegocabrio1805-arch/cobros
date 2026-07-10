@@ -1,41 +1,47 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const AutoUpdater: React.FC = () => {
-  // Configured to check for new code without interrupting the UI
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
       if (r) {
-        // Check for updates every 5 minutes (300,000 milisegundos)
+        // El Service Worker chequeará la red buscando una nueva versión cada 30 minutos (silencioso)
         setInterval(() => {
-          console.log("[AutoUpdater] Checking for new updates on GitHub...");
           r.update().catch(console.error);
-        }, 5 * 60 * 1000);
+        }, 30 * 60 * 1000);
       }
     },
     onRegisterError(error) {
-      console.error('[AutoUpdater] SW registration error', error);
+      console.error('[AutoUpdater] Error en el registro del SW', error);
     },
   });
 
-  useEffect(() => {
-    if (needRefresh) {
-      console.log("[AutoUpdater] ¡Nueva versión detectada! Limpiando caché y recargando...");
-      // Limpiar IDB para forzar una sincronización fresca con la nueva versión del código
-      import('../utils/localforageStorage').then(({ StorageService }) => {
-        StorageService.removeItem('prestamaster_v2').then(() => {
-          updateServiceWorker(true);
-        });
-      }).catch(() => {
-        updateServiceWorker(true);
-      });
-    }
-  }, [needRefresh, updateServiceWorker]);
+  // 100% invisible si no hay actualizaciones
+  if (!needRefresh) return null;
 
-  return null; // 100% invisible
+  // Banner Toast No Intrusivo (Premium)
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-[bounce_1s_infinite]">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+          <i className="fa-solid fa-cloud-arrow-down text-emerald-400"></i>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Actualización</span>
+          <span className="text-[11px] font-semibold text-slate-300">Nueva versión lista</span>
+        </div>
+      </div>
+      <button 
+        onClick={() => updateServiceWorker(true)} // Esto forzará el vaciado de caché y recarga
+        className="bg-emerald-600 active:bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-lg whitespace-nowrap"
+      >
+        Recargar App
+      </button>
+    </div>
+  );
 };
 
 export default AutoUpdater;
