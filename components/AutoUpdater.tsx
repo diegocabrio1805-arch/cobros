@@ -6,18 +6,26 @@ const AutoUpdater: React.FC = () => {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
-      if (r) {
-        // El Service Worker chequeará la red buscando una nueva versión cada 30 minutos (silencioso)
-        setInterval(() => {
-          r.update().catch(console.error);
-        }, 30 * 60 * 1000);
-      }
-    },
     onRegisterError(error) {
       console.error('[AutoUpdater] Error en el registro del SW', error);
     },
   });
+
+  React.useEffect(() => {
+    // Encapsulación segura: Evita memory leaks si el componente se desmonta
+    const intervalId = setInterval(async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg) await reg.update();
+        } catch (error) {
+          console.error('[AutoUpdater] Update check failed:', error);
+        }
+      }
+    }, 30 * 60 * 1000);
+
+    return () => clearInterval(intervalId); // Cleanup fundamental
+  }, []);
 
   // 100% invisible si no hay actualizaciones
   if (!needRefresh) return null;
