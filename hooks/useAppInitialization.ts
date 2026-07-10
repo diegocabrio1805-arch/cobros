@@ -104,8 +104,28 @@ export const useAppInitialization = () => {
           }
         }
 
-        // 3. DATA LOADING
-        let rawData: any = await StorageService.getItem<AppState>('prestamaster_v2');
+        // Helper para evitar promesas colgadas (Timeouts de 2.5s)
+        const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+          return Promise.race([
+            promise,
+            new Promise<T>((resolve) => {
+              const timer = setTimeout(() => {
+                console.warn(`[Storage Timeout] Promesa colgada por > ${ms}ms. Forzando liberacion.`);
+                resolve(fallback);
+              }, ms);
+              // Limpiar timer si resuelve a tiempo
+              promise.then(() => clearTimeout(timer)).catch(() => clearTimeout(timer));
+            })
+          ]);
+        };
+
+        // 3. DATA LOADING CON TIMEOUT (Previene congelamiento de pantalla)
+        let rawData: any = await withTimeout(
+          StorageService.getItem<AppState>('prestamaster_v2'), 
+          2500, 
+          null
+        );
+
         if (!rawData) {
           const lsData = localStorage.getItem('prestamaster_v2');
           if (lsData) {
@@ -114,12 +134,17 @@ export const useAppInitialization = () => {
         }
 
         if (!rawData) {
-          // Intentar recuperación desde Preferences (Nativo) si no hay nada en IDB
-          const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
-          if (value) {
+          // Intentar recuperación desde Preferences con Timeout
+          const nativePref = await withTimeout(
+            Preferences.get({ key: 'NATIVE_CURRENT_USER' }),
+            1500,
+            { value: null }
+          );
+
+          if (nativePref.value) {
             try {
-              const user = JSON.parse(value);
-              console.log('[Auto-Curación] Iniciando sesión sin datos en IDB. Borrando timestamps de sync para Full Sync.');
+              const user = JSON.parse(nativePref.value);
+              console.log('[Auto-Curación] Iniciando sesión sin datos en IDB (Rescatado). Borrando timestamps.');
               const syncKeys = ['last_sync_timestamp_ms', 'last_sync_timestamp_v8'];
               syncKeys.forEach(k => localStorage.removeItem(k));
 
