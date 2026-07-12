@@ -49,11 +49,18 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MiB
           globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+          // index.html NO está en precaché → desactivar el fallback para evitar
+          // el error "non-precached-url: index.html" de Workbox.
+          // Las navegaciones las maneja NetworkFirst en runtimeCaching.
+          navigateFallback: null,
           cleanupOutdatedCaches: true,
           skipWaiting: true,
           clientsClaim: true,
           runtimeCaching: [
             {
+              // Captura TODAS las navegaciones (mode === 'navigate')
+              // con estrategia NetworkFirst: intenta red primero,
+              // si falla en 3s sirve desde caché html-cache.
               urlPattern: ({ request }) => request.mode === 'navigate',
               handler: 'NetworkFirst',
               options: {
