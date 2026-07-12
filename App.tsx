@@ -1,23 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import { supabase } from './utils/supabaseClient';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import Clients from './components/Clients';
-import Loans from './components/Loans';
-import CollectionRoute from './components/CollectionRoute';
-import Expenses from './components/Expenses';
-import CollectorCommission from './components/CollectorCommission';
-import Collectors from './components/Collectors';
-import Managers from './components/Managers';
-import CollectorPerformance from './components/CollectorPerformance';
-import Notifications from './components/Notifications';
 import Login from './components/Login';
-import Simulator from './components/Simulator';
-import Settings from './components/Settings';
-import Profile from './components/Profile';
-import Reports from './components/Reports';
-import Generator from './components/Generator/Generator';
+import FloatingBackButton from './components/FloatingBackButton';
+import LocationEnforcer from './components/LocationEnforcer';
+import ErrorBoundary from './components/ErrorBoundary';
+import LicenseReminder from './components/LicenseReminder';
+import AutoUpdater from './components/AutoUpdater';
+import MobileCollectorMode from './components/MobileCollectorMode';
+import WeatherWidget from './components/WeatherWidget';
+
+// Lazy loaded heavy components
+const Clients = lazy(() => import('./components/Clients'));
+const Loans = lazy(() => import('./components/Loans'));
+const CollectionRoute = lazy(() => import('./components/CollectionRoute'));
+const Expenses = lazy(() => import('./components/Expenses'));
+const CollectorCommission = lazy(() => import('./components/CollectorCommission'));
+const Collectors = lazy(() => import('./components/Collectors'));
+const Managers = lazy(() => import('./components/Managers'));
+const CollectorPerformance = lazy(() => import('./components/CollectorPerformance'));
+const Notifications = lazy(() => import('./components/Notifications'));
+const Simulator = lazy(() => import('./components/Simulator'));
+const Settings = lazy(() => import('./components/Settings'));
+const Profile = lazy(() => import('./components/Profile'));
+const Reports = lazy(() => import('./components/Reports'));
+const Generator = lazy(() => import('./components/Generator/Generator'));
 import { getTranslation } from './utils/translations';
 import { formatCurrency } from './utils/helpers';
 import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
@@ -45,7 +54,7 @@ const App: React.FC = () => {
   const REFRESH_THRESHOLD = 80;
 
   // 1. Initialize State and App Data
-  const { state, setState, isInitializing, resolvedSettings } = useAppInitialization();
+  const { state, setState, isInitializing, isSecondaryLoading, resolvedSettings } = useAppInitialization();
 
   // 2. Initialize Sync Engine
   const sync = useAppSyncEngine(state, setState, resolvedSettings, isInitializing);
@@ -91,7 +100,8 @@ const App: React.FC = () => {
     (window as any)._triggerForceSync = () => handleForceSync(true);
     
     // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
-    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current) {
+    // isSecondaryLoading protege este bloque durante la Fase 2 del arranque (evita Full Sync falso)
+    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
       hasAttemptedInitialSyncRef.current = true;
       console.log("[App] No data found. Triggering initial full sync...");
       const timer = setTimeout(() => {
@@ -293,6 +303,11 @@ const App: React.FC = () => {
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin opacity-60" />
+              </div>
+            }>
             {activeTab === 'clients' && (
               <Clients 
                 state={filteredState} 
@@ -419,6 +434,7 @@ const App: React.FC = () => {
             )}
             {activeTab === 'generator' && <Generator settings={resolvedSettings} />}
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
+            </Suspense>
           </div>
         </main>
         {isPowerUser && <LicenseReminder currentUser={state.currentUser} users={filteredState.users} />}
