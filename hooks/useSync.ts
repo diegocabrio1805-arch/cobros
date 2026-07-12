@@ -786,8 +786,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setQueueLength(remainingQueue.length);
 
             if (remainingQueue.length > 0) {
-                setSyncError(`Pendientes: ${remainingQueue.length}. Reintentando automáticamente...`);
-                setTimeout(() => processQueue(true, finalFullSync, finalSkipPull), 3000);
+                // EXPONENTIAL BACKOFF: calcular el delay basado en el máximo retryCount de la cola
+                // Fórmula: min(2^retryCount * 1000ms, 60000ms)
+                // Retry 0 → 2s | Retry 1 → 4s | Retry 2 → 8s | Retry 3+ → 16s... máx 60s
+                const maxRetry = remainingQueue.reduce((max: number, item: any) => Math.max(max, item.retryCount || 0), 0);
+                const backoffMs = Math.min(Math.pow(2, maxRetry) * 1000, 60000);
+                console.log(`[Sync] Backoff: ${remainingQueue.length} pendientes. Reintentando en ${backoffMs / 1000}s (retry #${maxRetry})`);
+                setSyncError(`Pendientes: ${remainingQueue.length}. Reintentando en ${Math.round(backoffMs / 1000)}s...`);
+                setTimeout(() => processQueue(true, finalFullSync, finalSkipPull), backoffMs);
             } else {
                 setSyncError(null);
                 if (!finalSkipPull) pullData(finalFullSync);

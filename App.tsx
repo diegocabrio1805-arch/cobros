@@ -77,20 +77,37 @@ const App: React.FC = () => {
     handleSyncUser, deleteRemoteClientAction, renewLoan 
   } = actions;
 
-  // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real
+  // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real.
+  // DELAY DE 8s: Protege el cold start de Render. Si el servidor tarda en despertar,
+  // getSession() puede devolver null temporalmente y expulsar al cobrador por error.
   useEffect(() => {
     if (isInitializing) return;
+    let cancelled = false;
     const validateSession = async () => {
+      // Esperar 8s para que Render complete su cold start antes de validar
+      await new Promise(r => setTimeout(r, 8000));
+      if (cancelled) return;
       if (state.currentUser && navigator.onLine) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          console.warn("[App] Session mismatch detected. Forcing login.");
-          handleLogout();
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session && !cancelled) {
+            // Segundo intento: dar 5s más al servidor antes de hacer logout definitivo
+            await new Promise(r => setTimeout(r, 5000));
+            const { data: { session: session2 } } = await supabase.auth.getSession();
+            if (!session2 && !cancelled) {
+              console.warn("[App] Session mismatch confirmed after retry. Forcing login.");
+              handleLogout();
+            }
+          }
+        } catch (e) {
+          console.warn("[App] Session validation error (possibly offline):", e);
         }
       }
     };
     validateSession();
+    return () => { cancelled = true; };
   }, [state.currentUser?.id, handleLogout, isInitializing]);
+
 
   const hasAttemptedInitialSyncRef = useRef(false);
 

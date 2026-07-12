@@ -737,7 +737,22 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                 <div className="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-emerald-900/50">
                   <i className="fa-solid fa-check-double"></i>
                 </div>
-                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
+                <h3 className="text-xl font-black text-white mb-4 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
+                {/* BANNER OFFLINE: Informa al cobrador si el pago quedó en cola local */}
+                {!navigator.onLine ? (
+                  <div className="flex items-center gap-2 bg-amber-500/15 border border-amber-500/40 rounded-xl px-3 py-2 mb-4 text-left">
+                    <i className="fa-solid fa-wifi-slash text-amber-400 text-sm shrink-0"></i>
+                    <p className="text-amber-300 text-[10px] font-bold leading-tight">
+                      SIN INTERNET · Guardado localmente.<br/>
+                      <span className="font-normal opacity-80">Se enviará al servidor al reconectarse.</span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2 mb-4 text-left">
+                    <i className="fa-solid fa-cloud-arrow-up text-emerald-400 text-sm shrink-0"></i>
+                    <p className="text-emerald-300 text-[10px] font-bold">SINCRONIZADO · Enviado al servidor</p>
+                  </div>
+                )}
                 <div className="bg-slate-950 p-4 shrink-0 rounded-xl font-mono text-[9px] text-left mb-6 max-h-48 overflow-y-auto border border-slate-800 text-slate-300 font-black whitespace-pre-wrap leading-relaxed shadow-inner">
                   {receipt}
                 </div>
