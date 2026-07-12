@@ -32,6 +32,20 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
   const qrChannelRef = useRef<any>(null);
   const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null);
 
+  // Limpieza de canal QR al desmontar (evita fuga si el cobrador navega fuera durante una sesión QR activa)
+  useEffect(() => {
+    return () => {
+      if (qrChannelRef.current) {
+        supabase.removeChannel(qrChannelRef.current);
+        qrChannelRef.current = null;
+      }
+      if ((window as any).qrPaymentTimerMobile) {
+        clearTimeout((window as any).qrPaymentTimerMobile);
+      }
+    };
+  }, []);
+
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;

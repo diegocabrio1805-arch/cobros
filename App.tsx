@@ -303,6 +303,8 @@ const App: React.FC = () => {
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
+            {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
+            <ErrorBoundary>
             <Suspense fallback={
               <div className="flex items-center justify-center py-16">
                 <div className="w-8 h-8 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin opacity-60" />
@@ -435,6 +437,7 @@ const App: React.FC = () => {
             {activeTab === 'generator' && <Generator settings={resolvedSettings} />}
             {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
             </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
         {isPowerUser && <LicenseReminder currentUser={state.currentUser} users={filteredState.users} />}
