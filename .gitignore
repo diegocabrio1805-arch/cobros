@@ -57,3 +57,24 @@ tsubasa_*.gif
 scripts/generate_tsubasa_gif.ps1
 scripts/slice_final_tsubasa.ps1
 scripts/fix_gps_zeros.mjs
+
+# Scripts de diagnóstico y desarrollo (no pertenecen a producción)
+check_*.js
+check_*.mjs
+check_*.cjs
+check_*.ts
+check_*.ps1
+find_*.js
+find_*.mjs
+find_*.cjs
+investigate_*.js
+investigate_*.mjs
+investigate_*.cjs
+diagnostico_*.js
+fetch_db*.js
+count_clients.js
+quick_check.js
+recheck_mapping.js
+sync_check*.js
+CAMBIAR_CLIENTE.*
+OLD_BACKUP/
