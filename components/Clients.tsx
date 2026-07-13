@@ -818,7 +818,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
     });
     return metricsMap;
-  }, [state.clients, state.loans, state.collectionLogs, state.settings]);
+  // HOTFIX PERF: state.settings removido de deps — getDaysOverdue es estable en sesión de cobro
+  // Solo recalcular cuando cambian datos reales (clientes, préstamos, logs)
+  }, [state.clients, state.loans, state.collectionLogs]);
 
   const filteredClients = useMemo(() => {
     // La lista BASE debe ser TODOS los clientes activos de esta sucursal (ya filtrados en App.tsx vía state.clients)
@@ -1012,18 +1014,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }).map(client => {
       const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
       return { ...client, _metrics: metrics };
+    // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
+    }).map(client => {
+      const renewalCount = Array.isArray(state.loans)
+        ? state.loans.reduce((acc, l) => acc + (l.clientId === client.id && l.isRenewal ? 1 : 0), 0)
+        : 0;
+      return { ...client, _renewalCount: renewalCount };
     }).sort((a, b) => {
       if (carteraSortBy === 'renovaciones') {
-        const renewalsB = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === b.id && l.isRenewal).length : 0;
-        const renewalsA = Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === a.id && l.isRenewal).length : 0;
-        return renewalsB - renewalsA;
+        return ((b as any)._renewalCount || 0) - ((a as any)._renewalCount || 0);
       }
       if (carteraSortBy === 'saldo') {
-        return (b._metrics?.balance || 0) - (a._metrics?.balance || 0);
+        return ((b as any)._metrics?.balance || 0) - ((a as any)._metrics?.balance || 0);
       }
       if (carteraSortBy === 'atraso') {
-        const delaysB = Math.max(0, b._metrics?.daysOverdue || 0);
-        const delaysA = Math.max(0, a._metrics?.daysOverdue || 0);
+        const delaysB = Math.max(0, (b as any)._metrics?.daysOverdue || 0);
+        const delaysA = Math.max(0, (a as any)._metrics?.daysOverdue || 0);
         return delaysB - delaysA;
       }
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;

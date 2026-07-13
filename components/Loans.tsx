@@ -31,6 +31,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   const [viewMode, setViewMode] = useState<'gestion' | 'renovaciones' | 'vencidos' | 'ocultos'>('gestion');
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  // HOTFIX PERF: Debounce de 300ms para no recalcular filteredLoans en cada tecla
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -91,7 +98,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     allClients.forEach(client => {
       if (client.isHidden || client.deletedAt) return;
 
-      const searchLower = searchTerm.toLowerCase();
+      // HOTFIX PERF: usa debouncedSearchTerm en lugar de searchTerm para no recalcular en cada tecla
+      const searchLower = debouncedSearchTerm.toLowerCase();
       const matchesSearch = client.name.toLowerCase().includes(searchLower) ||
         (client.address || '').toLowerCase().includes(searchLower) ||
         (client.documentId || '').includes(searchLower);
@@ -216,7 +224,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       }
       return 0;
     });
-  }, [state.loans, state.clients, state.collectionLogs, searchTerm, state.currentUser, isAdminOrManager, viewMode, state.settings]);
+  }, [state.loans, state.clients, state.collectionLogs, debouncedSearchTerm, state.currentUser, isAdminOrManager, viewMode, state.settings]);
 
   // RESET PAGE ON FILTER CHANGE
   useEffect(() => {
