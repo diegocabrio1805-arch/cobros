@@ -482,24 +482,44 @@ export const useAppActions = (
       const logToUpdate = state.collectionLogs.find(l => l.id === logId);
       if (!logToUpdate) return;
 
-      const updatedLogs = state.collectionLogs.map(l =>
-        l.id === logId ? { ...l, amount: newAmount, updated_at: new Date().toISOString() } : l
-      );
+      const stamp = new Date().toISOString();
 
+      // 1. OPTIMISTIC UI: Actualizar local inmediatamente (sin importar red)
+      const updatedLog = { ...logToUpdate, amount: newAmount, updated_at: stamp };
+      const updatedLogs = state.collectionLogs.map(l => l.id === logId ? updatedLog : l);
       setState(prev => ({ ...prev, collectionLogs: updatedLogs }));
 
       if (logToUpdate.loanId) {
         await recalculateLoanStatus(logToUpdate.loanId, updatedLogs);
       }
 
-      supabase.from('collection_logs').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('id', logId);
+      // 2. OFFLINE GUARD: Encolar si no hay red → nunca se pierde el dato
+      if (!navigator.onLine) {
+        // ADD_LOG hace upsert en Supabase, actualizará el registro existente por ID
+        addToQueue('ADD_LOG', updatedLog);
+        console.log('[Offline] updateCollectionLog encolado para sync posterior:', logId);
+      } else {
+        await supabase.from('collection_logs')
+          .update({ amount: newAmount, updated_at: stamp })
+          .eq('id', logId);
+      }
 
       if (logToUpdate.type === CollectionLogType.PAYMENT) {
         const updatedPayments = state.payments.map(p =>
-          p.id.startsWith(`pay-${logId}-`) ? { ...p, amount: newAmount, updated_at: new Date().toISOString() } : p
+          p.id.startsWith(`pay-${logId}-`) ? { ...p, amount: newAmount, updated_at: stamp } : p
         );
         setState(prev => ({ ...prev, payments: updatedPayments }));
-        supabase.from('payments').update({ amount: newAmount, updated_at: new Date().toISOString() }).eq('logId', logId);
+
+        if (!navigator.onLine) {
+          // Encolar cada PaymentRecord actualizado para sync posterior
+          updatedPayments
+            .filter(p => p.id.startsWith(`pay-${logId}-`))
+            .forEach(p => addToQueue('ADD_PAYMENT', { ...p, amount: newAmount, updated_at: stamp }));
+        } else {
+          await supabase.from('payments')
+            .update({ amount: newAmount, updated_at: stamp })
+            .eq('logId', logId);
+        }
       }
     } catch (error: any) {
       console.error('Error updating collection log:', error);

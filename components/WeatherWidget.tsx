@@ -51,15 +51,26 @@ const WeatherWidget: React.FC = () => {
 
   const loadWeather = async (lat: number, lon: number, name: string) => {
     setLoading(true);
+    // PARCHE A: AbortController con 5s de timeout para evitar spinner infinito offline
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation_probability,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`);
+      const weatherRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation_probability,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`,
+        { signal: controller.signal }
+      );
       const wData = await weatherRes.json();
       setLocationName(name);
       setWeatherData(wData);
       setErrorMsg(null);
-    } catch (e) {
-      setErrorMsg('Error al obtener datos del clima');
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        setErrorMsg('Sin conexión · Escribir ciudad manualmente');
+      } else {
+        setErrorMsg('Error al obtener datos del clima');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -118,14 +129,27 @@ const WeatherWidget: React.FC = () => {
       async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
+        // PARCHE A: AbortController con 5s para reverse geocoding offline
+        const geoController = new AbortController();
+        const geoTimeoutId = setTimeout(() => geoController.abort(), 5000);
         try {
-          const locRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`);
+          const locRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`,
+            { signal: geoController.signal }
+          );
           const locData = await locRes.json();
-          const name = locData.locality || locData.city || locData.principalSubdivision || 'Desconocido';
+          const name = locData.locality || locData.city || locData.principalSubdivision || 'Mi Ubicación';
           loadWeather(lat, lon, name);
-        } catch (e) {
-          setErrorMsg('Error al obtener nombre de ubicación');
-          setLoading(false);
+        } catch (e: any) {
+          if (e.name === 'AbortError') {
+            // Sin red pero sí hay coords GPS → cargar clima igualmente con nombre genérico
+            loadWeather(lat, lon, 'Mi Ubicación');
+          } else {
+            setErrorMsg('Error al obtener nombre de ubicación');
+            setLoading(false);
+          }
+        } finally {
+          clearTimeout(geoTimeoutId);
         }
       },
       (err) => {
