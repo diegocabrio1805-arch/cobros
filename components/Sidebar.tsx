@@ -110,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
         </div>
 
         {/* Sección de País y Hora Local - Premium Card */}
-        <div className="bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10 flex flex-col gap-3">
+        <div className="bg-white/8 rounded-md p-4 border border-white/5 shadow-inner transition-all hover:bg-white/10 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-base font-black text-white uppercase tracking-wider truncate leading-none">{countryName}</span>
             <div className="flex items-center gap-3">

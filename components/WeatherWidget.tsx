@@ -139,7 +139,7 @@ const WeatherWidget: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex-1 max-w-2xl bg-white/5 backdrop-blur-md rounded-md p-4 border border-white/10 shadow-inner flex items-center justify-center min-h-[90px]">
+      <div className="flex-1 max-w-2xl bg-slate-800/60 rounded-md p-4 border border-white/10 shadow-inner flex items-center justify-center min-h-[90px]">
         <div className="animate-pulse flex items-center gap-2 text-emerald-400">
           <i className="fa-solid fa-spinner fa-spin"></i>
           <span className="text-[10px] font-bold tracking-widest uppercase">Obteniendo clima actual...</span>
@@ -150,7 +150,7 @@ const WeatherWidget: React.FC = () => {
 
   if (errorMsg || !weatherData) {
     return (
-      <div className="flex-1 max-w-2xl bg-slate-900/40 backdrop-blur-md rounded-md p-4 border border-rose-500/20 shadow-inner flex flex-col justify-center min-h-[90px] relative z-[9999]">
+      <div className="flex-1 max-w-2xl bg-slate-900/80 rounded-md p-4 border border-rose-500/20 shadow-inner flex flex-col justify-center min-h-[90px] relative z-[9999]">
         <div className="flex items-center justify-center gap-3 text-white mb-3">
           <i className="fa-solid fa-location-dot animate-bounce text-emerald-400 text-lg"></i>
           <span className="text-sm font-black uppercase tracking-widest drop-shadow-md">{errorMsg || "Ubicación no encontrada"}</span>
@@ -317,7 +317,7 @@ const WeatherWidget: React.FC = () => {
 
     {/* HOURLY FORECAST DRAWER */}
     {showHourly && hourly && (
-      <div className="w-full bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-b-md p-3 overflow-x-auto custom-scrollbar flex gap-4 animate-fadeIn shadow-2xl relative z-10" style={{ marginTop: '-1px' }}>
+      <div className="w-full bg-slate-950 border border-white/10 rounded-b-md p-3 overflow-x-auto custom-scrollbar flex gap-4 animate-fadeIn shadow-2xl relative z-10" style={{ marginTop: '-1px' }}>
         {hourly.time.slice(startIndex, startIndex + 24).map((timeStr: string, idx: number) => {
           const date = new Date(timeStr);
           const isNow = idx === 0;
