@@ -185,9 +185,13 @@ const WeatherWidget: React.FC = () => {
     );
   }
 
-  const current = weatherData.current;
-  const daily = weatherData.daily;
-  const hourly = weatherData.hourly;
+  const current = weatherData?.current;
+  const daily = weatherData?.daily;
+  const hourly = weatherData?.hourly;
+
+  // Guard defensivo: si el estado asíncrono aún no resolvió current, esperamos en silencio
+  if (!current || current.weather_code === undefined) return null;
+
   const weatherStatus = WEATHER_CODE_MAP[current.weather_code as keyof typeof WEATHER_CODE_MAP] || { icon: 'fa-cloud', label: 'Desconocido' };
 
   const getBackgroundImage = (code: number) => {
