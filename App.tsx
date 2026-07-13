@@ -1,21 +1,33 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import { supabase } from './utils/supabaseClient';
+import { getTranslation } from './utils/translations';
+import { formatCurrency } from './utils/helpers';
+import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
+import { useAppSyncEngine } from './hooks/useAppSyncEngine';
+import { useAppActions } from './hooks/useAppActions';
+import { startConnectionKeeper } from './services/bluetoothPrinterService';
+import { useGPSWarmer } from './hooks/useGPSWarmer';
+import { useLiveTracker } from './hooks/useLiveTracker';
+
+// ── CARGA ESTÁTICA (Eager) ── Pestañas críticas del cobrador: navegación instantánea ──
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
+import Clients from './components/Clients';
+import Loans from './components/Loans';
+import CollectionRoute from './components/CollectionRoute';
+import Reports from './components/Reports';
+import MobileCollectorMode from './components/MobileCollectorMode';
+import WeatherWidget from './components/WeatherWidget';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
 import AutoUpdater from './components/AutoUpdater';
-import MobileCollectorMode from './components/MobileCollectorMode';
-import WeatherWidget from './components/WeatherWidget';
 
-// Lazy loaded heavy components
-const Clients = lazy(() => import('./components/Clients'));
-const Loans = lazy(() => import('./components/Loans'));
-const CollectionRoute = lazy(() => import('./components/CollectionRoute'));
+// ── CARGA DIFERIDA (Lazy) ── Secciones administrativas/secundarias ──
+// Solo se descargan la primera vez que el Admin/Manager las abre
 const Expenses = lazy(() => import('./components/Expenses'));
 const CollectorCommission = lazy(() => import('./components/CollectorCommission'));
 const Collectors = lazy(() => import('./components/Collectors'));
@@ -25,23 +37,7 @@ const Notifications = lazy(() => import('./components/Notifications'));
 const Simulator = lazy(() => import('./components/Simulator'));
 const Settings = lazy(() => import('./components/Settings'));
 const Profile = lazy(() => import('./components/Profile'));
-const Reports = lazy(() => import('./components/Reports'));
 const Generator = lazy(() => import('./components/Generator/Generator'));
-import { getTranslation } from './utils/translations';
-import { formatCurrency } from './utils/helpers';
-import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
-import { useAppSyncEngine } from './hooks/useAppSyncEngine';
-import { useAppActions } from './hooks/useAppActions';
-import { startConnectionKeeper } from './services/bluetoothPrinterService';
-import { useGPSWarmer } from './hooks/useGPSWarmer';
-import { useLiveTracker } from './hooks/useLiveTracker';
-import FloatingBackButton from './components/FloatingBackButton';
-import LocationEnforcer from './components/LocationEnforcer';
-import ErrorBoundary from './components/ErrorBoundary';
-import LicenseReminder from './components/LicenseReminder';
-import AutoUpdater from './components/AutoUpdater';
-import MobileCollectorMode from './components/MobileCollectorMode';
-import WeatherWidget from './components/WeatherWidget';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
