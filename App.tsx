@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import { supabase } from './utils/supabaseClient';
 import { getTranslation } from './utils/translations';
-import { formatCurrency } from './utils/helpers';
+import { formatCurrency, formatLocalDate } from './utils/helpers';
 import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
 import { useAppSyncEngine } from './hooks/useAppSyncEngine';
 import { useAppActions } from './hooks/useAppActions';
@@ -20,6 +20,7 @@ import CollectionRoute from './components/CollectionRoute';
 import Reports from './components/Reports';
 import MobileCollectorMode from './components/MobileCollectorMode';
 import WeatherWidget from './components/WeatherWidget';
+import HolidaysWidget from './components/HolidaysWidget';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -237,8 +238,17 @@ const App: React.FC = () => {
           {/* MOBILE MENU OVERLAY */}
           {isMobileMenuOpen && (
             <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[990] overflow-y-auto">
-              <div className="col-span-2 mb-2">
+              <div className="col-span-2 mb-2 flex flex-col gap-2">
                 <WeatherWidget />
+                
+                <div className="flex items-center gap-3 bg-slate-800 text-white px-4 py-2 rounded-md shadow-lg border border-white/5">
+                  <i className="fa-solid fa-calendar-day text-emerald-400 text-xs"></i>
+                  <span className="text-[11px] font-bold uppercase tracking-widest opacity-90">
+                    {formatLocalDate(new Date(), state.settings.country, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
+                  </span>
+                </div>
+                
+                <HolidaysWidget countryCode={state.settings.country} />
               </div>
               {[
                 { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
