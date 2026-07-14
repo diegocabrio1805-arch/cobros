@@ -8,6 +8,7 @@ import { getTranslation } from '../utils/translations';
 import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
 import PullToRefresh from './PullToRefresh';
 import WeatherWidget from './WeatherWidget';
+import HolidaysWidget from './HolidaysWidget';
 
 interface DashboardProps {
   state: AppState;
@@ -867,11 +868,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
         <WeatherWidget />
 
-        <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5 shrink-0">
-          <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
-          <span className="text-xs font-bold uppercase tracking-widest opacity-90">
-            {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
-          </span>
+        <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5 shrink-0">
+            <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-90">
+              {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
+            </span>
+          </div>
+          <HolidaysWidget countryCode={state.settings.country} />
         </div>
       </div>
 
