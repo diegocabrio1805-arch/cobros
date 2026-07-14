@@ -272,7 +272,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
   const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, e) => acc + e.amount, 0);
+  const totalExpenses = Number(state.initialCapital) || 0;
   const netUtility = totalProfit - totalExpenses;
 
   // Sumar el recaudo de hoy directamente desde las estadísticas de los cobradores (Auditoría de Rutas)
@@ -1227,19 +1227,26 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     </span>
                   </div>
                   {/* Ganancia Real */}
-                  <div className="px-4 py-3 bg-emerald-900/40 border-l xl:border-l-0 border-emerald-500/30 xl:rounded-r-xl flex flex-col justify-center shadow-inner relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent"></div>
-                    <div className="relative z-10">
-                      <span className="text-[10px] lg:text-xs text-emerald-300 font-black uppercase tracking-wider mb-1 block">Ganancia Real</span>
-                      <span className="font-mono font-black text-emerald-400 text-base lg:text-xl xl:text-2xl leading-none block mt-1">
-                        {formatCurrency(
-                          (weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
-                          (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0))) - currentMonthTotalExpenses, 
-                          state.settings
-                        )}
-                      </span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const gananciaRealValue = (weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
+                          (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0))) - currentMonthTotalExpenses;
+                    const isNegative = gananciaRealValue < 0;
+
+                    return (
+                      <div className={`px-4 py-3 border-l xl:border-l-0 xl:rounded-r-xl flex flex-col justify-center shadow-inner relative overflow-hidden ${isNegative ? 'bg-red-900/40 border-red-500/30' : 'bg-emerald-900/40 border-emerald-500/30'}`}>
+                        <div className={`absolute inset-0 bg-gradient-to-r to-transparent ${isNegative ? 'from-red-500/10' : 'from-emerald-500/10'}`}></div>
+                        <div className="relative z-10">
+                          <span className={`text-[10px] lg:text-xs font-black uppercase tracking-wider mb-1 block ${isNegative ? 'text-red-300' : 'text-emerald-300'}`}>Ganancia Real</span>
+                          <span className={`font-mono font-black text-base lg:text-xl xl:text-2xl leading-none block mt-1 ${isNegative ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                            {formatCurrency(gananciaRealValue, state.settings)}
+                          </span>
+                          <span className={`inline-block mt-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isNegative ? 'bg-red-500/30 text-red-300 animate-pulse' : 'bg-emerald-500/30 text-emerald-300'}`}>
+                            {isNegative ? '▼ DÉFICIT' : '▲ SUPERÁVIT'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
