@@ -291,6 +291,7 @@ export interface AppState {
   expenses: Expense[];
   isolatedExpenses: IsolatedExpense[];
   collectionLogs: CollectionLog[];
+  simulatedOrders: SimulatedOrder[];
   users: User[];
   currentUser: User | null;
   commissionPercentage: number;

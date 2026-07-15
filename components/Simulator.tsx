@@ -3,6 +3,7 @@ import { Frequency, AppSettings, AppState, Role, SimulatedOrder, LoanStatus } fr
 import { calculateTotalReturn, generateAmortizationTable, formatCurrency, formatDate, getLocalDateStringForCountry } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { v4 as uuidv4 } from 'uuid';
+import { addToSyncQueue } from '../utils/syncQueue';
 
 interface SimulatorProps {
    settings?: AppSettings;
@@ -39,22 +40,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
       loadOrders();
    }, []);
 
-   const loadOrders = () => {
-      const today = getLocalDateStringForCountry(settings?.country || 'CO');
-      const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
-      const validOrders = allOrders.filter(o => o.simulationDate >= today);
-      if (validOrders.length !== allOrders.length) {
-         localStorage.setItem('simulatedOrders', JSON.stringify(validOrders));
-      }
-      setOrders(validOrders);
-   };
 
-   const handleDeleteOrder = (id: string) => {
-      const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
-      const newOrders = allOrders.filter(o => o.id !== id);
-      localStorage.setItem('simulatedOrders', JSON.stringify(newOrders));
-      loadOrders();
-   };
 
    const simulation = useMemo(() => {
       const p = Number(principal) || 0;
@@ -119,14 +105,19 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
          frequency: frequency,
          simulationDate: simulationDate,
          endDate: simulation.table.length > 0 ? simulation.table[simulation.table.length - 1].dueDate : simulationDate,
-         createdAt: Date.now()
+         createdAt: new Date().toISOString(),
+         table: simulation.table,
+         collectorId: state?.currentUser?.id,
+         branchId: state?.currentUser?.role === Role.ADMIN || state?.currentUser?.role === Role.MANAGER ? state.currentUser.id : state?.currentUser?.managedBy
       };
 
-      const existing = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
-      existing.push(order);
-      localStorage.setItem('simulatedOrders', JSON.stringify(existing));
-      alert("Pedido cargado exitosamente.");
-      loadOrders();
+      addToSyncQueue({
+         operation: 'ADD_SIMULATED_ORDER',
+         data: order
+      });
+      const event = new CustomEvent('force-sync');
+      window.dispatchEvent(event);
+      alert("Pedido cargado exitosamente y enviado a sincronización.");
 
       // Reset fields
       setPrincipal('0');

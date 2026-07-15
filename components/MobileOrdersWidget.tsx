@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { addToSyncQueue } from '../utils/syncQueue';
 import { AppState, SimulatedOrder, LoanStatus, Role } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
 
@@ -13,7 +14,34 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
   const isPowerUser = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
 
   const loadOrders = () => {
-    const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+    
+    const cloudOrders = state.simulatedOrders || [];
+    const queueStr = localStorage.getItem('syncQueue');
+    let localAdds: SimulatedOrder[] = [];
+    let localDeletes = new Set<string>();
+    
+    if (queueStr) {
+      try {
+        const queue = JSON.parse(queueStr);
+        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
+        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
+      } catch (e) {}
+    }
+    
+    // Unir locales (prioridad) con los de la nube y filtrar duplicados/eliminados
+    const combined = [...localAdds, ...cloudOrders];
+    const uniqueOrders: SimulatedOrder[] = [];
+    const seenIds = new Set<string>();
+    
+    for (const order of combined) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
+        seenIds.add(order.id);
+        uniqueOrders.push(order);
+      }
+    }
+    
+    const allOrders: SimulatedOrder[] = uniqueOrders;
+
     const currentUserId = state.currentUser?.id;
 
     const activeClientsMap = new Map();
@@ -37,21 +65,16 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
 
   useEffect(() => {
     loadOrders();
-    const handleStorageChange = () => loadOrders();
-    window.addEventListener('storage', handleStorageChange);
-    // Verificar cada segundo por si la simulación ocurrió en esta misma ventana
-    const interval = setInterval(loadOrders, 1000);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [state.loans, state.clients, state.currentUser]);
+    const handleForceSync = () => loadOrders();
+    window.addEventListener('force-sync', handleForceSync);
+    return () => window.removeEventListener('force-sync', handleForceSync);
+  }, [state.loans, state.clients, state.currentUser, state.simulatedOrders]);
 
   const handleDeleteOrder = (id: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar este pedido?")) {
-      const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
-      const newOrders = allOrders.filter(o => o.id !== id);
-      localStorage.setItem('simulatedOrders', JSON.stringify(newOrders));
+      addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
+      const event = new CustomEvent('force-sync');
+      window.dispatchEvent(event);
       loadOrders();
     }
   };

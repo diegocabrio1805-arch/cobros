@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useCallback } from 'react';
-import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus } from '../types';
+import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
 import { useSync } from './useSync';
 import { supabase } from '../utils/supabaseClient';
 import { StorageService } from '../utils/localforageStorage';
@@ -145,6 +145,7 @@ export const useAppSyncEngine = (
       if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.isolatedExpenses) updatedState.isolatedExpenses = mergeData(updatedState.isolatedExpenses || [], mappedData.isolatedExpenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.simulatedOrders) updatedState.simulatedOrders = mergeData(updatedState.simulatedOrders || [], mappedData.simulatedOrders, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.users) {
         updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
         if (prev.currentUser && mappedData.users.length > 0) {

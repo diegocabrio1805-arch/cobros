@@ -91,16 +91,42 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   useEffect(() => {
     const today = getLocalDateStringForCountry(state.settings.country || 'CO');
-    const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+    
+    const cloudOrders = state.simulatedOrders || [];
+    const queueStr = localStorage.getItem('syncQueue');
+    let localAdds: SimulatedOrder[] = [];
+    let localDeletes = new Set<string>();
+    
+    if (queueStr) {
+      try {
+        const queue = JSON.parse(queueStr);
+        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
+        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
+      } catch (e) {}
+    }
+    
+    // Unir locales (prioridad) con los de la nube y filtrar duplicados/eliminados
+    const combined = [...localAdds, ...cloudOrders];
+    const uniqueOrders: SimulatedOrder[] = [];
+    const seenIds = new Set<string>();
+    
+    for (const order of combined) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
+        seenIds.add(order.id);
+        uniqueOrders.push(order);
+      }
+    }
+    
+    const allOrders: SimulatedOrder[] = uniqueOrders;
+
     const validOrders = allOrders.filter(o => o.simulationDate >= today);
     setOrders(validOrders);
-  }, [state.settings.country]);
+  }, [state.settings.country, state.simulatedOrders]);
 
   const handleDeleteOrder = (id: string) => {
-    const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
-    const newOrders = allOrders.filter(o => o.id !== id);
-    localStorage.setItem('simulatedOrders', JSON.stringify(newOrders));
-    setOrders(newOrders);
+    addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
+    const event = new CustomEvent('force-sync');
+    window.dispatchEvent(event);
   };
 
   const t = getTranslation(state.settings.language).dashboard;

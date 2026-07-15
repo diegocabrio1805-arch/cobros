@@ -305,6 +305,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
             let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
+            let simulatedOrdersQuery = supabase.from('simulated_orders').select('*').order('updated_at', { ascending: true });
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {
@@ -330,6 +331,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
                 isolatedExpensesQuery = isolatedExpensesQuery.gt('updated_at', adjustedSyncTime);
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
+                simulatedOrdersQuery = simulatedOrdersQuery.gt('updated_at', adjustedSyncTime);
             } else {
                 // PROTECCIÓN: Durante un fullSync o recarga total, no descargar el historial completo de borrados
                 // Solo cargar lo de los últimos 7 días para evitar colapsos por exceso de datos
@@ -373,10 +375,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (fullSync) await new Promise(r => setTimeout(r, 150));
 
             // LOTE 4: Gastos y Eliminados
-            const [expensesResult, isolatedExpensesResult, deletedResult] = await Promise.all([
+            const [expensesResult, isolatedExpensesResult, deletedResult, simulatedOrdersResult] = await Promise.all([
                 fetchAll(expensesQuery.abortSignal(controller.signal)),
                 fetchAll(isolatedExpensesQuery.abortSignal(controller.signal)),
-                fetchAll(deletedItemsQuery.abortSignal(controller.signal))
+                fetchAll(deletedItemsQuery.abortSignal(controller.signal)),
+                fetchAll(simulatedOrdersQuery.abortSignal(controller.signal))
             ]);
 
             console.log('[Sync] Data fetch complete.');
@@ -439,6 +442,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }, {} as Record<string, AppSettings>);
             
             const deletedItems = (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[];
+            const simulatedOrders = (simulatedOrdersResult.data || []).map((d: any) => ({ id: d.id, clientId: d.client_id, clientName: d.client_name, principal: d.principal, interestRate: d.interest_rate, installments: d.installments, totalAmount: d.total_amount, installmentValue: d.installment_value, frequency: d.frequency, simulationDate: d.simulation_date, table: d.table_data, collectorId: d.collector_id, branchId: d.branch_id })) as any[];
 
             const result = {
                 clients,
@@ -604,6 +608,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'DELETE_CLIENT': { items: [], table: 'clients', isDelete: true, mapper: (d) => d },
                 'DELETE_EXPENSE': { items: [], table: 'expenses', isDelete: true, mapper: (d) => d },
                 'DELETE_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: true, mapper: (d) => d },
+                'ADD_SIMULATED_ORDER': { items: [], table: 'simulated_orders', isDelete: false, mapper: (d) => ({ id: d.id, client_id: d.clientId, client_name: d.clientName, principal: d.principal, interest_rate: d.interestRate, installments: d.installments, total_amount: d.totalAmount, installment_value: d.installmentValue, frequency: d.frequency, simulation_date: d.simulationDate, table_data: d.table, collector_id: d.collectorId, branch_id: d.branchId, updated_at: new Date().toISOString() }) },
+                'DELETE_SIMULATED_ORDER': { items: [], table: 'simulated_orders', isDelete: true, mapper: (d) => d },
                 'RENEW_LOAN': { items: [], table: 'loans', isDelete: false, mapper: (d) => d },
             };
 
