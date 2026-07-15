@@ -84,12 +84,12 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
 
       {/* BOTTOM SHEET / PERSIANA (PORTAL-LIKE OVERLAY) */}
       {isExpanded && (
-         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[1050] flex flex-col justify-end animate-fadeInFast">
+         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[1050] flex flex-col justify-start items-center pt-6 px-3 animate-fadeInFast">
             {/* Click backdrop to close */}
             <div className="absolute inset-0 -z-10" onClick={() => setIsExpanded(false)}></div>
             
             {/* Sheet Content */}
-            <div className="bg-[#0f172a] border-t border-slate-800 rounded-t-3xl p-4 w-full max-h-[85vh] flex flex-col shadow-2xl animate-slideUp overflow-hidden">
+            <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 w-full max-w-md max-h-[88vh] flex flex-col shadow-2xl animate-slideUp overflow-hidden">
                {/* Drag Handle Bar */}
                <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-3 cursor-pointer" onClick={() => setIsExpanded(false)}></div>
                
