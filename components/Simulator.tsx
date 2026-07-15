@@ -1,20 +1,60 @@
-
-import React, { useState, useMemo } from 'react';
-import { Frequency, AppSettings } from '../types';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Frequency, AppSettings, AppState, Role, SimulatedOrder, LoanStatus } from '../types';
 import { calculateTotalReturn, generateAmortizationTable, formatCurrency, formatDate, getLocalDateStringForCountry } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SimulatorProps {
    settings?: AppSettings;
+   state?: AppState;
 }
 
-const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
+const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
    const [principal, setPrincipal] = useState<string>('500000');
    const [interestRate, setInterestRate] = useState<string>('20');
    const [installments, setInstallments] = useState<string>('24');
    const [frequency, setFrequency] = useState<Frequency>(Frequency.DAILY);
+   
+   const [simulationDate, setSimulationDate] = useState<string>(getLocalDateStringForCountry(settings?.country || 'CO'));
+   const [selectedClientId, setSelectedClientId] = useState<string>('');
+   const [clientSearch, setClientSearch] = useState<string>('');
+   const [showClientDropdown, setShowClientDropdown] = useState(false);
+   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
+   const dropdownRef = useRef<HTMLDivElement>(null);
+
    const trans = getTranslation(settings?.language || 'es');
    const t = trans.simulator;
+
+   useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+         if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            setShowClientDropdown(false);
+         }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, []);
+
+   useEffect(() => {
+      loadOrders();
+   }, []);
+
+   const loadOrders = () => {
+      const today = getLocalDateStringForCountry(settings?.country || 'CO');
+      const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+      const validOrders = allOrders.filter(o => o.simulationDate >= today);
+      if (validOrders.length !== allOrders.length) {
+         localStorage.setItem('simulatedOrders', JSON.stringify(validOrders));
+      }
+      setOrders(validOrders);
+   };
+
+   const handleDeleteOrder = (id: string) => {
+      const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+      const newOrders = allOrders.filter(o => o.id !== id);
+      localStorage.setItem('simulatedOrders', JSON.stringify(newOrders));
+      loadOrders();
+   };
 
    const simulation = useMemo(() => {
       const p = Number(principal) || 0;
@@ -23,7 +63,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
 
       const totalAmount = calculateTotalReturn(p, i);
       const installmentValue = inst > 0 ? totalAmount / inst : 0;
-      const startDate = getLocalDateStringForCountry(settings?.country || 'CO');
+      const startDate = simulationDate;
       const table = generateAmortizationTable(
          p,
          i,
@@ -34,7 +74,67 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
          [] // No hay feriados personalizados en simulador por ahora
       );
       return { totalAmount, installmentValue, profit: totalAmount - p, table };
-   }, [principal, interestRate, installments, frequency]);
+   }, [principal, interestRate, installments, frequency, simulationDate]);
+
+   const visibleClients = useMemo(() => {
+      if (!state || !state.currentUser) return [];
+      const clients = Array.isArray(state.clients) ? state.clients : [];
+      if (state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER) {
+         return clients.filter(c => !c.isHidden && !c.deletedAt);
+      } else {
+         const uid = state.currentUser.id.toLowerCase();
+         return clients.filter(c => {
+            if (c.isHidden || c.deletedAt) return false;
+            const addedBy = (c.addedBy || '').toLowerCase();
+            const hasLoanWithCol = (Array.isArray(state.loans) ? state.loans : []).some(l => 
+               l.clientId === c.id && (l.collectorId || '').toLowerCase() === uid
+            );
+            return addedBy === uid || hasLoanWithCol;
+         });
+      }
+   }, [state]);
+
+   const filteredClients = useMemo(() => {
+      if (!clientSearch.trim()) return visibleClients.slice(0, 50);
+      return visibleClients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).slice(0, 50);
+   }, [visibleClients, clientSearch]);
+
+   const handleCargarPedido = () => {
+      if (!selectedClientId) {
+         alert("Debe seleccionar un cliente para crear el pedido.");
+         return;
+      }
+      const client = visibleClients.find(c => c.id === selectedClientId);
+      if (!client) return;
+
+      const order: SimulatedOrder = {
+         id: uuidv4(),
+         clientId: client.id,
+         clientName: client.name,
+         principal: Number(principal),
+         interestRate: Number(interestRate),
+         installments: Number(installments),
+         totalAmount: simulation.totalAmount,
+         installmentValue: simulation.installmentValue,
+         frequency: frequency,
+         simulationDate: simulationDate,
+         endDate: simulation.table.length > 0 ? simulation.table[simulation.table.length - 1].dueDate : simulationDate,
+         createdAt: Date.now()
+      };
+
+      const existing = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+      existing.push(order);
+      localStorage.setItem('simulatedOrders', JSON.stringify(existing));
+      alert("Pedido cargado exitosamente.");
+      loadOrders();
+
+      // Reset fields
+      setPrincipal('0');
+      setInterestRate('0');
+      setInstallments('0');
+      setClientSearch('');
+      setSelectedClientId('');
+   };
 
    return (
       <div className="space-y-4 md:space-y-6 animate-fadeIn pb-20 px-1">
@@ -54,6 +154,60 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                   <h3 className="text-base md:text-lg font-black text-slate-800 uppercase tracking-tighter mb-5 md:mb-6">{t.params}</h3>
 
                   <div className="space-y-4 md:space-y-5">
+                     
+                     {/* Búsqueda de Clientes */}
+                     <div ref={dropdownRef} className="space-y-1.5 relative z-[60]">
+                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente a Simular</label>
+                        <div className="relative">
+                           <input 
+                              type="text" 
+                              placeholder="Buscar cliente..." 
+                              value={selectedClientId ? visibleClients.find(c => c.id === selectedClientId)?.name || clientSearch : clientSearch}
+                              onChange={(e) => {
+                                 setClientSearch(e.target.value);
+                                 setSelectedClientId('');
+                                 setShowClientDropdown(true);
+                              }}
+                              onFocus={() => setShowClientDropdown(true)}
+                              className="w-full px-3 py-3 md:py-4 bg-slate-50 border border-slate-200 rounded-none font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner text-sm uppercase"
+                           />
+                           {selectedClientId && (
+                              <button onClick={() => { setSelectedClientId(''); setClientSearch(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500">
+                                 <i className="fa-solid fa-times"></i>
+                              </button>
+                           )}
+                        </div>
+                        {showClientDropdown && !selectedClientId && (
+                           <div className="absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-200 shadow-lg rounded-none">
+                              {filteredClients.map(c => (
+                                 <div 
+                                    key={c.id} 
+                                    className="px-3 py-2 hover:bg-blue-50 cursor-pointer font-bold text-xs text-slate-700 uppercase"
+                                    onClick={() => {
+                                       setSelectedClientId(c.id);
+                                       setClientSearch(c.name);
+                                       setShowClientDropdown(false);
+                                    }}
+                                 >
+                                    {c.name}
+                                 </div>
+                              ))}
+                              {filteredClients.length === 0 && <div className="px-3 py-2 text-xs text-slate-400 italic">No hay resultados</div>}
+                           </div>
+                        )}
+                     </div>
+
+                     {/* Fecha */}
+                     <div className="space-y-1.5">
+                        <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha de Inicio</label>
+                        <input
+                           type="date"
+                           value={simulationDate}
+                           onChange={(e) => setSimulationDate(e.target.value)}
+                           className="w-full px-3 py-3 md:py-4 bg-slate-50 border border-slate-200 rounded-none font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner text-sm"
+                        />
+                     </div>
+
                      <div>
                         <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t.principal || 'Capital'}</label>
                         <div className="relative">
@@ -100,6 +254,16 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                            ))}
                         </div>
                      </div>
+                     
+                     <div className="pt-2">
+                        <button
+                           onClick={handleCargarPedido}
+                           className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] md:text-sm uppercase tracking-widest transition-all rounded-none shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                        >
+                           <i className="fa-solid fa-save"></i> CARGAR PEDIDO
+                        </button>
+                     </div>
+
                   </div>
                </div>
 
@@ -166,6 +330,8 @@ const Simulator: React.FC<SimulatorProps> = ({ settings }) => {
                </div>
             </div>
          </div>
+
+
       </div>
    );
 };

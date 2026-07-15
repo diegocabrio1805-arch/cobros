@@ -2563,14 +2563,41 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                     </span>
                                   )}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
-                                  ID: {client.documentId}
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                    ID: {client.documentId}
+                                  </span>
                                   {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])) && (
-                                    <span className="ml-2 text-blue-500">
+                                    <span className="text-[9px] text-blue-500 font-bold uppercase">
                                       | VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])}
                                     </span>
                                   )}
-                                </span>
+                                </div>
+                                {(() => {
+                                  const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                                  const collectorId = m.activeLoan?.collectorId || loansForClient[0]?.collectorId;
+                                  const isZeroBalance = m.balance <= 1;
+                                  const collectorUser = collectorId
+                                    ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                    : null;
+                                  const typeCode = (client as any).clientTypeCode;
+                                  if (!collectorUser && !typeCode) return null;
+                                  return (
+                                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                      {typeCode && (
+                                        <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                          {typeCode}
+                                        </span>
+                                      )}
+                                      {collectorUser && (
+                                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 border rounded text-[7px] font-black uppercase tracking-wide ${isZeroBalance ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                                          <i className="fa-solid fa-user-tie"></i>
+                                          {collectorUser.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </td>
                             <td className="px-6 py-3 text-right">
@@ -2673,6 +2700,31 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 </span>
                               )}
                             </div>
+                            {(() => {
+                              const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                              const collectorId = client._metrics.activeLoan?.collectorId || loansForClient[0]?.collectorId;
+                              const isZeroBalance = (client._metrics.balance || 0) <= 1;
+                              const collectorUser = collectorId
+                                ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                : null;
+                              const typeCode = (client as any).clientTypeCode;
+                              if (!collectorUser && !typeCode) return null;
+                              return (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {typeCode && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                      {typeCode}
+                                    </span>
+                                  )}
+                                  {collectorUser && (
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 border rounded text-[7px] font-black uppercase tracking-wide ${isZeroBalance ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                                      <i className="fa-solid fa-user-tie"></i>
+                                      {collectorUser.name}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-blue-600">{client.phone}</td>
@@ -2748,6 +2800,31 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 )}
                               */}
                             </div>
+                            {(() => {
+                              const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === item.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                              const collectorId = item._loan?.collectorId || loansForClient[0]?.collectorId;
+                              const isZeroBalance = (item._metrics?.balance || 0) <= 1;
+                              const collectorUser = collectorId
+                                ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                : null;
+                              const typeCode = (item as any).clientTypeCode;
+                              if (!collectorUser && !typeCode) return null;
+                              return (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {typeCode && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                      {typeCode}
+                                    </span>
+                                  )}
+                                  {collectorUser && (
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 border rounded text-[7px] font-black uppercase tracking-wide ${isZeroBalance ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                                      <i className="fa-solid fa-user-tie"></i>
+                                      {collectorUser.name}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-slate-700">{formatCurrency(item._loan!.principal, state.settings)}</td>
@@ -2833,8 +2910,32 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])}
                                 </span>
                               )} */}
-                              {client.clientTypeCode && <span className="text-[7px] bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded border border-indigo-100 uppercase font-black">{client.clientTypeCode}</span>}
                             </div>
+                            {(() => {
+                              const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                              const collectorId = client._metrics.activeLoan?.collectorId || loansForClient[0]?.collectorId;
+                              const isZeroBalance = (client._metrics?.balance || 0) <= 1;
+                              const collectorUser = collectorId
+                                ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                : null;
+                              const typeCode = (client as any).clientTypeCode;
+                              if (!collectorUser && !typeCode) return null;
+                              return (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {typeCode && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                      {typeCode}
+                                    </span>
+                                  )}
+                                  {collectorUser && (
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 border rounded text-[7px] font-black uppercase tracking-wide ${isZeroBalance ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                                      <i className="fa-solid fa-user-tie"></i>
+                                      {collectorUser.name}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -2907,6 +3008,31 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 </span>
                               )}
                             </div>
+                            {(() => {
+                              const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                              const collectorId = client._metrics.activeLoan?.collectorId || loansForClient[0]?.collectorId;
+                              const isZeroBalance = (client._metrics?.balance || 0) <= 1;
+                              const collectorUser = collectorId
+                                ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                : null;
+                              const typeCode = (client as any).clientTypeCode;
+                              if (!collectorUser && !typeCode) return null;
+                              return (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {typeCode && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                      {typeCode}
+                                    </span>
+                                  )}
+                                  {collectorUser && (
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 border rounded text-[7px] font-black uppercase tracking-wide ${isZeroBalance ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                                      <i className="fa-solid fa-user-tie"></i>
+                                      {collectorUser.name}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-blue-700">{client.phone}</td>
@@ -3012,6 +3138,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                              <td className="px-5 py-4 border-r border-slate-100">
                                <p className="font-black text-slate-900 uppercase">{client.name}</p>
                                <p className="text-[8px] text-slate-400 font-black tracking-widest">{client.documentId}</p>
+                               {(() => {
+                                 const collectorId = loan?.collectorId;
+                                 const collectorUser = collectorId
+                                   ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === collectorId)
+                                   : null;
+                                 const typeCode = (client as any).clientTypeCode;
+                                 if (!collectorUser && !typeCode) return null;
+                                 return (
+                                   <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                     {typeCode && (
+                                       <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-[7px] font-black text-indigo-700 uppercase">
+                                         {typeCode}
+                                       </span>
+                                     )}
+                                     {collectorUser && (
+                                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[7px] font-black text-blue-700 uppercase tracking-wide">
+                                         <i className="fa-solid fa-user-tie"></i>
+                                         {collectorUser.name}
+                                       </span>
+                                     )}
+                                   </div>
+                                 );
+                               })()}
                              </td>
                              <td className="px-5 py-4 border-r border-slate-100 text-blue-600 font-black">{client.phone}</td>
                              <td className={`px-5 py-4 border-r border-slate-100 text-center font-black text-[10px] ${freqColor}`}>{freqLabel}</td>

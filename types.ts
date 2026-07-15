@@ -308,3 +308,18 @@ export interface DeletedItem {
   branchId?: string;
   deletedAt: string;
 }
+
+export interface SimulatedOrder {
+  id: string;
+  clientId: string;
+  clientName: string;
+  principal: number;
+  interestRate: number;
+  installments: number;
+  totalAmount: number;
+  installmentValue: number;
+  frequency: Frequency;
+  simulationDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  createdAt: number;
+}

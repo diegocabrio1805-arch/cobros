@@ -48,7 +48,7 @@ export const translations = {
       collectors: 'Rutas / Cobradores',
       performance: 'Rendimiento Rutas',
       expenses: 'Capital',
-      simulator: 'Simulador',
+      simulator: 'Cargar pedido',
       reports: 'Reportes',
       map: 'Mapa de Cobros',
       commission: 'Mi Comisión',
@@ -797,7 +797,7 @@ export const translations = {
       }
     },
     simulator: {
-      title: 'Simulador de Crédito',
+      title: 'Carga de crédito',
       subtitle: 'Calculadora rápida de cuotas',
       params: 'Parámetros',
       principal: 'Monto a Prestar',

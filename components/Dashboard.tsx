@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
-import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
+import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
+import { formatDate, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -87,6 +87,21 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
+  const [orders, setOrders] = useState<SimulatedOrder[]>([]);
+
+  useEffect(() => {
+    const today = getLocalDateStringForCountry(state.settings.country || 'CO');
+    const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+    const validOrders = allOrders.filter(o => o.simulationDate >= today);
+    setOrders(validOrders);
+  }, [state.settings.country]);
+
+  const handleDeleteOrder = (id: string) => {
+    const allOrders: SimulatedOrder[] = JSON.parse(localStorage.getItem('simulatedOrders') || '[]');
+    const newOrders = allOrders.filter(o => o.id !== id);
+    localStorage.setItem('simulatedOrders', JSON.stringify(newOrders));
+    setOrders(newOrders);
+  };
 
   const t = getTranslation(state.settings.language).dashboard;
   const isAdmin = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
@@ -878,6 +893,72 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           <HolidaysWidget countryCode={state.settings.country} />
         </div>
       </div>
+
+      {/* SECCIÓN PEDIDOS */}
+      {orders.length > 0 && (
+        <div className="bg-[#0f172a] rounded-md border border-slate-800 shadow-xl overflow-hidden p-5">
+           <h3 className="text-base font-bold text-white uppercase tracking-widest leading-none mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-list-check text-emerald-500"></i>
+              Pedidos Pendientes
+           </h3>
+           <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                 <thead>
+                    <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+                       <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha Inicio</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Total a Pagar</th>
+                       <th className="px-4 py-3 text-center rounded-tr-md w-16">Acción</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100 bg-white">
+                    {orders.map((order) => {
+                       const client = Array.isArray(state.clients) ? state.clients.find(c => c.id === order.clientId) : null;
+                       const activeLoan = Array.isArray(state.loans) ? state.loans.find(l => l.clientId === order.clientId && l.status !== LoanStatus.PAID) : null;
+                       const colId = activeLoan?.collectorId || client?.addedBy;
+                       const collector = Array.isArray(state.users) ? state.users.find(u => u.id === colId) : null;
+                       const collectorName = collector ? collector.name : 'Sin Asignar';
+                       
+                       return (
+                       <tr key={order.id} className="bg-white hover:bg-slate-50 transition-colors group text-sm border-b border-slate-100">
+                          <td className="px-4 py-3 font-black text-slate-800 uppercase text-xs truncate max-w-[200px] border-r border-slate-50">
+                             {order.clientName}
+                             <span className="block text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate">
+                                <i className="fa-solid fa-user-tag text-emerald-500 mr-1"></i>
+                                {collectorName}
+                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">
+                             {formatDate(order.simulationDate)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.principal, state.settings)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50 flex items-center justify-end gap-1.5 h-[50px]">
+                             {formatCurrency(order.installmentValue, state.settings)} <span className="text-[9px] text-slate-400">({order.frequency})</span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.totalAmount, state.settings)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                             <button 
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="w-8 h-8 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center mx-auto"
+                                title="Eliminar Pedido"
+                             >
+                                <i className="fa-solid fa-trash text-xs"></i>
+                             </button>
+                          </td>
+                       </tr>
+                    );
+                    })}
+                 </tbody>
+              </table>
+           </div>
+        </div>
+      )}
 
       {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">

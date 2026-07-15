@@ -1146,6 +1146,18 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
                       <div className="min-w-0">
                         <h4 className="font-black text-white text-base md:text-lg uppercase tracking-tight truncate">{client?.name}</h4>
+                        {(() => {
+                          const assignedCollector = loan.collectorId
+                            ? (Array.isArray(state.users) ? state.users : []).find(u => u.id === loan.collectorId)
+                            : null;
+                          if (!assignedCollector) return null;
+                          return (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-blue-900/40 border border-blue-700/40 rounded-full text-[8px] font-black text-blue-300 uppercase tracking-wide">
+                              <i className="fa-solid fa-user-tie text-[7px]"></i>
+                              {assignedCollector.name}
+                            </span>
+                          );
+                        })()}
                         <div className="flex flex-col gap-2 mt-1">
                           <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 truncate">
                             <i className="fa-solid fa-location-dot"></i> {client?.address}

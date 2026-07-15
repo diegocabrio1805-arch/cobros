@@ -21,6 +21,7 @@ import Reports from './components/Reports';
 import MobileCollectorMode from './components/MobileCollectorMode';
 import WeatherWidget from './components/WeatherWidget';
 import HolidaysWidget from './components/HolidaysWidget';
+import MobileOrdersWidget from './components/MobileOrdersWidget';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -182,7 +183,7 @@ const App: React.FC = () => {
 
   const isPowerUser = state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER;
   const isAdmin = state.currentUser.role === Role.ADMIN;
-  const t = getTranslation(state.settings.language).menu;
+  const t = getTranslation(resolvedSettings.language).menu;
 
   return (
     <ErrorBoundary>
@@ -215,7 +216,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || <span className="text-[10px] font-black opacity-40 ml-2">ANEXO COBRO</span>}</h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{resolvedSettings.companyName || <span className="text-[10px] font-black opacity-40 ml-2">ANEXO COBRO</span>}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -244,11 +245,11 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-3 bg-slate-800 text-white px-4 py-2 rounded-md shadow-lg border border-white/5">
                   <i className="fa-solid fa-calendar-day text-emerald-400 text-xs"></i>
                   <span className="text-[11px] font-bold uppercase tracking-widest opacity-90">
-                    {formatLocalDate(new Date(), state.settings.country, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
+                    {formatLocalDate(new Date(), resolvedSettings.country, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }, resolvedSettings.language)}
                   </span>
                 </div>
                 
-                <HolidaysWidget countryCode={state.settings.country} />
+                <HolidaysWidget countryCode={resolvedSettings.country} />
               </div>
               {[
                 { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
@@ -298,6 +299,7 @@ const App: React.FC = () => {
                   </div>
                 </button>
               </div>
+              <MobileOrdersWidget state={state} onCloseMenu={() => setIsMobileMenuOpen(false)} />
               <button 
                 onClick={handleLogout} 
                 className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"
@@ -442,7 +444,7 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
-            {activeTab === 'simulator' && <Simulator settings={resolvedSettings} />}
+            {activeTab === 'simulator' && <Simulator settings={resolvedSettings} state={filteredState} />}
             {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
             {activeTab === 'settings' && (
               <Settings 
