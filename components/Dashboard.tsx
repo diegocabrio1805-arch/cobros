@@ -933,6 +933,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                  <thead>
                     <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
                        <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Registro</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
@@ -958,9 +959,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                                 {collectorName}
                              </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">
-                             {formatDate(order.simulationDate)}
+                          <td className="px-4 py-3 text-right text-slate-600 font-bold text-xs border-r border-slate-50">
+                             {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt)}` : "---"}
                           </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.principal, state.settings)}
                           </td>
