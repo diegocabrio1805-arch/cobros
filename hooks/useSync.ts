@@ -453,7 +453,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 isolatedExpenses,
                 users,
                 branchSettings,
-                deletedItems
+                deletedItems,
+                simulatedOrders
             };
 
             // Yield thread before heavy React re-render
