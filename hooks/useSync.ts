@@ -608,7 +608,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'DELETE_CLIENT': { items: [], table: 'clients', isDelete: true, mapper: (d) => d },
                 'DELETE_EXPENSE': { items: [], table: 'expenses', isDelete: true, mapper: (d) => d },
                 'DELETE_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: true, mapper: (d) => d },
-                'ADD_SIMULATED_ORDER': { items: [], table: 'simulated_orders', isDelete: false, mapper: (d) => ({ id: d.id, client_id: d.clientId, client_name: d.clientName, principal: d.principal, interest_rate: d.interestRate, installments: d.installments, total_amount: d.totalAmount, installment_value: d.installmentValue, frequency: d.frequency, simulation_date: d.simulationDate, table_data: d.table, collector_id: d.collectorId, branch_id: d.branchId, updated_at: new Date().toISOString() }) },
+                'ADD_SIMULATED_ORDER': { items: [], table: 'simulated_orders', isDelete: false, mapper: (d) => ({ id: d.id, client_id: d.clientId, client_name: d.clientName, principal: d.principal, interest_rate: d.interestRate, installments: d.installments, total_amount: d.totalAmount, installment_value: d.installmentValue, frequency: d.frequency, simulation_date: d.simulationDate, table_data: d.table, collector_id: d.collectorId || null, branch_id: d.branchId || null, updated_at: new Date().toISOString() }) },
                 'DELETE_SIMULATED_ORDER': { items: [], table: 'simulated_orders', isDelete: true, mapper: (d) => d },
                 'RENEW_LOAN': { items: [], table: 'loans', isDelete: false, mapper: (d) => d },
             };
