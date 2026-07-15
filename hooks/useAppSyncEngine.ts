@@ -60,8 +60,8 @@ export const useAppSyncEngine = (
     }
 
     const remoteMap = new Map((Array.isArray(remote) ? remote : []).map(i => [i.id, i]));
-    const result: T[] = [...(Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)];
-    const resultMap = new Map(result.map(i => [i.id, i]));
+    const resultArr = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt);
+    const resultMap = new Map(resultArr.map(i => [i.id, i]));
 
     local.forEach(l => {
       if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
@@ -70,7 +70,6 @@ export const useAppSyncEngine = (
 
       if (!r) {
         if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
-          result.push(l);
           resultMap.set(l.id, l);
         }
       } else {
@@ -81,18 +80,10 @@ export const useAppSyncEngine = (
         const remoteIsMoreComplete = remoteInstallments.length > localInstallments.length || remotePaidCount > localPaidCount;
 
         if (!isAppendOnly && !remoteIsMoreComplete && (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
-          const idx = result.findIndex(item => item.id === l.id);
-          if (idx !== -1) {
-            result[idx] = l;
-            resultMap.set(l.id, l);
-          }
+          resultMap.set(l.id, l);
         } else if (r) {
-          const idx = result.findIndex(item => item.id === r.id);
-          if (idx !== -1) {
-            const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
-            result[idx] = { ...l, ...cleanR } as T;
-            resultMap.set(r.id, result[idx]);
-          }
+          const cleanR = Object.fromEntries(Object.entries(r as any).filter(([_, v]) => v !== undefined)) as Partial<T>;
+          resultMap.set(r.id, { ...l, ...cleanR } as T);
         }
       }
     });
@@ -100,16 +91,21 @@ export const useAppSyncEngine = (
     if (!isFullSync) {
       local.forEach(l => {
         if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
-          result.push(l);
           resultMap.set(l.id, l);
         }
       });
     }
-    return result;
+    return Array.from(resultMap.values());
   };
 
-  const handleRealtimeData = useCallback((newData: Partial<AppState>, isFullSync?: boolean) => {
-    setState(prev => {
+  const handleRealtimeData = useCallback(async (newData: Partial<AppState>, isFullSync?: boolean) => {
+    const yieldThread = () => new Promise(r => setTimeout(r, 0));
+    
+    const baseState = await new Promise<AppState>(resolve => {
+        setState(prev => { resolve(prev); return prev; });
+    });
+    
+    (async (prev) => {
       const queueStr = localStorage.getItem('syncQueue');
       const queue = queueStr ? JSON.parse(queueStr) : [];
       const pendingDeleteIds = new Set<string>();
@@ -139,9 +135,13 @@ export const useAppSyncEngine = (
         mappedData.users = mappedData.users.filter((u: any) => !u.deletedAt);
       }
 
+      await yieldThread();
       if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      await yieldThread();
       if (mappedData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, mappedData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      await yieldThread();
       if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      await yieldThread();
       if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.isolatedExpenses) updatedState.isolatedExpenses = mergeData(updatedState.isolatedExpenses || [], mappedData.isolatedExpenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
@@ -185,9 +185,11 @@ export const useAppSyncEngine = (
       }
 
       // Persistencia inmediata del nuevo estado sincronizado
+            setState(currentPrev => {
+         return { ...currentPrev, ...updatedState };
+      });
       immediateSave(updatedState);
-      return updatedState;
-    });
+    })(baseState);
   }, [setState, immediateSave]);
 
   const sync = useSync(handleRealtimeData);
