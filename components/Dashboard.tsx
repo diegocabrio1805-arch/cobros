@@ -9,6 +9,7 @@ import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditRepo
 import PullToRefresh from './PullToRefresh';
 import WeatherWidget from './WeatherWidget';
 import HolidaysWidget from './HolidaysWidget';
+import { addToSyncQueue } from '../utils/syncQueue';
 
 interface DashboardProps {
   state: AppState;
