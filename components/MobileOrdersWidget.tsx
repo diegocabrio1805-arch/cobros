@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { addToSyncQueue } from '../utils/syncQueue';
 import { AppState, SimulatedOrder, LoanStatus, Role } from '../types';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, formatLocalTime } from '../utils/helpers';
+import { getTranslation } from '../utils/translations';
 
 interface MobileOrdersWidgetProps {
   state: AppState;
@@ -15,7 +16,6 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
   const isPowerUser = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
 
   const loadOrders = () => {
-    
     const cloudOrders = state.simulatedOrders || [];
     const queueStr = localStorage.getItem('syncQueue');
     let localAdds: SimulatedOrder[] = [];
@@ -29,7 +29,6 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
       } catch (e) {}
     }
     
-    // Unir locales (prioridad) con los de la nube y filtrar duplicados/eliminados
     const combined = [...localAdds, ...cloudOrders];
     const uniqueOrders: SimulatedOrder[] = [];
     const seenIds = new Set<string>();
@@ -41,33 +40,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
       }
     }
     
-    const allOrders: SimulatedOrder[] = uniqueOrders;
-
-    const currentUserId = state.currentUser?.id;
-
-    const activeClientsMap = new Map();
-    (Array.isArray(state.loans) ? state.loans : []).forEach(l => {
-      if (l.status !== LoanStatus.PAID) {
-        activeClientsMap.set(l.clientId || (l as any).client_id, l.collectorId || (l as any).collector_id);
-      }
-    });
-    
-    const filteredOrders = allOrders.filter(o => {
-      if (isPowerUser) return true;
-      const orderCollectorId = o.collectorId || (o as any).collector_id;
-      if (orderCollectorId) {
-          return orderCollectorId === currentUserId;
-      }
-      
-      // Fallback a derivarlo del cliente solo si el pedido no tiene collectorId
-      const loanCollector = activeClientsMap.get(o.clientId);
-      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === o.clientId);
-      const collectorId = loanCollector || (client ? (client.addedBy || (client as any).added_by) : null);
-
-      return collectorId === currentUserId;
-    });
-
-    setOrders(filteredOrders);
+    setOrders(uniqueOrders);
   };
 
   useEffect(() => {
@@ -89,54 +62,123 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
   if (orders.length === 0) return null;
 
   return (
-    <div className="col-span-2 mt-2 mb-6 bg-[#0f172a] rounded-2xl border border-slate-800 shadow-xl overflow-hidden animate-fadeIn">
-       <div 
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="px-4 py-3 border-b border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 transition-colors select-none"
-       >
-          <h3 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-             <i className="fa-solid fa-list-check text-emerald-500"></i> Pedidos Pendientes
-          </h3>
-          <div className="flex items-center gap-2.5">
-             <span className="bg-emerald-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">{orders.length}</span>
-             <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 text-xs transition-transform duration-250`}></i>
-          </div>
-       </div>
-       {isExpanded && (
-          <div className="flex flex-col max-h-[500px] overflow-y-auto custom-scrollbar bg-white animate-fadeIn">
-             {orders.map(order => (
-                <div key={order.id} className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
-                   <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-slate-800 uppercase truncate leading-tight">{order.clientName}</p>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Inicio: {formatDate(order.simulationDate)}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                         <span className="text-[10px] font-mono font-black text-slate-700">{formatCurrency(order.principal, state.settings)}</span>
-                         <i className="fa-solid fa-arrow-right text-[8px] text-slate-300"></i>
-                         <span className="text-[10px] font-mono font-black text-emerald-600">{formatCurrency(order.totalAmount, state.settings)}</span>
-                      </div>
-                   </div>
-                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <div className="flex flex-col items-end">
-                         <span className="text-[9px] font-mono font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                            {formatCurrency(order.installmentValue, state.settings)}
-                         </span>
-                         <span className="text-[7.5px] font-bold text-slate-500 uppercase mt-1">
-                            {order.installments} x {order.frequency.split(' ')[0]}
-                         </span>
-                      </div>
-                      {isPowerUser && (
-                         <button 
-                            onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
-                            className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"
-                         >
-                            <i className="fa-solid fa-trash text-[10px]"></i>
-                         </button>
-                      )}
-                   </div>
-                </div>
-             ))}
-          </div>
-       )}
+    <div className="col-span-2 mt-2 mb-4">
+      {/* TRIGGER BUTTON (COMPACT AND PREMIUM) */}
+      <button 
+         onClick={() => setIsExpanded(true)}
+         className="w-full bg-slate-800/80 hover:bg-slate-800 text-white rounded-2xl border border-slate-700/50 p-4 flex items-center justify-between shadow-md transition-all active:scale-98"
+      >
+         <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+               <i className="fa-solid fa-list-check text-sm animate-pulse"></i>
+            </div>
+            <div className="flex flex-col items-start text-left leading-tight">
+               <span className="text-[10px] font-black uppercase tracking-wider">Pedidos Pendientes</span>
+               <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Toca para abrir persiana</span>
+            </div>
+         </div>
+         <span className="bg-emerald-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">
+            {orders.length}
+         </span>
+      </button>
+
+      {/* BOTTOM SHEET / PERSIANA (PORTAL-LIKE OVERLAY) */}
+      {isExpanded && (
+         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[1050] flex flex-col justify-end animate-fadeInFast">
+            {/* Click backdrop to close */}
+            <div className="absolute inset-0 -z-10" onClick={() => setIsExpanded(false)}></div>
+            
+            {/* Sheet Content */}
+            <div className="bg-[#0f172a] border-t border-slate-800 rounded-t-3xl p-4 w-full max-h-[85vh] flex flex-col shadow-2xl animate-slideUp overflow-hidden">
+               {/* Drag Handle Bar */}
+               <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-3 cursor-pointer" onClick={() => setIsExpanded(false)}></div>
+               
+               {/* Header */}
+               <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-2">
+                     <i className="fa-solid fa-list-check text-emerald-500 text-sm"></i>
+                     <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                        Pedidos Pendientes
+                     </h3>
+                     <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full ml-1">{orders.length}</span>
+                  </div>
+                  <button 
+                     onClick={() => setIsExpanded(false)}
+                     className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+                  >
+                     <i className="fa-solid fa-xmark text-sm"></i>
+                  </button>
+               </div>
+
+               {/* Table Content (Excel Style) */}
+               <div className="flex-1 overflow-auto rounded-xl border border-slate-800/80 bg-slate-950/40 custom-scrollbar mb-2">
+                  <table className="w-full text-left border-collapse text-[10px]">
+                     <thead>
+                        <tr className="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Cliente</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Registro</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Entrega</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Monto</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Cuota</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 text-center whitespace-nowrap">Frecuencia</th>
+                           {isPowerUser && <th className="px-2.5 py-2 text-center whitespace-nowrap">Acción</th>}
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-850 text-slate-200">
+                        {orders.map((order, idx) => (
+                           <tr key={order.id} className={`${idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-slate-950/20'} hover:bg-slate-900/60 transition-colors`}>
+                              <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[110px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
+                              <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">
+                                 {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt)}` : '---'}
+                              </td>
+                              <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
+                              <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
+                              <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-blue-400 whitespace-nowrap">{formatCurrency(order.installmentValue, state.settings)}</td>
+                              <td className="px-2.5 py-2 text-center uppercase text-[9px] border-r border-slate-855 whitespace-nowrap">
+                                 {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
+                              </td>
+                              {isPowerUser && (
+                                 <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                                    <button 
+                                       onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                                       className="w-5 h-5 rounded bg-rose-950/50 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition-colors mx-auto"
+                                    >
+                                       <i className="fa-solid fa-trash text-[9px]"></i>
+                                    </button>
+                                 </td>
+                              )}
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Embedded slideUp and fadeIn animations */}
+      <style>{`
+         @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+         }
+         @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+         }
+         .animate-slideUp {
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+         }
+         .animate-fadeInFast {
+            animation: fadeIn 0.25s ease-out forwards;
+         }
+         .divide-slate-850 > :not([hidden]) ~ :not([hidden]) {
+            border-color: rgba(30, 41, 59, 0.5);
+         }
+         .border-slate-855 {
+            border-color: rgba(30, 41, 59, 0.4);
+         }
+      `}</style>
     </div>
   );
 };
