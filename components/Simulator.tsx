@@ -20,7 +20,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
    const [selectedClientId, setSelectedClientId] = useState<string>('');
    const [clientSearch, setClientSearch] = useState<string>('');
    const [showClientDropdown, setShowClientDropdown] = useState(false);
-   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
+
    const dropdownRef = useRef<HTMLDivElement>(null);
 
    const trans = getTranslation(settings?.language || 'es');
@@ -34,10 +34,6 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
       };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
-   }, []);
-
-   useEffect(() => {
-      loadOrders();
    }, []);
 
 
