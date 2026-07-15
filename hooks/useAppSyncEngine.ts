@@ -128,6 +128,9 @@ export const useAppSyncEngine = (
         if (updatedState.collectionLogs) updatedState.collectionLogs = updatedState.collectionLogs.filter(i => !delIds.has(i.id));
         if (updatedState.loans) updatedState.loans = updatedState.loans.filter(i => !delIds.has(i.id));
         if (updatedState.clients) updatedState.clients = updatedState.clients.filter(i => !delIds.has(i.id));
+        if (updatedState.expenses) updatedState.expenses = updatedState.expenses.filter(i => !delIds.has(i.id));
+        if (updatedState.isolatedExpenses) updatedState.isolatedExpenses = updatedState.isolatedExpenses.filter(i => !delIds.has(i.id));
+        if (updatedState.simulatedOrders) updatedState.simulatedOrders = updatedState.simulatedOrders.filter(i => !delIds.has(i.id));
       }
 
       const mappedData = { ...newData };
