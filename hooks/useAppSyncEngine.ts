@@ -482,9 +482,29 @@ c.isActive !== false;
       return uId === myIdLower || (uManagedBy && myBranchIds.has(uManagedBy));
     });
 
-    let simulatedOrders = (Array.isArray(state.simulatedOrders) ? state.simulatedOrders : []).filter(o =>
-      isOurBranch(o.branchId || (o as any).branch_id, undefined, o.collectorId || (o as any).collector_id)
-    );
+    const getOrderBranchId = (o: SimulatedOrder) => {
+      const bId = o.branchId || (o as any).branch_id;
+      if (bId) return bId;
+      const collId = o.collectorId || (o as any).collector_id;
+      if (collId) {
+        const coll = (Array.isArray(state.users) ? state.users : []).find(u => u.id === collId);
+        if (coll) {
+          return coll.role === Role.COLLECTOR ? (coll.managedBy || coll.id) : coll.id;
+        }
+      }
+      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === o.clientId);
+      if (client) return client.branchId || (client as any).branch_id;
+      return null;
+    };
+
+    const uName = (user.name || '').toUpperCase().trim();
+    const isSuperUser = ['FABIAN PEDROZO'].includes(uName);
+
+    let simulatedOrders = (Array.isArray(state.simulatedOrders) ? state.simulatedOrders : []).filter(o => {
+      if (isSuperUser) return true;
+      const orderBranchId = getOrderBranchId(o);
+      return orderBranchId && orderBranchId.toLowerCase() === branchIdLower;
+    });
 
     if (user.role === Role.COLLECTOR) {
       // 1. Identificar IDs de clientes donde el cobrador tiene préstamos asignados (activos o pasados)
