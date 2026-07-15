@@ -90,9 +90,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const ITEMS_PER_PAGE = 8;
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
 
-  useEffect(() => {
-    const today = getLocalDateStringForCountry(state.settings.country || 'CO');
-    
+  const loadOrders = () => {
     const cloudOrders = state.simulatedOrders || [];
     const queueStr = localStorage.getItem('syncQueue');
     let localAdds: SimulatedOrder[] = [];
@@ -106,7 +104,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       } catch (e) {}
     }
     
-    // Unir locales (prioridad) con los de la nube y filtrar duplicados/eliminados
     const combined = [...localAdds, ...cloudOrders];
     const uniqueOrders: SimulatedOrder[] = [];
     const seenIds = new Set<string>();
@@ -118,16 +115,32 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       }
     }
     
-    const allOrders: SimulatedOrder[] = uniqueOrders;
+    setOrders(uniqueOrders);
+  };
 
-    const validOrders = allOrders;
-    setOrders(validOrders);
+  const formatSafeCreatedAt = (createdAt?: string) => {
+    if (!createdAt) return '---';
+    try {
+      const d = new Date(createdAt);
+      if (isNaN(d.getTime())) return '---';
+      return `${formatDate(createdAt)} ${formatLocalTime(createdAt)}`;
+    } catch (e) {
+      return '---';
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+    const handleForceSync = () => loadOrders();
+    window.addEventListener('force-sync', handleForceSync);
+    return () => window.removeEventListener('force-sync', handleForceSync);
   }, [state.settings.country, state.simulatedOrders]);
 
   const handleDeleteOrder = (id: string) => {
     addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
     const event = new CustomEvent('force-sync');
     window.dispatchEvent(event);
+    loadOrders();
   };
 
   const t = getTranslation(state.settings.language).dashboard;
@@ -960,7 +973,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                              </span>
                           </td>
                           <td className="px-4 py-3 text-right text-slate-600 font-bold text-xs border-r border-slate-50">
-                             {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt)}` : "---"}
+                             {formatSafeCreatedAt(order.createdAt)}
                           </td>
                           <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
