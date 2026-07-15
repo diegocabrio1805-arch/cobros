@@ -933,9 +933,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                  <thead>
                     <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
                        <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha Inicio</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Forma de Pago</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Total a Pagar</th>
                        <th className="px-4 py-3 text-center rounded-tr-md w-16">Acción</th>
                     </tr>
@@ -963,8 +964,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.principal, state.settings)}
                           </td>
-                          <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50 flex items-center justify-end gap-1.5 h-[50px]">
-                             {formatCurrency(order.installmentValue, state.settings)} <span className="text-[9px] text-slate-400">({order.frequency})</span>
+                          <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.installmentValue, state.settings)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-700 font-bold text-[10px] uppercase border-r border-slate-50">
+                             {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
                           </td>
                           <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.totalAmount, state.settings)}
