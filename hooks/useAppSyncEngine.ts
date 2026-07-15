@@ -482,6 +482,10 @@ c.isActive !== false;
       return uId === myIdLower || (uManagedBy && myBranchIds.has(uManagedBy));
     });
 
+    let simulatedOrders = (Array.isArray(state.simulatedOrders) ? state.simulatedOrders : []).filter(o =>
+      isOurBranch(o.branchId || (o as any).branch_id, undefined, o.collectorId || (o as any).collector_id)
+    );
+
     if (user.role === Role.COLLECTOR) {
       // 1. Identificar IDs de clientes donde el cobrador tiene préstamos asignados (activos o pasados)
       const involvedClientIds = new Set<string>();
@@ -522,9 +526,27 @@ c.isActive !== false;
       );
 
       users = users.filter(u => u.id === user.id);
+
+      const activeClientsMap = new Map();
+      (Array.isArray(state.loans) ? state.loans : []).forEach(l => {
+        if (l.status !== LoanStatus.PAID) {
+          activeClientsMap.set(l.clientId || (l as any).client_id, l.collectorId || (l as any).collector_id);
+        }
+      });
+
+      simulatedOrders = simulatedOrders.filter(o => {
+        const orderCollectorId = o.collectorId || (o as any).collector_id;
+        if (orderCollectorId) {
+          return orderCollectorId.toLowerCase() === user.id.toLowerCase();
+        }
+        const loanCollector = activeClientsMap.get(o.clientId);
+        const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === o.clientId);
+        const collectorId = loanCollector || (client ? (client.addedBy || (client as any).added_by) : null);
+        return collectorId && collectorId.toLowerCase() === user.id.toLowerCase();
+      });
     }
 
-    return { ...state, clients, loans, payments, expenses, collectionLogs, users, settings: resolvedSettings };
+    return { ...state, clients, loans, payments, expenses, collectionLogs, users, simulatedOrders, settings: resolvedSettings };
   }, [state, resolvedSettings]);
 
   return {

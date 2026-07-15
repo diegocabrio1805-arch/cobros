@@ -25,6 +25,7 @@ export const useAppInitialization = () => {
     expenses: [],
     isolatedExpenses: [],
     collectionLogs: [],
+    simulatedOrders: [],
     users: [initialAdmin],
     currentUser: null,
     commissionPercentage: 10,
@@ -191,6 +192,7 @@ export const useAppInitialization = () => {
           expenses: [],
           isolatedExpenses: [],
           collectionLogs: [],
+          simulatedOrders: [],
         }));
 
         const phase1Time = Date.now() - startTime;
@@ -215,6 +217,7 @@ export const useAppInitialization = () => {
               expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
               isolatedExpenses: Array.isArray(rawData?.isolatedExpenses) ? rawData.isolatedExpenses : [],
               collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
+              simulatedOrders: Array.isArray(rawData?.simulatedOrders) ? rawData.simulatedOrders : [],
             }));
 
             const totalTime = Date.now() - startTime;

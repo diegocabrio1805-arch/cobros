@@ -442,7 +442,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }, {} as Record<string, AppSettings>);
             
             const deletedItems = (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[];
-            const simulatedOrders = (simulatedOrdersResult.data || []).map((d: any) => ({ id: d.id, clientId: d.client_id, clientName: d.client_name, principal: d.principal, interestRate: d.interest_rate, installments: d.installments, totalAmount: d.total_amount, installmentValue: d.installment_value, frequency: d.frequency, simulationDate: d.simulation_date, table: d.table_data, collectorId: d.collector_id, branchId: d.branch_id })) as any[];
+            const simulatedOrders = (simulatedOrdersResult.data || []).map((d: any) => ({ id: d.id, clientId: d.client_id, clientName: d.client_name, principal: d.principal, interestRate: d.interest_rate, installments: d.installments, totalAmount: d.total_amount, installmentValue: d.installment_value, frequency: d.frequency, simulationDate: d.simulation_date, table: d.table_data, collectorId: d.collector_id, branchId: d.branch_id, createdAt: d.created_at, updated_at: d.updated_at })) as any[];
 
             const result = {
                 clients,

@@ -119,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     
     const allOrders: SimulatedOrder[] = uniqueOrders;
 
-    const validOrders = allOrders.filter(o => o.simulationDate >= today);
+    const validOrders = allOrders;
     setOrders(validOrders);
   }, [state.settings.country, state.simulatedOrders]);
 

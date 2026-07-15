@@ -322,5 +322,9 @@ export interface SimulatedOrder {
   frequency: Frequency;
   simulationDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
-  createdAt: number;
+  createdAt: string;
+  collectorId?: string;
+  branchId?: string;
+  updated_at?: string;
+  table?: any;
 }
