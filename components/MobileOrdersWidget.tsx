@@ -52,11 +52,17 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     });
     
     const filteredOrders = allOrders.filter(o => {
+      if (isPowerUser) return true;
+      const orderCollectorId = o.collectorId || (o as any).collector_id;
+      if (orderCollectorId) {
+          return orderCollectorId === currentUserId;
+      }
+      
+      // Fallback a derivarlo del cliente solo si el pedido no tiene collectorId
       const loanCollector = activeClientsMap.get(o.clientId);
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === o.clientId);
       const collectorId = loanCollector || (client ? (client.addedBy || (client as any).added_by) : null);
 
-      if (isPowerUser) return true;
       return collectorId === currentUserId;
     });
 

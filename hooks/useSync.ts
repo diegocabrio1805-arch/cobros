@@ -761,7 +761,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     processedIds.add(item._id);
                                     setQueueLength(prev => Math.max(0, prev - 1));
                                 } catch (singleErr) {
-                                    console.error(`Error de sincronización individual en ${table}:`, singleErr);
+                                    if (table === 'simulated_orders') {
+                                        console.error('Error Sync Pedidos:', singleErr);
+                                    } else {
+                                        console.error(`Error de sincronización individual en ${table}:`, singleErr);
+                                    }
                                     item.retryCount = (item.retryCount || 0) + 1;
                                     
                                     // update local storage so retry count persists
@@ -774,7 +778,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     }
 
                                     if (item.retryCount > 20) {
-                                        processedIds.add(item._id); // Skip after 20 failures
+                                        // MODIFICADO: NO añadir a processedIds si falla. Mantenemos el error en localStorage para inspección.
+                                        // processedIds.add(item._id); // Skip after 20 failures -> COMENTADO PARA BLINDAR COLA
                                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
                                         failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
                                         localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));

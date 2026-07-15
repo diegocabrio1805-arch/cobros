@@ -104,7 +104,9 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
          createdAt: new Date().toISOString(),
          table: simulation.table,
          collectorId: state?.currentUser?.id,
-         branchId: state?.currentUser?.role === Role.ADMIN || state?.currentUser?.role === Role.MANAGER ? state.currentUser.id : state?.currentUser?.managedBy
+         branchId: state?.currentUser?.role === Role.ADMIN || state?.currentUser?.role === Role.MANAGER 
+                     ? state.currentUser.id 
+                     : (state?.currentUser?.managedBy || state?.currentUser?.id)
       };
 
       addToSyncQueue({
