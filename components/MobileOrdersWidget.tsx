@@ -89,7 +89,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
   if (orders.length === 0) return null;
 
   return (
-    <div className="col-span-2 mt-2 mb-2 bg-[#0f172a] rounded-2xl border border-slate-800 shadow-xl overflow-hidden animate-fadeIn">
+    <div className="col-span-2 mt-2 mb-6 bg-[#0f172a] rounded-2xl border border-slate-800 shadow-xl overflow-hidden animate-fadeIn">
        <div 
           onClick={() => setIsExpanded(!isExpanded)}
           className="px-4 py-3 border-b border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 transition-colors select-none"
@@ -103,7 +103,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
           </div>
        </div>
        {isExpanded && (
-          <div className="flex flex-col max-h-60 overflow-y-auto custom-scrollbar bg-white animate-fadeIn">
+          <div className="flex flex-col max-h-[500px] overflow-y-auto custom-scrollbar bg-white animate-fadeIn">
              {orders.map(order => (
                 <div key={order.id} className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
                    <div className="min-w-0 flex-1">

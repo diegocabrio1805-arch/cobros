@@ -299,13 +299,13 @@ const App: React.FC = () => {
                   </div>
                 </button>
               </div>
-              <MobileOrdersWidget state={state} onCloseMenu={() => setIsMobileMenuOpen(false)} />
               <button 
                 onClick={handleLogout} 
                 className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"
               >
                 <i className="fa-solid fa-power-off"></i> CERRAR SESIÓN
               </button>
+              <MobileOrdersWidget state={state} onCloseMenu={() => setIsMobileMenuOpen(false)} />
             </div>
           )}
         </header>
