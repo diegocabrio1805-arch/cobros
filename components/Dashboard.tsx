@@ -1004,9 +1004,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                                 {collectorName}
                              </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-600 font-bold text-xs border-r border-slate-50">
-                             {formatSafeCreatedAt(order.createdAt)}
-                          </td>
+                          <td className="px-4 py-3 text-right border-r border-slate-50">
+                              {order.createdAt ? (
+                                 <div className="flex flex-col items-end leading-none">
+                                    <span className="text-slate-600 font-bold text-xs">{formatDate(order.createdAt)}</span>
+                                    <span className="text-blue-600 font-bold text-xs mt-1">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
+                                 </div>
+                              ) : '---'}
+                           </td>
                           <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.principal, state.settings)}

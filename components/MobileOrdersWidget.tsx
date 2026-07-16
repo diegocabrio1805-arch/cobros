@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { addToSyncQueue } from '../utils/syncQueue';
 import { AppState, SimulatedOrder, LoanStatus, Role } from '../types';
-import { formatCurrency, formatDate, formatLocalTime, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, formatDate, formatLocalTime, calculateTotalPaidFromLogs, getLocalDateStringForCountry } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 
 interface MobileOrdersWidgetProps {
@@ -162,11 +162,11 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                                  <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[130px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
                                  <td className="px-2.5 py-2 border-r border-slate-855">
                                     {order.createdAt ? (
-                                       <div className="flex flex-col items-start leading-none text-xs">
-                                          <span className="whitespace-nowrap text-slate-200">{formatDate(order.createdAt)}</span>
-                                          <span className="whitespace-nowrap text-[10px] text-emerald-400 mt-1 font-medium">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
-                                       </div>
-                                    ) : '---'}
+                                        <div className="flex flex-col items-start leading-none text-xs">
+                                           <span className="whitespace-nowrap text-slate-200">{formatDate(order.createdAt)}</span>
+                                           <span className="whitespace-nowrap text-xs text-blue-400 mt-1 font-bold">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
+                                        </div>
+                                     ) : '---'}
                                  </td>
                                  <td className="px-2.5 py-2 text-[11px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
                                  <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
