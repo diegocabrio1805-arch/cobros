@@ -44,11 +44,25 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     }
     
     const combined = [...localAdds, ...cloudOrders];
+    
+    // Auto-cleanup orders from past days (midnight expiration)
+    const countryTodayStr = getLocalDateStringForCountry(state.settings.country || 'PY');
+    const expiredOrders = combined.filter(order => order.simulationDate < countryTodayStr && !localDeletes.has(order.id));
+    if (expiredOrders.length > 0) {
+      expiredOrders.forEach(order => {
+        addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id: order.id } });
+      });
+      setTimeout(() => {
+        const event = new CustomEvent('force-sync');
+        window.dispatchEvent(event);
+      }, 0);
+    }
+
     const uniqueOrders: SimulatedOrder[] = [];
     const seenIds = new Set<string>();
     
     for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && order.simulationDate >= countryTodayStr) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
@@ -161,18 +175,12 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                                  </td>
 
                                  <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 whitespace-nowrap">
-
-                                    {order.principal - balance < 0 ? (
-
-                                       <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
-
-                                    ) : (
-
-                                       <span className="text-slate-300">{formatCurrency(order.principal - balance, state.settings)}</span>
-
-                                    )}
-
-                                 </td>
+                                     {order.principal - balance < 0 ? (
+                                        <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
+                                     ) : (
+                                        <span className="text-slate-300">{formatCurrency(order.principal - balance, state.settings)}</span>
+                                     )}
+                                  </td>
                                  <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-blue-400 whitespace-nowrap">{formatCurrency(order.installmentValue, state.settings)}</td>
                                  <td className="px-2.5 py-2 text-center uppercase text-[11px] border-r border-slate-855 whitespace-nowrap">
                                     {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}

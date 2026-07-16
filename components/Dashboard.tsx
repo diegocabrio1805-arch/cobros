@@ -1,1747 +1,1755 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
-import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
-import { formatDate, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
-import { getFinancialInsights } from '../services/geminiService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { getTranslation } from '../utils/translations';
-import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
-import PullToRefresh from './PullToRefresh';
-import WeatherWidget from './WeatherWidget';
-import HolidaysWidget from './HolidaysWidget';
-import { addToSyncQueue } from '../utils/syncQueue';
-
-interface DashboardProps {
-  state: AppState;
-}
-
-const Custom3DBar = (props: any) => {
-  const { fill, x, y, width, height } = props;
-  const depth = 20; // Mayor profundidad para parecer fajo de billetes
-
-  if (!height || height <= 0) return null;
-
-  const cx = x + width / 2 + depth / 2;
-  const cy = y - depth / 2;
-  const patternId = `stack-${fill.replace('#', '')}`;
-
-  return (
-    <g>
-      <defs>
-        <pattern id={`${patternId}-front`} width="10" height="6" patternUnits="userSpaceOnUse">
-          <rect width="10" height="6" fill={fill} />
-          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
-        </pattern>
-        <pattern id={`${patternId}-side`} width="10" height="6" patternUnits="userSpaceOnUse">
-          <rect width="10" height="6" fill={fill} />
-          <rect width="10" height="6" fill="black" fillOpacity="0.2" />
-          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
-        </pattern>
-      </defs>
-
-      {/* Cara Frontal (Líneas de billetes apilados) */}
-      <rect x={x} y={y} width={width} height={height} fill={`url(#${patternId}-front)`} stroke="rgba(0,0,0,0.4)" strokeWidth={1} />
-      
-      {/* Cara Lateral Derecha */}
-      <polygon 
-        points={`${x + width},${y} ${x + width + depth},${y - depth} ${x + width + depth},${y + height - depth} ${x + width},${y + height}`} 
-        fill={`url(#${patternId}-side)`} 
-        stroke="rgba(0,0,0,0.4)" 
-        strokeWidth={1}
-        strokeLinejoin="round"
-      />
-      
-      {/* Cara Superior (Billete Principal) */}
-      <g>
-        <polygon 
-          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
-          fill={fill}
-          stroke="rgba(0,0,0,0.4)" 
-          strokeWidth={1}
-          strokeLinejoin="round"
-        />
-        <polygon 
-          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
-          fill="white"
-          fillOpacity={0.15}
-        />
-        {/* Marco interno del billete */}
-        <polygon 
-          points={`${x + 4},${y - 2} ${x + depth + 1},${y - depth + 2} ${x + width + depth - 4},${y - depth + 2} ${x + width - 1},${y - 2}`} 
-          fill="none"
-          stroke="rgba(255,255,255,0.6)" 
-          strokeWidth={1}
-        />
-        {/* Sello central del billete */}
-        <polygon 
-          points={`${cx},${cy - 4} ${cx + 8},${cy} ${cx},${cy + 4} ${cx - 8},${cy}`} 
-          fill="rgba(255,255,255,0.8)"
-        />
-        <circle cx={cx} cy={cy} r={2} fill={fill} opacity={0.9} />
-      </g>
-    </g>
-  );
-};
-
-const Dashboard: React.FC<DashboardProps> = ({ state }) => {
-  const [insights, setInsights] = useState<any>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 8;
-  const [orders, setOrders] = useState<SimulatedOrder[]>([]);
-
-  const loadOrders = () => {
-    const cloudOrders = state.simulatedOrders || [];
-    const queueStr = localStorage.getItem('syncQueue');
-    let localAdds: SimulatedOrder[] = [];
-    let localDeletes = new Set<string>();
-    
-    if (queueStr) {
-      try {
-        const queue = JSON.parse(queueStr);
-        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
-        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
-      } catch (e) {}
-    }
-    
-    const combined = [...localAdds, ...cloudOrders];
-    const uniqueOrders: SimulatedOrder[] = [];
-    const seenIds = new Set<string>();
-    
-    for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
-        seenIds.add(order.id);
-        uniqueOrders.push(order);
-      }
-    }
-    
-    setOrders(uniqueOrders);
-  };
-
-  const formatSafeCreatedAt = (createdAt?: string) => {
-    if (!createdAt) return '---';
-    try {
-      const d = new Date(createdAt);
-      if (isNaN(d.getTime())) return '---';
-      return `${formatDate(createdAt)} ${formatLocalTime(createdAt, state.settings?.country || 'PY')}`;
-    } catch (e) {
-      return '---';
-    }
-  };
-
-  const getClientBalance = (clientId: string) => {
-    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
-      l => (l.clientId || (l as any).client_id) === clientId && 
-           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
-    );
-    if (clientLoans.length === 0) return 0;
-    let totalBalance = 0;
-    for (const loan of clientLoans) {
-      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
-      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
-    }
-    return totalBalance;
-  };
-
-  useEffect(() => {
-    loadOrders();
-    const handleForceSync = () => loadOrders();
-    window.addEventListener('force-sync', handleForceSync);
-    return () => window.removeEventListener('force-sync', handleForceSync);
-  }, [state.settings.country, state.simulatedOrders]);
-
-  const handleDeleteOrder = (id: string) => {
-    addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
-    const event = new CustomEvent('force-sync');
-    window.dispatchEvent(event);
-    loadOrders();
-  };
-
-  const t = getTranslation(state.settings.language).dashboard;
-  const isAdmin = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
-
-  // Hoy según país
-  const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
-
-  const fetchInsights = async () => {
-    if (loadingInsights) return;
-    setLoadingInsights(true);
-    setInsights(null); // Reset previous insights
-    try {
-      const data = await getFinancialInsights(state);
-      setInsights(data);
-    } catch (e) {
-      console.error("Error al obtener insights:", e);
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
-
-  // 1. Determine VISIBLE COLLECTORS based on strict rules
-  const visibleCollectors = useMemo(() => {
-    return (Array.isArray(state.users) ? state.users : []).filter(u => {
-      if (u.name?.toUpperCase() === 'FABIAN PEDROZO') return false;
-      if (u.role !== Role.COLLECTOR) return false;
-      if (state.currentUser?.role === Role.COLLECTOR) {
-        return u.id === state.currentUser.id;
-      }
-      // Admin/Manager sees only their direct reports
-      const mId = (u.managedBy || (u as any).managed_by);
-      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
-    });
-  }, [state.users, state.currentUser]);
-
-  // 1.5. Precalcular sumas de abonos por préstamo de forma eficiente (O(L))
-  const logsByLoanId = useMemo(() => {
-    const map = new Map<string, number>();
-    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-    for (const log of logs) {
-      if (log.deletedAt) continue;
-      const logType = String(log.type || '').toUpperCase();
-      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) continue;
-      if (log.isOpening || (log as any).is_opening) continue;
-      const loanId = log.loanId || log.loan_id;
-      if (!loanId) continue;
-      const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
-      map.set(loanId, (map.get(loanId) || 0) + amt);
-    }
-    return map;
-  }, [state.collectionLogs]);
-
-  // 1.6. Precalcular logs de pago por préstamo para optimizar la verificación de créditos cancelados hoy
-  const paymentLogsByLoanId = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-    for (const log of logs) {
-      if (log.deletedAt) continue;
-      if (log.type !== CollectionLogType.PAYMENT && String(log.type).toUpperCase() !== 'PAGO') continue;
-      if (log.isOpening || (log as any).is_opening) continue;
-      const loanId = log.loanId || log.loan_id;
-      if (!loanId) continue;
-      if (!map.has(loanId)) {
-        map.set(loanId, []);
-      }
-      map.get(loanId)!.push(log);
-    }
-    return map;
-  }, [state.collectionLogs]);
-
-  // 1.7. Precalcular los días de mora de todos los créditos activos/vencidos una sola vez
-  const loansOverdueMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const loans = Array.isArray(state.loans) ? state.loans : [];
-    for (const loan of loans) {
-      if (loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT) continue;
-      const paid = logsByLoanId.get(loan.id) || 0;
-      const overdue = getDaysOverdue(loan, state.settings, paid);
-      map.set(loan.id, overdue);
-    }
-    return map;
-  }, [state.loans, state.settings, logsByLoanId]);
-
-  const collectorStats = useMemo(() => {
-    if (!isAdmin) return [];
-    const todayDateStr = getLocalDateStringForCountry(state.settings.country); 
-
-    const collectionLogsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
-    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
-
-    // Filter using country's YYYY-MM-DD
-    const logsTodayBase = collectionLogsSafe.filter(log => {
-      if (log.isOpening) return false;
-      const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
-      return logDateStr === todayDateStr;
-    });
-
-    return visibleCollectors.map(user => {
-      const uidLower = user.id.toLowerCase();
-      // Use recordedBy + same date comparison method as Auditoría Histórica
-      const logsToday = logsTodayBase.filter(log => {
-        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-        return logRecordedBy === uidLower;
-      });
-
-      const recaudoHoy = logsToday
-        .filter(l => l.type === CollectionLogType.PAYMENT)
-        .reduce((acc, curr) => acc + (curr.amount || 0), 0);
-
-      const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
-      const assignedLoans = loansSafe.filter(l =>
-        (l.collectorId?.toLowerCase() === uidLower || (l as any).collector_id?.toLowerCase() === uidLower)
-      );
-      
-      // Filtrar clientes para excluir los ocultos o eliminados (igual que en Cartera)
-      const validClients = clientsSafe.filter(c => !c.isHidden && !c.deletedAt);
-      const validClientIdsSet = new Set(validClients.map(c => c.id));
-
-      const validClientsForCollector = validClients.filter(c => {
-        const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
-        const activeLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const anyHistoricLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === uidLower);
-        return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!anyHistoricLoan;
-      });
-
-      let uniqueActiveClients = 0;
-      let cancelledClientsCount = 0;
-      let mora35ClientsCount = 0;
-      let overdueLoansCount = 0;
-
-      validClientsForCollector.forEach(c => {
-        const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        const activeLoan = sortedLoans[0];
-        
-        let balance = 0;
-        let daysOverdue = 0;
-        
-        if (activeLoan) {
-           const paid = logsByLoanId.get(activeLoan.id) || 0;
-           balance = Math.max(0, activeLoan.totalAmount - paid);
-           
-           daysOverdue = Math.max(...clientLoans.map(l => loansOverdueMap.get(l.id) || 0));
-        }
-        
-        if (balance > 0.01) {
-           uniqueActiveClients++;
-           if (daysOverdue > 35) {
-             mora35ClientsCount++;
-           }
-           if (daysOverdue > 0) {
-             overdueLoansCount++;
-           }
-        } else {
-           cancelledClientsCount++;
-        }
-      });
-
-      const financialMoraRate = uniqueActiveClients > 0 ? (overdueLoansCount / uniqueActiveClients) * 100 : 0;
-      const routeCompletionRate = uniqueActiveClients > 0 ? (uniqueClientsVisitedToday / uniqueActiveClients) * 100 : 0;
-      const isRouteCompleted = uniqueActiveClients > 0 && uniqueClientsVisitedToday >= uniqueActiveClients;
-      const monthlyStats = calculateMonthlyStats(loansSafe, collectionLogsSafe, new Date().getMonth(), new Date().getFullYear(), user.id);
-
-      return {
-        id: user.id,
-        name: user.name,
-        recaudo: recaudoHoy,
-        monthlyGoal: monthlyStats.monthlyGoal,
-        remainingGoal: monthlyStats.remainingBalance,
-        financialMora: financialMoraRate,
-        routeCompletion: routeCompletionRate,
-        clientes: uniqueActiveClients,
-        activeClients: uniqueActiveClients,
-        mora35Clients: mora35ClientsCount,
-        cancelledClients: cancelledClientsCount,
-        visitados: uniqueClientsVisitedToday,
-        isCompleted: isRouteCompleted,
-        overdueCount: overdueLoansCount
-      };
-    });
-  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap]);
-
-
-  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
-  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
-  const totalExpenses = Number(state.initialCapital) || 0;
-  const netUtility = totalProfit - totalExpenses;
-
-  // Sumar el recaudo de hoy directamente desde las estadísticas de los cobradores (Auditoría de Rutas)
-  // Esto asegura que el "Recaudo de Hoy" coincida exactamente con la suma de la tabla
-  const collectedToday = collectorStats.reduce((acc, curr) => acc + curr.recaudo, 0);
-
-  // Sumar todos los abonos históricos reales (excluyendo aperturas y pagos borrados)
-  const totalCollectedAllTime = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-    .filter(log => log.type === CollectionLogType.PAYMENT && !log.deletedAt)
-    .reduce((acc, log) => acc + (log.amount || 0), 0);
-
-  // Calcular el saldo pendiente total de los clientes (Capital en la Calle)
-  const totalOwedAmount = (Array.isArray(state.loans) ? state.loans : [])
-    .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
-    .reduce((acc, l) => {
-      const totalPaid = logsByLoanId.get(l.id) || 0;
-      const remaining = Math.max(0, l.totalAmount - totalPaid);
-      return acc + remaining;
-    }, 0);
-
-  // Calcular lo cobrado SOLO de los créditos que siguen activos (no cancelados/pagados)
-  const totalPaidActiveLoans = (Array.isArray(state.loans) ? state.loans : [])
-    .filter(l => {
-      if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) return true;
-      if (l.status === LoanStatus.PAID) {
-        const logsForLoan = paymentLogsByLoanId.get(l.id) || [];
-        if (logsForLoan.length > 0) {
-          const lastLog = logsForLoan.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-          const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(lastLog.date));
-          if (logDateStr === countryTodayStr) return true;
-        }
-      }
-      return false;
-    })
-    .reduce((acc, l) => acc + (logsByLoanId.get(l.id) || 0), 0);
-
-  const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
-  const paginatedCollectors = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return collectorStats.slice(start, start + ITEMS_PER_PAGE);
-  }, [collectorStats, currentPage]);
-
-  // --- RESUMEN SEMANAL (Dom-Sáb) - 3 semanas ---
-  const weeklyData = useMemo(() => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
-    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
-    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-
-    const buildWeek = (weeksAgo: number) => {
-      const weekStart = new Date(now);
-      weekStart.setHours(0, 0, 0, 0);
-      weekStart.setDate(now.getDate() - dayOfWeek - weeksAgo * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-
-      const days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(weekStart);
-        date.setDate(weekStart.getDate() + i);
-        const nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 1);
-        const dayLabel = new Intl.DateTimeFormat('es', { weekday: 'short' }).format(date).replace('.', '');
-        const dateStr = `${date.getDate()}/${date.getMonth() + 1}`;
-        const isToday = getLocalDateStringForCountry(state.settings.country, date) === countryTodayStr;
-        const isFuture = weeksAgo === 0 && date > now && !isToday;
-        const logsDay = logsSafe.filter(log => {
-          if (log.deletedAt) return false;
-          if (log.type !== CollectionLogType.PAYMENT) return false;
-          if (log.isOpening || (log as any).is_opening) return false;
-          const logDate = new Date(log.date);
-          return logDate >= date && logDate < nextDate;
-        });
-        const recaudo = logsDay.reduce((acc, log) => acc + (log.amount || 0), 0);
-        
-        const uniqueClientsDay = new Set(logsDay.map(log => log.clientId || (log as any).client_id));
-        uniqueClientsDay.delete(undefined);
-        const clientesCobrados = uniqueClientsDay.size;
-        const renovacionesList = loansSafe.filter(loan => {
-          if (!loan.createdAt) return false;
-          const loanDate = new Date(loan.createdAt);
-          return loanDate >= date && loanDate < nextDate && !!loan.isRenewal;
-        });
-        const renovaciones = renovacionesList.length;
-        const montoRenovaciones = renovacionesList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
-
-        const nuevosList = loansSafe.filter(loan => {
-          if (!loan.createdAt) return false;
-          const loanDate = new Date(loan.createdAt);
-          return loanDate >= date && loanDate < nextDate && !loan.isRenewal;
-        });
-        const montoNuevos = nuevosList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
-
-        const clientesNuevos = clientsSafe.filter(c => {
-          if (!c.createdAt || c.deletedAt || c.isHidden) return false;
-          const cDate = new Date(c.createdAt);
-          return cDate >= date && cDate < nextDate;
-        }).length;
-        
-        return { 
-          day: dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1), 
-          dateStr, 
-          recaudo, 
-          clientesCobrados,
-          renovaciones, 
-          montoRenovaciones,
-          clientesNuevos, 
-          montoNuevos,
-          isToday, 
-          isFuture 
-        };
-      });
-
-      const labels = ['Semana Actual', 'Semana Anterior', 'Hace 2 Semanas', 'Hace 3 Semanas', 'Hace 4 Semanas'];
-      const monthName = new Intl.DateTimeFormat('es', { month: 'long' }).format(weekEnd).toUpperCase();
-      return {
-        label: labels[weeksAgo],
-        rangeStr: `${weekStart.getDate()}/${weekStart.getMonth() + 1} – ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`,
-        monthName,
-        days,
-        totalRecaudo: days.reduce((a, d) => a + d.recaudo, 0),
-        totalClientesCobrados: days.reduce((a, d) => a + d.clientesCobrados, 0),
-        totalRenovaciones: days.reduce((a, d) => a + d.renovaciones, 0),
-        totalMontoRenovaciones: days.reduce((a, d) => a + d.montoRenovaciones, 0),
-        totalClientesNuevos: days.reduce((a, d) => a + d.clientesNuevos, 0),
-        totalMontoNuevos: days.reduce((a, d) => a + d.montoNuevos, 0)
-      };
-    };
-
-    const weeks = [0, 1, 2, 3, 4].map(buildWeek);
-    const current = weeks[0];
-    return {
-      weeks,
-      days: current.days,
-      totalRecaudo: current.totalRecaudo,
-      totalClientesCobrados: current.totalClientesCobrados,
-      totalRenovaciones: current.totalRenovaciones,
-      totalMontoRenovaciones: current.totalMontoRenovaciones,
-      totalClientesNuevos: current.totalClientesNuevos,
-      totalMontoNuevos: current.totalMontoNuevos
-    };
-  }, [state.collectionLogs, state.loans, state.clients, state.settings, countryTodayStr]);
-
-  // --- RECIENTES COBRADORES (Hoy y Ayer) ---
-  const collectorRecentPayments = useMemo(() => {
-    const todayStr = getLocalDateStringForCountry(state.settings.country, new Date());
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = getLocalDateStringForCountry(state.settings.country, yesterday);
-
-    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
-
-    const getClientName = (log: any) => {
-      if (!log) return null;
-      const cId = log.clientId || (log as any).client_id;
-      const client = clientsSafe.find(c => c.id === cId);
-      if (!client) return 'Desconocido';
-      const parts = client.name.split(' ');
-      return parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
-    };
-
-    const result = visibleCollectors.map(collector => {
-      const uidLower = collector.id.toLowerCase();
-      // Filtrar logs de este cobrador para hoy y ayer
-      const logsToday = logsSafe.filter(log => {
-        if (log.deletedAt) return false;
-        if (log.type !== CollectionLogType.PAYMENT) return false;
-        if (log.isOpening || (log as any).is_opening) return false;
-        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-        if (logRecordedBy !== uidLower) return false;
-        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === todayStr;
-      });
-
-      const logsYesterday = logsSafe.filter(log => {
-        if (log.deletedAt) return false;
-        if (log.type !== CollectionLogType.PAYMENT) return false;
-        if (log.isOpening || (log as any).is_opening) return false;
-        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-        if (logRecordedBy !== uidLower) return false;
-        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === yesterdayStr;
-      });
-
-      // Ordenar descendente para obtener el más reciente de cada día
-      const latestToday = [...logsToday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-      const latestYesterday = [...logsYesterday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-      // Calcular Ganancia Neta de 4 Semanas para este cobrador
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const fourWeeksAgo = new Date(now);
-      fourWeeksAgo.setHours(0, 0, 0, 0);
-      fourWeeksAgo.setDate(now.getDate() - dayOfWeek - 4 * 7);
-
-      const recaudo4Sem = logsSafe
-        .filter(log => {
-          if (log.deletedAt || log.type !== CollectionLogType.PAYMENT || log.isOpening || (log as any).is_opening) return false;
-          const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-          if (logRecordedBy !== uidLower) return false;
-          return new Date(log.date) >= fourWeeksAgo;
-        })
-        .reduce((acc, log) => acc + (log.amount || 0), 0);
-
-      const loansSafe = Array.isArray(state.loans) ? state.loans : [];
-      
-      const prestado4Sem = loansSafe
-        .filter(loan => {
-          if (!loan.createdAt) return false;
-          const loanCollectorId = (loan.collectorId || (loan as any).collector_id)?.toLowerCase();
-          if (loanCollectorId !== uidLower) return false;
-          return new Date(loan.createdAt) >= fourWeeksAgo;
-        })
-        .reduce((acc, loan) => acc + (loan.principal || loan.totalAmount || 0), 0);
-
-      const ganancia4Sem = recaudo4Sem - prestado4Sem;
-
-      return {
-        id: collector.id,
-        name: collector.name || collector.username || 'Cobrador',
-        todayAmount: latestToday ? latestToday.amount : null,
-        todayIsVirtual: latestToday ? (latestToday.isVirtual || (latestToday as any).is_virtual || false) : false,
-        todayTimeStr: latestToday ? formatLocalTime(latestToday.date, state.settings.country) : null,
-        todayClient: getClientName(latestToday),
-        yesterdayAmount: latestYesterday ? latestYesterday.amount : null,
-        yesterdayIsVirtual: latestYesterday ? (latestYesterday.isVirtual || (latestYesterday as any).is_virtual || false) : false,
-        yesterdayTimeStr: latestYesterday ? formatLocalTime(latestYesterday.date, state.settings.country) : null,
-        yesterdayClient: getClientName(latestYesterday),
-        ganancia4Sem,
-      };
-    });
-
-    return result.filter(r => r.todayAmount !== null || r.yesterdayAmount !== null || r.ganancia4Sem !== 0);
-  }, [state.collectionLogs, state.clients, visibleCollectors, state.settings]);
-
-  // --- LÓGICA AUDITOR GENERAL ---
-  const [auditCollector, setAuditCollector] = useState<string>('all');
-  const [auditStartDate, setAuditStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
-  const [auditEndDate, setAuditEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
-
-  // --- LÓGICA HISTORIAL ELIMINADOS VISUAL ---
-  const [deletedStartDate, setDeletedStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
-  const [deletedEndDate, setDeletedEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
-  const [deletedPage, setDeletedPage] = useState(1);
-  const DELETED_PER_PAGE = 5;
-
-  const deletedLogsList = useMemo(() => {
-    const [sYear, sMonth, sDay] = deletedStartDate.split('-').map(Number);
-    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
-    const [eYear, eMonth, eDay] = deletedEndDate.split('-').map(Number);
-    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
-
-    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-      .filter(log => {
-        if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
-        const logDate = new Date(log.date);
-        return logDate >= start && logDate <= end;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [deletedStartDate, deletedEndDate, state.collectionLogs]);
-
-  const totalDeletedPages = Math.ceil(deletedLogsList.length / DELETED_PER_PAGE);
-  const paginatedDeletedLogs = useMemo(() => {
-    const startIdx = (deletedPage - 1) * DELETED_PER_PAGE;
-    return deletedLogsList.slice(startIdx, startIdx + DELETED_PER_PAGE);
-  }, [deletedLogsList, deletedPage]);
-
-  const auditMetrics = useMemo(() => {
-    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
-    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
-    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
-    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
-
-    const logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      const logDate = new Date(log.date);
-      const matchesDate = logDate >= start && logDate <= end;
-      if (!matchesDate) return false;
-
-      // Si se filtra por un cobrador específico, mantener el filtro
-      if (auditCollector !== 'all') {
-        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-        return logRecordedBy === auditCollector.toLowerCase();
-      }
-
-      // Si es 'todos', no filtrar por visibleCollectors, sino mostrar lo que ya viene filtrado por App.tsx (sucursal)
-      return true;
-    });
-
-    const totalRevenue = logs.filter(l => l.type === CollectionLogType.PAYMENT).reduce((acc, l) => acc + (l.amount || 0), 0);
-    const activeClientsSet = new Set(logs.map(l => l.clientId || (l as any).client_id));
-    const activeClients = activeClientsSet.size;
-
-    // Clientes nuevos en el periodo
-    const newClients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
-      const cDate = new Date(c.createdAt);
-      const isNew = cDate >= start && cDate <= end;
-      if (!isNew) return false;
-      // Si filtramos por cobrador, verificar si tiene prestamos con ese cobrador (aproximación)
-      if (auditCollector !== 'all') {
-        const hasLoanWithColl = (Array.isArray(state.loans) ? state.loans : []).some(l =>
-          (l.clientId || (l as any).client_id) === c.id &&
-          (l.collectorId || (l as any).collector_id)?.toLowerCase() === auditCollector.toLowerCase()
-        );
-        return hasLoanWithColl;
-      }
-      return true;
-    }).length;
-
-    // Comparativa con periodo anterior (Lógica de Tendencia DIARIA/PERIODICA)
-    // Calculamos el rango del periodo anterior con la misma duración
-    const duration = end.getTime() - start.getTime();
-    const prevEnd = new Date(start.getTime() - 1);
-    const prevStart = new Date(prevEnd.getTime() - duration);
-
-    const previousLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      const logDate = new Date(log.date);
-      const matchesDate = logDate >= prevStart && logDate <= prevEnd;
-      if (!matchesDate) return false;
-      if (log.type !== CollectionLogType.PAYMENT) return false;
-      if (auditCollector === 'all') return true;
-      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-      return logRecordedBy === auditCollector.toLowerCase();
-    });
-
-    const previousRevenue = previousLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
-
-    // TENDENCIA: Solo "Aumentó" si supera estrictamente al periodo anterior.
-    // Si es igual o menor -> Disminuyó o Se Mantiene.
-    // User Request: "solo cuando el monto pase lo cobrado lo del dia anterior este diga aumento"
-    let revenueTrend: 'up' | 'down' | 'equal' = 'equal';
-    if (totalRevenue > previousRevenue) revenueTrend = 'up';
-    else if (totalRevenue < previousRevenue) revenueTrend = 'down';
-    else revenueTrend = 'equal'; // 0 vs 0, or exact match
-
-    const revenueIncreased = totalRevenue > previousRevenue; // Deprecated but kept for compatibility if needed internally
-    const clientsIncreased = newClients > 0;
-
-    // Daily Revenue for Graph (ALWAYS CURRENT WEEK: Mon-Sat)
-    const currentWeekStart = new Date();
-    const dayOfWeek = currentWeekStart.getDay() || 7; // 1=Mon ... 7=Sun
-    currentWeekStart.setHours(0, 0, 0, 0);
-    currentWeekStart.setDate(currentWeekStart.getDate() - (dayOfWeek - 1)); // Go to Monday
-
-    const currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekEnd.getDate() + 5); // Go to Saturday
-    currentWeekEnd.setHours(23, 59, 59, 999);
-
-    const currentWeekLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      const logDate = new Date(log.date);
-      const matchesDate = logDate >= currentWeekStart && logDate <= currentWeekEnd;
-      if (!matchesDate) return false;
-      if (log.type !== CollectionLogType.PAYMENT) return false;
-      if (auditCollector === 'all') return true;
-
-      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
-      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-      return logRecordedBy === auditCollector.toLowerCase();
-    });
-
-    const dailyRevenueMap = new Map<string, number>();
-    currentWeekLogs.forEach(l => {
-      // Normalizar día
-      const d = new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(new Date(l.date)).replace('.', '').toLowerCase();
-      dailyRevenueMap.set(d, (dailyRevenueMap.get(d) || 0) + (l.amount || 0));
-    });
-
-    const daysOrder = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date(2023, 0, i + 2); // 2023-01-02 is Monday
-      return new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(date).replace('.', '').toLowerCase();
-    });
-    const dailyRevenue = daysOrder.map(day => {
-      // Buscar keys que empiecen con el día (por si acaso 'miércoles' vs 'mié')
-      const key = Array.from(dailyRevenueMap.keys()).find(k => k.startsWith(day));
-      return {
-        day: day.charAt(0).toUpperCase() + day.slice(1),
-        amount: key ? dailyRevenueMap.get(key) || 0 : 0
-      };
-    });
-
-    // --- LÓGICA EXTENDIDA: Clientes Sin Pago y Tendencias ---
-
-    // 1. Clientes Sin Pago (Clientes activos del cobrador que NO pagaron en el periodo)
-    const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
-      if (l.status !== LoanStatus.ACTIVE) return false;
-      if (auditCollector === 'all') return true;
-      const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
-      return lCollectorId === auditCollector.toLowerCase();
-    });
-    const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
-    const paidClientIds = new Set(logs.filter(l => l.type === CollectionLogType.PAYMENT).map(l => l.clientId || (l as any).client_id));
-
-    const clientsWithoutPayment = (Array.isArray(state.clients) ? state.clients : [])
-      .filter(c => relevantClientIds.has(c.id) && !paidClientIds.has(c.id))
-      .map(c => {
-        // Find active loan for this client and collector
-        const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
-
-        // Find VERY last payment (lifetime) or return null
-        const clientLogs = loan ? (paymentLogsByLoanId.get(loan.id) || []) : [];
-        const lastPayment = clientLogs.length > 0 ? clientLogs.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
-
-        // Calculate overdue days
-        const daysOverdue = loan ? (loansOverdueMap.get(loan.id) || 0) : 0;
-
-        // Calculate current balance (Sanitized)
-        const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
-        const paidAmt = loan ? (logsByLoanId.get(loan.id) || 0) : 0;
-        const balance = totalAmt - paidAmt;
-
-        return {
-          id: c.id,
-          name: c.name,
-          phone: c.phone,
-          lastPaymentDate: lastPayment ? lastPayment.date : null,
-          lastPaymentAmount: lastPayment ? (Number(lastPayment.amount) || 0) : 0,
-          daysOverdue,
-          balance
-        };
-      })
-      .filter(c => c.daysOverdue > 10) // Filter: Only show clients > 10 days overdue
-      .sort((a, b) => b.daysOverdue - a.daysOverdue); // Sort by most overdue first
-
-    // 2. Evolución Semanal (Dentro del rango seleccionado)
-    const logsByWeek = new Map<string, number>();
-    logs.filter(l => l.type === CollectionLogType.PAYMENT).forEach(l => {
-      const d = new Date(l.date);
-      // Obtener lunes de la semana
-      const day = d.getDay() || 7;
-      if (day !== 1) d.setHours(-24 * (day - 1));
-      const weekKey = `${d.getDate()}/${d.getMonth() + 1}`; // Ej: 2/2, 9/2
-      logsByWeek.set(weekKey, (logsByWeek.get(weekKey) || 0) + (l.amount || 0));
-    });
-    // Ordenar por fecha (las keys ya deberían salir en orden si logs está ordenado, pero mejor asegurar)
-    const weeklyRevenue = Array.from(logsByWeek.entries())
-      .map(([label, amount]) => ({ label, amount }))
-      // Orden simplificado por parsing de fecha
-      .sort((a, b) => {
-        const [d1, m1] = a.label.split('/').map(Number);
-        const [d2, m2] = b.label.split('/').map(Number);
-        return (m1 * 31 + d1) - (m2 * 31 + d2);
-      });
-
-    // 3. Evolución Mensual (Contexto Anual - Ene a Dic del año actual)
-    const currentYear = new Date().getFullYear();
-    const allCollectorLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => {
-      if (l.type !== CollectionLogType.PAYMENT) return false;
-      const d = new Date(l.date);
-      if (d.getFullYear() !== currentYear) return false;
-
-      if (auditCollector === 'all') return true;
-
-      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
-      const logRecordedBy = (l.recordedBy || (l as any).recorded_by)?.toLowerCase();
-      return logRecordedBy === auditCollector.toLowerCase();
-    });
-
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const date = new Date(2023, i, 1);
-      const m = new Intl.DateTimeFormat(state.settings.language || 'es', { month: 'short' }).format(date).replace('.', '');
-      return m.charAt(0).toUpperCase() + m.slice(1);
-    });
-    const logsByMonth = new Array(12).fill(0);
-    allCollectorLogs.forEach(l => {
-      const m = new Date(l.date).getMonth();
-      logsByMonth[m] += (l.amount || 0);
-    });
-    const monthlyRevenue = months.map((m, i) => ({ label: m, amount: logsByMonth[i] }));
-
-    // Efficiency (Recaudo / (ActiveClients * avg ticket?)) - Mock formula for visual
-    const efficiency = activeClients > 0 ? Math.min(100, Math.round((totalRevenue / (activeClients * 10000)) * 100)) : 0;
-
-    // Verdict based on Coverage %
-    const totalClients = relevantClientIds.size;
-    const coveragePct = totalClients > 0 ? (activeClients / totalClients) * 100 : 0;
-
-    let verdict: string = 'MALO';
-    if (coveragePct >= 75) verdict = 'EXCELENTE';
-    else if (coveragePct >= 51) verdict = 'BUENO';
-    else if (coveragePct >= 43) verdict = 'MEDIANAMENTE BUENO';
-    else if (coveragePct >= 31) verdict = 'MEDIANAMENTE MALO';
-    else verdict = 'MALO'; // < 31% (covers 0-30)
-
-    return {
-      totalRevenue, activeClients, newClients, efficiency, dailyRevenue,
-      revenueIncreased, revenueTrend, clientsIncreased, verdict, logs,
-      clientsWithoutPayment, weeklyRevenue, monthlyRevenue,
-      totalClients: relevantClientIds.size
-    };
-  }, [auditCollector, auditStartDate, auditEndDate, state.collectionLogs, state.loans, state.clients]);
-
-  const handleGenerateAuditPDF = () => {
-    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
-    generateAuditPDF({
-      collectorName,
-      startDate: auditStartDate,
-      endDate: auditEndDate,
-      ...auditMetrics,
-      clients: state.clients,
-      settings: state.settings
-    });
-  };
-
-  const handleGenerateDeletedPaymentsPDF = () => {
-    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
-    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
-    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
-    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
-    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
-
-    const deletedLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
-      const logDate = new Date(log.date);
-      const matchesDate = logDate >= start && logDate <= end;
-      if (!matchesDate) return false;
-
-      if (auditCollector === 'all') return true;
-      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
-      const logCollectorId = (log.collectorId || (log as any).collector_id)?.toLowerCase();
-      return logRecordedBy === auditCollector.toLowerCase() || logCollectorId === auditCollector.toLowerCase();
-    });
-
-    generateDeletedPaymentsPDF({
-      collectorName,
-      startDate: auditStartDate,
-      endDate: auditEndDate,
-      logs: deletedLogs,
-      settings: state.settings,
-      users: state.users,
-      clients: state.clients
-    });
-  };
-
-  // chartData se mueve abajo para tener acceso a currentMonthTotalExpenses
-
-  const currentMonthTotalExpenses = useMemo(() => {
-    const today = new Date();
-    const currentBranchId = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER 
-      ? state.currentUser.id 
-      : (state.currentUser?.managedBy || (state.currentUser as any)?.managed_by || state.currentUser?.id);
-
-    // 1. Nómina Mensual
-    let totalSueldos = 0;
-    const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
-      (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
-    );
-    branchUsers.forEach(user => {
-      const cfg = user.payConfig;
-      if (cfg) {
-        if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
-        if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0) * 4;
-      }
-    });
-
-    // 2. Gastos Aislados (del mes actual)
-    let totalMonthGastos = 0;
-    const isolatedExpenses = (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId);
-    isolatedExpenses.forEach(e => {
-      const d = new Date(e.date);
-      if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()) {
-        totalMonthGastos += e.amount;
-      }
-    });
-
-    return totalSueldos + totalMonthGastos;
-  }, [state.users, state.isolatedExpenses, state.currentUser]);
-
-  const chartData = [
-    { name: (t as any).charts?.capital || 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
-    { name: (t as any).charts?.income || 'Ingresos', value: totalProfit, color: '#10b981' },
-    { name: (t as any).charts?.expenses || 'Gastos', value: currentMonthTotalExpenses, color: '#f43f5e' },
-    { name: (t as any).charts?.utility || 'Utilidad', value: totalProfit - currentMonthTotalExpenses, color: '#3b82f6' },
-  ];
-
-  return (
-    <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
-      {/* CABECERA SUPERIOR - Premium Glassmorphism */}
-      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 glass-card p-6 rounded-md border-white/40 relative z-[100]">
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="w-12 h-12 premium-gradient rounded-md flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
-             <i className="fa-solid fa-chart-pie text-xl text-white"></i>
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">{t.title ? t.title.split(' ')[0] : 'Resumen'} <span className="text-emerald-500">{t.title ? t.title.split(' ').slice(1).join(' ') : 'Operativo'}</span></h2>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v{CURRENT_VERSION_ID}</span>
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                En Vivo
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <WeatherWidget />
-
-        <div className="flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5 shrink-0">
-            <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-90">
-              {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
-            </span>
-          </div>
-          <HolidaysWidget countryCode={state.settings.country} />
-        </div>
-      </div>
-
-      {/* SECCIÓN PEDIDOS */}
-      {orders.length > 0 && (
-        <div className="bg-[#0f172a] rounded-md border border-slate-800 shadow-xl overflow-hidden p-5">
-           <h3 className="text-base font-bold text-white uppercase tracking-widest leading-none mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-list-check text-emerald-500"></i>
-              Pedidos Pendientes
-           </h3>
-           <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                 <thead>
-                    <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
-                       <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Registro</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
+import React, { useEffect, useState, useMemo } from 'react';
+import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
+import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
+import { formatDate, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
+import { getFinancialInsights } from '../services/geminiService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getTranslation } from '../utils/translations';
+import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
+import PullToRefresh from './PullToRefresh';
+import WeatherWidget from './WeatherWidget';
+import HolidaysWidget from './HolidaysWidget';
+import { addToSyncQueue } from '../utils/syncQueue';
+
+interface DashboardProps {
+  state: AppState;
+}
+
+const Custom3DBar = (props: any) => {
+  const { fill, x, y, width, height } = props;
+  const depth = 20; // Mayor profundidad para parecer fajo de billetes
+
+  if (!height || height <= 0) return null;
+
+  const cx = x + width / 2 + depth / 2;
+  const cy = y - depth / 2;
+  const patternId = `stack-${fill.replace('#', '')}`;
+
+  return (
+    <g>
+      <defs>
+        <pattern id={`${patternId}-front`} width="10" height="6" patternUnits="userSpaceOnUse">
+          <rect width="10" height="6" fill={fill} />
+          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+        </pattern>
+        <pattern id={`${patternId}-side`} width="10" height="6" patternUnits="userSpaceOnUse">
+          <rect width="10" height="6" fill={fill} />
+          <rect width="10" height="6" fill="black" fillOpacity="0.2" />
+          <line x1="0" y1="0" x2="10" y2="0" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+        </pattern>
+      </defs>
+
+      {/* Cara Frontal (Líneas de billetes apilados) */}
+      <rect x={x} y={y} width={width} height={height} fill={`url(#${patternId}-front)`} stroke="rgba(0,0,0,0.4)" strokeWidth={1} />
+      
+      {/* Cara Lateral Derecha */}
+      <polygon 
+        points={`${x + width},${y} ${x + width + depth},${y - depth} ${x + width + depth},${y + height - depth} ${x + width},${y + height}`} 
+        fill={`url(#${patternId}-side)`} 
+        stroke="rgba(0,0,0,0.4)" 
+        strokeWidth={1}
+        strokeLinejoin="round"
+      />
+      
+      {/* Cara Superior (Billete Principal) */}
+      <g>
+        <polygon 
+          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
+          fill={fill}
+          stroke="rgba(0,0,0,0.4)" 
+          strokeWidth={1}
+          strokeLinejoin="round"
+        />
+        <polygon 
+          points={`${x},${y} ${x + depth},${y - depth} ${x + width + depth},${y - depth} ${x + width},${y}`} 
+          fill="white"
+          fillOpacity={0.15}
+        />
+        {/* Marco interno del billete */}
+        <polygon 
+          points={`${x + 4},${y - 2} ${x + depth + 1},${y - depth + 2} ${x + width + depth - 4},${y - depth + 2} ${x + width - 1},${y - 2}`} 
+          fill="none"
+          stroke="rgba(255,255,255,0.6)" 
+          strokeWidth={1}
+        />
+        {/* Sello central del billete */}
+        <polygon 
+          points={`${cx},${cy - 4} ${cx + 8},${cy} ${cx},${cy + 4} ${cx - 8},${cy}`} 
+          fill="rgba(255,255,255,0.8)"
+        />
+        <circle cx={cx} cy={cy} r={2} fill={fill} opacity={0.9} />
+      </g>
+    </g>
+  );
+};
+
+const Dashboard: React.FC<DashboardProps> = ({ state }) => {
+  const [insights, setInsights] = useState<any>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
+  const [orders, setOrders] = useState<SimulatedOrder[]>([]);
+
+  const loadOrders = () => {
+    const cloudOrders = state.simulatedOrders || [];
+    const queueStr = localStorage.getItem('syncQueue');
+    let localAdds: SimulatedOrder[] = [];
+    let localDeletes = new Set<string>();
+    
+    if (queueStr) {
+      try {
+        const queue = JSON.parse(queueStr);
+        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
+        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
+      } catch (e) {}
+    }
+    
+    const combined = [...localAdds, ...cloudOrders];
+    
+    // Auto-cleanup orders from past days (midnight expiration)
+    const countryTodayStr = getLocalDateStringForCountry(state.settings.country || 'PY');
+    const expiredOrders = combined.filter(order => order.simulationDate < countryTodayStr && !localDeletes.has(order.id));
+    if (expiredOrders.length > 0) {
+      expiredOrders.forEach(order => {
+        addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id: order.id } });
+      });
+      setTimeout(() => {
+        const event = new CustomEvent('force-sync');
+        window.dispatchEvent(event);
+      }, 0);
+    }
+
+    const uniqueOrders: SimulatedOrder[] = [];
+    const seenIds = new Set<string>();
+    
+    for (const order of combined) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && order.simulationDate >= countryTodayStr) {
+        seenIds.add(order.id);
+        uniqueOrders.push(order);
+      }
+    }
+    
+    setOrders(uniqueOrders);
+  };
+
+  const formatSafeCreatedAt = (createdAt?: string) => {
+    if (!createdAt) return '---';
+    try {
+      const d = new Date(createdAt);
+      if (isNaN(d.getTime())) return '---';
+      return `${formatDate(createdAt)} ${formatLocalTime(createdAt, state.settings?.country || 'PY')}`;
+    } catch (e) {
+      return '---';
+    }
+  };
+
+  const getClientBalance = (clientId: string) => {
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+      l => (l.clientId || (l as any).client_id) === clientId && 
+           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    );
+    if (clientLoans.length === 0) return 0;
+    let totalBalance = 0;
+    for (const loan of clientLoans) {
+      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
+      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+    }
+    return totalBalance;
+  };
+
+  useEffect(() => {
+    loadOrders();
+    const handleForceSync = () => loadOrders();
+    window.addEventListener('force-sync', handleForceSync);
+    return () => window.removeEventListener('force-sync', handleForceSync);
+  }, [state.settings.country, state.simulatedOrders]);
+
+  const handleDeleteOrder = (id: string) => {
+    addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
+    const event = new CustomEvent('force-sync');
+    window.dispatchEvent(event);
+    loadOrders();
+  };
+
+  const t = getTranslation(state.settings.language).dashboard;
+  const isAdmin = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
+
+  // Hoy según país
+  const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
+
+  const fetchInsights = async () => {
+    if (loadingInsights) return;
+    setLoadingInsights(true);
+    setInsights(null); // Reset previous insights
+    try {
+      const data = await getFinancialInsights(state);
+      setInsights(data);
+    } catch (e) {
+      console.error("Error al obtener insights:", e);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  // 1. Determine VISIBLE COLLECTORS based on strict rules
+  const visibleCollectors = useMemo(() => {
+    return (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (u.name?.toUpperCase() === 'FABIAN PEDROZO') return false;
+      if (u.role !== Role.COLLECTOR) return false;
+      if (state.currentUser?.role === Role.COLLECTOR) {
+        return u.id === state.currentUser.id;
+      }
+      // Admin/Manager sees only their direct reports
+      const mId = (u.managedBy || (u as any).managed_by);
+      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
+    });
+  }, [state.users, state.currentUser]);
+
+  // 1.5. Precalcular sumas de abonos por préstamo de forma eficiente (O(L))
+  const logsByLoanId = useMemo(() => {
+    const map = new Map<string, number>();
+    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const log of logs) {
+      if (log.deletedAt) continue;
+      const logType = String(log.type || '').toUpperCase();
+      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) continue;
+      if (log.isOpening || (log as any).is_opening) continue;
+      const loanId = log.loanId || log.loan_id;
+      if (!loanId) continue;
+      const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
+      map.set(loanId, (map.get(loanId) || 0) + amt);
+    }
+    return map;
+  }, [state.collectionLogs]);
+
+  // 1.6. Precalcular logs de pago por préstamo para optimizar la verificación de créditos cancelados hoy
+  const paymentLogsByLoanId = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const log of logs) {
+      if (log.deletedAt) continue;
+      if (log.type !== CollectionLogType.PAYMENT && String(log.type).toUpperCase() !== 'PAGO') continue;
+      if (log.isOpening || (log as any).is_opening) continue;
+      const loanId = log.loanId || log.loan_id;
+      if (!loanId) continue;
+      if (!map.has(loanId)) {
+        map.set(loanId, []);
+      }
+      map.get(loanId)!.push(log);
+    }
+    return map;
+  }, [state.collectionLogs]);
+
+  // 1.7. Precalcular los días de mora de todos los créditos activos/vencidos una sola vez
+  const loansOverdueMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    for (const loan of loans) {
+      if (loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT) continue;
+      const paid = logsByLoanId.get(loan.id) || 0;
+      const overdue = getDaysOverdue(loan, state.settings, paid);
+      map.set(loan.id, overdue);
+    }
+    return map;
+  }, [state.loans, state.settings, logsByLoanId]);
+
+  const collectorStats = useMemo(() => {
+    if (!isAdmin) return [];
+    const todayDateStr = getLocalDateStringForCountry(state.settings.country); 
+
+    const collectionLogsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+
+    // Filter using country's YYYY-MM-DD
+    const logsTodayBase = collectionLogsSafe.filter(log => {
+      if (log.isOpening) return false;
+      const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(log.date));
+      return logDateStr === todayDateStr;
+    });
+
+    return visibleCollectors.map(user => {
+      const uidLower = user.id.toLowerCase();
+      // Use recordedBy + same date comparison method as Auditoría Histórica
+      const logsToday = logsTodayBase.filter(log => {
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        return logRecordedBy === uidLower;
+      });
+
+      const recaudoHoy = logsToday
+        .filter(l => l.type === CollectionLogType.PAYMENT)
+        .reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+      const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
+      const assignedLoans = loansSafe.filter(l =>
+        (l.collectorId?.toLowerCase() === uidLower || (l as any).collector_id?.toLowerCase() === uidLower)
+      );
+      
+      // Filtrar clientes para excluir los ocultos o eliminados (igual que en Cartera)
+      const validClients = clientsSafe.filter(c => !c.isHidden && !c.deletedAt);
+      const validClientIdsSet = new Set(validClients.map(c => c.id));
+
+      const validClientsForCollector = validClients.filter(c => {
+        const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
+        const activeLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const anyHistoricLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === uidLower);
+        return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!anyHistoricLoan;
+      });
+
+      let uniqueActiveClients = 0;
+      let cancelledClientsCount = 0;
+      let mora35ClientsCount = 0;
+      let overdueLoansCount = 0;
+
+      validClientsForCollector.forEach(c => {
+        const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+        const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const activeLoan = sortedLoans[0];
+        
+        let balance = 0;
+        let daysOverdue = 0;
+        
+        if (activeLoan) {
+           const paid = logsByLoanId.get(activeLoan.id) || 0;
+           balance = Math.max(0, activeLoan.totalAmount - paid);
+           
+           daysOverdue = Math.max(...clientLoans.map(l => loansOverdueMap.get(l.id) || 0));
+        }
+        
+        if (balance > 0.01) {
+           uniqueActiveClients++;
+           if (daysOverdue > 35) {
+             mora35ClientsCount++;
+           }
+           if (daysOverdue > 0) {
+             overdueLoansCount++;
+           }
+        } else {
+           cancelledClientsCount++;
+        }
+      });
+
+      const financialMoraRate = uniqueActiveClients > 0 ? (overdueLoansCount / uniqueActiveClients) * 100 : 0;
+      const routeCompletionRate = uniqueActiveClients > 0 ? (uniqueClientsVisitedToday / uniqueActiveClients) * 100 : 0;
+      const isRouteCompleted = uniqueActiveClients > 0 && uniqueClientsVisitedToday >= uniqueActiveClients;
+      const monthlyStats = calculateMonthlyStats(loansSafe, collectionLogsSafe, new Date().getMonth(), new Date().getFullYear(), user.id);
+
+      return {
+        id: user.id,
+        name: user.name,
+        recaudo: recaudoHoy,
+        monthlyGoal: monthlyStats.monthlyGoal,
+        remainingGoal: monthlyStats.remainingBalance,
+        financialMora: financialMoraRate,
+        routeCompletion: routeCompletionRate,
+        clientes: uniqueActiveClients,
+        activeClients: uniqueActiveClients,
+        mora35Clients: mora35ClientsCount,
+        cancelledClients: cancelledClientsCount,
+        visitados: uniqueClientsVisitedToday,
+        isCompleted: isRouteCompleted,
+        overdueCount: overdueLoansCount
+      };
+    });
+  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap]);
+
+
+  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
+  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  const totalExpenses = Number(state.initialCapital) || 0;
+  const netUtility = totalProfit - totalExpenses;
+
+  // Sumar el recaudo de hoy directamente desde las estadísticas de los cobradores (Auditoría de Rutas)
+  // Esto asegura que el "Recaudo de Hoy" coincida exactamente con la suma de la tabla
+  const collectedToday = collectorStats.reduce((acc, curr) => acc + curr.recaudo, 0);
+
+  // Sumar todos los abonos históricos reales (excluyendo aperturas y pagos borrados)
+  const totalCollectedAllTime = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+    .filter(log => log.type === CollectionLogType.PAYMENT && !log.deletedAt)
+    .reduce((acc, log) => acc + (log.amount || 0), 0);
+
+  // Calcular el saldo pendiente total de los clientes (Capital en la Calle)
+  const totalOwedAmount = (Array.isArray(state.loans) ? state.loans : [])
+    .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    .reduce((acc, l) => {
+      const totalPaid = logsByLoanId.get(l.id) || 0;
+      const remaining = Math.max(0, l.totalAmount - totalPaid);
+      return acc + remaining;
+    }, 0);
+
+  // Calcular lo cobrado SOLO de los créditos que siguen activos (no cancelados/pagados)
+  const totalPaidActiveLoans = (Array.isArray(state.loans) ? state.loans : [])
+    .filter(l => {
+      if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) return true;
+      if (l.status === LoanStatus.PAID) {
+        const logsForLoan = paymentLogsByLoanId.get(l.id) || [];
+        if (logsForLoan.length > 0) {
+          const lastLog = logsForLoan.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(lastLog.date));
+          if (logDateStr === countryTodayStr) return true;
+        }
+      }
+      return false;
+    })
+    .reduce((acc, l) => acc + (logsByLoanId.get(l.id) || 0), 0);
+
+  const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
+  const paginatedCollectors = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return collectorStats.slice(start, start + ITEMS_PER_PAGE);
+  }, [collectorStats, currentPage]);
+
+  // --- RESUMEN SEMANAL (Dom-Sáb) - 3 semanas ---
+  const weeklyData = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+
+    const buildWeek = (weeksAgo: number) => {
+      const weekStart = new Date(now);
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(now.getDate() - dayOfWeek - weeksAgo * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(weekStart);
+        date.setDate(weekStart.getDate() + i);
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        const dayLabel = new Intl.DateTimeFormat('es', { weekday: 'short' }).format(date).replace('.', '');
+        const dateStr = `${date.getDate()}/${date.getMonth() + 1}`;
+        const isToday = getLocalDateStringForCountry(state.settings.country, date) === countryTodayStr;
+        const isFuture = weeksAgo === 0 && date > now && !isToday;
+        const logsDay = logsSafe.filter(log => {
+          if (log.deletedAt) return false;
+          if (log.type !== CollectionLogType.PAYMENT) return false;
+          if (log.isOpening || (log as any).is_opening) return false;
+          const logDate = new Date(log.date);
+          return logDate >= date && logDate < nextDate;
+        });
+        const recaudo = logsDay.reduce((acc, log) => acc + (log.amount || 0), 0);
+        
+        const uniqueClientsDay = new Set(logsDay.map(log => log.clientId || (log as any).client_id));
+        uniqueClientsDay.delete(undefined);
+        const clientesCobrados = uniqueClientsDay.size;
+        const renovacionesList = loansSafe.filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanDate = new Date(loan.createdAt);
+          return loanDate >= date && loanDate < nextDate && !!loan.isRenewal;
+        });
+        const renovaciones = renovacionesList.length;
+        const montoRenovaciones = renovacionesList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
+
+        const nuevosList = loansSafe.filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanDate = new Date(loan.createdAt);
+          return loanDate >= date && loanDate < nextDate && !loan.isRenewal;
+        });
+        const montoNuevos = nuevosList.reduce((acc, l) => acc + (l.principal || l.totalAmount || 0), 0);
+
+        const clientesNuevos = clientsSafe.filter(c => {
+          if (!c.createdAt || c.deletedAt || c.isHidden) return false;
+          const cDate = new Date(c.createdAt);
+          return cDate >= date && cDate < nextDate;
+        }).length;
+        
+        return { 
+          day: dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1), 
+          dateStr, 
+          recaudo, 
+          clientesCobrados,
+          renovaciones, 
+          montoRenovaciones,
+          clientesNuevos, 
+          montoNuevos,
+          isToday, 
+          isFuture 
+        };
+      });
+
+      const labels = ['Semana Actual', 'Semana Anterior', 'Hace 2 Semanas', 'Hace 3 Semanas', 'Hace 4 Semanas'];
+      const monthName = new Intl.DateTimeFormat('es', { month: 'long' }).format(weekEnd).toUpperCase();
+      return {
+        label: labels[weeksAgo],
+        rangeStr: `${weekStart.getDate()}/${weekStart.getMonth() + 1} – ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`,
+        monthName,
+        days,
+        totalRecaudo: days.reduce((a, d) => a + d.recaudo, 0),
+        totalClientesCobrados: days.reduce((a, d) => a + d.clientesCobrados, 0),
+        totalRenovaciones: days.reduce((a, d) => a + d.renovaciones, 0),
+        totalMontoRenovaciones: days.reduce((a, d) => a + d.montoRenovaciones, 0),
+        totalClientesNuevos: days.reduce((a, d) => a + d.clientesNuevos, 0),
+        totalMontoNuevos: days.reduce((a, d) => a + d.montoNuevos, 0)
+      };
+    };
+
+    const weeks = [0, 1, 2, 3, 4].map(buildWeek);
+    const current = weeks[0];
+    return {
+      weeks,
+      days: current.days,
+      totalRecaudo: current.totalRecaudo,
+      totalClientesCobrados: current.totalClientesCobrados,
+      totalRenovaciones: current.totalRenovaciones,
+      totalMontoRenovaciones: current.totalMontoRenovaciones,
+      totalClientesNuevos: current.totalClientesNuevos,
+      totalMontoNuevos: current.totalMontoNuevos
+    };
+  }, [state.collectionLogs, state.loans, state.clients, state.settings, countryTodayStr]);
+
+  // --- RECIENTES COBRADORES (Hoy y Ayer) ---
+  const collectorRecentPayments = useMemo(() => {
+    const todayStr = getLocalDateStringForCountry(state.settings.country, new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateStringForCountry(state.settings.country, yesterday);
+
+    const logsSafe = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
+
+    const getClientName = (log: any) => {
+      if (!log) return null;
+      const cId = log.clientId || (log as any).client_id;
+      const client = clientsSafe.find(c => c.id === cId);
+      if (!client) return 'Desconocido';
+      const parts = client.name.split(' ');
+      return parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
+    };
+
+    const result = visibleCollectors.map(collector => {
+      const uidLower = collector.id.toLowerCase();
+      // Filtrar logs de este cobrador para hoy y ayer
+      const logsToday = logsSafe.filter(log => {
+        if (log.deletedAt) return false;
+        if (log.type !== CollectionLogType.PAYMENT) return false;
+        if (log.isOpening || (log as any).is_opening) return false;
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        if (logRecordedBy !== uidLower) return false;
+        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === todayStr;
+      });
+
+      const logsYesterday = logsSafe.filter(log => {
+        if (log.deletedAt) return false;
+        if (log.type !== CollectionLogType.PAYMENT) return false;
+        if (log.isOpening || (log as any).is_opening) return false;
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        if (logRecordedBy !== uidLower) return false;
+        return getLocalDateStringForCountry(state.settings.country, new Date(log.date)) === yesterdayStr;
+      });
+
+      // Ordenar descendente para obtener el más reciente de cada día
+      const latestToday = [...logsToday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const latestYesterday = [...logsYesterday].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      // Calcular Ganancia Neta de 4 Semanas para este cobrador
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const fourWeeksAgo = new Date(now);
+      fourWeeksAgo.setHours(0, 0, 0, 0);
+      fourWeeksAgo.setDate(now.getDate() - dayOfWeek - 4 * 7);
+
+      const recaudo4Sem = logsSafe
+        .filter(log => {
+          if (log.deletedAt || log.type !== CollectionLogType.PAYMENT || log.isOpening || (log as any).is_opening) return false;
+          const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+          if (logRecordedBy !== uidLower) return false;
+          return new Date(log.date) >= fourWeeksAgo;
+        })
+        .reduce((acc, log) => acc + (log.amount || 0), 0);
+
+      const loansSafe = Array.isArray(state.loans) ? state.loans : [];
+      
+      const prestado4Sem = loansSafe
+        .filter(loan => {
+          if (!loan.createdAt) return false;
+          const loanCollectorId = (loan.collectorId || (loan as any).collector_id)?.toLowerCase();
+          if (loanCollectorId !== uidLower) return false;
+          return new Date(loan.createdAt) >= fourWeeksAgo;
+        })
+        .reduce((acc, loan) => acc + (loan.principal || loan.totalAmount || 0), 0);
+
+      const ganancia4Sem = recaudo4Sem - prestado4Sem;
+
+      return {
+        id: collector.id,
+        name: collector.name || collector.username || 'Cobrador',
+        todayAmount: latestToday ? latestToday.amount : null,
+        todayIsVirtual: latestToday ? (latestToday.isVirtual || (latestToday as any).is_virtual || false) : false,
+        todayTimeStr: latestToday ? formatLocalTime(latestToday.date, state.settings.country) : null,
+        todayClient: getClientName(latestToday),
+        yesterdayAmount: latestYesterday ? latestYesterday.amount : null,
+        yesterdayIsVirtual: latestYesterday ? (latestYesterday.isVirtual || (latestYesterday as any).is_virtual || false) : false,
+        yesterdayTimeStr: latestYesterday ? formatLocalTime(latestYesterday.date, state.settings.country) : null,
+        yesterdayClient: getClientName(latestYesterday),
+        ganancia4Sem,
+      };
+    });
+
+    return result.filter(r => r.todayAmount !== null || r.yesterdayAmount !== null || r.ganancia4Sem !== 0);
+  }, [state.collectionLogs, state.clients, visibleCollectors, state.settings]);
+
+  // --- LÓGICA AUDITOR GENERAL ---
+  const [auditCollector, setAuditCollector] = useState<string>('all');
+  const [auditStartDate, setAuditStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [auditEndDate, setAuditEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+
+  // --- LÓGICA HISTORIAL ELIMINADOS VISUAL ---
+  const [deletedStartDate, setDeletedStartDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [deletedEndDate, setDeletedEndDate] = useState<string>(getLocalDateStringForCountry(state.settings.country));
+  const [deletedPage, setDeletedPage] = useState(1);
+  const DELETED_PER_PAGE = 5;
+
+  const deletedLogsList = useMemo(() => {
+    const [sYear, sMonth, sDay] = deletedStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = deletedEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+    return (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+      .filter(log => {
+        if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
+        const logDate = new Date(log.date);
+        return logDate >= start && logDate <= end;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [deletedStartDate, deletedEndDate, state.collectionLogs]);
+
+  const totalDeletedPages = Math.ceil(deletedLogsList.length / DELETED_PER_PAGE);
+  const paginatedDeletedLogs = useMemo(() => {
+    const startIdx = (deletedPage - 1) * DELETED_PER_PAGE;
+    return deletedLogsList.slice(startIdx, startIdx + DELETED_PER_PAGE);
+  }, [deletedLogsList, deletedPage]);
+
+  const auditMetrics = useMemo(() => {
+    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+    const logs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= start && logDate <= end;
+      if (!matchesDate) return false;
+
+      // Si se filtra por un cobrador específico, mantener el filtro
+      if (auditCollector !== 'all') {
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        return logRecordedBy === auditCollector.toLowerCase();
+      }
+
+      // Si es 'todos', no filtrar por visibleCollectors, sino mostrar lo que ya viene filtrado por App.tsx (sucursal)
+      return true;
+    });
+
+    const totalRevenue = logs.filter(l => l.type === CollectionLogType.PAYMENT).reduce((acc, l) => acc + (l.amount || 0), 0);
+    const activeClientsSet = new Set(logs.map(l => l.clientId || (l as any).client_id));
+    const activeClients = activeClientsSet.size;
+
+    // Clientes nuevos en el periodo
+    const newClients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
+      const cDate = new Date(c.createdAt);
+      const isNew = cDate >= start && cDate <= end;
+      if (!isNew) return false;
+      // Si filtramos por cobrador, verificar si tiene prestamos con ese cobrador (aproximación)
+      if (auditCollector !== 'all') {
+        const hasLoanWithColl = (Array.isArray(state.loans) ? state.loans : []).some(l =>
+          (l.clientId || (l as any).client_id) === c.id &&
+          (l.collectorId || (l as any).collector_id)?.toLowerCase() === auditCollector.toLowerCase()
+        );
+        return hasLoanWithColl;
+      }
+      return true;
+    }).length;
+
+    // Comparativa con periodo anterior (Lógica de Tendencia DIARIA/PERIODICA)
+    // Calculamos el rango del periodo anterior con la misma duración
+    const duration = end.getTime() - start.getTime();
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - duration);
+
+    const previousLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= prevStart && logDate <= prevEnd;
+      if (!matchesDate) return false;
+      if (log.type !== CollectionLogType.PAYMENT) return false;
+      if (auditCollector === 'all') return true;
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
+    });
+
+    const previousRevenue = previousLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
+
+    // TENDENCIA: Solo "Aumentó" si supera estrictamente al periodo anterior.
+    // Si es igual o menor -> Disminuyó o Se Mantiene.
+    // User Request: "solo cuando el monto pase lo cobrado lo del dia anterior este diga aumento"
+    let revenueTrend: 'up' | 'down' | 'equal' = 'equal';
+    if (totalRevenue > previousRevenue) revenueTrend = 'up';
+    else if (totalRevenue < previousRevenue) revenueTrend = 'down';
+    else revenueTrend = 'equal'; // 0 vs 0, or exact match
+
+    const revenueIncreased = totalRevenue > previousRevenue; // Deprecated but kept for compatibility if needed internally
+    const clientsIncreased = newClients > 0;
+
+    // Daily Revenue for Graph (ALWAYS CURRENT WEEK: Mon-Sat)
+    const currentWeekStart = new Date();
+    const dayOfWeek = currentWeekStart.getDay() || 7; // 1=Mon ... 7=Sun
+    currentWeekStart.setHours(0, 0, 0, 0);
+    currentWeekStart.setDate(currentWeekStart.getDate() - (dayOfWeek - 1)); // Go to Monday
+
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 5); // Go to Saturday
+    currentWeekEnd.setHours(23, 59, 59, 999);
+
+    const currentWeekLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= currentWeekStart && logDate <= currentWeekEnd;
+      if (!matchesDate) return false;
+      if (log.type !== CollectionLogType.PAYMENT) return false;
+      if (auditCollector === 'all') return true;
+
+      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
+    });
+
+    const dailyRevenueMap = new Map<string, number>();
+    currentWeekLogs.forEach(l => {
+      // Normalizar día
+      const d = new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(new Date(l.date)).replace('.', '').toLowerCase();
+      dailyRevenueMap.set(d, (dailyRevenueMap.get(d) || 0) + (l.amount || 0));
+    });
+
+    const daysOrder = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date(2023, 0, i + 2); // 2023-01-02 is Monday
+      return new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(date).replace('.', '').toLowerCase();
+    });
+    const dailyRevenue = daysOrder.map(day => {
+      // Buscar keys que empiecen con el día (por si acaso 'miércoles' vs 'mié')
+      const key = Array.from(dailyRevenueMap.keys()).find(k => k.startsWith(day));
+      return {
+        day: day.charAt(0).toUpperCase() + day.slice(1),
+        amount: key ? dailyRevenueMap.get(key) || 0 : 0
+      };
+    });
+
+    // --- LÓGICA EXTENDIDA: Clientes Sin Pago y Tendencias ---
+
+    // 1. Clientes Sin Pago (Clientes activos del cobrador que NO pagaron en el periodo)
+    const relevantLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
+      if (l.status !== LoanStatus.ACTIVE) return false;
+      if (auditCollector === 'all') return true;
+      const lCollectorId = (l.collectorId || (l as any).collector_id)?.toLowerCase();
+      return lCollectorId === auditCollector.toLowerCase();
+    });
+    const relevantClientIds = new Set(relevantLoans.map(l => l.clientId || (l as any).client_id));
+    const paidClientIds = new Set(logs.filter(l => l.type === CollectionLogType.PAYMENT).map(l => l.clientId || (l as any).client_id));
+
+    const clientsWithoutPayment = (Array.isArray(state.clients) ? state.clients : [])
+      .filter(c => relevantClientIds.has(c.id) && !paidClientIds.has(c.id))
+      .map(c => {
+        // Find active loan for this client and collector
+        const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
+
+        // Find VERY last payment (lifetime) or return null
+        const clientLogs = loan ? (paymentLogsByLoanId.get(loan.id) || []) : [];
+        const lastPayment = clientLogs.length > 0 ? clientLogs.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+
+        // Calculate overdue days
+        const daysOverdue = loan ? (loansOverdueMap.get(loan.id) || 0) : 0;
+
+        // Calculate current balance (Sanitized)
+        const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
+        const paidAmt = loan ? (logsByLoanId.get(loan.id) || 0) : 0;
+        const balance = totalAmt - paidAmt;
+
+        return {
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          lastPaymentDate: lastPayment ? lastPayment.date : null,
+          lastPaymentAmount: lastPayment ? (Number(lastPayment.amount) || 0) : 0,
+          daysOverdue,
+          balance
+        };
+      })
+      .filter(c => c.daysOverdue > 10) // Filter: Only show clients > 10 days overdue
+      .sort((a, b) => b.daysOverdue - a.daysOverdue); // Sort by most overdue first
+
+    // 2. Evolución Semanal (Dentro del rango seleccionado)
+    const logsByWeek = new Map<string, number>();
+    logs.filter(l => l.type === CollectionLogType.PAYMENT).forEach(l => {
+      const d = new Date(l.date);
+      // Obtener lunes de la semana
+      const day = d.getDay() || 7;
+      if (day !== 1) d.setHours(-24 * (day - 1));
+      const weekKey = `${d.getDate()}/${d.getMonth() + 1}`; // Ej: 2/2, 9/2
+      logsByWeek.set(weekKey, (logsByWeek.get(weekKey) || 0) + (l.amount || 0));
+    });
+    // Ordenar por fecha (las keys ya deberían salir en orden si logs está ordenado, pero mejor asegurar)
+    const weeklyRevenue = Array.from(logsByWeek.entries())
+      .map(([label, amount]) => ({ label, amount }))
+      // Orden simplificado por parsing de fecha
+      .sort((a, b) => {
+        const [d1, m1] = a.label.split('/').map(Number);
+        const [d2, m2] = b.label.split('/').map(Number);
+        return (m1 * 31 + d1) - (m2 * 31 + d2);
+      });
+
+    // 3. Evolución Mensual (Contexto Anual - Ene a Dic del año actual)
+    const currentYear = new Date().getFullYear();
+    const allCollectorLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => {
+      if (l.type !== CollectionLogType.PAYMENT) return false;
+      const d = new Date(l.date);
+      if (d.getFullYear() !== currentYear) return false;
+
+      if (auditCollector === 'all') return true;
+
+      // FILTRO ESTRICTO: Solo mostrar pagos realizados por este usuario
+      const logRecordedBy = (l.recordedBy || (l as any).recorded_by)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase();
+    });
+
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const date = new Date(2023, i, 1);
+      const m = new Intl.DateTimeFormat(state.settings.language || 'es', { month: 'short' }).format(date).replace('.', '');
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    });
+    const logsByMonth = new Array(12).fill(0);
+    allCollectorLogs.forEach(l => {
+      const m = new Date(l.date).getMonth();
+      logsByMonth[m] += (l.amount || 0);
+    });
+    const monthlyRevenue = months.map((m, i) => ({ label: m, amount: logsByMonth[i] }));
+
+    // Efficiency (Recaudo / (ActiveClients * avg ticket?)) - Mock formula for visual
+    const efficiency = activeClients > 0 ? Math.min(100, Math.round((totalRevenue / (activeClients * 10000)) * 100)) : 0;
+
+    // Verdict based on Coverage %
+    const totalClients = relevantClientIds.size;
+    const coveragePct = totalClients > 0 ? (activeClients / totalClients) * 100 : 0;
+
+    let verdict: string = 'MALO';
+    if (coveragePct >= 75) verdict = 'EXCELENTE';
+    else if (coveragePct >= 51) verdict = 'BUENO';
+    else if (coveragePct >= 43) verdict = 'MEDIANAMENTE BUENO';
+    else if (coveragePct >= 31) verdict = 'MEDIANAMENTE MALO';
+    else verdict = 'MALO'; // < 31% (covers 0-30)
+
+    return {
+      totalRevenue, activeClients, newClients, efficiency, dailyRevenue,
+      revenueIncreased, revenueTrend, clientsIncreased, verdict, logs,
+      clientsWithoutPayment, weeklyRevenue, monthlyRevenue,
+      totalClients: relevantClientIds.size
+    };
+  }, [auditCollector, auditStartDate, auditEndDate, state.collectionLogs, state.loans, state.clients]);
+
+  const handleGenerateAuditPDF = () => {
+    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
+    generateAuditPDF({
+      collectorName,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
+      ...auditMetrics,
+      clients: state.clients,
+      settings: state.settings
+    });
+  };
+
+  const handleGenerateDeletedPaymentsPDF = () => {
+    const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
+    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+    const deletedLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
+      const logDate = new Date(log.date);
+      const matchesDate = logDate >= start && logDate <= end;
+      if (!matchesDate) return false;
+
+      if (auditCollector === 'all') return true;
+      const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+      const logCollectorId = (log.collectorId || (log as any).collector_id)?.toLowerCase();
+      return logRecordedBy === auditCollector.toLowerCase() || logCollectorId === auditCollector.toLowerCase();
+    });
+
+    generateDeletedPaymentsPDF({
+      collectorName,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
+      logs: deletedLogs,
+      settings: state.settings,
+      users: state.users,
+      clients: state.clients
+    });
+  };
+
+  // chartData se mueve abajo para tener acceso a currentMonthTotalExpenses
+
+  const currentMonthTotalExpenses = useMemo(() => {
+    const today = new Date();
+    const currentBranchId = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER 
+      ? state.currentUser.id 
+      : (state.currentUser?.managedBy || (state.currentUser as any)?.managed_by || state.currentUser?.id);
+
+    // 1. Nómina Mensual
+    let totalSueldos = 0;
+    const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
+      (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
+    );
+    branchUsers.forEach(user => {
+      const cfg = user.payConfig;
+      if (cfg) {
+        if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+        if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0) * 4;
+      }
+    });
+
+    // 2. Gastos Aislados (del mes actual)
+    let totalMonthGastos = 0;
+    const isolatedExpenses = (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId);
+    isolatedExpenses.forEach(e => {
+      const d = new Date(e.date);
+      if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()) {
+        totalMonthGastos += e.amount;
+      }
+    });
+
+    return totalSueldos + totalMonthGastos;
+  }, [state.users, state.isolatedExpenses, state.currentUser]);
+
+  const chartData = [
+    { name: (t as any).charts?.capital || 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
+    { name: (t as any).charts?.income || 'Ingresos', value: totalProfit, color: '#10b981' },
+    { name: (t as any).charts?.expenses || 'Gastos', value: currentMonthTotalExpenses, color: '#f43f5e' },
+    { name: (t as any).charts?.utility || 'Utilidad', value: totalProfit - currentMonthTotalExpenses, color: '#3b82f6' },
+  ];
+
+  return (
+    <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto px-4 md:px-0">
+      {/* CABECERA SUPERIOR - Premium Glassmorphism */}
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 glass-card p-6 rounded-md border-white/40 relative z-[100]">
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="w-12 h-12 premium-gradient rounded-md flex items-center justify-center shadow-xl shadow-emerald-500/20 transition-transform">
+             <i className="fa-solid fa-chart-pie text-xl text-white"></i>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">{t.title ? t.title.split(' ')[0] : 'Resumen'} <span className="text-emerald-500">{t.title ? t.title.split(' ').slice(1).join(' ') : 'Operativo'}</span></h2>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v{CURRENT_VERSION_ID}</span>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                En Vivo
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <WeatherWidget />
+
+        <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-md shadow-xl border border-white/5 shrink-0">
+            <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-90">
+              {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
+            </span>
+          </div>
+          <HolidaysWidget countryCode={state.settings.country} />
+        </div>
+      </div>
+
+      {/* SECCIÓN PEDIDOS */}
+      {orders.length > 0 && (
+        <div className="bg-[#0f172a] rounded-md border border-slate-800 shadow-xl overflow-hidden p-5">
+           <h3 className="text-base font-bold text-white uppercase tracking-widest leading-none mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-list-check text-emerald-500"></i>
+              Pedidos Pendientes
+           </h3>
+           <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                 <thead>
+                    <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+                       <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Registro</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Saldo Actual</th>
                         <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Efec. a Entregar</th>
-                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Forma de Pago</th>
-                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Total a Pagar</th>
-                       <th className="px-4 py-3 text-center rounded-tr-md w-16">Acción</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100 bg-white">
-                    {orders.map((order) => {
-                       const client = Array.isArray(state.clients) ? state.clients.find(c => c.id === order.clientId) : null;
-                       const activeLoan = Array.isArray(state.loans) ? state.loans.find(l => l.clientId === order.clientId && l.status !== LoanStatus.PAID) : null;
-                       const colId = activeLoan?.collectorId || client?.addedBy;
-                       const collector = Array.isArray(state.users) ? state.users.find(u => u.id === colId) : null;
+                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Forma de Pago</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Total a Pagar</th>
+                       <th className="px-4 py-3 text-center rounded-tr-md w-16">Acción</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100 bg-white">
+                    {orders.map((order) => {
+                       const client = Array.isArray(state.clients) ? state.clients.find(c => c.id === order.clientId) : null;
+                       const activeLoan = Array.isArray(state.loans) ? state.loans.find(l => l.clientId === order.clientId && l.status !== LoanStatus.PAID) : null;
+                       const colId = activeLoan?.collectorId || client?.addedBy;
+                       const collector = Array.isArray(state.users) ? state.users.find(u => u.id === colId) : null;
                        const collectorName = collector ? collector.name : 'Sin Asignar';
-
-                       const balance = getClientBalance(order.clientId);
-                       
-                       return (
-                       <tr key={order.id} className="bg-white hover:bg-slate-50 transition-colors group text-sm border-b border-slate-100">
-                          <td className="px-4 py-3 font-black text-slate-800 uppercase text-xs truncate max-w-[200px] border-r border-slate-50">
-                             {order.clientName}
-                             <span className="block text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate">
-                                <i className="fa-solid fa-user-tag text-emerald-500 mr-1"></i>
-                                {collectorName}
-                             </span>
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-600 font-bold text-xs border-r border-slate-50">
-                             {formatSafeCreatedAt(order.createdAt)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
-                          <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
-                             {formatCurrency(order.principal, state.settings)}
-                          </td>
+
+                       const balance = getClientBalance(order.clientId);
+                       
+                       return (
+                       <tr key={order.id} className="bg-white hover:bg-slate-50 transition-colors group text-sm border-b border-slate-100">
+                          <td className="px-4 py-3 font-black text-slate-800 uppercase text-xs truncate max-w-[200px] border-r border-slate-50">
+                             {order.clientName}
+                             <span className="block text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate">
+                                <i className="fa-solid fa-user-tag text-emerald-500 mr-1"></i>
+                                {collectorName}
+                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600 font-bold text-xs border-r border-slate-50">
+                             {formatSafeCreatedAt(order.createdAt)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
+                          <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.principal, state.settings)}
+                          </td>
                           <td className={`px-4 py-3 text-right font-mono font-bold text-xs border-r border-slate-50 ${balance > 0 ? 'text-amber-500 font-black' : 'text-slate-400'}`}>
-
+
                              {formatCurrency(balance, state.settings)}
-
+
                           </td>
-
+
                           <td className="px-4 py-3 text-right font-mono font-bold text-xs border-r border-slate-50">
-
-                             {order.principal - balance < 0 ? (
-
-                                <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
-
-                             ) : (
-
-                                <span className="text-slate-700">{formatCurrency(order.principal - balance, state.settings)}</span>
-
-                             )}
-
+                              {order.principal - balance < 0 ? (
+                                 <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
+                              ) : (
+                                 <span className="text-slate-700">{formatCurrency(order.principal - balance, state.settings)}</span>
+                              )}
+                           </td>
+
+                          <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.installmentValue, state.settings)}
                           </td>
-
-                          <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50">
-                             {formatCurrency(order.installmentValue, state.settings)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-700 font-bold text-[10px] uppercase border-r border-slate-50">
-                             {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
-                          </td>
-                          <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
-                             {formatCurrency(order.totalAmount, state.settings)}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                             <button 
-                                onClick={() => handleDeleteOrder(order.id)}
-                                className="w-8 h-8 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center mx-auto"
-                                title="Eliminar Pedido"
-                             >
-                                <i className="fa-solid fa-trash text-xs"></i>
-                             </button>
-                          </td>
-                       </tr>
-                    );
-                    })}
-                 </tbody>
-              </table>
-           </div>
-        </div>
-      )}
-
-      {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
-        {[
-          { label: (t as any).totalCollected || 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { label: (t as any).collectedActive || 'Cobrado (Activos)', value: formatCurrency(totalPaidActiveLoans, state.settings), icon: 'fa-money-bill-wave', color: 'text-violet-500', bg: 'bg-violet-500/10' },
-          { label: (t as any).clientBalance || 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
-          { label: (t as any).projectedIncome || 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-          { label: (t as any).registeredCapital || 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-          { label: (t as any).collectedToday || 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-5 rounded-md border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
-            <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-md ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
-                <i className={`fa-solid ${stat.icon}`}></i>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
-                <p className="text-xl font-bold text-slate-900 font-mono tracking-tight">{stat.value}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-            {/* AUDITORÍA DE RUTAS - Premium Table */}
-      {isAdmin && (
-        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
-          <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-900 rounded-md flex items-center justify-center text-white shadow-md">
-                <i className="fa-solid fa-list-check text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).routeAudit || 'Auditoría de Rutas'}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {(t as any).cashFlowMonitor || 'Monitoreo de Flujo de Efectivo'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
-              >
-                <i className="fa-solid fa-chevron-left text-sm"></i>
-              </button>
-              <div className="flex items-center gap-1.5 px-4 border-x border-slate-100">
-                <span className="text-sm font-bold text-slate-900 uppercase">{currentPage}</span>
-                <span className="text-[10px] text-slate-400 uppercase">/ {totalPages}</span>
-              </div>
-              <button
-                disabled={currentPage === totalPages || totalPages === 0}
-                onClick={() => setCurrentPage(p => p + 1)}
-                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
-              >
-                <i className="fa-solid fa-chevron-right text-sm"></i>
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto custom-scrollbar">
-            <div className="min-w-[1200px]">
-              <table className="w-full text-left border-collapse table-fixed">
-                <thead>
-                  <tr className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-20">
-                    <th className="px-6 py-4 border-r border-white/5 w-1/4">{(t as any).collectorRoute || 'Cobrador / Ruta'}</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).collectedToday || 'Recaudo de Hoy'}</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).monthlyGoal || 'Meta Mensual'}</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">{(t as any).effectiveness || 'Efectividad'}</th>
-                    <th className="px-6 py-4 border-r border-white/5 w-[20%]">{(t as any).visitProgress || 'Progreso de Visitas'}</th>
-                    <th className="px-6 py-4 text-center w-[18%]">Clientes Act. / Mora</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60">
-                  {paginatedCollectors.map((stat) => (
-                    <tr key={stat.id} className="bg-white hover:bg-slate-700 hover:shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group text-sm relative z-10 hover:z-20 border-b border-slate-50">
-                      <td className="px-6 py-4 border-r border-slate-50 group-hover:border-transparent transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-700 font-black group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white transition-all duration-500 shadow-sm text-sm border border-white group-hover:border-transparent">
-                            {stat.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-slate-800 group-hover:text-white font-black uppercase truncate tracking-tight transition-colors">{stat.name}</p>
-                            <p className="text-[10px] text-indigo-600 group-hover:text-indigo-300 font-bold uppercase mt-0.5 opacity-80 flex items-center gap-1.5 transition-colors">
-                              <i className="fa-solid fa-users"></i> {stat.activeClients + stat.cancelledClients} Clientes
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-emerald-600 group-hover:text-emerald-400 transition-colors">
-                        {formatCurrency(stat.recaudo, state.settings)}
-                      </td>
-                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-blue-600 group-hover:text-blue-400 transition-colors">
-                        {formatCurrency(stat.monthlyGoal, state.settings)}
-                      </td>
-                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center transition-colors">
-                        <div className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold font-mono border ${
-                          stat.financialMora > 30 ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                          stat.financialMora > 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
-                          'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        }`}>
-                          {Math.round(stat.financialMora)}%
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 border-r border-slate-50 group-hover:border-transparent transition-colors">
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-300 transition-colors">
-                             <span>{(t as any).performance || 'Rendimiento'}</span>
-                             <span>{stat.visitados} / {stat.clientes}</span>
-                          </div>
-                          <div className="h-2 bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200/50 group-hover:border-slate-800 shadow-inner transition-colors">
-                            <div
-                              className={`h-full rounded-full transition-all duration-1000 shadow-sm bg-gradient-to-r ${stat.isCompleted ? 'from-emerald-400 to-emerald-500 shadow-emerald-500/20' : 'from-indigo-400 to-blue-500 shadow-blue-500/20'}`}
-                              style={{ width: `${Math.max(5, stat.routeCompletion)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-center">
-                        <p className="text-[11px] font-black uppercase flex items-center justify-center gap-1.5">
-                          <span className="text-emerald-600 group-hover:text-emerald-400 transition-colors">{stat.activeClients} Act.</span>
-                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
-                          <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span>
-                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
-                          <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span>
-                        </p>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RESUMEN SEMANAL DOM-SÁB */}
-      {isAdmin && (
-        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden w-fit">
-          {/* Header */}
-          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-md flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-                <i className="fa-solid fa-table-cells text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Resumen Semanal</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                  Domingo a Sábado · Últimas 5 Semanas
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100">
-              <i className="fa-solid fa-calendar-week"></i>
-              <span>{weeklyData.days[0]?.dateStr} – {weeklyData.days[6]?.dateStr}</span>
-            </div>
-          </div>
-
-          {/* Contenido: Tabla + Gráfico en un solo bloque vertical */}
-          <div className="p-5 space-y-5">
-            {/* Grid de 6 cuadros (5 semanas + Último Registro) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch pb-2">
-              {/* Tabla de Cobros de Hoy y Ayer (Ahora en el 1er cuadro de la grilla) */}
-              <div className="border border-slate-100 rounded-md shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
-                <div className="overflow-x-auto flex-1 h-full">
-                  <table className="w-full text-sm border-collapse h-full">
-                    <thead>
-                      <tr style={{background: '#1e293b'}}>
-                        <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
-                          ⚡ Último Registro (Hoy y Ayer)
-                        </th>
-                      </tr>
-                      <tr>
-                        <th style={{background:'#475569'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Cobrador</th>
-                        <th style={{background:'#d97706'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Ganancia (5 Sem)</th>
-                        <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Último Hoy</th>
-                        <th style={{background:'#ea580c'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right w-28">Último Ayer</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {collectorRecentPayments.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
-                            Sin registros de cobro hoy ni ayer
-                          </td>
-                        </tr>
-                      ) : (
-                        collectorRecentPayments.map((item) => (
-                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-700 group transition-colors">
-                            <td className="px-3 py-2 font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-slate-700 group-hover:text-white transition-colors">
-                              {item.name}
-                            </td>
-                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent bg-amber-50/30 group-hover:bg-amber-900/30 transition-colors">
-                              <span className={`font-mono font-black text-xs transition-colors leading-tight block ${
-                                (item.ganancia4Sem || 0) < 0 
-                                  ? 'text-rose-600 group-hover:text-rose-400' 
-                                  : 'text-amber-600 group-hover:text-amber-400'
-                              }`}>
-                                {formatCurrency(item.ganancia4Sem || 0, state.settings)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent transition-colors">
-                              {item.todayAmount !== null ? (
-                                <div className="flex flex-col items-end">
-                                  <span className={`font-mono font-bold text-xs transition-colors leading-tight ${item.todayIsVirtual ? 'text-blue-600 group-hover:text-blue-400' : 'text-emerald-600 group-hover:text-emerald-400'}`}>{formatCurrency(item.todayAmount || 0, state.settings)}</span>
-                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.todayClient}</span>
-                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
-                                    {item.todayTimeStr}
-                                    {item.todayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
-                                  </span>
-                                </div>
-                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              {item.yesterdayAmount !== null ? (
-                                <div className="flex flex-col items-end">
-                                  <span className="font-mono font-bold text-xs text-orange-600 group-hover:text-orange-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
-                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.yesterdayClient}</span>
-                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
-                                    {item.yesterdayTimeStr}
-                                    {item.yesterdayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
-                                  </span>
-                                </div>
-                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {weeklyData.weeks.map((week, wi) => (
-                <div key={wi} className="border border-slate-100 rounded-md overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
-                  <div className="overflow-x-auto flex-1 h-full">
-                    <table className="w-full text-sm border-collapse h-full">
-                      <thead>
-                        <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
-                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left relative">
-                            <div className="flex items-center">
-                              <div>
-                                {week.label}
-                                <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
-                              </div>
-                              <div className="absolute left-1/2 -translate-x-1/2 opacity-90 text-[11px] font-bold tracking-[0.2em]">
-                                {week.monthName}
-                              </div>
-                            </div>
-                          </th>
-                        </tr>
-                        <tr>
-                          <th style={{background:'#1e293b'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Día</th>
-                          <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10">💰 Recaudo</th>
-                          <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right border-r border-white/10 w-14">🔄 Renov.</th>
-                          <th style={{background:'#7c3aed'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right w-14">👤 Cli.N</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {week.days.map((d, i) => (
-                          <tr key={i} className={`border-b border-slate-100 transition-colors ${
-                            d.isFuture ? 'opacity-40' : d.isToday ? 'bg-amber-50 group hover:bg-slate-700' : 'group hover:bg-slate-700'
-                          }`}>
-                            <td className="px-3 py-1.5 font-bold text-xs border-r border-slate-100 group-hover:border-transparent transition-colors">
-                              <div className="flex items-center gap-2">
-                                {d.isToday && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
-                                <span className={d.isToday ? 'text-amber-700 group-hover:text-amber-300 transition-colors' : 'text-slate-700 group-hover:text-white transition-colors'}>{d.day}</span>
-                                <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-300 transition-colors">{d.dateStr}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-emerald-600 group-hover:text-emerald-400 transition-colors">
-                              {d.isFuture ? '—' : formatCurrency(d.recaudo, state.settings)}
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-blue-600 group-hover:text-blue-400 transition-colors">
-                              {d.isFuture ? '—' : d.renovaciones}
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-xs text-violet-600 group-hover:text-violet-400 transition-colors">
-                              {d.isFuture ? '—' : d.clientesNuevos}
-                            </td>
-                          </tr>
-                        ))}
-                        {/* Subtotal por semana */}
-                        <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
-                          <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
-                          <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
-                          <td className="px-2 py-2 text-right border-r border-slate-200">
-                             <div className="flex flex-col items-end leading-tight gap-0.5">
-                               <span className="text-xs font-bold text-blue-800/70">{week.totalRenovaciones}</span>
-                               <span className="font-mono font-black text-xs sm:text-[13px] text-blue-700 tracking-tight">{formatCurrency(week.totalMontoRenovaciones, state.settings)}</span>
-                             </div>
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                             <div className="flex flex-col items-end leading-tight gap-0.5">
-                               <span className="text-xs font-bold text-violet-800/70">{week.totalClientesNuevos}</span>
-                               <span className="font-mono font-black text-xs sm:text-[13px] text-violet-700 tracking-tight">{formatCurrency(week.totalMontoNuevos, state.settings)}</span>
-                             </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Total global 5 semanas */}
-            <div className="bg-slate-900 text-white rounded-md p-4 md:p-5 w-full shadow-inner overflow-hidden border border-slate-700/50 mt-2">
-              <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-6 h-full">
-                <span className="font-black text-sm lg:text-base uppercase tracking-widest px-2 whitespace-nowrap text-slate-300">TOTAL 5 SEM.</span>
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-0 border-t xl:border-t-0 xl:border-l border-white/20 pt-4 xl:pt-0 w-full">
-                  {/* Recaudo */}
-                  <div className="px-4 py-2 border-b md:border-b-0 border-r border-white/10 flex flex-col justify-center">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Recaudo</span>
-                    <span className="font-mono font-bold text-emerald-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0), state.settings)}</span>
-                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesCobrados, 0)} clientes</span>
-                  </div>
-                  {/* Monto Renovac. */}
-                  <div className="px-4 py-2 border-b md:border-b-0 border-r xl:border-r border-white/10 flex flex-col justify-center">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Renovac.</span>
-                    <span className="font-mono font-bold text-blue-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0), state.settings)}</span>
-                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalRenovaciones, 0)} renovaciones</span>
-                  </div>
-                  {/* Monto Nuevos */}
-                  <div className="px-4 py-2 border-b xl:border-b-0 border-r md:border-r-0 xl:border-r border-white/10 flex flex-col justify-center">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Nuevos</span>
-                    <span className="font-mono font-bold text-violet-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0), state.settings)}</span>
-                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesNuevos, 0)} clientes</span>
-                  </div>
-                  {/* Ganancia Neta */}
-                  <div className="px-4 py-2 border-r xl:border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Ganancia Neta</span>
-                    <span className="font-mono font-black text-amber-400 text-base lg:text-xl xl:text-2xl leading-none">
-                      {formatCurrency(
-                        weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
-                        (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0)), 
-                        state.settings
-                      )}
-                    </span>
-                  </div>
-                  {/* Total General (Gastos + Nómina) */}
-                  <div className="px-4 py-2 border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Total General</span>
-                    <span className="font-mono font-black text-rose-400 text-base lg:text-xl xl:text-2xl leading-none">
-                      {formatCurrency(currentMonthTotalExpenses, state.settings)}
-                    </span>
-                  </div>
-                  {/* Ganancia Real */}
-                  {(() => {
-                    const gananciaRealValue = (weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
-                          (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0))) - currentMonthTotalExpenses;
-                    const isNegative = gananciaRealValue < 0;
-
-                    return (
-                      <div className={`px-4 py-3 border-l xl:border-l-0 xl:rounded-r-xl flex flex-col justify-center shadow-inner relative overflow-hidden ${isNegative ? 'bg-red-900/40 border-red-500/30' : 'bg-emerald-900/40 border-emerald-500/30'}`}>
-                        <div className={`absolute inset-0 bg-gradient-to-r to-transparent ${isNegative ? 'from-red-500/10' : 'from-emerald-500/10'}`}></div>
-                        <div className="relative z-10">
-                          <span className={`text-[10px] lg:text-xs font-black uppercase tracking-wider mb-1 block ${isNegative ? 'text-red-300' : 'text-emerald-300'}`}>Ganancia Real</span>
-                          <span className={`font-mono font-black text-base lg:text-xl xl:text-2xl leading-none block mt-1 ${isNegative ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
-                            {formatCurrency(gananciaRealValue, state.settings)}
-                          </span>
-                          <span className={`inline-block mt-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isNegative ? 'bg-red-500/30 text-red-300 animate-pulse' : 'bg-emerald-500/30 text-emerald-300'}`}>
-                            {isNegative ? '▼ DÉFICIT' : '▲ SUPERÁVIT'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SECCIÓN INFERIOR: GRÁFICOS E INSIGHTS - High-End Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* GRÁFICO DE RENDIMIENTO */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-emerald-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                <i className="fa-solid fa-chart-line text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).operationalTrend || 'Tendencia Operativa'}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalMetrics || 'Métricas de Capital'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-[280px] w-full mt-auto bg-slate-900 rounded-md p-4 border border-slate-800 relative shadow-inner">
-            <ResponsiveContainer width="100%" height={250} minWidth={0}>
-              <BarChart data={chartData} margin={{ top: 30, right: 30, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: '#f8fafc', fontWeight: 700 }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 9, fill: '#e2e8f0', fontWeight: 600 }}
-                  tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  cursor={{ fill: '#1e293b', opacity: 0.6 }}
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
-                          <p className="text-slate-300 font-bold text-[10px] uppercase tracking-wider mb-1">{label}</p>
-                          <p className="text-emerald-400 font-mono font-black text-sm">
-                            {formatCurrency(payload[0].value, state.settings)}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="value" name={(t as any).charts?.value || 'Value'} shape={<Custom3DBar />} barSize={45}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* MÓDULO AUDITOR GENERAL PDF */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
-          <div className="flex flex-col items-center text-center space-y-3 mb-6">
-            <div className="w-14 h-14 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-rose-500/20 rotate-3">
-              <i className="fa-solid fa-file-pdf text-2xl"></i>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).pdfGenerator?.title || 'Generador PDF'}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{(t as any).pdfGenerator?.subtitle || 'Informes Auditables'}</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 flex-1 flex flex-col justify-between">
-            <div className="space-y-3 p-4 bg-slate-50 rounded-md border border-slate-100">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.fieldAuditor || 'Auditor de Campo'}</label>
-                <select
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
-                  value={auditCollector}
-                  onChange={(e) => setAuditCollector(e.target.value)}
-                >
-                  <option value="all">{(t as any).pdfGenerator?.allCollectors || 'TODOS LOS COBRADORES'}</option>
-                  {(Array.isArray(state.users) ? state.users : [])
-                    .filter(u => {
-                      if (u.role !== Role.COLLECTOR) return false;
-                      if (state.currentUser?.role === Role.COLLECTOR) return u.id === state.currentUser.id;
-                      return u.managedBy === state.currentUser?.id;
-                    })
-                    .map(u => (
-                      <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.dateRange || 'Rango de Fecha'}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
-                    value={auditStartDate}
-                    onChange={(e) => setAuditStartDate(e.target.value)}
-                  />
-                  <input
-                    type="date"
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
-                    value={auditEndDate}
-                    onChange={(e) => setAuditEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={handleGenerateAuditPDF}
-              className="w-full py-3 premium-gradient text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
-            >
-              <i className="fa-solid fa-file-export text-sm"></i>
-              {(t as any).pdfGenerator?.generalAuditBtn || 'AUDITORÍA GENERAL'}
-            </button>
-            <button
-              onClick={handleGenerateDeletedPaymentsPDF}
-              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
-            >
-              <i className="fa-solid fa-trash-can-arrow-up text-sm"></i>
-              {(t as any).pdfGenerator?.deletedAuditBtn || 'Auditoría Eliminados'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* HISTORIAL DE PAPELERA (PAGOS ELIMINADOS) */}
-      {isAdmin && (
-        <div className="bg-white rounded-md border border-rose-100 shadow-xl overflow-hidden flex flex-col transition-all mt-6">
-          <div className="p-6 border-b border-rose-50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-rose-50/50">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-md shadow-rose-500/20">
-                <i className="fa-solid fa-trash-can-arrow-up text-lg"></i>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).deletedHistory?.title || 'Historial de Eliminados'}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  {(t as any).deletedHistory?.subtitle || 'Auditoría Visual de Pagos Borrados'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
-              <div className="flex items-center gap-2 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.from || 'Desde:'}</label>
-                <input
-                  type="date"
-                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
-                  value={deletedStartDate}
-                  onChange={(e) => { setDeletedStartDate(e.target.value); setDeletedPage(1); }}
-                />
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.to || 'Hasta:'}</label>
-                <input
-                  type="date"
-                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
-                  value={deletedEndDate}
-                  onChange={(e) => { setDeletedEndDate(e.target.value); setDeletedPage(1); }}
-                />
-              </div>
-              
-              <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block shrink-0"></div>
-              
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  disabled={deletedPage === 1}
-                  onClick={() => setDeletedPage(p => p - 1)}
-                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
-                >
-                  <i className="fa-solid fa-chevron-left text-sm"></i>
-                </button>
-                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
-                  {deletedPage} / {Math.max(1, totalDeletedPages)}
-                </span>
-                <button
-                  disabled={deletedPage === totalDeletedPages || totalDeletedPages === 0}
-                  onClick={() => setDeletedPage(p => p + 1)}
-                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
-                >
-                  <i className="fa-solid fa-chevron-right text-sm"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  <th className="p-4 pl-6 whitespace-nowrap">{(t as any).deletedHistory?.table?.date || 'Fecha y Hora'}</th>
-                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.type || 'Tipo'}</th>
-                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.client || 'Cliente Afectado'}</th>
-                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.originalCollector || 'Cobrador Original'}</th>
-                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.deletedBy || 'Eliminado Por'}</th>
-                  <th className="p-4 pr-6 text-right whitespace-nowrap">{(t as any).deletedHistory?.table?.amount || 'Monto Anulado'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {paginatedDeletedLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-400 font-medium text-sm">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <i className="fa-solid fa-file-circle-check text-4xl text-slate-200"></i>
-                        <p>{(t as any).deletedHistory?.empty || 'No se encontraron pagos eliminados en este rango de fechas.'}</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedDeletedLogs.map(log => {
-                    const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-
-                    // Parse JSON notes (new format) or fallback to legacy text format
-                    let parsed: any = null;
-                    try { parsed = log.notes ? JSON.parse(log.notes) : null; } catch (_) { parsed = null; }
-
-                    let clientName: string;
-                    let collName: string;
-                    let adminName: string;
-                    let deletedType: 'PAGO_ELIMINADO' | 'CREDITO_ELIMINADO' | 'CLIENTE_ELIMINADO';
-                    let extraInfo: string | null = null;
-
-                    const trans = (t as any).deletedHistory?.types || {};
-                    const transRoles = (getTranslation(state.settings.language) as any).roles || {};
-
-                    if (parsed && parsed.tipo) {
-                      // New JSON format
-                      deletedType = parsed.tipo;
-                      clientName = parsed.clienteNombre || 'Desconocido';
-                      collName = parsed.cobradorNombre || 'Desconocido';
-                      adminName = parsed.eliminadoPorNombre || 'Administrador';
-                      
-                      const freqMap: any = { 'Diario': trans.daily || 'Diario', 'Diaria': trans.daily || 'Diaria', 'Semanal': trans.weekly || 'Semanal', 'Quincenal': trans.biweekly || 'Quincenal', 'Mensual': trans.monthly || 'Mensual' };
-                      
-                      if (parsed.tipo === 'PAGO_ELIMINADO' && parsed.fechaOriginalPago) {
-                        extraInfo = `${trans.origPayment || 'Pago orig:'} ${new Date(parsed.fechaOriginalPago).toLocaleDateString()}`;
-                      } else if (parsed.tipo === 'CREDITO_ELIMINADO') {
-                        const freqStr = freqMap[parsed.frecuencia] || parsed.frecuencia;
-                        extraInfo = `${parsed.cuotas} ${trans.quotas || 'cuotas'} · ${freqStr}`;
-                      } else if (parsed.tipo === 'CLIENTE_ELIMINADO') {
-                        extraInfo = `${parsed.creditosEliminados} ${trans.credit?.toLowerCase() || 'crédito'}s`;
-                      }
-                    } else {
-                      // Legacy format
-                      deletedType = 'PAGO_ELIMINADO';
-                      clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name || 'Desconocido';
-                      if (log.notes?.includes('[CLIENT_DELETED]')) {
-                        deletedType = 'CLIENTE_ELIMINADO';
-                        clientName = log.notes.replace('[CLIENT_DELETED] Cliente: ', '') || clientName;
-                      } else if (log.notes?.includes('[LOAN_DELETED]')) {
-                        deletedType = 'CREDITO_ELIMINADO';
-                        clientName = log.notes.replace('[LOAN_DELETED] Cliente: ', '') || clientName;
-                      }
-                      adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
-                      collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
-                    }
-
-                    if (adminName.toUpperCase() === 'ADMINISTRADOR' || adminName.toUpperCase() === 'ADMIN') adminName = transRoles.admin || 'ADMINISTRADOR';
-                    if (adminName.toUpperCase() === 'GERENTE') adminName = transRoles.manager || 'GERENTE';
-                    if (collName.toUpperCase() === 'ADMINISTRADOR' || collName.toUpperCase() === 'ADMIN') collName = transRoles.admin || 'ADMINISTRADOR';
-                    if (collName.toUpperCase() === 'GERENTE') collName = transRoles.manager || 'GERENTE';
-
-                    const typeBadge = {
-                      'PAGO_ELIMINADO':    { label: trans.payment || 'Monto Eliminado',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
-                      'CREDITO_ELIMINADO': { label: trans.credit || 'Crédito Eliminado', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-                      'CLIENTE_ELIMINADO': { label: trans.client || 'Cliente Eliminado', color: 'bg-rose-100 text-rose-700 border-rose-200' },
-                    }[deletedType];
-
-                    return (
-                      <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
-                        <td className="p-4 pl-6">
-                          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{elimDate}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${typeBadge.color}`}>
-                            {typeBadge.label}
-                          </span>
-                          {extraInfo && <span className="block mt-1 text-[10px] text-slate-400 font-medium">{extraInfo}</span>}
-                        </td>
-                        <td className="p-4">
-                          <span className="text-sm font-bold text-slate-800">{clientName.toUpperCase()}</span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                              {collName.substring(0,1).toUpperCase()}
-                            </div>
-                            <span className="text-xs font-bold text-slate-600">{collName.toUpperCase()}</span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-bold text-rose-600">
-                              {adminName.substring(0,1).toUpperCase()}
-                            </div>
-                            <span className="text-xs font-bold text-rose-600">{adminName.toUpperCase()}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 pr-6 text-right">
-                          <span className="text-sm font-bold text-rose-500 font-mono tracking-tight">
-                            {formatCurrency(log.amount || 0, state.settings)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Dashboard;
+                          <td className="px-4 py-3 text-right text-slate-700 font-bold text-[10px] uppercase border-r border-slate-50">
+                             {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
+                             {formatCurrency(order.totalAmount, state.settings)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                             <button 
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="w-8 h-8 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center mx-auto"
+                                title="Eliminar Pedido"
+                             >
+                                <i className="fa-solid fa-trash text-xs"></i>
+                             </button>
+                          </td>
+                       </tr>
+                    );
+                    })}
+                 </tbody>
+              </table>
+           </div>
+        </div>
+      )}
+
+      {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+        {[
+          { label: (t as any).totalCollected || 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: (t as any).collectedActive || 'Cobrado (Activos)', value: formatCurrency(totalPaidActiveLoans, state.settings), icon: 'fa-money-bill-wave', color: 'text-violet-500', bg: 'bg-violet-500/10' },
+          { label: (t as any).clientBalance || 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+          { label: (t as any).projectedIncome || 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: (t as any).registeredCapital || 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+          { label: (t as any).collectedToday || 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-5 rounded-md border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
+            <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+            <div className="relative z-10 flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-md ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
+                <i className={`fa-solid ${stat.icon}`}></i>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
+                <p className="text-xl font-bold text-slate-900 font-mono tracking-tight">{stat.value}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+            {/* AUDITORÍA DE RUTAS - Premium Table */}
+      {isAdmin && (
+        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
+          <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-slate-900 rounded-md flex items-center justify-center text-white shadow-md">
+                <i className="fa-solid fa-list-check text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).routeAudit || 'Auditoría de Rutas'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {(t as any).cashFlowMonitor || 'Monitoreo de Flujo de Efectivo'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+              >
+                <i className="fa-solid fa-chevron-left text-sm"></i>
+              </button>
+              <div className="flex items-center gap-1.5 px-4 border-x border-slate-100">
+                <span className="text-sm font-bold text-slate-900 uppercase">{currentPage}</span>
+                <span className="text-[10px] text-slate-400 uppercase">/ {totalPages}</span>
+              </div>
+              <button
+                disabled={currentPage === totalPages || totalPages === 0}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+              >
+                <i className="fa-solid fa-chevron-right text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto custom-scrollbar">
+            <div className="min-w-[1200px]">
+              <table className="w-full text-left border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-20">
+                    <th className="px-6 py-4 border-r border-white/5 w-1/4">{(t as any).collectorRoute || 'Cobrador / Ruta'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).collectedToday || 'Recaudo de Hoy'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).monthlyGoal || 'Meta Mensual'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">{(t as any).effectiveness || 'Efectividad'}</th>
+                    <th className="px-6 py-4 border-r border-white/5 w-[20%]">{(t as any).visitProgress || 'Progreso de Visitas'}</th>
+                    <th className="px-6 py-4 text-center w-[18%]">Clientes Act. / Mora</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {paginatedCollectors.map((stat) => (
+                    <tr key={stat.id} className="bg-white hover:bg-slate-700 hover:shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group text-sm relative z-10 hover:z-20 border-b border-slate-50">
+                      <td className="px-6 py-4 border-r border-slate-50 group-hover:border-transparent transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-700 font-black group-hover:from-indigo-500 group-hover:to-purple-500 group-hover:text-white transition-all duration-500 shadow-sm text-sm border border-white group-hover:border-transparent">
+                            {stat.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-slate-800 group-hover:text-white font-black uppercase truncate tracking-tight transition-colors">{stat.name}</p>
+                            <p className="text-[10px] text-indigo-600 group-hover:text-indigo-300 font-bold uppercase mt-0.5 opacity-80 flex items-center gap-1.5 transition-colors">
+                              <i className="fa-solid fa-users"></i> {stat.activeClients + stat.cancelledClients} Clientes
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-emerald-600 group-hover:text-emerald-400 transition-colors">
+                        {formatCurrency(stat.recaudo, state.settings)}
+                      </td>
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center font-mono font-bold text-blue-600 group-hover:text-blue-400 transition-colors">
+                        {formatCurrency(stat.monthlyGoal, state.settings)}
+                      </td>
+                      <td className="px-4 py-3 border-r border-slate-50 group-hover:border-transparent text-center transition-colors">
+                        <div className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[11px] font-bold font-mono border ${
+                          stat.financialMora > 30 ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                          stat.financialMora > 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                          'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        }`}>
+                          {Math.round(stat.financialMora)}%
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 border-r border-slate-50 group-hover:border-transparent transition-colors">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-300 transition-colors">
+                             <span>{(t as any).performance || 'Rendimiento'}</span>
+                             <span>{stat.visitados} / {stat.clientes}</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200/50 group-hover:border-slate-800 shadow-inner transition-colors">
+                            <div
+                              className={`h-full rounded-full transition-all duration-1000 shadow-sm bg-gradient-to-r ${stat.isCompleted ? 'from-emerald-400 to-emerald-500 shadow-emerald-500/20' : 'from-indigo-400 to-blue-500 shadow-blue-500/20'}`}
+                              style={{ width: `${Math.max(5, stat.routeCompletion)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <p className="text-[11px] font-black uppercase flex items-center justify-center gap-1.5">
+                          <span className="text-emerald-600 group-hover:text-emerald-400 transition-colors">{stat.activeClients} Act.</span>
+                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
+                          <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span>
+                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
+                          <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span>
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESUMEN SEMANAL DOM-SÁB */}
+      {isAdmin && (
+        <div className="bg-white rounded-md border border-slate-100 shadow-xl overflow-hidden w-fit">
+          {/* Header */}
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-md flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <i className="fa-solid fa-table-cells text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Resumen Semanal</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                  Domingo a Sábado · Últimas 5 Semanas
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100">
+              <i className="fa-solid fa-calendar-week"></i>
+              <span>{weeklyData.days[0]?.dateStr} – {weeklyData.days[6]?.dateStr}</span>
+            </div>
+          </div>
+
+          {/* Contenido: Tabla + Gráfico en un solo bloque vertical */}
+          <div className="p-5 space-y-5">
+            {/* Grid de 6 cuadros (5 semanas + Último Registro) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch pb-2">
+              {/* Tabla de Cobros de Hoy y Ayer (Ahora en el 1er cuadro de la grilla) */}
+              <div className="border border-slate-100 rounded-md shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
+                <div className="overflow-x-auto flex-1 h-full">
+                  <table className="w-full text-sm border-collapse h-full">
+                    <thead>
+                      <tr style={{background: '#1e293b'}}>
+                        <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
+                          ⚡ Último Registro (Hoy y Ayer)
+                        </th>
+                      </tr>
+                      <tr>
+                        <th style={{background:'#475569'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Cobrador</th>
+                        <th style={{background:'#d97706'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Ganancia (5 Sem)</th>
+                        <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10 w-28">Último Hoy</th>
+                        <th style={{background:'#ea580c'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right w-28">Último Ayer</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {collectorRecentPayments.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                            Sin registros de cobro hoy ni ayer
+                          </td>
+                        </tr>
+                      ) : (
+                        collectorRecentPayments.map((item) => (
+                          <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-700 group transition-colors">
+                            <td className="px-3 py-2 font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-slate-700 group-hover:text-white transition-colors">
+                              {item.name}
+                            </td>
+                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent bg-amber-50/30 group-hover:bg-amber-900/30 transition-colors">
+                              <span className={`font-mono font-black text-xs transition-colors leading-tight block ${
+                                (item.ganancia4Sem || 0) < 0 
+                                  ? 'text-rose-600 group-hover:text-rose-400' 
+                                  : 'text-amber-600 group-hover:text-amber-400'
+                              }`}>
+                                {formatCurrency(item.ganancia4Sem || 0, state.settings)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right border-r border-slate-100 group-hover:border-transparent transition-colors">
+                              {item.todayAmount !== null ? (
+                                <div className="flex flex-col items-end">
+                                  <span className={`font-mono font-bold text-xs transition-colors leading-tight ${item.todayIsVirtual ? 'text-blue-600 group-hover:text-blue-400' : 'text-emerald-600 group-hover:text-emerald-400'}`}>{formatCurrency(item.todayAmount || 0, state.settings)}</span>
+                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.todayClient}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
+                                    {item.todayTimeStr}
+                                    {item.todayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
+                                  </span>
+                                </div>
+                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {item.yesterdayAmount !== null ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="font-mono font-bold text-xs text-orange-600 group-hover:text-orange-400 transition-colors leading-tight">{formatCurrency(item.yesterdayAmount || 0, state.settings)}</span>
+                                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors font-bold max-w-[120px] truncate leading-tight">{item.yesterdayClient}</span>
+                                  <span className="text-[11px] text-black group-hover:text-white transition-colors font-black mt-0.5 leading-none flex items-center gap-1 justify-end">
+                                    {item.yesterdayTimeStr}
+                                    {item.yesterdayIsVirtual ? <span className="text-blue-500 font-bold tracking-tighter">(Transf)</span> : <span className="text-emerald-500 font-bold tracking-tighter">(Efec)</span>}
+                                  </span>
+                                </div>
+                              ) : <span className="text-xs text-slate-300 group-hover:text-slate-600 font-bold">—</span>}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {weeklyData.weeks.map((week, wi) => (
+                <div key={wi} className="border border-slate-100 rounded-md overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
+                  <div className="overflow-x-auto flex-1 h-full">
+                    <table className="w-full text-sm border-collapse h-full">
+                      <thead>
+                        <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
+                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left relative">
+                            <div className="flex items-center">
+                              <div>
+                                {week.label}
+                                <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
+                              </div>
+                              <div className="absolute left-1/2 -translate-x-1/2 opacity-90 text-[11px] font-bold tracking-[0.2em]">
+                                {week.monthName}
+                              </div>
+                            </div>
+                          </th>
+                        </tr>
+                        <tr>
+                          <th style={{background:'#1e293b'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Día</th>
+                          <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10">💰 Recaudo</th>
+                          <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right border-r border-white/10 w-14">🔄 Renov.</th>
+                          <th style={{background:'#7c3aed'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right w-14">👤 Cli.N</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {week.days.map((d, i) => (
+                          <tr key={i} className={`border-b border-slate-100 transition-colors ${
+                            d.isFuture ? 'opacity-40' : d.isToday ? 'bg-amber-50 group hover:bg-slate-700' : 'group hover:bg-slate-700'
+                          }`}>
+                            <td className="px-3 py-1.5 font-bold text-xs border-r border-slate-100 group-hover:border-transparent transition-colors">
+                              <div className="flex items-center gap-2">
+                                {d.isToday && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
+                                <span className={d.isToday ? 'text-amber-700 group-hover:text-amber-300 transition-colors' : 'text-slate-700 group-hover:text-white transition-colors'}>{d.day}</span>
+                                <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-300 transition-colors">{d.dateStr}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-emerald-600 group-hover:text-emerald-400 transition-colors">
+                              {d.isFuture ? '—' : formatCurrency(d.recaudo, state.settings)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-blue-600 group-hover:text-blue-400 transition-colors">
+                              {d.isFuture ? '—' : d.renovaciones}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs text-violet-600 group-hover:text-violet-400 transition-colors">
+                              {d.isFuture ? '—' : d.clientesNuevos}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Subtotal por semana */}
+                        <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
+                          <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
+                          <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
+                          <td className="px-2 py-2 text-right border-r border-slate-200">
+                             <div className="flex flex-col items-end leading-tight gap-0.5">
+                               <span className="text-xs font-bold text-blue-800/70">{week.totalRenovaciones}</span>
+                               <span className="font-mono font-black text-xs sm:text-[13px] text-blue-700 tracking-tight">{formatCurrency(week.totalMontoRenovaciones, state.settings)}</span>
+                             </div>
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                             <div className="flex flex-col items-end leading-tight gap-0.5">
+                               <span className="text-xs font-bold text-violet-800/70">{week.totalClientesNuevos}</span>
+                               <span className="font-mono font-black text-xs sm:text-[13px] text-violet-700 tracking-tight">{formatCurrency(week.totalMontoNuevos, state.settings)}</span>
+                             </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total global 5 semanas */}
+            <div className="bg-slate-900 text-white rounded-md p-4 md:p-5 w-full shadow-inner overflow-hidden border border-slate-700/50 mt-2">
+              <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-6 h-full">
+                <span className="font-black text-sm lg:text-base uppercase tracking-widest px-2 whitespace-nowrap text-slate-300">TOTAL 5 SEM.</span>
+                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-0 border-t xl:border-t-0 xl:border-l border-white/20 pt-4 xl:pt-0 w-full">
+                  {/* Recaudo */}
+                  <div className="px-4 py-2 border-b md:border-b-0 border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Recaudo</span>
+                    <span className="font-mono font-bold text-emerald-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesCobrados, 0)} clientes</span>
+                  </div>
+                  {/* Monto Renovac. */}
+                  <div className="px-4 py-2 border-b md:border-b-0 border-r xl:border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Renovac.</span>
+                    <span className="font-mono font-bold text-blue-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalRenovaciones, 0)} renovaciones</span>
+                  </div>
+                  {/* Monto Nuevos */}
+                  <div className="px-4 py-2 border-b xl:border-b-0 border-r md:border-r-0 xl:border-r border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Monto Nuevos</span>
+                    <span className="font-mono font-bold text-violet-400 text-sm lg:text-lg xl:text-xl leading-none">{formatCurrency(weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0), state.settings)}</span>
+                    <span className="text-[10px] lg:text-xs text-slate-500 font-bold mt-1">{weeklyData.weeks.reduce((a,w) => a + w.totalClientesNuevos, 0)} clientes</span>
+                  </div>
+                  {/* Ganancia Neta */}
+                  <div className="px-4 py-2 border-r xl:border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Ganancia Neta</span>
+                    <span className="font-mono font-black text-amber-400 text-base lg:text-xl xl:text-2xl leading-none">
+                      {formatCurrency(
+                        weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
+                        (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0)), 
+                        state.settings
+                      )}
+                    </span>
+                  </div>
+                  {/* Total General (Gastos + Nómina) */}
+                  <div className="px-4 py-2 border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Total General</span>
+                    <span className="font-mono font-black text-rose-400 text-base lg:text-xl xl:text-2xl leading-none">
+                      {formatCurrency(currentMonthTotalExpenses, state.settings)}
+                    </span>
+                  </div>
+                  {/* Ganancia Real */}
+                  {(() => {
+                    const gananciaRealValue = (weeklyData.weeks.reduce((a,w) => a + w.totalRecaudo, 0) - 
+                          (weeklyData.weeks.reduce((a,w) => a + w.totalMontoRenovaciones, 0) + weeklyData.weeks.reduce((a,w) => a + w.totalMontoNuevos, 0))) - currentMonthTotalExpenses;
+                    const isNegative = gananciaRealValue < 0;
+
+                    return (
+                      <div className={`px-4 py-3 border-l xl:border-l-0 xl:rounded-r-xl flex flex-col justify-center shadow-inner relative overflow-hidden ${isNegative ? 'bg-red-900/40 border-red-500/30' : 'bg-emerald-900/40 border-emerald-500/30'}`}>
+                        <div className={`absolute inset-0 bg-gradient-to-r to-transparent ${isNegative ? 'from-red-500/10' : 'from-emerald-500/10'}`}></div>
+                        <div className="relative z-10">
+                          <span className={`text-[10px] lg:text-xs font-black uppercase tracking-wider mb-1 block ${isNegative ? 'text-red-300' : 'text-emerald-300'}`}>Ganancia Real</span>
+                          <span className={`font-mono font-black text-base lg:text-xl xl:text-2xl leading-none block mt-1 ${isNegative ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                            {formatCurrency(gananciaRealValue, state.settings)}
+                          </span>
+                          <span className={`inline-block mt-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isNegative ? 'bg-red-500/30 text-red-300 animate-pulse' : 'bg-emerald-500/30 text-emerald-300'}`}>
+                            {isNegative ? '▼ DÉFICIT' : '▲ SUPERÁVIT'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECCIÓN INFERIOR: GRÁFICOS E INSIGHTS - High-End Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* GRÁFICO DE RENDIMIENTO */}
+        <div className="lg:col-span-8 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-emerald-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                <i className="fa-solid fa-chart-line text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).operationalTrend || 'Tendencia Operativa'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalMetrics || 'Métricas de Capital'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[280px] w-full mt-auto bg-slate-900 rounded-md p-4 border border-slate-800 relative shadow-inner">
+            <ResponsiveContainer width="100%" height={250} minWidth={0}>
+              <BarChart data={chartData} margin={{ top: 30, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: '#f8fafc', fontWeight: 700 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 9, fill: '#e2e8f0', fontWeight: 600 }}
+                  tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  cursor={{ fill: '#1e293b', opacity: 0.6 }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
+                          <p className="text-slate-300 font-bold text-[10px] uppercase tracking-wider mb-1">{label}</p>
+                          <p className="text-emerald-400 font-mono font-black text-sm">
+                            {formatCurrency(payload[0].value, state.settings)}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="value" name={(t as any).charts?.value || 'Value'} shape={<Custom3DBar />} barSize={45}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* MÓDULO AUDITOR GENERAL PDF */}
+        <div className="lg:col-span-4 bg-white p-6 rounded-md border border-slate-100 shadow-xl flex flex-col transition-all">
+          <div className="flex flex-col items-center text-center space-y-3 mb-6">
+            <div className="w-14 h-14 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-lg shadow-rose-500/20 rotate-3">
+              <i className="fa-solid fa-file-pdf text-2xl"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).pdfGenerator?.title || 'Generador PDF'}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{(t as any).pdfGenerator?.subtitle || 'Informes Auditables'}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 flex-1 flex flex-col justify-between">
+            <div className="space-y-3 p-4 bg-slate-50 rounded-md border border-slate-100">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.fieldAuditor || 'Auditor de Campo'}</label>
+                <select
+                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
+                  value={auditCollector}
+                  onChange={(e) => setAuditCollector(e.target.value)}
+                >
+                  <option value="all">{(t as any).pdfGenerator?.allCollectors || 'TODOS LOS COBRADORES'}</option>
+                  {(Array.isArray(state.users) ? state.users : [])
+                    .filter(u => {
+                      if (u.role !== Role.COLLECTOR) return false;
+                      if (state.currentUser?.role === Role.COLLECTOR) return u.id === state.currentUser.id;
+                      return u.managedBy === state.currentUser?.id;
+                    })
+                    .map(u => (
+                      <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.dateRange || 'Rango de Fecha'}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    value={auditStartDate}
+                    onChange={(e) => setAuditStartDate(e.target.value)}
+                  />
+                  <input
+                    type="date"
+                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-700 shadow-sm leading-none"
+                    value={auditEndDate}
+                    onChange={(e) => setAuditEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGenerateAuditPDF}
+              className="w-full py-3 premium-gradient text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
+            >
+              <i className="fa-solid fa-file-export text-sm"></i>
+              {(t as any).pdfGenerator?.generalAuditBtn || 'AUDITORÍA GENERAL'}
+            </button>
+            <button
+              onClick={handleGenerateDeletedPaymentsPDF}
+              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-md text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              <i className="fa-solid fa-trash-can-arrow-up text-sm"></i>
+              {(t as any).pdfGenerator?.deletedAuditBtn || 'Auditoría Eliminados'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* HISTORIAL DE PAPELERA (PAGOS ELIMINADOS) */}
+      {isAdmin && (
+        <div className="bg-white rounded-md border border-rose-100 shadow-xl overflow-hidden flex flex-col transition-all mt-6">
+          <div className="p-6 border-b border-rose-50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-rose-50/50">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-rose-500 rounded-md flex items-center justify-center text-white shadow-md shadow-rose-500/20">
+                <i className="fa-solid fa-trash-can-arrow-up text-lg"></i>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).deletedHistory?.title || 'Historial de Eliminados'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                  {(t as any).deletedHistory?.subtitle || 'Auditoría Visual de Pagos Borrados'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.from || 'Desde:'}</label>
+                <input
+                  type="date"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
+                  value={deletedStartDate}
+                  onChange={(e) => { setDeletedStartDate(e.target.value); setDeletedPage(1); }}
+                />
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.to || 'Hasta:'}</label>
+                <input
+                  type="date"
+                  className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-700 focus:outline-none"
+                  value={deletedEndDate}
+                  onChange={(e) => { setDeletedEndDate(e.target.value); setDeletedPage(1); }}
+                />
+              </div>
+              
+              <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block shrink-0"></div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  disabled={deletedPage === 1}
+                  onClick={() => setDeletedPage(p => p - 1)}
+                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                >
+                  <i className="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
+                  {deletedPage} / {Math.max(1, totalDeletedPages)}
+                </span>
+                <button
+                  disabled={deletedPage === totalDeletedPages || totalDeletedPages === 0}
+                  onClick={() => setDeletedPage(p => p + 1)}
+                  className="w-8 h-8 rounded-md hover:bg-slate-50 flex items-center justify-center text-slate-400 disabled:opacity-20 transition-all border border-transparent"
+                >
+                  <i className="fa-solid fa-chevron-right text-sm"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  <th className="p-4 pl-6 whitespace-nowrap">{(t as any).deletedHistory?.table?.date || 'Fecha y Hora'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.type || 'Tipo'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.client || 'Cliente Afectado'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.originalCollector || 'Cobrador Original'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.deletedBy || 'Eliminado Por'}</th>
+                  <th className="p-4 pr-6 text-right whitespace-nowrap">{(t as any).deletedHistory?.table?.amount || 'Monto Anulado'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {paginatedDeletedLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-400 font-medium text-sm">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <i className="fa-solid fa-file-circle-check text-4xl text-slate-200"></i>
+                        <p>{(t as any).deletedHistory?.empty || 'No se encontraron pagos eliminados en este rango de fechas.'}</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedDeletedLogs.map(log => {
+                    const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+
+                    // Parse JSON notes (new format) or fallback to legacy text format
+                    let parsed: any = null;
+                    try { parsed = log.notes ? JSON.parse(log.notes) : null; } catch (_) { parsed = null; }
+
+                    let clientName: string;
+                    let collName: string;
+                    let adminName: string;
+                    let deletedType: 'PAGO_ELIMINADO' | 'CREDITO_ELIMINADO' | 'CLIENTE_ELIMINADO';
+                    let extraInfo: string | null = null;
+
+                    const trans = (t as any).deletedHistory?.types || {};
+                    const transRoles = (getTranslation(state.settings.language) as any).roles || {};
+
+                    if (parsed && parsed.tipo) {
+                      // New JSON format
+                      deletedType = parsed.tipo;
+                      clientName = parsed.clienteNombre || 'Desconocido';
+                      collName = parsed.cobradorNombre || 'Desconocido';
+                      adminName = parsed.eliminadoPorNombre || 'Administrador';
+                      
+                      const freqMap: any = { 'Diario': trans.daily || 'Diario', 'Diaria': trans.daily || 'Diaria', 'Semanal': trans.weekly || 'Semanal', 'Quincenal': trans.biweekly || 'Quincenal', 'Mensual': trans.monthly || 'Mensual' };
+                      
+                      if (parsed.tipo === 'PAGO_ELIMINADO' && parsed.fechaOriginalPago) {
+                        extraInfo = `${trans.origPayment || 'Pago orig:'} ${new Date(parsed.fechaOriginalPago).toLocaleDateString()}`;
+                      } else if (parsed.tipo === 'CREDITO_ELIMINADO') {
+                        const freqStr = freqMap[parsed.frecuencia] || parsed.frecuencia;
+                        extraInfo = `${parsed.cuotas} ${trans.quotas || 'cuotas'} · ${freqStr}`;
+                      } else if (parsed.tipo === 'CLIENTE_ELIMINADO') {
+                        extraInfo = `${parsed.creditosEliminados} ${trans.credit?.toLowerCase() || 'crédito'}s`;
+                      }
+                    } else {
+                      // Legacy format
+                      deletedType = 'PAGO_ELIMINADO';
+                      clientName = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId)?.name || 'Desconocido';
+                      if (log.notes?.includes('[CLIENT_DELETED]')) {
+                        deletedType = 'CLIENTE_ELIMINADO';
+                        clientName = log.notes.replace('[CLIENT_DELETED] Cliente: ', '') || clientName;
+                      } else if (log.notes?.includes('[LOAN_DELETED]')) {
+                        deletedType = 'CREDITO_ELIMINADO';
+                        clientName = log.notes.replace('[LOAN_DELETED] Cliente: ', '') || clientName;
+                      }
+                      adminName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.recordedBy)?.name || 'Admin';
+                      collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
+                    }
+
+                    if (adminName.toUpperCase() === 'ADMINISTRADOR' || adminName.toUpperCase() === 'ADMIN') adminName = transRoles.admin || 'ADMINISTRADOR';
+                    if (adminName.toUpperCase() === 'GERENTE') adminName = transRoles.manager || 'GERENTE';
+                    if (collName.toUpperCase() === 'ADMINISTRADOR' || collName.toUpperCase() === 'ADMIN') collName = transRoles.admin || 'ADMINISTRADOR';
+                    if (collName.toUpperCase() === 'GERENTE') collName = transRoles.manager || 'GERENTE';
+
+                    const typeBadge = {
+                      'PAGO_ELIMINADO':    { label: trans.payment || 'Monto Eliminado',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
+                      'CREDITO_ELIMINADO': { label: trans.credit || 'Crédito Eliminado', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                      'CLIENTE_ELIMINADO': { label: trans.client || 'Cliente Eliminado', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+                    }[deletedType];
+
+                    return (
+                      <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
+                        <td className="p-4 pl-6">
+                          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{elimDate}</span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${typeBadge.color}`}>
+                            {typeBadge.label}
+                          </span>
+                          {extraInfo && <span className="block mt-1 text-[10px] text-slate-400 font-medium">{extraInfo}</span>}
+                        </td>
+                        <td className="p-4">
+                          <span className="text-sm font-bold text-slate-800">{clientName.toUpperCase()}</span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                              {collName.substring(0,1).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-600">{collName.toUpperCase()}</span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[10px] font-bold text-rose-600">
+                              {adminName.substring(0,1).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-rose-600">{adminName.toUpperCase()}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 pr-6 text-right">
+                          <span className="text-sm font-bold text-rose-500 font-mono tracking-tight">
+                            {formatCurrency(log.amount || 0, state.settings)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
