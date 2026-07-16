@@ -305,7 +305,7 @@ const App: React.FC = () => {
               >
                 <i className="fa-solid fa-power-off"></i> CERRAR SESIÓN
               </button>
-              <MobileOrdersWidget state={state} onCloseMenu={() => setIsMobileMenuOpen(false)} />
+              <MobileOrdersWidget state={filteredState} onCloseMenu={() => setIsMobileMenuOpen(false)} />
             </div>
           )}
         </header>
