@@ -112,7 +112,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
 
                {/* Table Content (Excel Style) */}
                <div className="flex-1 overflow-auto rounded-xl border border-slate-800/80 bg-slate-950/40 custom-scrollbar mb-2">
-                  <table className="w-full text-left border-collapse text-[10px]">
+                  <table className="w-full text-left border-collapse text-xs">
                      <thead>
                         <tr className="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
                            <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Cliente</th>
@@ -127,14 +127,19 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                      <tbody className="divide-y divide-slate-850 text-slate-200">
                         {orders.map((order, idx) => (
                            <tr key={order.id} className={`${idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-slate-950/20'} hover:bg-slate-900/60 transition-colors`}>
-                              <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[110px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
-                              <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">
-                                 {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt, state.settings?.country || 'PY')}` : '---'}
+                              <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[130px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
+                              <td className="px-2.5 py-2 border-r border-slate-855">
+                                 {order.createdAt ? (
+                                    <div className="flex flex-col items-start leading-none text-xs">
+                                       <span className="whitespace-nowrap text-slate-200">{formatDate(order.createdAt)}</span>
+                                       <span className="whitespace-nowrap text-[10px] text-emerald-400 mt-1 font-medium">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
+                                    </div>
+                                 ) : '---'}
                               </td>
-                              <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
+                              <td className="px-2.5 py-2 text-[11px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
                               <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
                               <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-blue-400 whitespace-nowrap">{formatCurrency(order.installmentValue, state.settings)}</td>
-                              <td className="px-2.5 py-2 text-center uppercase text-[9px] border-r border-slate-855 whitespace-nowrap">
+                              <td className="px-2.5 py-2 text-center uppercase text-[11px] border-r border-slate-855 whitespace-nowrap">
                                  {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
                               </td>
                               {isPowerUser && (

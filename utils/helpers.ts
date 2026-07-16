@@ -244,7 +244,19 @@ export const formatFullDateTime = (country: string = 'CO'): string => {
 
 export const formatLocalDate = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}, language: string = 'es'): string => {
   if (!date) return '---';
-  const d = typeof date === 'string' ? new Date(date) : date;
+  let d: Date;
+  if (typeof date === 'string') {
+    let formatted = date.trim();
+    if (formatted.includes(' ') && !formatted.includes('T')) {
+      formatted = formatted.replace(' ', 'T');
+    }
+    if (!formatted.endsWith('Z') && !formatted.includes('+')) {
+      formatted = formatted + 'Z';
+    }
+    d = new Date(formatted);
+  } else {
+    d = date;
+  }
   if (isNaN(d.getTime())) return '---';
   
   const defaultOptions: Intl.DateTimeFormatOptions = {
@@ -261,14 +273,26 @@ export const formatLocalDate = (date: Date | string | null | undefined, country:
 
 export const formatLocalTime = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
   if (!date) return '---';
-  const d = typeof date === 'string' ? new Date(date) : date;
+  let d: Date;
+  if (typeof date === 'string') {
+    let formatted = date.trim();
+    if (formatted.includes(' ') && !formatted.includes('T')) {
+      formatted = formatted.replace(' ', 'T');
+    }
+    if (!formatted.endsWith('Z') && !formatted.includes('+')) {
+      formatted = formatted + 'Z';
+    }
+    d = new Date(formatted);
+  } else {
+    d = date;
+  }
   if (isNaN(d.getTime())) return '---';
   
   const defaultOptions: Intl.DateTimeFormatOptions = {
     timeZone: getTimeZoneForCountry(country),
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hour12: false,
     ...options
   };
   
