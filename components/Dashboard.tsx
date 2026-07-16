@@ -123,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     try {
       const d = new Date(createdAt);
       if (isNaN(d.getTime())) return '---';
-      return `${formatDate(createdAt)} ${formatLocalTime(createdAt)}`;
+      return `${formatDate(createdAt)} ${formatLocalTime(createdAt, state.settings?.country || 'PY')}`;
     } catch (e) {
       return '---';
     }

@@ -129,7 +129,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                            <tr key={order.id} className={`${idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-slate-950/20'} hover:bg-slate-900/60 transition-colors`}>
                               <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[110px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
                               <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">
-                                 {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt)}` : '---'}
+                                 {order.createdAt ? `${formatDate(order.createdAt)} ${formatLocalTime(order.createdAt, state.settings?.country || 'PY')}` : '---'}
                               </td>
                               <td className="px-2.5 py-2 text-[9px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
                               <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
