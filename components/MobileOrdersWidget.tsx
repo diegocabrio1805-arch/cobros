@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { addToSyncQueue } from '../utils/syncQueue';
 import { AppState, SimulatedOrder, LoanStatus, Role } from '../types';
-import { formatCurrency, formatDate, formatLocalTime } from '../utils/helpers';
+import { formatCurrency, formatDate, formatLocalTime, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 
 interface MobileOrdersWidgetProps {
@@ -14,6 +14,20 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isPowerUser = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
+
+  const getClientBalance = (clientId: string) => {
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+      l => (l.clientId || (l as any).client_id) === clientId && 
+           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    );
+    if (clientLoans.length === 0) return 0;
+    let totalBalance = 0;
+    for (const loan of clientLoans) {
+      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
+      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+    }
+    return totalBalance;
+  };
 
   const loadOrders = () => {
     const cloudOrders = state.simulatedOrders || [];
@@ -66,7 +80,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
       {/* TRIGGER BUTTON (COMPACT AND PREMIUM) */}
       <button 
          onClick={() => setIsExpanded(true)}
-         className="w-full bg-slate-800/80 hover:bg-slate-800 text-white rounded-2xl border border-slate-700/50 p-4 flex items-center justify-between shadow-md transition-all active:scale-98"
+         className="w-full bg-[#0055a5] hover:bg-[#004485] text-white rounded-2xl border border-[#004485]/50 p-4 flex items-center justify-between shadow-lg transition-all active:scale-98"
       >
          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -119,41 +133,63 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                            <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Registro</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 whitespace-nowrap">Entrega</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Monto</th>
+                           <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Saldo</th>
+                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Efec a Entregar</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Cuota</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-center whitespace-nowrap">Frecuencia</th>
                            {isPowerUser && <th className="px-2.5 py-2 text-center whitespace-nowrap">Acción</th>}
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-850 text-slate-200">
-                        {orders.map((order, idx) => (
-                           <tr key={order.id} className={`${idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-slate-950/20'} hover:bg-slate-900/60 transition-colors`}>
-                              <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[130px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
-                              <td className="px-2.5 py-2 border-r border-slate-855">
-                                 {order.createdAt ? (
-                                    <div className="flex flex-col items-start leading-none text-xs">
-                                       <span className="whitespace-nowrap text-slate-200">{formatDate(order.createdAt)}</span>
-                                       <span className="whitespace-nowrap text-[10px] text-emerald-400 mt-1 font-medium">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
-                                    </div>
-                                 ) : '---'}
-                              </td>
-                              <td className="px-2.5 py-2 text-[11px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
-                              <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
-                              <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-blue-400 whitespace-nowrap">{formatCurrency(order.installmentValue, state.settings)}</td>
-                              <td className="px-2.5 py-2 text-center uppercase text-[11px] border-r border-slate-855 whitespace-nowrap">
-                                 {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
-                              </td>
-                              {isPowerUser && (
-                                 <td className="px-2.5 py-2 text-center whitespace-nowrap">
-                                    <button 
-                                       onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
-                                       className="w-5 h-5 rounded bg-rose-950/50 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition-colors mx-auto"
-                                    >
-                                       <i className="fa-solid fa-trash text-[9px]"></i>
-                                    </button>
+                        {orders.map((order, idx) => {
+                           const balance = getClientBalance(order.clientId);
+                           return (
+                              <tr key={order.id} className={`${idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-slate-950/20'} hover:bg-slate-900/60 transition-colors`}>
+                                 <td className="px-2.5 py-2 font-bold uppercase truncate max-w-[130px] border-r border-slate-855 whitespace-nowrap">{order.clientName}</td>
+                                 <td className="px-2.5 py-2 border-r border-slate-855">
+                                    {order.createdAt ? (
+                                       <div className="flex flex-col items-start leading-none text-xs">
+                                          <span className="whitespace-nowrap text-slate-200">{formatDate(order.createdAt)}</span>
+                                          <span className="whitespace-nowrap text-[10px] text-emerald-400 mt-1 font-medium">{formatLocalTime(order.createdAt, state.settings?.country || 'PY')}</span>
+                                       </div>
+                                    ) : '---'}
                                  </td>
-                              )}
-                           </tr>
-                        ))}
+                                 <td className="px-2.5 py-2 text-[11px] border-r border-slate-855 whitespace-nowrap">{formatDate(order.simulationDate)}</td>
+                                 <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-slate-300 whitespace-nowrap">{formatCurrency(order.principal, state.settings)}</td>
+                                 <td className={`px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 whitespace-nowrap ${balance > 0 ? 'text-amber-500 font-black' : 'text-slate-400'}`}>
+                                    {formatCurrency(balance, state.settings)}
+                                 </td>
+
+                                 <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 whitespace-nowrap">
+
+                                    {order.principal - balance < 0 ? (
+
+                                       <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
+
+                                    ) : (
+
+                                       <span className="text-slate-300">{formatCurrency(order.principal - balance, state.settings)}</span>
+
+                                    )}
+
+                                 </td>
+                                 <td className="px-2.5 py-2 font-mono font-bold text-right border-r border-slate-855 text-blue-400 whitespace-nowrap">{formatCurrency(order.installmentValue, state.settings)}</td>
+                                 <td className="px-2.5 py-2 text-center uppercase text-[11px] border-r border-slate-855 whitespace-nowrap">
+                                    {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
+                                 </td>
+                                 {isPowerUser && (
+                                    <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                                       <button 
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                                          className="w-5 h-5 rounded bg-rose-950/50 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition-colors mx-auto"
+                                       >
+                                          <i className="fa-solid fa-trash text-[9px]"></i>
+                                       </button>
+                                    </td>
+                                 )}
+                              </tr>
+                           );
+                        })}
                      </tbody>
                   </table>
                </div>

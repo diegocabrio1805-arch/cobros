@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Frequency, AppSettings, AppState, Role, SimulatedOrder, LoanStatus } from '../types';
-import { calculateTotalReturn, generateAmortizationTable, formatCurrency, formatDate, getLocalDateStringForCountry } from '../utils/helpers';
+import { calculateTotalReturn, generateAmortizationTable, formatCurrency, formatDate, getLocalDateStringForCountry, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { v4 as uuidv4 } from 'uuid';
 import { addToSyncQueue } from '../utils/syncQueue';
@@ -22,6 +22,26 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
    const [showClientDropdown, setShowClientDropdown] = useState(false);
 
    const dropdownRef = useRef<HTMLDivElement>(null);
+
+   const selectedClient = useMemo(() => {
+      if (!selectedClientId || !state) return null;
+      return (state.clients || []).find(c => c.id === selectedClientId) || null;
+   }, [selectedClientId, state]);
+
+   const selectedClientBalance = useMemo(() => {
+      if (!selectedClient || !state) return 0;
+      const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+         l => (l.clientId || (l as any).client_id) === selectedClient.id && 
+              (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+      );
+      if (clientLoans.length === 0) return 0;
+      let totalBalance = 0;
+      for (const loan of clientLoans) {
+         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
+         totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+      }
+      return totalBalance;
+   }, [selectedClient, state]);
 
    const trans = getTranslation(settings?.language || 'es');
    const t = trans.simulator;
@@ -185,6 +205,20 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                            </div>
                         )}
                      </div>
+
+                     {selectedClientId && (
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-none flex justify-between items-center animate-fadeIn">
+                           <div>
+                              <span className="block text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo del Cliente</span>
+                              <span className="text-sm md:text-base font-black text-slate-700 font-mono">
+                                 {formatCurrency(selectedClientBalance, settings)}
+                              </span>
+                           </div>
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedClientBalance > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                              <i className={`fa-solid ${selectedClientBalance > 0 ? 'fa-hand-holding-dollar' : 'fa-circle-check'}`}></i>
+                           </div>
+                        </div>
+                     )}
 
                      {/* Fecha */}
                      <div className="space-y-1.5">
