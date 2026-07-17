@@ -72,7 +72,7 @@ const App: React.FC = () => {
     recalculateLoanStatus, deleteLoan: deleteLoanAction, addCollectionAttempt, 
     deleteCollectionLog, updateCollectionLog, addBulkData, updateCollectionLogNotes, 
     addExpense, removeExpense, updateExpense, addIsolatedExpenseAction, removeIsolatedExpenseAction, updateInitialCapital, updateCommissionBrackets, 
-    handleSyncUser, deleteRemoteClientAction, renewLoan 
+    handleSyncUser, deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors 
   } = actions;
 
   // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real.
@@ -105,6 +105,20 @@ const App: React.FC = () => {
     validateSession();
     return () => { cancelled = true; };
   }, [state.currentUser?.id, handleLogout, isInitializing]);
+
+  // AUTO-PURGE EXPIRED COLLECTORS (20 DAYS)
+  useEffect(() => {
+    if (isInitializing || !state.currentUser || state.currentUser.role !== Role.ADMIN) return;
+    
+    const runPurge = async () => {
+      // Retrasar la ejecución para no bloquear el inicio de sesión
+      await new Promise(r => setTimeout(r, 10000));
+      if (navigator.onLine) {
+         await checkAndPurgeExpiredCollectors();
+      }
+    };
+    runPurge();
+  }, [state.currentUser?.id, isInitializing]);
 
 
   const hasAttemptedInitialSyncRef = useRef(false);

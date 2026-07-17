@@ -321,6 +321,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   } | null>(null);
   const [importSummary, setImportSummary] = useState<{ success: number, failed: number } | null>(null);
   const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos' | 'finalizados'>('cartera');
+  const [checkedHiddenClients, setCheckedHiddenClients] = useState<Record<string, boolean>>({});
+  const [reassignCollectorId, setReassignCollectorId] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
   const [selectedCollector, setSelectedCollector] = useState<string>('all');
@@ -2460,6 +2462,41 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            {viewMode === 'ocultos' && isAdminOrManager && Object.keys(checkedHiddenClients).some(k => checkedHiddenClients[k]) && (
+              <div className="bg-emerald-50 px-3 py-1.5 rounded-md border border-emerald-200 flex items-center gap-2 shadow-sm animate-fade-in">
+                <select
+                  value={reassignCollectorId}
+                  className="bg-transparent border-none outline-none text-[9px] font-black text-emerald-800 uppercase cursor-pointer"
+                  onChange={(e) => setReassignCollectorId(e.target.value)}
+                >
+                  <option value="">SELECCIONAR COBRADOR...</option>
+                  {Array.isArray(collectors) && collectors.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {reassignCollectorId && (
+                  <button 
+                    onClick={() => {
+                      if (confirm(`¿Confirmas reasignar y reactivar estos clientes al cobrador seleccionado?`)) {
+                        const clientIdsToReassign = Object.keys(checkedHiddenClients).filter(id => checkedHiddenClients[id]);
+                        clientIdsToReassign.forEach(clientId => {
+                          const client = state.clients.find(c => c.id === clientId);
+                          if (client) updateClient({ ...client, addedBy: reassignCollectorId, branchId: reassignCollectorId, isActive: true }); 
+                          const activeLoan = state.loans.find(l => (l.clientId || (l as any).client_id) === clientId && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+                          if (activeLoan) updateLoan({ ...activeLoan, collectorId: reassignCollectorId });
+                        });
+                        setCheckedHiddenClients({});
+                        setReassignCollectorId('');
+                        setViewMode('cartera');
+                      }
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-[9px] font-black uppercase transition-all shadow-sm active:scale-95"
+                  >
+                    Reasignar
+                  </button>
+                )}
+              </div>
+            )}
             {isAdminOrManager && (
               <div className="bg-slate-50 px-4 py-2 rounded-md border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-lg">👩‍🚀</span>
@@ -2987,6 +3024,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-red-800 text-white text-[9px] font-black uppercase tracking-widest">
+                      <th className="px-6 py-4 w-12 text-center">✓</th>
                       <th className="px-6 py-4">{(((t as any).clients?.list || {})?.thRegDateFull || 'Fecha Reg.')}</th>
                       <th className="px-6 py-4">{state.settings.language === 'fr' ? 'CLIENT / ID' : 'Cliente / ID'}</th>
                       <th className="px-6 py-4">{state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'Teléfono'}</th>
@@ -2997,6 +3035,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
                     {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).slice(0, displayLimit).map(client => (
                       <tr key={client.id} className="hover:bg-red-50 transition-colors">
+                        <td className="px-6 py-4 text-center">
+                          <button 
+                            onClick={() => setCheckedHiddenClients(prev => ({ ...prev, [client.id]: !prev[client.id] }))}
+                            className={`w-6 h-6 rounded flex items-center justify-center transition-all shadow-sm ${checkedHiddenClients[client.id] ? 'bg-emerald-500 text-white shadow-emerald-500/30' : 'bg-slate-100 text-slate-300 hover:bg-slate-200 border border-slate-200'}`}
+                          >
+                            {checkedHiddenClients[client.id] && <i className="fa-solid fa-check text-xs"></i>}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">

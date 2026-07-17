@@ -107,6 +107,58 @@ export const useAppActions = (
     await handleForceSync(false);
   };
 
+  const checkAndPurgeExpiredCollectors = async () => {
+    // Solo permitir que administradores ejecuten la purga para evitar colisiones
+    if (state.currentUser?.role !== Role.ADMIN) return;
+    if (!navigator.onLine) return;
+
+    const TWENTY_DAYS_MS = 20 * 24 * 60 * 60 * 1000;
+    const now = new Date().getTime();
+    
+    // Identificar cobradores que llevan más de 20 días eliminados
+    const expiredCollectors = (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (u.deletedAt || (u as any).deleted_at) {
+        const deletedTime = new Date(u.deletedAt || (u as any).deleted_at).getTime();
+        return (now - deletedTime) > TWENTY_DAYS_MS;
+      }
+      return false;
+    });
+
+    if (expiredCollectors.length === 0) return;
+
+    console.log('[Purge] Encontrados cobradores expirados listos para borrado definitivo:', expiredCollectors.map(u => u.name));
+
+    for (const collector of expiredCollectors) {
+      try {
+        // 1. Identificar préstamos activos o asociados a este cobrador
+        const loansToDelete = (Array.isArray(state.loans) ? state.loans : []).filter(l => 
+          (l.collectorId || (l as any).collector_id) === collector.id
+        );
+        const loanIds = loansToDelete.map(l => l.id);
+        const clientIds = new Set(loansToDelete.map(l => l.clientId || (l as any).client_id));
+
+        // Borrar Logs y Pagos vinculados a esos préstamos/clientes
+        for (const loanId of loanIds) {
+           await supabase.from('collection_logs').delete().eq('loanId', loanId);
+           await supabase.from('payments').delete().eq('loanId', loanId);
+           await supabase.from('loans').delete().eq('id', loanId);
+        }
+        
+        // Borrar Clientes
+        for (const clientId of Array.from(clientIds)) {
+           await supabase.from('clients').delete().eq('id', clientId);
+        }
+        
+        // Borrar Perfil del Cobrador (Hard Delete real)
+        await supabase.from('profiles').delete().eq('id', collector.id);
+        
+        console.log(`[Purge] Purga completada para cobrador: ${collector.name}`);
+      } catch (e) {
+        console.error(`[Purge] Error purgado definitivo de ${collector.name}:`, e);
+      }
+    }
+  };
+
   const internalGetBranchId = (user: User | null): string => {
     if (!user) return 'none';
     if (user.role === Role.ADMIN || user.role === Role.MANAGER) return user.id;
@@ -776,6 +828,6 @@ export const useAppActions = (
     recalculateLoanStatus, deleteLoan, addCollectionAttempt, deleteCollectionLog,
     updateCollectionLog, addBulkData, updateCollectionLogNotes, addExpense, removeExpense,
     updateExpense, addIsolatedExpenseAction, removeIsolatedExpenseAction, updateInitialCapital, updateCommissionBrackets, handleSyncUser,
-    deleteRemoteClientAction, renewLoan
+    deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors
   };
 };

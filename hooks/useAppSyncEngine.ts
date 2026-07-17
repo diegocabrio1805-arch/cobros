@@ -428,6 +428,12 @@ export const useAppSyncEngine = (
         
         return addedByLower === myIdLower || myDirectCollectorIds.has(addedByLower);
     };
+    const deletedCollectorIds = new Set<string>();
+    (Array.isArray(state.users) ? state.users : []).forEach(u => {
+      if (u.deletedAt || (u as any).deleted_at) {
+        deletedCollectorIds.add(u.id);
+      }
+    });
 
     let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
           const loans = Array.isArray(state.loans) ? state.loans : [];
@@ -442,6 +448,10 @@ export const useAppSyncEngine = (
              if (anyLoan) {
                  collectorId = anyLoan.collectorId || (anyLoan as any).collector_id;
              }
+          }
+          
+          if (collectorId && deletedCollectorIds.has(collectorId)) {
+            return false;
           }
           
           return isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, collectorId) && 
@@ -474,6 +484,12 @@ c.isActive !== false;
       if (u.deletedAt || (u as any).deleted_at) return false;
       
       const uName = (u.name || '').toUpperCase().trim();
+      
+      // EXCLUSIÓN GLOBAL: Ocultar a Fabián Pedrozo de toda la app (excepto para él mismo)
+      if (uName === 'FABIAN PEDROZO' && (user.name || '').toUpperCase().trim() !== 'FABIAN PEDROZO') {
+        return false;
+      }
+      
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
