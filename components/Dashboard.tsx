@@ -90,6 +90,22 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const ITEMS_PER_PAGE = 8;
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
 
+  
+
+  const getClientBalance = (clientId: string) => {
+    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+      l => (l.clientId || (l as any).client_id) === clientId && 
+           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    );
+    if (clientLoans.length === 0) return 0;
+    let totalBalance = 0;
+    for (const loan of clientLoans) {
+      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
+      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+    }
+    return totalBalance;
+  };
+
   const loadOrders = () => {
     const cloudOrders = state.simulatedOrders || [];
     const queueStr = localStorage.getItem('syncQueue');
@@ -106,9 +122,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     
     const combined = [...localAdds, ...cloudOrders];
     
-    // Auto-cleanup orders from past days (midnight expiration)
+    // Auto-cleanup orders: past days OR negative "efec a entregar" (balance exceeds principal)
     const countryTodayStr = getLocalDateStringForCountry(state.settings.country || 'PY');
-    const expiredOrders = combined.filter(order => order.simulationDate < countryTodayStr && !localDeletes.has(order.id));
+    const expiredOrders = combined.filter(order => {
+      if (localDeletes.has(order.id)) return false;
+      if (order.simulationDate < countryTodayStr) return true;
+      const balance = getClientBalance(order.clientId);
+      if (order.principal - balance < 0) return true;
+      return false;
+    });
+
     if (expiredOrders.length > 0) {
       expiredOrders.forEach(order => {
         addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id: order.id } });
@@ -123,7 +146,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const seenIds = new Set<string>();
     
     for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && order.simulationDate >= countryTodayStr) {
+      const balance = getClientBalance(order.clientId);
+      const isNegative = order.principal - balance < 0;
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && order.simulationDate >= countryTodayStr && !isNegative) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
@@ -141,20 +166,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     } catch (e) {
       return '---';
     }
-  };
-
-  const getClientBalance = (clientId: string) => {
-    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
-      l => (l.clientId || (l as any).client_id) === clientId && 
-           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
-    );
-    if (clientLoans.length === 0) return 0;
-    let totalBalance = 0;
-    for (const loan of clientLoans) {
-      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
-      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
-    }
-    return totalBalance;
   };
 
   useEffect(() => {
