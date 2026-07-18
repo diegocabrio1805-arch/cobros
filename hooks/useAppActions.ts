@@ -31,8 +31,32 @@ export const useAppActions = (
   };
 
   const handleLogout = async () => {
+    // A04 OWASP: Logout Shield - Prevenir fuga de datos y pérdida de dinero
+    try {
+      const syncQueueData = localStorage.getItem('syncQueue');
+      if (syncQueueData) {
+        const queue = JSON.parse(syncQueueData);
+        if (Array.isArray(queue) && queue.length > 0) {
+          alert("🛑 ALERTA DE SEGURIDAD 🛑\n\nNo puedes cerrar sesión. Tienes cobros o pedidos sin subir al servidor. Conéctate a internet y espera a que sincronice primero para evitar pérdida de dinero.");
+          return; // Aborta el logout
+        }
+      }
+    } catch (e) {
+      console.warn("[AppSec] Error validando syncQueue durante logout", e);
+    }
+
+    // A04 OWASP: Deep Purge - Destruir cualquier rastro del historial y credenciales offline
     setState((prev: AppState) => ({ ...prev, currentUser: null }));
     try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
+    
+    try {
+      localStorage.clear(); // Limpia caché local
+      const localforage = (await import('localforage')).default;
+      await localforage.clear(); // Destruye base de datos offline (IndexedDB)
+    } catch(e) {
+      console.warn("[AppSec] Error durante purga profunda de sesión", e);
+    }
+
     if (navigator.onLine) {
       try { await supabase.auth.signOut(); } catch(e){}
     }

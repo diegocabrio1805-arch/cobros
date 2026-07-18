@@ -106,6 +106,21 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
          alert("Debe seleccionar un cliente para crear el pedido.");
          return;
       }
+      
+      // A03 OWASP: Sanitización Matemática Estricta
+      if (Number(principal) <= 0 || isNaN(Number(principal))) {
+         alert("🛑 ALERTA DE SEGURIDAD 🛑\nEl Capital debe ser un monto válido mayor a cero.");
+         return;
+      }
+      if (Number(installments) <= 0 || isNaN(Number(installments))) {
+         alert("🛑 ALERTA DE SEGURIDAD 🛑\nEl número de cuotas debe ser válido y mayor a cero.");
+         return;
+      }
+      if (Number(interestRate) < 0 || isNaN(Number(interestRate))) {
+         alert("🛑 ALERTA DE SEGURIDAD 🛑\nLa tasa de interés no puede ser un número negativo o inválido.");
+         return;
+      }
+
       const client = visibleClients.find(c => c.id === selectedClientId);
       if (!client) return;
 
@@ -236,7 +251,8 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                         <div className="relative">
                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                            <input
-                              type="text"
+                              type="number"
+                              min="1"
                               value={principal}
                               onChange={(e) => setPrincipal(e.target.value)}
                               className="w-full pl-8 pr-4 py-3.5 md:py-4 bg-slate-50 border border-slate-200 rounded-none font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-base md:text-lg shadow-inner"
@@ -248,7 +264,8 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                         <div className="space-y-1.5">
                            <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.interest || 'Int %'}</label>
                            <input
-                              type="text"
+                              type="number"
+                              min="0"
                               value={interestRate}
                               onChange={(e) => setInterestRate(e.target.value)}
                               className="w-full px-3 py-3 md:py-4 bg-slate-50 border border-slate-200 rounded-none font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 text-center shadow-inner text-sm"
@@ -257,7 +274,8 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                         <div className="space-y-1.5">
                            <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.installments || 'Cuotas'}</label>
                            <input
-                              type="text"
+                              type="number"
+                              min="1"
                               value={installments}
                               onChange={(e) => setInstallments(e.target.value)}
                               className="w-full px-3 py-3 md:py-4 bg-slate-50 border border-slate-200 rounded-none font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 text-center shadow-inner text-sm"

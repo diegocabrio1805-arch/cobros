@@ -282,6 +282,14 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
     try {
       const amountToApply = parseAmount(amountInput);
       
+      // A03 OWASP: Sanitización Matemática Estricta
+      if (type === CollectionLogType.PAYMENT && (amountToApply <= 0 || isNaN(amountToApply))) {
+         alert("🛑 ALERTA DE SEGURIDAD 🛑\nMonto de pago inválido. No se aceptan valores negativos ni nulos.");
+         setIsProcessing(false);
+         return;
+      }
+
+      
       const threshold = 500;
       if (type === CollectionLogType.PAYMENT && amountToApply > 0 && amountToApply < threshold) {
         if (!confirm(`¡ATENCIÓN!\n\nHas ingresado un monto de ${formatCurrency(amountToApply, state.settings)}.\n\n¿Estás SEGURO de que este monto es correcto y no quisiste poner un número mayor?`)) {
@@ -584,7 +592,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                             <div className="relative mb-3">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-slate-500">$</span>
                               <input 
-                                type="text" inputMode="numeric" value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
+                                type="number" min="1" inputMode="numeric" value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
                                 className="w-full bg-slate-950 border border-emerald-900 text-emerald-400 text-2xl font-black text-center py-4 rounded-xl outline-none"
                               />
                             </div>
