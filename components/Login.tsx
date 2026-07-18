@@ -22,10 +22,98 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
   const [error, setError] = useState('');
   const [generatedUser, setGeneratedUser] = useState<{ username: string, pass: string } | null>(null);
 
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<string>('');
+
   const t = getTranslation('es').auth;
+
+  React.useEffect(() => {
+    const attempts = parseInt(localStorage.getItem('security_failed_attempts') || '0', 10);
+    const lockout = parseInt(localStorage.getItem('security_lockout_until') || '0', 10);
+    setFailedAttempts(attempts);
+    
+    if (lockout > Date.now()) {
+      setLockoutUntil(lockout);
+    } else if (lockout !== 0) {
+      localStorage.removeItem('security_lockout_until');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (lockoutUntil && lockoutUntil > Date.now()) {
+      interval = setInterval(() => {
+        const remaining = lockoutUntil - Date.now();
+        if (remaining <= 0) {
+          setLockoutUntil(null);
+          setCountdown('');
+          setError(''); // Clear error when unlocked
+          localStorage.removeItem('security_lockout_until');
+          clearInterval(interval);
+        } else {
+          const totalSeconds = Math.floor(remaining / 1000);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+          
+          let timeString = '';
+          if (hours > 0) {
+            timeString = `${hours}h ${minutes}m ${seconds}s`;
+          } else if (minutes > 0) {
+            timeString = `${minutes}m ${seconds}s`;
+          } else {
+            timeString = `${seconds}s`;
+          }
+          setCountdown(timeString);
+          setError(`BLOQUEO DE SEGURIDAD. INTENTE EN: ${timeString}`);
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [lockoutUntil]);
+
+  const handleFailedLogin = () => {
+    let newAttempts = failedAttempts + 1;
+    let newLockout = 0;
+    
+    if (newAttempts >= 10) {
+      newAttempts = 0; 
+    } else if (newAttempts === 9) {
+      newLockout = Date.now() + 24 * 60 * 60 * 1000; 
+    } else if (newAttempts === 8) {
+      newLockout = Date.now() + 12 * 60 * 60 * 1000; 
+    } else if (newAttempts >= 5 && newAttempts <= 7) {
+      newLockout = Date.now() + 120 * 1000; 
+    }
+
+    setFailedAttempts(newAttempts);
+    localStorage.setItem('security_failed_attempts', newAttempts.toString());
+    
+    if (newLockout > 0) {
+      setLockoutUntil(newLockout);
+      localStorage.setItem('security_lockout_until', newLockout.toString());
+      setError("CREDENCIALES INVÁLIDAS. SISTEMA BLOQUEADO POR SEGURIDAD.");
+    } else {
+      setError("CREDENCIALES INVÁLIDAS O SESIÓN CADUCADA");
+    }
+  };
+
+  const handleSuccessfulLogin = (user: User) => {
+    setFailedAttempts(0);
+    localStorage.removeItem('security_failed_attempts');
+    localStorage.removeItem('security_lockout_until');
+    onLogin(user);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (lockoutUntil && lockoutUntil > Date.now()) {
+      setError(`BLOQUEO ACTIVO. INTENTE EN ${countdown}`);
+      return;
+    }
+
     if (onForceSync) onForceSync();
 
     const cleanUsername = username.trim();
@@ -45,7 +133,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
         });
 
         if (authError || !authData.user) {
-          setError("CREDENCIALES INVÁLIDAS O SESIÓN CADUCADA");
+          handleFailedLogin();
           return;
         }
 
@@ -79,7 +167,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
             deletedAt: profileData.deleted_at,
           };
           if (onSyncUser) onSyncUser(mappedProfile);
-          onLogin(mappedProfile);
+          handleSuccessfulLogin(mappedProfile);
           return;
         } else {
           setError("ERROR: PERFIL INEXISTENTE");
@@ -95,9 +183,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
           return;
         }
-        onLogin(localUser);
+        handleSuccessfulLogin(localUser);
       } else {
-        setError(t.error); // Fallback to traditional error msg
+        handleFailedLogin();
       }
     }
   };
@@ -134,8 +222,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
         <div className="p-10 space-y-6 bg-white">
           <form onSubmit={handleLogin} className="space-y-8">
             {error && (
-              <div className="p-5 bg-rose-500/10 text-rose-200 rounded-3xl border border-rose-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-4 animate-shake">
-                <i className="fa-solid fa-circle-exclamation text-xl text-rose-400"></i>
+              <div className="p-5 bg-gradient-to-r from-red-600 to-rose-900 text-white rounded-3xl border border-red-800 text-sm font-black uppercase tracking-widest flex items-center gap-4 animate-shake shadow-lg shadow-red-900/30">
+                <i className="fa-solid fa-triangle-exclamation text-3xl text-red-200"></i>
                 <span className="leading-tight">{error}</span>
               </div>
             )}
