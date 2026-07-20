@@ -384,14 +384,23 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             if (fullSync) await new Promise(r => setTimeout(r, 150));
 
-            // LOTE 4: Gastos y Eliminados + Audit logs fijos
-            const [expensesResult, isolatedExpensesResult, deletedResult, simulatedOrdersResult, deletedPaymentLogsResult] = await Promise.all([
+            // LOTE 4: Gastos y Eliminados
+            const [expensesResult, isolatedExpensesResult, deletedResult, simulatedOrdersResult] = await Promise.all([
                 fetchAll(expensesQuery.abortSignal(controller.signal)),
                 fetchAll(isolatedExpensesQuery.abortSignal(controller.signal)),
                 fetchAll(deletedItemsQuery.abortSignal(controller.signal)),
-                fetchAll(simulatedOrdersQuery.abortSignal(controller.signal)),
-                fetchAll(deletedPaymentLogsQuery.abortSignal(controller.signal))
+                fetchAll(simulatedOrdersQuery.abortSignal(controller.signal))
             ]);
+
+            // AUDIT FIX: Query de PAGO_ELIMINADO aislada con try-catch propio.
+            // Si falla (RLS, timeout, red), retorna array vacío sin crashear el sync.
+            let deletedPaymentLogsData: any[] = [];
+            try {
+                const dpRes = await withTimeout(fetchAll(deletedPaymentLogsQuery), 8000);
+                deletedPaymentLogsData = dpRes?.data || [];
+            } catch (e) {
+                console.warn('[Sync] deletedPaymentLogs query failed (non-critical, skipping):', e);
+            }
 
             console.log('[Sync] Data fetch complete.');
 
@@ -437,10 +446,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // Merge collection logs + PAGO_ELIMINADO audit logs (deduplicados por ID)
             const rawLogs = logsResult.data || [];
-            const rawDeletedPaymentLogs = deletedPaymentLogsResult.data || [];
             const logsById = new Map<string, any>();
             rawLogs.forEach((cl: any) => logsById.set(cl.id, cl));
-            rawDeletedPaymentLogs.forEach((cl: any) => { if (!logsById.has(cl.id)) logsById.set(cl.id, cl); });
+            deletedPaymentLogsData.forEach((cl: any) => { if (cl?.id && !logsById.has(cl.id)) logsById.set(cl.id, cl); });
             const collectionLogs = Array.from(logsById.values()).map((cl: any) => ({
                 ...cl, loanId: cl.loan_id, clientId: cl.client_id, branchId: cl.branch_id,
                 isVirtual: cl.is_virtual, isRenewal: cl.is_renewal, isOpening: cl.is_opening,
