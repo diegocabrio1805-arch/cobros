@@ -1010,8 +1010,17 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                        <tr key={order.id} className="bg-white hover:bg-slate-50 transition-colors group text-sm border-b border-slate-100">
                           <td className="px-4 py-3 font-black text-slate-800 uppercase text-xs truncate max-w-[200px] border-r border-slate-50">
                              {order.clientName}
-                             <span className="block text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate">
-                                <i className="fa-solid fa-user-tag text-emerald-500 mr-1"></i>
+                             <span className={`block text-[10px] font-bold uppercase mt-0.5 truncate ${
+                                (() => {
+                                  const colors = ['text-emerald-600', 'text-blue-600', 'text-rose-600', 'text-amber-600', 'text-purple-600', 'text-cyan-600', 'text-indigo-600', 'text-fuchsia-600', 'text-teal-600'];
+                                  let hash = 0;
+                                  for (let i = 0; i < collectorName.length; i++) {
+                                    hash = collectorName.charCodeAt(i) + ((hash << 5) - hash);
+                                  }
+                                  return colors[Math.abs(hash) % colors.length];
+                                })()
+                             }`}>
+                                <i className="fa-solid fa-user-tag mr-1 opacity-70"></i>
                                 {collectorName}
                              </span>
                           </td>
