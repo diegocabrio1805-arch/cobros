@@ -261,12 +261,27 @@ export const useAppSyncEngine = (
     };
     recover();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      // Solo forzar logout si el evento es explícitamente SIGNED_OUT
-      // o si es INITIAL_SESSION nulo Y no tenemos un usuario nativo ya cargado.
-      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session && !state.currentUser && navigator.onLine)) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+      // FIX: Los cobradores usan login propio (username/password en profiles), NO Supabase Auth.
+      // Cuando abren la app, Supabase dispara INITIAL_SESSION con session=null,
+      // lo cual causaba un logout forzado incorrecto que cerraba la app.
+      // Solución: verificar si hay un usuario nativo guardado antes de forzar el cierre de sesión.
+      if (event === 'SIGNED_OUT') {
         Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
         setState((prev: AppState) => ({ ...prev, currentUser: null }));
+      } else if (event === 'INITIAL_SESSION' && !session && !state.currentUser && navigator.onLine) {
+        // Antes de forzar logout, verificar si hay un cobrador logueado nativamente
+        try {
+          const { value: nativeUser } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+          if (!nativeUser) {
+            // Solo forzar logout si realmente no hay sesión nativa guardada
+            Preferences.remove({ key: 'NATIVE_CURRENT_USER' }).catch(console.error);
+            setState((prev: AppState) => ({ ...prev, currentUser: null }));
+          }
+          // Si hay nativeUser, es un cobrador válido → no hacer nada, dejar que recover() lo restaure
+        } catch (e) {
+          // Error leyendo Preferences: no forzar logout para evitar cierres inesperados
+        }
       }
     });
 
