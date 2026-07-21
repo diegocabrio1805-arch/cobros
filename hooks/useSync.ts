@@ -608,7 +608,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     id: d.id, loan_id: d.loanId, client_id: d.clientId,
                     // FIX: usar branchId (camelCase) que es como se guarda en memoria. d.branch_id era null siempre.
                     branch_id: d.branchId || d.branch_id || null,
-                    collector_id: d.collectorId || d.collector_id || null,
                     recorded_by: d.recordedBy, amount: d.amount !== undefined && d.amount !== null ? d.amount : 0, type: d.type, date: d.date,
                     location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
                     is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
