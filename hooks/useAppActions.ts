@@ -50,7 +50,10 @@ export const useAppActions = (
     try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
     
     try {
+      const savedPrinter = localStorage.getItem('saved_printer_address');
       localStorage.clear(); // Limpia caché local
+      if (savedPrinter) localStorage.setItem('saved_printer_address', savedPrinter);
+      
       const localforage = (await import('localforage')).default;
       await localforage.clear(); // Destruye base de datos offline (IndexedDB)
     } catch(e) {
