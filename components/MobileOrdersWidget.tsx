@@ -45,11 +45,9 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     
     const combined = [...localAdds, ...cloudOrders];
     
-    // Auto-cleanup orders: past days OR negative "efec a entregar" (balance exceeds principal)
-    const countryTodayStr = getLocalDateStringForCountry(state.settings.country || 'PY');
+    // Auto-cleanup orders: ONLY negative "efec a entregar" (balance exceeds principal)
     const expiredOrders = combined.filter(order => {
       if (localDeletes.has(order.id)) return false;
-      if (order.simulationDate < countryTodayStr) return true;
       const balance = getClientBalance(order.clientId);
       if (order.principal - balance < 0) return true;
       return false;
@@ -71,7 +69,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     for (const order of combined) {
       const balance = getClientBalance(order.clientId);
       const isNegative = order.principal - balance < 0;
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && order.simulationDate >= countryTodayStr && !isNegative) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !isNegative) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
