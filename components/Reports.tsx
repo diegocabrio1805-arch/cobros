@@ -562,8 +562,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             }
          }
 
-         // Excluir registros de migración (LOG-MIG-L-) sin GPS de los contadores
-         const isMigNoGps = (l: any) => typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-') && (!l.location || l.location.lat === 0);
+         // Excluir registros de migración sin GPS de los contadores
+         const isMigNoGps = (l: any) => (l.is_migration || l.source === 'EXCEL_MIGRATION' || (typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-'))) && (!l.location || l.location.lat === 0);
          const noGpsCount = mapData.filter(l => l.type !== CollectionLogType.OPENING && l.type !== CollectionLogType.DELETED_PAYMENT && (!l.location || l.location.lat === 0) && !isMigNoGps(l)).length;
          setStats({
             totalStops: mapData.filter(l => l.type !== CollectionLogType.OPENING && l.type !== CollectionLogType.DELETED_PAYMENT && !isMigNoGps(l)).length,
@@ -1509,7 +1509,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             <div className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
                <div className="p-5 border-b border-slate-50 flex items-center justify-between">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(t as any).reports.historyTable?.title || 'Historial Detallado de Ruta'}</h3>
-                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-none uppercase">{routeData.filter(l => l.type !== CollectionLogType.OPENING && !(typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-') && (!l.location || l.location.lat === 0))).length} {(t as any).reports.historyTable?.records || 'Registros'}</span>
+                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-none uppercase">{routeData.filter(l => l.type !== CollectionLogType.OPENING && !((l.is_migration || l.source === 'EXCEL_MIGRATION' || (typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-'))) && (!l.location || l.location.lat === 0))).length} {(t as any).reports.historyTable?.records || 'Registros'}</span>
                </div>
 
                <div className="overflow-auto max-h-[450px] scrollbar-premium">
@@ -1525,7 +1525,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
-                        {(Array.isArray(routeData) ? routeData : []).filter(l => l.type !== CollectionLogType.OPENING && !(typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-') && (!l.location || l.location.lat === 0))).map((log, idx) => {
+                        {(Array.isArray(routeData) ? routeData : []).filter(l => l.type !== CollectionLogType.OPENING && !((l.is_migration || l.source === 'EXCEL_MIGRATION' || (typeof l.id === 'string' && l.id.startsWith('LOG-MIG-L-'))) && (!l.location || l.location.lat === 0))).map((log, idx) => {
                            const normalizedLogClientId = normalizeId(log.clientId);
                            const client = (Array.isArray(state.clients) ? state.clients : []).find(c => normalizeId(c.id) === normalizedLogClientId);
                            const time = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

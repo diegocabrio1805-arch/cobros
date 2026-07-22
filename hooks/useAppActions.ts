@@ -403,7 +403,14 @@ export const useAppActions = (
 
   const addCollectionAttempt = async (log: CollectionLog, skipSync: boolean = false) => {
     const branchId = internalGetBranchId(state.currentUser);
-    const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
+    const newLog: CollectionLog = {
+      source: 'APP_MOBILE',
+      is_migration: false,
+      ...log,
+      branchId,
+      recordedBy: state.currentUser?.id,
+      updated_at: new Date().toISOString()
+    };
 
     // NO llamar pushLog aqui todavía - se llama abajo después del setState para garantizar
     // que el estado local esté actualizado antes de intentar sincronizar

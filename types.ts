@@ -264,7 +264,8 @@ export interface CollectionLog {
   receiptNumber?: string;
   notes?: string; // Nota opcional para el motivo de No Pago
   companySnapshot?: AppSettings; // Snapshot inmutable de las opciones de la empresa en el momento del recibo
-  raw_data?: any;
+  source?: 'APP_MOBILE' | 'EXCEL_MIGRATION' | 'MANUAL_ADMIN';
+  is_migration?: boolean;
   deletedAt?: string;
   updated_at?: string;
 }

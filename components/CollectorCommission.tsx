@@ -664,7 +664,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       if (log.isOpening || log.deletedAt || log.type === CollectionLogType.DELETED_PAYMENT) return false;
       if (!log.clientId) return false; // Exclude logs with no associated client
       // Excluir registros de migración sin GPS (bug de importación)
-      if (typeof log.id === 'string' && log.id.startsWith('LOG-MIG-L-') && (!log.location || (log.location as any).lat === 0)) return false;
+      if ((log.is_migration || log.source === 'EXCEL_MIGRATION' || (typeof log.id === 'string' && log.id.startsWith('LOG-MIG-L-'))) && (!log.location || (log.location as any).lat === 0)) return false;
 
       // 2. Activity Check (Exclude 0 amount unless it's a valid non-monetary interaction)
       const hasValidAmount = (log.amount || 0) > 0;
