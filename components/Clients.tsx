@@ -2764,7 +2764,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             })()}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-blue-600"><a href={`tel:+595${client.phone.replace(/\D/g, '')}`} className="hover:underline">+595 {client.phone}</a></td>
+                        <td className="px-6 py-4 text-blue-600"><a href={`tel:+595${client.phone.replace(/\D/g, '')}`} className="hover:underline">+595{client.phone.replace(/\D/g, '')}</a></td>
                         <td className="px-6 py-4 text-right font-mono text-slate-500">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-black text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono text-blue-600">{formatCurrency((client._metrics.activeLoan?.totalAmount || 0) - (client._metrics.activeLoan?.principal || 0), state.settings)}</td>
@@ -2976,8 +2976,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <a href={`tel:+595${client.phone.replace(/\D/g, '')}`} className="text-blue-700 hover:underline">+595 {client.phone}</a>
-                          {client.secondaryPhone && <p className="text-slate-400 text-[10px]"><a href={`tel:+595${client.secondaryPhone.replace(/\D/g, '')}`} className="hover:underline">+595 {client.secondaryPhone}</a></p>}
+                          <a href={`tel:+595${client.phone.replace(/\D/g, '')}`} className="text-blue-700 hover:underline">+595{client.phone.replace(/\D/g, '')}</a>
+                          {client.secondaryPhone && <p className="text-slate-400 text-[10px]"><a href={`tel:+595${client.secondaryPhone.replace(/\D/g, '')}`} className="hover:underline">+595{client.secondaryPhone.replace(/\D/g, '')}</a></p>}
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-emerald-600">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono text-blue-600">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
