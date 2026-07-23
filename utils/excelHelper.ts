@@ -45,6 +45,15 @@ const parseExcelDate = (val: any): string => {
     return todayStr;
 };
 
+export const parseDaysDelayed = (val: any): number => {
+    if (val === null || val === undefined) return 0;
+    const strVal = String(val).trim();
+    if (!strVal) return 0;
+    const cleaned = strVal.replace(/\D/g, '');
+    if (!cleaned) return 0;
+    return parseInt(cleaned, 10);
+};
+
 export const EXCEL_COLUMNS = [
     "Op. Nº", "Nombre / Razon Social", "Import. Pagare", "Monto cobrado", "Saldo", 
     "Fec. Des.", "vto pagare", "Val. Cuota", "Ctas. Pend", "Ctas. Tot", "Cta. Pag", 
@@ -172,7 +181,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
                     "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
-                    "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL" // Comunes
+                    "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL", // Comunes
+                    "LIQDESEMB", "SALDOCAPITAL", "SALDOINTERES", "CUOTATOTAL", "CODIGODEVENDEDOR", "CUOTASPENDIENTES", "CUOTASPAGADAS", // Formato B
+                    "DOCI", "SDOCAPITAL", "SDOINTERES", "PROXVTO", "ATRASO", "SITUACION", "MEDIO", "FECHAULTIMOPAGO", "CALIF", "PRODUCTO", "BANCA", "FECHADELPAGARE" // Formato C
                 ];
                 
                 // 1. Detect Header Row
@@ -218,19 +229,21 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                 const idxs = {
                     name: findCol(["NOMBRE COMPLETO", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME", "NOMBRE", "NOMBRERAZONSOCIAL", "NOMBRE / RAZON SOCIAL"]),
-                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº", "ID"]),
+                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº", "OP. NRO", "OPNRO", "ID", "DOC. I.", "DOCI"]),
                     phone: findCol(["TELEFONO", "CELULAR", "PHONE", "TEL"]),
                     addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD", "CIUDAD"]),
-                    principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO"]),
-                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE", "MONTO"]),
+                    principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO", "LIQ. DESEMB.", "LIQDESEMB"]),
+                    totalAmt: findCol(["TOTAL A PAGAR", "TOTAL RETORNO", "MONTO TOTAL", "TOTALAMT", "PAGARE", "IMPORT. PAGARE", "IMPORTPAGARE", "IMPORT.PAGARE", "MONTO"]),
                     // COLUMNA EXPLÍCITA DE MONTO COBRADO - MÁXIMA PRIORIDAD PARA CALCULAR SALDO
-                    cobrado: findCol(["MONTO COBRADO", "MONTOCOBRADO", "YA COBRADO", "COBRADO", "IMPORTE COBRADO"]),
+                    cobrado: findCol(["MONTO COBRADO", "MONTOCOBRADO", "YA COBRADO", "COBRADO", "IMPORTE COBRADO", "COBRADO."]),
                     instValue: findCol(["VALOR CUOTA", "CUOTA", "V. CUOTA", "VCUOTA", "V CUOTA", "VALCUOTA", "VAL. CUOTA", "INSTVALUE"]),
-                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOT", "TOTALINST", "CTAS. TOT", "CTASTOT"]),
-                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAG", "PAIDINST", "CTA. PAG", "CTAPAG"]),
-                    pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "PEN", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND"]),
-                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO", "DEUDA"]),
-                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI"])
+                    totalInst: findCol(["CUOTAS TOTALES", "PLAZO", "TOT", "TOTALINST", "CTAS. TOT", "CTASTOT", "CUOTA TOTAL", "CUOTATOTAL", "CTAS.TOT"]),
+                    paidInst: findCol(["CUOTAS PAGADAS", "PAGADAS", "PAG", "PAIDINST", "CTA. PAG", "CTAPAG", "CUOTASPAGADAS"]),
+                    pendInst: findCol(["CUOTAS PENDIENTES", "PEND", "PENDIENTE", "PEN", "CTAS PEND", "CTAS. PEND", "CTAS.PEND", "CTASPEND", "CUOTASPENDIENTES"]),
+                    balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO", "DEUDA", "SALDO TOTAL", "SALDOTOTAL", "SALDO TOTAL."]),
+                    date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI", "FEC.DES.", "FECHA DEL PAGARE"]),
+                    sellerCode: findCol(["CODIGO DE VENDEDOR", "CODIGODEVENDEDOR", "COD. VEND.", "CODVEND"]),
+                    atraso: findCol(["ATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "MOROSIDAD"])
                 };
 
                 console.log("[FORENSIC] Column Mapping Identified:", {
@@ -287,6 +300,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let totalInst = Math.round(parseAmount(row[idxs.totalInst ?? -1]));
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
                     let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
+                    let diasAtraso = parseDaysDelayed(row[idxs.atraso ?? -1]);
 
                     if (totalInst === 0 && pendInst === 0) {
                         pendInst = Math.max(0, totalInst - paidInst);
@@ -450,6 +464,11 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         continue;
                     }
 
+                    const rowSellerCodeRaw = String(row[idxs.sellerCode ?? -1] || '').trim();
+                    const finalSellerCode = rowSellerCodeRaw !== '' && rowSellerCodeRaw !== '---' && rowSellerCodeRaw !== 'undefined'
+                        ? rowSellerCodeRaw 
+                        : sellerCode;
+
                     clients.push({
                         id: clientId,
                         name,
@@ -458,7 +477,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         address: String(row[idxs.addr ?? -1] || '---'),
                         addedBy: collectorId,
                         branchId: branchId,
-                        sellerCode: sellerCode,
+                        sellerCode: finalSellerCode,
                         clientTypeCode: "131",
                         creditLimit: 0,
                         isActive: true,
@@ -504,10 +523,12 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         status: balance <= 0 ? LoanStatus.PAID : LoanStatus.ACTIVE,
                         createdAt: loanDate,
                         installments: installmentsTable,
-                        sellerCode: sellerCode,
+                        sellerCode: finalSellerCode,
                         totalPaid: Math.round(loanInitialPaid),
-                        balance: Math.round(balance)
-                    });
+                        balance: Math.round(balance),
+                        daysOverdue: diasAtraso,
+                        raw_data: { ATRASO: diasAtraso, daysOverdue: diasAtraso }
+                    } as any);
 
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
                     if (loanInitialPaid > 0) {
