@@ -327,22 +327,29 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         });
                     }
 
-                    // ==========================================================================
-                    // PASO 1: MONTO COBRADO EXPLÍCITO (máxima prioridad, termina el análisis)
-                    // Si existe columna "MONTO COBRADO", úsala directamente. Sin heurísticas.
-                    // ==========================================================================
                     let totalPaidMoney = 0;
 
                     const cobradoRaw = idxs.cobrado !== undefined ? parseAmount(row[idxs.cobrado ?? -1]) : 0;
                     const isCobradoMapped = idxs.cobrado !== undefined;
+                    const isExplicitBalance = idxs.balance !== undefined && row[idxs.balance ?? -1] !== undefined && String(row[idxs.balance ?? -1]).trim() !== '' && String(row[idxs.balance ?? -1]).trim() !== '-';
+                    const rawExplicitBalance = isExplicitBalance ? Math.round(parseAmount(row[idxs.balance ?? -1])) : null;
 
                     if (isCobradoMapped) {
                         // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
                         totalPaidMoney = Math.round(cobradoRaw);
                         if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-                        balance = Math.max(0, totalAmount - totalPaidMoney);
+                        
+                        // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto directamente
+                        if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
+                            balance = rawExplicitBalance;
+                            if (totalAmount < balance + totalPaidMoney) {
+                                totalAmount = balance + totalPaidMoney;
+                            }
+                        } else {
+                            balance = Math.max(0, totalAmount - totalPaidMoney);
+                        }
                         paidInst = instValue > 0 ? Math.round(totalPaidMoney / instValue) : paidInst;
-                        console.log(`[FORENSIC] MONTO COBRADO explícito (mapeado): cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
+                        console.log(`[FORENSIC] SALDO Y MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
                     } else {
                         // ==========================================================================
                         // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
