@@ -786,6 +786,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         balance = Math.max(0, activeLoan.totalAmount - totalPaid);
       }
 
+      const totalCreditAmount = activeLoan.totalAmount;
       isFullyPaid = balance <= 0.01;
 
       // Progreso Cuotas (del principal/reciente)
