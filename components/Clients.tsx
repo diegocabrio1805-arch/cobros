@@ -790,7 +790,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       isFullyPaid = balance <= 0.01;
 
       // Progreso Cuotas (del principal/reciente)
-      const activeLoanPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+      const activeLoanPaid = totalPaid;
       const progress = activeLoanPaid / (activeLoan.installmentValue || 1);
       const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
       totalInstallmentsCount = activeLoan.totalInstallments;
