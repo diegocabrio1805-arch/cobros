@@ -218,10 +218,19 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                 const findCol = (synonyms: string[]) => {
                     const normSyns = synonyms.map(s => normalizeHeader(s));
+                    // PASO 1: Búsqueda de coincidencia exacta previa
                     for (const sNorm of normSyns) {
                         if (colMap[sNorm] !== undefined) return colMap[sNorm];
-                        // Partial match
-                        const partial = Object.keys(colMap).find(k => k.includes(sNorm));
+                    }
+                    // PASO 2: Búsqueda por coincidencia parcial (descartando columnas de fecha como 'Inicio')
+                    for (const sNorm of normSyns) {
+                        const partial = Object.keys(colMap).find(k => {
+                            if (!k.includes(sNorm)) return false;
+                            if ((sNorm === 'PAG' || sNorm === 'PAGARE') && (k.includes('INICIO') || k.includes('FEC') || k.includes('FECHA'))) {
+                                return false; // Descartar columna de fecha
+                            }
+                            return true;
+                        });
                         if (partial !== undefined) return colMap[partial];
                     }
                     return undefined;
