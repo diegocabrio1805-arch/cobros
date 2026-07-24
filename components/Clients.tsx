@@ -761,34 +761,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
 
     if (activeLoan) {
-      // Calcular abonos REALES nuevos registrados por cobradores (excluyendo logs de migración LOG-MIG-)
-      const logsForLoan = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter((log: any) => {
-        const logLoanId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
-        const logClientId = String(log.clientId || log.client_id || '').trim().toLowerCase();
-        const aLoanId = String(activeLoan.id || '').trim().toLowerCase();
-        const aClientId = String(activeLoan.clientId || (activeLoan as any).client_id || '').trim().toLowerCase();
-        const logId = String(log.id || '');
-        const isDeleted = log.deletedAt || log.deleted_at;
-        const isOpening = log.isOpening || log.is_opening;
-        const logType = String(log.type || '').toUpperCase();
 
-        const matches = (aLoanId && logLoanId === aLoanId) || (aClientId && logClientId === aClientId);
-        return matches && !isDeleted && !isOpening && (logType === 'PAGO' || logType === 'PAYMENT') && !logId.startsWith('LOG-MIG-');
-      });
 
-      const newPaymentsSum = logsForLoan.reduce((sum: number, log: any) => {
-        const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
-        return sum + amt;
-      }, 0);
-
-      // Si el préstamo tiene saldo inicial explícito guardado (importado del Excel)
-      if (activeLoan.balance !== undefined && activeLoan.balance !== null && typeof activeLoan.balance === 'number') {
-        balance = Math.max(0, activeLoan.balance - newPaymentsSum);
-        totalPaid = (activeLoan.totalPaid || 0) + newPaymentsSum;
-      } else {
-        totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
-        balance = Math.max(0, activeLoan.totalAmount - totalPaid);
-      }
+      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+      balance = Math.max(0, activeLoan.totalAmount - totalPaid);
 
       const totalCreditAmount = activeLoan.totalAmount;
       isFullyPaid = balance <= 0.01;

@@ -805,12 +805,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                         localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                                     }
 
-                                    if (item.retryCount > 20) {
-                                        // MODIFICADO: NO añadir a processedIds si falla. Mantenemos el error en localStorage para inspección.
-                                        // processedIds.add(item._id); // Skip after 20 failures -> COMENTADO PARA BLINDAR COLA
+                                    const isFatalError = singleErr?.code === '23503' || String(singleErr).includes('23503') || String(singleErr).includes('409');
+                                    if (item.retryCount > 20 || isFatalError) {
+                                        // FIX: Añadir a processedIds para sacarlo de la cola activa si supera los reintentos
+                                        // o si es un error fatal de Foreign Key (registro huérfano).
+                                        // Esto evita que la cola se quede en un bucle infinito (retry #13000+).
+                                        processedIds.add(item._id);
                                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
                                         failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
-                                        localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                                        localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-50)));
                                     }
                                 }
                             }
