@@ -556,6 +556,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [customNoPayText, setCustomNoPayText] = useState('');
   const [finalizadosDate, setFinalizadosDate] = useState(countryTodayStr);
   const [finalizadosEndDate, setFinalizadosEndDate] = useState(countryTodayStr);
+  const [finalizadosStatusFilter, setFinalizadosStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   const [addInitialLoan, setAddInitialLoan] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -1106,6 +1107,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         if (!matchesCollector) return false;
       }
 
+      if (finalizadosStatusFilter !== 'ALL') {
+        const hasActiveLoan = allLoans.some(l => {
+          if (l.clientId !== loan.clientId) return false;
+          if (l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
+          const tPaid = calculateTotalPaidFromLogs(l, allLogs);
+          return (l.totalAmount - tPaid) > 1;
+        });
+        if (finalizadosStatusFilter === 'ACTIVE' && !hasActiveLoan) return false;
+        if (finalizadosStatusFilter === 'INACTIVE' && hasActiveLoan) return false;
+      }
+
       // Verificar que el saldo sea 0
       const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
       if ((loan.totalAmount - totalPaid) > 1) return false;
@@ -1132,7 +1144,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
       return { loan, client, totalPaid };
     }) as { loan: any, client: any, totalPaid: number }[];
-  }, [viewMode, state.loans, state.collectionLogs, state.clients, finalizadosDate, finalizadosEndDate, selectedCollector, debouncedSearch]);
+  }, [viewMode, state.loans, state.collectionLogs, state.clients, finalizadosDate, finalizadosEndDate, selectedCollector, debouncedSearch, finalizadosStatusFilter]);
 
   const handleRestoreClient = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
@@ -2496,22 +2508,37 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               </div>
             )}
             {isAdminOrManager && (
-              <div className="bg-slate-50 px-4 py-2 rounded-md border border-slate-100 flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-lg">👩‍🚀</span>
-                <select
-                  value={selectedCollector}
-                  onChange={(e) => setSelectedCollector(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
-                >
-                  <option value="all">{((t as any).clients?.headers || {}).all}</option>
-                  {Array.isArray(collectors) && collectors.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+              <div className="bg-slate-50 px-4 py-2 rounded-md border border-slate-100 flex flex-col justify-center w-full sm:w-auto">
+                <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{state.settings.language === 'fr' ? 'COLLECTEUR' : 'COBRADOR'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👩‍🚀</span>
+                  <select
+                    value={selectedCollector}
+                    onChange={(e) => setSelectedCollector(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
+                  >
+                    <option value="all">{((t as any).clients?.headers || {}).all}</option>
+                    {Array.isArray(collectors) && collectors.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
             {viewMode === 'finalizados' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
+                <div className="bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100 flex flex-col justify-center shadow-inner">
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{state.settings.language === 'fr' ? 'ÉTAT DU CRÉDIT' : 'ESTADO DE CRÉDITO'}</span>
+                  <select
+                    value={finalizadosStatusFilter}
+                    onChange={(e) => setFinalizadosStatusFilter(e.target.value as any)}
+                    className="bg-transparent border-none outline-none text-[9px] font-black text-slate-700 uppercase cursor-pointer"
+                  >
+                    <option value="ALL">{state.settings.language === 'fr' ? 'TOUS' : 'TODOS'}</option>
+                    <option value="ACTIVE">{state.settings.language === 'fr' ? 'ACTIFS' : 'ACTIVOS'}</option>
+                    <option value="INACTIVE">{state.settings.language === 'fr' ? 'INACTIFS' : 'INACTIVOS'}</option>
+                  </select>
+                </div>
                 <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-300 shadow-inner w-full sm:w-auto">
                   <input type="date" value={finalizadosDate} onChange={(e) => setFinalizadosDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
                   <span className="text-slate-500 font-bold">-</span>
