@@ -764,12 +764,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // Calcular abonos REALES nuevos registrados por cobradores (excluyendo logs de migración LOG-MIG-)
       const logsForLoan = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter((log: any) => {
         const logLoanId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
-        const aId = String(activeLoan.id || '').trim().toLowerCase();
+        const logClientId = String(log.clientId || log.client_id || '').trim().toLowerCase();
+        const aLoanId = String(activeLoan.id || '').trim().toLowerCase();
+        const aClientId = String(activeLoan.clientId || (activeLoan as any).client_id || '').trim().toLowerCase();
         const logId = String(log.id || '');
         const isDeleted = log.deletedAt || log.deleted_at;
         const isOpening = log.isOpening || log.is_opening;
         const logType = String(log.type || '').toUpperCase();
-        return logLoanId === aId && !isDeleted && !isOpening && (logType === 'PAGO' || logType === 'PAYMENT') && !logId.startsWith('LOG-MIG-');
+
+        const matches = (aLoanId && logLoanId === aLoanId) || (aClientId && logClientId === aClientId);
+        return matches && !isDeleted && !isOpening && (logType === 'PAGO' || logType === 'PAYMENT') && !logId.startsWith('LOG-MIG-');
       });
 
       const newPaymentsSum = logsForLoan.reduce((sum: number, log: any) => {
