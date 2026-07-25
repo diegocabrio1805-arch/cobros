@@ -927,7 +927,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       wsData.push([
         { v: "Fecha", t: "s", s: headerStyle },
         { v: "Cliente", t: "s", s: headerStyle },
-        { v: "Confirmación", t: "s", s: headerStyle },
         { v: "Medio", t: "s", s: headerStyle },
         { v: "Monto", t: "s", s: headerStyle },
         { v: "Comisión Base", t: "s", s: headerStyle },
@@ -940,8 +939,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const commBase = (log.amount || 0) * (localCommissionPercent / 100);
         const gestor = state.users.find(u => u.id === log.recordedBy)?.name || '---';
         const medioPago = isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo';
-        const isTransfer = log.isVirtual && !isNoPay;
-        const isLiked = isTransfer ? (likedLogs[log.id] ? '✅' : '-') : '-';
 
         let fontColor = "FF000000"; // Black
         if (medioPago === 'Efectivo') fontColor = "FF166534"; // Green
@@ -957,7 +954,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
         const fechaStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "left" } };
         const clienteStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "left" } };
-        const likeStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
         const medioStyle = { ...baseStyle, font: { ...baseStyle.font, bold: true }, alignment: { vertical: "center", horizontal: "center" } };
         const montoStyle = { ...baseStyle, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
         const gestorStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "center" } };
@@ -965,7 +961,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         wsData.push([
           { v: new Date(log.date).toLocaleString(), t: "s", s: fechaStyle },
           { v: log._clientName, t: "s", s: clienteStyle },
-          { v: isLiked, t: "s", s: likeStyle },
           { v: medioPago, t: "s", s: medioStyle },
           { v: isNoPay ? '-' : (log.amount || 0), t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
           { v: isNoPay ? '-' : commBase, t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
@@ -985,7 +980,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: 'Recaudo Bruto:', t: "s", s: summaryLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
         { v: totalCollectedInRange, t: "n", s: summaryMoneyStyle },
         "", "" // Empty
       ]);
@@ -993,7 +987,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const summaryRow2Idx = wsData.length;
       wsData.push([
         { v: 'Base / Sencillo:', t: "s", s: summaryLabelStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: sencilloAmount, t: "n", s: summaryMoneyStyle },
@@ -1008,7 +1001,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: gastoLabel, t: "s", s: gastoLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
         { v: expenseAmount, t: "n", s: gastoMoneyStyle },
         "", "" // Empty
       ]);
@@ -1020,7 +1012,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: 'Total a Rendir:', t: "s", s: rendirLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
         { v: totalCollectedInRange + sencilloAmount - expenseAmount, t: "n", s: rendirMoneyStyle },
         "", "" // Empty
       ]);
@@ -1028,7 +1019,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const summaryRow5Idx = wsData.length;
       wsData.push([
         { v: 'Total Liquidación:', t: "s", s: summaryLabelStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: finalCommissionValue, t: "n", s: summaryMoneyStyle },
@@ -1040,19 +1030,18 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       // Merge Cells Configuration
       if (!ws['!merges']) ws['!merges'] = [];
-      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }); // Title Merge A1:G1
-      ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 5 } }); // Period Merge B3:F3
-      ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 3 } });
-      ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 3 } });
-      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 3 } });
-      ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 3 } });
-      ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 3 } });
+      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }); // Title Merge A1:F1
+      ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 4 } }); // Period Merge B3:E3
+      ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 2 } });
+      ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 2 } });
 
       // Column Widths
       ws['!cols'] = [
         { wpx: 130 }, // Fecha
         { wpx: 250 }, // Cliente
-        { wpx: 85 },  // Confirmación
         { wpx: 80 },  // Medio
         { wpx: 100 }, // Monto
         { wpx: 100 }, // Comision
