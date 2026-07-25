@@ -545,9 +545,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (targetLogs.length > 0) {
-      if (confirm(`¿ELIMINAR ESTE PAGO POR ${formatCurrency(targetLogs[0].amount || 0, state.settings)}?`)) {
-        deleteCollectionLog?.(targetLogs[0].id);
-      }
+      deleteCollectionLog?.(targetLogs[0].id);
     } else {
       alert("No hay pagos para este crédito en el rango seleccionado.");
     }

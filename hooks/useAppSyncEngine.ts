@@ -418,10 +418,10 @@ export const useAppSyncEngine = (
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
       const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       if (uManagerId === branchIdLower) {
-          if (u.role === Role.COLLECTOR) {
-            myDirectCollectorIds.add(u.id.toLowerCase());
-          }
+        if (u.role === Role.COLLECTOR) {
+          myDirectCollectorIds.add(u.id.toLowerCase());
         }
+      }
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
@@ -434,14 +434,14 @@ export const useAppSyncEngine = (
       const collectorIdLower = itemCollectorId?.toLowerCase() || '';
 
       if (collectorIdLower) {
-          return collectorIdLower === myIdLower || myDirectCollectorIds.has(collectorIdLower);
-        }
+        if (collectorIdLower === myIdLower || myDirectCollectorIds.has(collectorIdLower)) return true;
+      }
         
-        if (itemBranchLower) {
-            return myBranchIds.has(itemBranchLower);
-        }
+      if (itemBranchLower) {
+        return itemBranchLower === branchIdLower;
+      }
         
-        return addedByLower === myIdLower || myDirectCollectorIds.has(addedByLower);
+      return addedByLower === myIdLower || myDirectCollectorIds.has(addedByLower);
     };
     const deletedCollectorIds = new Set<string>();
     (Array.isArray(state.users) ? state.users : []).forEach(u => {

@@ -3856,13 +3856,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           {isAdminOrManager && !isLoanGrant && (
                                             <div className="flex items-center justify-center gap-1">
                                               <button onClick={() => {
-                                                if (confirm((t as any).confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) {
-                                                  deleteCollectionLog?.(log.id);
-                                                  if (log.loanId && recalculateLoanStatus) {
-                                                    // Pequeño delay para asegurar que el estado local se actualice antes del recalculo si es necesario
-                                                    setTimeout(() => recalculateLoanStatus(log.loanId!), 500);
-                                                  }
-                                                }
+                                                deleteCollectionLog?.(log.id);
                                               }} className="w-7 h-7 rounded-md bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/30 shadow-sm" title="Borrar Pago"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                                             </div>
                                           )}

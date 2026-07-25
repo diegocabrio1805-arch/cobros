@@ -365,11 +365,15 @@ export const useAppActions = (
     const collector = state.users.find(u => u.id === loan.collectorId);
     const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
     
+    const userBranchId = (state.currentUser?.role as any) === Role.COLLECTOR 
+      ? (state.currentUser?.managedBy || state.currentUser?.id) 
+      : state.currentUser?.id;
+
     const newAuditLog: CollectionLog = {
       id: crypto.randomUUID(),
       loanId: loan.id,
       clientId: loan.clientId,
-      branchId: state.currentUser?.managedBy || state.currentUser?.id,
+      branchId: userBranchId,
       type: CollectionLogType.DELETED_PAYMENT,
       amount: loan.totalAmount,
       date: new Date().toISOString(),
@@ -490,7 +494,12 @@ export const useAppActions = (
     const logToDelete = state.collectionLogs.find(l => l.id === logId);
     if (!logToDelete) return;
 
-    if (!confirm(`¿ESTÁ SEGURO DE ELIMINAR EL REGISTRO DE ${logToDelete.type === CollectionLogType.PAYMENT ? 'PAGO' : 'GESTIÓN'} POR ${formatCurrency(logToDelete.amount || 0, state.settings)}?`)) {
+    const client = state.clients.find(c => c.id === logToDelete.clientId) ||
+                   (logToDelete.loanId ? state.clients.find(c => state.loans.find(l => l.id === logToDelete.loanId)?.clientId === c.id) : undefined);
+    const clientName = client ? client.name.toUpperCase() : '';
+    const clientText = clientName ? ` DEL CLIENTE ${clientName}` : '';
+
+    if (!confirm(`¿ESTÁ SEGURO DE ELIMINAR EL REGISTRO DE ${logToDelete.type === CollectionLogType.PAYMENT ? 'PAGO' : 'GESTIÓN'}${clientText} POR ${formatCurrency(logToDelete.amount || 0, state.settings)}?`)) {
       return;
     }
 
@@ -503,11 +512,15 @@ export const useAppActions = (
         const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
         const loan = state.loans.find(l => l.id === logToDelete.loanId);
 
+        const userBranchId = (state.currentUser?.role as any) === Role.COLLECTOR 
+          ? (state.currentUser?.managedBy || state.currentUser?.id) 
+          : state.currentUser?.id;
+
         newAuditLog = {
           id: generateUUID(),
           loanId: logToDelete.loanId,
           clientId: logToDelete.clientId,
-          branchId: state.currentUser?.managedBy || state.currentUser?.id,
+          branchId: userBranchId,
           type: CollectionLogType.DELETED_PAYMENT,
           amount: logToDelete.amount || 0,
           date: new Date().toISOString(),
@@ -812,11 +825,15 @@ export const useAppActions = (
       const totalCapital = clientLoans.reduce((sum, l) => sum + l.principal, 0);
       const deletedByUser = state.users.find(u => u.id === state.currentUser?.id);
 
+      const userBranchId = (state.currentUser?.role as any) === Role.COLLECTOR 
+        ? (state.currentUser?.managedBy || state.currentUser?.id) 
+        : state.currentUser?.id;
+
       const newAuditLog: CollectionLog = {
         id: generateUUID(),
         loanId: (clientLoans.length > 0 ? clientLoans[0].id : clientId) as any,
         clientId: clientId as any,
-        branchId: state.currentUser?.managedBy || state.currentUser?.id,
+        branchId: userBranchId,
         type: CollectionLogType.DELETED_PAYMENT,
         amount: totalCapital,
         date: new Date().toISOString(),

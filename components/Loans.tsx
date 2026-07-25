@@ -1358,7 +1358,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                       <td className="px-3 py-2 text-center">
                                         {isAdminOrManager && (
                                           <button 
-                                            onClick={() => { if(confirm((t as any).confirmations?.deletePaymentDefinitive || "¿BORRAR ESTE PAGO DEFINITIVAMENTE? SE REVERTIRÁN LOS SALDOS.")) deleteCollectionLog?.(log.id); }}
+                                            onClick={() => deleteCollectionLog?.(log.id)}
                                             className="w-6 h-6 bg-red-500/10 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition-all"
                                           >
                                             <i className="fa-solid fa-trash-can text-[8px]"></i>
@@ -1400,7 +1400,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         </button>
                         {isAdminOrManager && lastPayLog && (
                           <button
-                            onClick={() => { if (confirm('¿BORRAR ÚLTIMO PAGO? Se revertirá el saldo.')) deleteCollectionLog?.(lastPayLog.id); }}
+                            onClick={() => deleteCollectionLog?.(lastPayLog.id)}
                             className="w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-red-800"
                             title={((t as any).loans?.card || {}).deleteLast || "Borrar Último"}
                           >

@@ -987,7 +987,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Saldo Actual</th>
-                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Efec. a Entregar</th>
+                        <th className="px-4 py-3 border-r border-[#334155]/50 text-center">Efec. a Entregar</th>
                         <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Cuota</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Forma de Pago</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Total a Pagar</th>
@@ -1040,11 +1040,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
                           </td>
 
-                          <td className="px-4 py-3 text-right font-mono font-bold text-xs border-r border-slate-50">
-                              {order.principal - balance < 0 ? (
-                                 <span className="text-emerald-500 font-bold uppercase text-[10px]">Crédito Nuevo</span>
+                          <td className="px-4 py-3 text-center font-mono font-bold text-xs border-r border-slate-50">
+                              {order.principal - balance <= 0 ? (
+                                 <span className="text-emerald-700 font-black uppercase text-[10px]">Crédito Nuevo</span>
                               ) : (
-                                 <span className="text-slate-700">{formatCurrency(order.principal - balance, state.settings)}</span>
+                                 <span className="text-emerald-700 font-black">{formatCurrency(order.principal - balance, state.settings)}</span>
                               )}
                            </td>
 
