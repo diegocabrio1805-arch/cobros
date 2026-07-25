@@ -45,31 +45,11 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     
     const combined = [...localAdds, ...cloudOrders];
     
-    // Auto-cleanup orders: ONLY negative "efec a entregar" (balance exceeds principal)
-    const expiredOrders = combined.filter(order => {
-      if (localDeletes.has(order.id)) return false;
-      const balance = getClientBalance(order.clientId);
-      if (order.principal - balance < 0) return true;
-      return false;
-    });
-
-    if (expiredOrders.length > 0) {
-      expiredOrders.forEach(order => {
-        addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id: order.id } });
-      });
-      setTimeout(() => {
-        const event = new CustomEvent('force-sync');
-        window.dispatchEvent(event);
-      }, 0);
-    }
-
     const uniqueOrders: SimulatedOrder[] = [];
     const seenIds = new Set<string>();
     
     for (const order of combined) {
-      const balance = getClientBalance(order.clientId);
-      const isNegative = order.principal - balance < 0;
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !isNegative) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
