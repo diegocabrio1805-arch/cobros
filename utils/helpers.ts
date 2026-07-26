@@ -1045,6 +1045,22 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const dateTime = data.fullDateTimeManual || formatFullDateTime(settings.country);
   const [datePart, timePart] = dateTime.split(',');
 
+  let finalDateStr = datePart ? datePart.trim() : dateTime;
+  if (datePart) {
+    const parts = datePart.trim().split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const dateObj = new Date(year, month, day);
+      if (!isNaN(dateObj.getTime())) {
+        const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(dateObj);
+        const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+        finalDateStr = `${capitalizedWeekday}, ${datePart.trim()}`;
+      }
+    }
+  }
+
   const remainingInst = Math.max(0, data.totalInstallments - Math.floor(data.paidInstallments));
 
   const pendingInstallmentText = () => {
@@ -1090,7 +1106,7 @@ ${company}
 ${alias ? alias : ''}
 ===============================${bankBlock}
 ${t.receipt?.client || 'CLIENTE'}: ${data.clientName.toUpperCase()}
-${t.receipt?.date || 'FECHA'}: ${datePart ? datePart.trim() : dateTime}
+${t.receipt?.date || 'FECHA'}: ${finalDateStr}
 ${t.receipt?.time || 'HORA'}: ${timePart ? timePart.trim() : '---'}
 ${t.receipt?.method || 'METODO'}: ${data.isVirtual ? (t.receipt?.transfer || 'TRANSFERENCIA') : (t.receipt?.cash || 'EFECTIVO')}
 ===============================
