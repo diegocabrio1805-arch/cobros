@@ -1055,8 +1055,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
       const dateObj = new Date(year, month, day);
       if (!isNaN(dateObj.getTime())) {
         const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(dateObj);
-        const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-        finalDateStr = `${capitalizedWeekday}, ${datePart.trim()}`;
+        finalDateStr = `${weekday.toUpperCase()}, ${datePart.trim()}`;
       }
     }
   }
