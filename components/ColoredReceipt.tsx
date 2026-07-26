@@ -34,6 +34,29 @@ export const ColoredReceipt: React.FC<ColoredReceiptProps> = ({ receipt }) => {
             }
           }
         }
+
+        // Special handling for the MÉTODO line to colorize only the value
+        if (upperLine.startsWith('MÉTODO:') || upperLine.startsWith('METHOD:') || upperLine.startsWith('MÉTHODE:')) {
+          const parts = line.split(':');
+          if (parts.length > 1) {
+            const label = parts[0];
+            const value = parts.slice(1).join(':');
+            const upperValue = value.toUpperCase();
+            
+            let valueColorClass = '';
+            if (upperValue.includes('TRANSFERENCIA') || upperValue.includes('TRANSFER') || upperValue.includes('TRANSFERT') || upperValue.includes('TRANSFERÊNCIA')) {
+              valueColorClass = 'text-blue-600';
+            } else if (upperValue.includes('EFECTIVO') || upperValue.includes('CASH') || upperValue.includes('ESPÈCES') || upperValue.includes('DINHEIRO')) {
+              valueColorClass = 'text-green-600';
+            }
+
+            return (
+              <span key={i} className="block">
+                {label}:<span className={valueColorClass}>{value}</span>
+              </span>
+            );
+          }
+        }
         
         return (
           <span key={i} className={`block ${colorClass}`}>
