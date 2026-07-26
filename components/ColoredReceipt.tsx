@@ -72,7 +72,7 @@ export const ColoredReceipt: React.FC<ColoredReceiptProps> = ({ receipt }) => {
               
               return (
                 <span key={i} className="block">
-                  {label}:<span className="text-green-700 font-black">{dayName}</span>{restOfDate}
+                  {label}:<span className="text-green-900 font-black">{dayName}</span>{restOfDate}
                 </span>
               );
             }
