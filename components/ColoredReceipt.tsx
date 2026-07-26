@@ -57,6 +57,27 @@ export const ColoredReceipt: React.FC<ColoredReceiptProps> = ({ receipt }) => {
             );
           }
         }
+
+        // Special handling for the FECHA line to colorize the day name
+        if (upperLine.startsWith('FECHA:') || upperLine.startsWith('DATE:') || upperLine.startsWith('DATE :') || upperLine.startsWith('DATA:')) {
+          const parts = line.split(':');
+          if (parts.length > 1) {
+            const label = parts[0];
+            const value = parts.slice(1).join(':');
+            
+            const commaIndex = value.indexOf(',');
+            if (commaIndex !== -1) {
+              const dayName = value.substring(0, commaIndex);
+              const restOfDate = value.substring(commaIndex);
+              
+              return (
+                <span key={i} className="block">
+                  {label}:<span className="text-green-600">{dayName}</span>{restOfDate}
+                </span>
+              );
+            }
+          }
+        }
         
         return (
           <span key={i} className={`block ${colorClass}`}>
