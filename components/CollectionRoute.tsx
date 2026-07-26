@@ -4,6 +4,7 @@ import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateString
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { supabase } from '../utils/supabaseClient';
+import { ColoredReceipt } from './ColoredReceipt';
 import { Geolocation } from '@capacitor/geolocation';
 import PullToRefresh from './PullToRefresh';
 import { getFastLocation } from '../utils/gpsHelper';
@@ -1016,7 +1017,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                 </div>
                 <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
                 <div className="bg-slate-50 p-4 md:p-6 rounded-md md:rounded-md font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
-                  {receipt}
+                  <ColoredReceipt receipt={receipt || ''} />
                 </div>
                 <div className="flex flex-col gap-2">
                   <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
@@ -1060,7 +1061,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                 <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
                 <div className="h-px bg-slate-900 my-2"></div>
               </div>
-              {convertReceiptForWhatsApp(receipt || '')}
+              <ColoredReceipt receipt={receipt || ''} />
               <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
                 <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
                 <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>

@@ -3,6 +3,7 @@ import { AppState, Client, CollectionLogType, LoanStatus, Role } from '../types'
 import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp } from '../utils/helpers';
 import PullToRefresh from './PullToRefresh';
 import { getTranslation } from '../utils/translations';
+import { ColoredReceipt } from './ColoredReceipt';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../utils/supabaseClient';
@@ -790,7 +791,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                 <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
                 <div className="h-px bg-slate-900 my-2"></div>
               </div>
-              {convertReceiptForWhatsApp(receipt || '')}
+              <ColoredReceipt receipt={receipt || ''} />
               <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
                 <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
               </div>
