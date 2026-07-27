@@ -306,6 +306,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
+  const [whatsappSummaryClient, setWhatsappSummaryClient] = useState<Client | null>(null);
+  const whatsappSummaryRef = useRef<HTMLDivElement>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(50);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1286,6 +1288,92 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       alert("Error al crear el cliente.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateWhatsAppSummary = async (client: Client) => {
+    setWhatsappSummaryClient(client);
+    setIsSharing(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Wait for React to render the hidden div
+      await new Promise(r => setTimeout(r, 200));
+
+      const container = document.getElementById('whatsapp-summary-capture');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const element = document.getElementById('whatsapp-summary-capture');
+      if (!element) throw new Error("Elemento de captura no encontrado");
+
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      if (container) {
+        container.style.opacity = '0';
+        container.style.left = '-5000px';
+      }
+      
+      const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+      const fileName = `Resumen_${client.name.replace(/\s+/g, '_')}_${new Date().getTime()}.jpg`;
+
+      // Copy to clipboard silently
+      canvas.toBlob(blob => {
+        if (blob) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
+        }
+      });
+
+      // Explicit download fallback (same as receipt)
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Image.split(',')[1],
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'Resumen Semanal',
+          text: 'Resumen de Cuenta',
+          url: result.uri,
+          dialogTitle: 'Compartir Resumen',
+        });
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = base64Image;
+        link.click();
+      }
+
+      const phone = client.phone.replace(/\D/g, '');
+      if (phone) {
+         const message = encodeURIComponent('Resumen Semana');
+         const finalPhone = phone.startsWith('595') ? phone : '595' + phone.replace(/^0/, '');
+         window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
+         
+         if (updateClient) {
+            updateClient({ ...client, lastWhatsAppMsgDate: new Date().toISOString() });
+         }
+      } else {
+         alert("El cliente no tiene un teléfono válido");
+      }
+    } catch (error) {
+      console.error("Error al generar resumen:", error);
+      alert("No se pudo generar el resumen");
+    } finally {
+      setIsSharing(false);
+      setWhatsappSummaryClient(null);
     }
   };
 
@@ -2810,6 +2898,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{(((t as any).clients?.list || {})?.btnView || 'VER')}</button>
+                            {isAdminOrManager && (() => {
+                              const daysPassed = client.lastWhatsAppMsgDate 
+                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000) 
+                                : 0;
+                              const isRed = daysPassed >= 7;
+                              const textColor = isRed ? 'text-red-500 hover:text-red-600' : 'text-emerald-500 hover:text-emerald-600';
+
+                              return (
+                                <button 
+                                  onClick={() => handleGenerateWhatsAppSummary(client)}
+                                  disabled={isSharing && whatsappSummaryClient?.id === client.id}
+                                  className={`${textColor} font-black text-sm active:scale-90 transition-all ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`} 
+                                  title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
+                                  {isSharing && whatsappSummaryClient?.id === client.id ? <i className="fa-solid fa-spinner animate-spin"></i> : daysPassed}
+                                </button>
+                              );
+                            })()}
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(client.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -2906,6 +3011,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{(((t as any).clients?.list || {})?.btnDetail || 'DETALLE')}</button>
+                            {isAdminOrManager && (() => {
+                              const c = item as unknown as Client;
+                              const daysPassed = c.lastWhatsAppMsgDate 
+                                ? Math.floor((Date.now() - new Date(c.lastWhatsAppMsgDate).getTime()) / 86400000) 
+                                : 0;
+                              const isRed = daysPassed >= 7;
+                              const textColor = isRed ? 'text-red-500 hover:text-red-600' : 'text-emerald-500 hover:text-emerald-600';
+
+                              return (
+                                <button 
+                                  onClick={() => handleGenerateWhatsAppSummary(c)}
+                                  disabled={isSharing && whatsappSummaryClient?.id === c.id}
+                                  className={`${textColor} font-black text-sm active:scale-90 transition-all ${isSharing && whatsappSummaryClient?.id === c.id ? 'opacity-50' : ''}`} 
+                                  title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
+                                  {isSharing && whatsappSummaryClient?.id === c.id ? <i className="fa-solid fa-spinner animate-spin"></i> : daysPassed}
+                                </button>
+                              );
+                            })()}
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(item.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -3038,6 +3161,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
+                            {isAdminOrManager && (() => {
+                              const daysPassed = client.lastWhatsAppMsgDate 
+                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000) 
+                                : 0;
+                              const isRed = daysPassed >= 7;
+                              const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
+
+                              return (
+                                <button 
+                                  onClick={() => handleGenerateWhatsAppSummary(client)}
+                                  disabled={isSharing && whatsappSummaryClient?.id === client.id}
+                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`} 
+                                  title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
+                                  {isSharing && whatsappSummaryClient?.id === client.id ? <i className="fa-solid fa-spinner animate-spin text-[10px]"></i> : daysPassed}
+                                </button>
+                              );
+                            })()}
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(client.id)} className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-600 active:scale-90 transition-all" title="Ocultar Cliente"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
                             )}
@@ -5107,6 +5247,107 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           </div>
         )}
+        {/* CONTENEDOR OCULTO PARA RESUMEN DE WHATSAPP */}
+        {whatsappSummaryClient && (() => {
+          const activeLoanDate = whatsappSummaryClient._metrics.activeLoan?.createdAt;
+          const recentLogs = state.collectionLogs
+            .filter(l => 
+              l.clientId === whatsappSummaryClient.id && 
+              l.type === CollectionLogType.PAYMENT && 
+              !l.deletedAt && 
+              l.amount > 0 &&
+              (!activeLoanDate || new Date(l.date).getTime() >= new Date(activeLoanDate).getTime())
+            )
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          const numCols = Math.min(Math.ceil(recentLogs.length / 11) || 1, 5);
+          const containerWidth = 380 + (numCols - 1) * 220;
+
+          return (
+            <div id="whatsapp-summary-capture" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: '#1e293b', width: `${containerWidth}px`, padding: '16px', borderRadius: '12px' }}>
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-2xl relative overflow-hidden">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-4 relative z-10">
+                <div>
+                  <h2 className="text-white font-black text-lg leading-tight uppercase">{whatsappSummaryClient.name}</h2>
+                  <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">{state.settings.companyName || 'ANEXO COBROS'}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 text-[9px] font-black uppercase">
+                    RESUMEN
+                  </div>
+                  <div className="text-[7px] text-slate-400 font-bold uppercase text-right mt-1 leading-tight">
+                    Habilitado<br/>
+                    <span className="text-[18px] text-emerald-400 font-black font-mono tracking-tight">
+                      {formatCurrency(whatsappSummaryClient._metrics.activeLoan?.totalAmount || 0, state.settings)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-5 relative z-10">
+                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                  <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Saldo Actual</p>
+                  <p className="text-white font-mono font-bold text-base">{formatCurrency(whatsappSummaryClient._metrics.balance, state.settings)}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700 flex divide-x divide-slate-700">
+                  <div className="flex-1 p-3">
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Atraso</p>
+                    <p className={`font-mono font-bold text-base ${whatsappSummaryClient._metrics.daysOverdue > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {whatsappSummaryClient._metrics.daysOverdue > 0 ? `${whatsappSummaryClient._metrics.daysOverdue} d` : 'AL DÍA'}
+                    </p>
+                  </div>
+                  <div className="flex-1 p-3">
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-1">Cuota</p>
+                    <p className="font-mono font-bold text-base text-blue-400">
+                      {whatsappSummaryClient._metrics.installmentsStr ? whatsappSummaryClient._metrics.installmentsStr.replace('.', ',') : '---'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent History */}
+              <div className="relative z-10">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2 px-1 border-b border-slate-700 pb-1">Últimos Pagos</p>
+                <div className="flex gap-3">
+                  {recentLogs.length === 0 ? (
+                    <p className="text-[9px] text-slate-500 font-mono text-center py-2 italic w-full">Sin pagos recientes</p>
+                  ) : (() => {
+                    const chunks = [];
+                    for (let i = 0; i < recentLogs.length; i += 11) {
+                      chunks.push(recentLogs.slice(i, i + 11));
+                    }
+                    return chunks.map((chunk, colIdx) => (
+                      <div key={colIdx} className="flex-1 flex flex-col gap-1.5">
+                        {chunk.map((log, rowIdx) => {
+                          const dateObj = new Date(log.date);
+                          const formattedDate = dateObj.toLocaleDateString(state.settings.language || 'es-ES', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', '');
+                          const globalIdx = colIdx * 11 + rowIdx;
+                          const paymentNumber = recentLogs.length - globalIdx; // numbering chronologically (oldest is 1)
+                          const formattedAmount = log.amount.toLocaleString(state.settings.numberFormat === 'comma' ? 'en-US' : 'de-DE');
+                          return (
+                            <div key={rowIdx} className="flex justify-between items-center bg-slate-800/30 px-3 py-3 rounded text-xs">
+                              <span className="text-slate-300 font-mono capitalize mr-2 leading-none mt-0.5"><span className="text-emerald-400 font-bold mr-1.5 text-sm">{paymentNumber}.</span>{formattedDate}</span>
+                              <span className="text-emerald-400 font-mono font-bold shrink-0 leading-none mt-0.5 text-base">{formattedAmount}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-5 pt-3 border-t border-slate-800 flex justify-between items-center relative z-10">
+                <span className="text-base text-blue-400 font-black uppercase">V. CUOTA: {formatCurrency(whatsappSummaryClient._metrics.activeLoan?.installmentValue || 0, state.settings)}</span>
+                <span className="text-[8px] text-slate-500">{new Date().toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          );
+        })()}
       </>
     );
 };

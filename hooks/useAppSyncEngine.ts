@@ -411,37 +411,23 @@ export const useAppSyncEngine = (
     const myIdLower = user.id.toLowerCase();
     const branchIdLower = branchId.toLowerCase();
 
-    const myDirectCollectorIds = new Set<string>();
     const myBranchIds = new Set<string>();
     myBranchIds.add(branchIdLower);
 
-    (Array.isArray(state.users) ? state.users : []).forEach(u => {
-      const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
-      if (uManagerId === branchIdLower) {
-        if (u.role === Role.COLLECTOR) {
-          myDirectCollectorIds.add(u.id.toLowerCase());
-        }
-      }
-    });
-
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      const uName = (user.name || '').toUpperCase().trim();
-      const isSuperUser = ['FABIAN PEDROZO'].includes(uName);
-      if (isSuperUser) return true;
-      
       const itemBranchLower = itemBranchId?.toLowerCase();
-      const addedByLower = itemAddedBy?.toLowerCase() || '';
-      const collectorIdLower = itemCollectorId?.toLowerCase() || '';
-
-      if (collectorIdLower) {
-        if (collectorIdLower === myIdLower || myDirectCollectorIds.has(collectorIdLower)) return true;
-      }
-        
+      
+      // Aislamiento absoluto por branch_id
       if (itemBranchLower) {
         return itemBranchLower === branchIdLower;
       }
-        
-      return addedByLower === myIdLower || myDirectCollectorIds.has(addedByLower);
+      
+      // Fallback estricto para registros legacy sin branchId (solo creador o dueño directo)
+      const addedByLower = itemAddedBy?.toLowerCase() || '';
+      const collectorIdLower = itemCollectorId?.toLowerCase() || '';
+      
+      if (collectorIdLower && collectorIdLower === myIdLower) return true;
+      return addedByLower === myIdLower;
     };
     const deletedCollectorIds = new Set<string>();
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
@@ -498,21 +484,10 @@ c.isActive !== false;
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.deletedAt || (u as any).deleted_at) return false;
       
-      const uName = (u.name || '').toUpperCase().trim();
-      
-      // EXCLUSIÓN GLOBAL: Ocultar a Fabián Pedrozo de toda la app (excepto para él mismo)
-      if (uName === 'FABIAN PEDROZO' && (user.name || '').toUpperCase().trim() !== 'FABIAN PEDROZO') {
-        return false;
-      }
-      
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
-      const isSuperUser = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'].includes((user.name || '').toUpperCase().trim());
-      if (isSuperUser || user.role === Role.ADMIN) {
-        return true; 
-      }
-      
+      // Aislamiento horizontal para usuarios
       return uId === myIdLower || (uManagedBy && myBranchIds.has(uManagedBy));
     });
 
@@ -531,11 +506,7 @@ c.isActive !== false;
       return null;
     };
 
-    const uName = (user.name || '').toUpperCase().trim();
-    const isSuperUser = ['FABIAN PEDROZO'].includes(uName);
-
     let simulatedOrders = (Array.isArray(state.simulatedOrders) ? state.simulatedOrders : []).filter(o => {
-      if (isSuperUser) return true;
       const orderBranchId = getOrderBranchId(o);
       return orderBranchId && orderBranchId.toLowerCase() === branchIdLower;
     });

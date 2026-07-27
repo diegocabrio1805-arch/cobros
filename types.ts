@@ -147,6 +147,7 @@ export interface Client {
   customNoPayMessage?: string;
   isActive?: boolean;
   isHidden?: boolean; // Nueva propiedad para ocultar clientes
+  lastWhatsAppMsgDate?: string; // Fecha del último envío de WhatsApp
   createdAt?: string; // Fecha de registro del cliente
   capital?: number; // Added to sync initial loan capital directly on client
   currentBalance?: number; // Added to sync current balance directly on client
