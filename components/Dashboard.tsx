@@ -132,7 +132,26 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       }
     }
     
-    setOrders(uniqueOrders);
+    // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
+    // (el efectivo a entregar sería 0 o negativo, el pedido es inválido)
+    const validOrders = uniqueOrders.filter(order => {
+      const balance = (() => {
+        const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+          l => (l.clientId || (l as any).client_id) === order.clientId &&
+               (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+        );
+        if (clientLoans.length === 0) return 0;
+        let totalBalance = 0;
+        for (const loan of clientLoans) {
+          const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
+          totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+        }
+        return totalBalance;
+      })();
+      return balance < order.principal;
+    });
+
+    setOrders(validOrders);
   };
 
   const formatSafeCreatedAt = (createdAt?: string) => {
