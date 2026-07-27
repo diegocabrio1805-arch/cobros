@@ -1328,12 +1328,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const base64Image = canvas.toDataURL('image/jpeg', 0.9);
       const fileName = `Resumen_${client.name.replace(/\s+/g, '_')}_${new Date().getTime()}.jpg`;
 
-      // Copy to clipboard silently
-      canvas.toBlob(blob => {
-        if (blob) {
-          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
-        }
-      });
+      // PASO 1: Primero se abre WhatsApp con el texto "Tarjeta"
+      const phone = client.phone.replace(/\D/g, '');
+      if (phone) {
+         const message = encodeURIComponent('Tarjeta');
+         const finalPhone = phone.startsWith('595') ? phone : '595' + phone.replace(/^0/, '');
+         window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
+         
+         if (updateClient) {
+            updateClient({ ...client, lastWhatsAppMsgDate: new Date().toISOString() });
+         }
+      } else {
+         alert("El cliente no tiene un teléfono válido");
+      }
+
+      // PASO 2: Luego se genera y comparte la imagen
+      await new Promise(r => setTimeout(r, 800));
 
       // Explicit download fallback (same as receipt)
       if (Capacitor.isNativePlatform()) {
@@ -1344,10 +1354,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         });
 
         await Share.share({
-          title: 'Resumen Semanal',
-          text: 'Resumen de Cuenta',
+          title: 'Tarjeta',
+          text: 'Tarjeta de Cuenta',
           url: result.uri,
-          dialogTitle: 'Compartir Resumen',
+          dialogTitle: 'Compartir Tarjeta',
         });
       } else {
         const link = document.createElement('a');
@@ -1356,18 +1366,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         link.click();
       }
 
-      const phone = client.phone.replace(/\D/g, '');
-      if (phone) {
-         const message = encodeURIComponent('Resumen Semana');
-         const finalPhone = phone.startsWith('595') ? phone : '595' + phone.replace(/^0/, '');
-         window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
-         
-         if (updateClient) {
-            updateClient({ ...client, lastWhatsAppMsgDate: new Date().toISOString() });
-         }
-      } else {
-         alert("El cliente no tiene un teléfono válido");
-      }
+      // Copy to clipboard silently
+      canvas.toBlob(blob => {
+        if (blob) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {});
+        }
+      });
     } catch (error) {
       console.error("Error al generar resumen:", error);
       alert("No se pudo generar el resumen");
