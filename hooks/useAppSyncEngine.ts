@@ -413,6 +413,15 @@ export const useAppSyncEngine = (
 
     const myBranchIds = new Set<string>();
     myBranchIds.add(branchIdLower);
+    const myTeamIds = new Set<string>();
+    myTeamIds.add(myIdLower);
+    (Array.isArray(state.users) ? state.users : []).forEach(u => {
+      if (u.deletedAt || (u as any).deleted_at) return;
+      const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      if (uManagedBy && myBranchIds.has(uManagedBy)) {
+        myTeamIds.add(u.id.toLowerCase());
+      }
+    });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
       const itemBranchLower = itemBranchId?.toLowerCase();
@@ -422,12 +431,12 @@ export const useAppSyncEngine = (
         return itemBranchLower === branchIdLower;
       }
       
-      // Fallback estricto para registros legacy sin branchId (solo creador o dueño directo)
+      // Fallback estricto para registros legacy sin branchId
       const addedByLower = itemAddedBy?.toLowerCase() || '';
       const collectorIdLower = itemCollectorId?.toLowerCase() || '';
       
-      if (collectorIdLower && collectorIdLower === myIdLower) return true;
-      return addedByLower === myIdLower;
+      if (collectorIdLower && myTeamIds.has(collectorIdLower)) return true;
+      return myTeamIds.has(addedByLower);
     };
     const deletedCollectorIds = new Set<string>();
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
