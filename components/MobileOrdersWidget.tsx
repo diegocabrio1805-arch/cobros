@@ -55,7 +55,13 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
       }
     }
     
-    setOrders(uniqueOrders);
+    // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
+    const validOrders = uniqueOrders.filter(order => {
+      const balance = getClientBalance(order.clientId);
+      return balance < order.principal;
+    });
+
+    setOrders(validOrders);
   };
 
   useEffect(() => {
