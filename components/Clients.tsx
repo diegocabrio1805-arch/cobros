@@ -1331,7 +1331,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // PASO 1: Primero se abre WhatsApp con el texto "Tarjeta"
       const phone = client.phone.replace(/\D/g, '');
       if (phone) {
-         const message = encodeURIComponent('Tarjeta');
+         const companyName = state.settings.companyName || 'ANEXO COBRANZA';
+         const message = encodeURIComponent(`Tarjeta Digital de Control de Pago\n${companyName}`);
+
          const finalPhone = phone.startsWith('595') ? phone : '595' + phone.replace(/^0/, '');
          window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
          
@@ -2684,13 +2686,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.paid) || 'Pagadas'}</th>
                         <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.overdue) || 'Mora'}</th>
                         <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.credits) || 'Créditos'}</th>
+                        <th className="px-6 py-4 text-center" title="Días desde último contacto WhatsApp">📱 {state.settings.language === 'fr' ? 'JOURS' : 'DÍAS'}</th>
                         <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {paginatedClients.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">
+                          <td colSpan={9} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">
                             <i className="fa-solid fa-users-slash text-3xl mb-3 block text-slate-300"></i>
                             {(((t as any).clients?.list || {})?.empty) || 'Lista de clientes vacía'}
                           </td>
@@ -2777,12 +2780,31 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </span>
                             </td>
                             <td className="px-6 py-3 text-center">
-                              <button
-                                onClick={() => setShowLegajo(client.id)}
-                                className="px-5 py-2 bg-blue-50 text-blue-800 rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100"
-                              >
-                                {(((t as any).clients?.list || {})?.dossier) || 'EXPEDIENTE'}
-                              </button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => setShowLegajo(client.id)}
+                                  className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente">
+                                  <i className="fa-solid fa-folder-open text-[10px]"></i>
+                                </button>
+                                {isAdminOrManager && (() => {
+                                  const daysPassed = client.lastWhatsAppMsgDate
+                                    ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
+                                    : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
+                                  const isRed = daysPassed >= 7;
+                                  const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
+                                  return (
+                                    <button
+                                      onClick={() => handleGenerateWhatsAppSummary(client)}
+                                      disabled={isSharing && whatsappSummaryClient?.id === client.id}
+                                      className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`}
+                                      title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
+                                      {isSharing && whatsappSummaryClient?.id === client.id
+                                        ? <i className="fa-solid fa-spinner animate-spin text-[10px]"></i>
+                                        : daysPassed}
+                                    </button>
+                                  );
+                                })()}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2903,17 +2925,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{(((t as any).clients?.list || {})?.btnView || 'VER')}</button>
                             {isAdminOrManager && (() => {
-                              const daysPassed = client.lastWhatsAppMsgDate 
-                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000) 
-                                : 0;
+                              const daysPassed = client.lastWhatsAppMsgDate
+                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
+                                : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
                               const isRed = daysPassed >= 7;
-                              const textColor = isRed ? 'text-red-500 hover:text-red-600' : 'text-emerald-500 hover:text-emerald-600';
+                              const btnColor = isRed ? 'bg-red-600' : 'bg-emerald-600';
 
                               return (
                                 <button 
                                   onClick={() => handleGenerateWhatsAppSummary(client)}
                                   disabled={isSharing && whatsappSummaryClient?.id === client.id}
-                                  className={`${textColor} font-black text-sm active:scale-90 transition-all ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`} 
+                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`} 
                                   title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
                                   {isSharing && whatsappSummaryClient?.id === client.id ? <i className="fa-solid fa-spinner animate-spin"></i> : daysPassed}
                                 </button>
@@ -2969,14 +2991,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex flex-col">
                             <span className="uppercase text-slate-900 font-bold">{item.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[8px] text-slate-400 font-bold">ID: {item.documentId}</span>
-                              {/* 
-                                {(item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy]) || (item._loan?.collectorId && COLLECTOR_SELLER_CODES[item._loan.collectorId])) && (
-                                  <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
-                                    VEND: {item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy]) || (item._loan?.collectorId && COLLECTOR_SELLER_CODES[item._loan.collectorId])}
-                                  </span>
-                                )}
-                              */}
                             </div>
                             {(() => {
                               const loansForClient = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === item.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -3017,17 +3031,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{(((t as any).clients?.list || {})?.btnDetail || 'DETALLE')}</button>
                             {isAdminOrManager && (() => {
                               const c = item as unknown as Client;
-                              const daysPassed = c.lastWhatsAppMsgDate 
-                                ? Math.floor((Date.now() - new Date(c.lastWhatsAppMsgDate).getTime()) / 86400000) 
-                                : 0;
+                               const daysPassed = c.lastWhatsAppMsgDate
+                                 ? Math.floor((Date.now() - new Date(c.lastWhatsAppMsgDate).getTime()) / 86400000)
+                                 : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
                               const isRed = daysPassed >= 7;
-                              const textColor = isRed ? 'text-red-500 hover:text-red-600' : 'text-emerald-500 hover:text-emerald-600';
+                              const btnColor = isRed ? 'bg-red-600' : 'bg-emerald-600';
 
                               return (
                                 <button 
                                   onClick={() => handleGenerateWhatsAppSummary(c)}
                                   disabled={isSharing && whatsappSummaryClient?.id === c.id}
-                                  className={`${textColor} font-black text-sm active:scale-90 transition-all ${isSharing && whatsappSummaryClient?.id === c.id ? 'opacity-50' : ''}`} 
+                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === c.id ? 'opacity-50' : ''}`} 
                                   title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
                                   {isSharing && whatsappSummaryClient?.id === c.id ? <i className="fa-solid fa-spinner animate-spin"></i> : daysPassed}
                                 </button>
@@ -3166,19 +3180,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex items-center justify-center gap-1.5">
                             <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
                             {isAdminOrManager && (() => {
-                              const daysPassed = client.lastWhatsAppMsgDate 
-                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000) 
-                                : 0;
+                               const daysPassed = client.lastWhatsAppMsgDate
+                                 ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
+                                 : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
                               const isRed = daysPassed >= 7;
                               const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
-
                               return (
-                                <button 
+                                <button
                                   onClick={() => handleGenerateWhatsAppSummary(client)}
                                   disabled={isSharing && whatsappSummaryClient?.id === client.id}
-                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`} 
+                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === client.id ? 'opacity-50' : ''}`}
                                   title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
-                                  {isSharing && whatsappSummaryClient?.id === client.id ? <i className="fa-solid fa-spinner animate-spin text-[10px]"></i> : daysPassed}
+                                  {isSharing && whatsappSummaryClient?.id === client.id
+                                    ? <i className="fa-solid fa-spinner animate-spin text-[10px]"></i>
+                                    : daysPassed}
                                 </button>
                               );
                             })()}
