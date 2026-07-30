@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -9,11 +9,8 @@ import { Share } from '@capacitor/share';
 import PullToRefresh from './PullToRefresh';
 import { Capacitor } from '@capacitor/core';
 // Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
-const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
-  const cleanPhone = phone.replace(/\D/g, '');
-  const targetPhone = (cleanPhone.length === 10 && countryPrefix === '57')
-    ? countryPrefix + cleanPhone
-    : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
+const openWhatsApp = (phone: string, text: string, countryCode: string) => {
+  const targetPhone = normalizePhone(phone, countryCode);
   const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
   if (Capacitor.isNativePlatform()) {
     window.open(wpUrl, '_system');
@@ -1587,8 +1584,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
 
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        openWhatsApp(clientInLegajo.phone, 'ticket', countryPrefix);
+        const countryPrefix = getCountryPhonePrefix(state.settings.country);
+        openWhatsApp(clientInLegajo.phone, 'ticket', state.settings.country);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
         const totalPaid = calculateTotalPaidFromLogs(activeLoanInLegajo, state.collectionLogs);
@@ -1614,8 +1611,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
         
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        const countryPrefixNoPay = state.settings.country === 'PY' ? '595' : '57';
-        openWhatsApp(clientInLegajo.phone, msg, countryPrefixNoPay);
+        openWhatsApp(clientInLegajo.phone, msg, state.settings.country);
       }
     } catch (e) { console.error(e); } finally {
       setIsProcessingDossierAction(false);
@@ -1889,8 +1885,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         // WhatsApp fallback (usando el texto limpio)
         const phone = clientInLegajo.phone.replace(/\D/g, '');
         const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
+        const wpUrl = `https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`;
         window.open(wpUrl, '_blank');
       } else {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -2138,10 +2133,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // ✅ Calcular URL de WhatsApp y navegar directamente (anti-popup: usamos la ventana pre-abierta)
       if (clientInLegajo?.phone) {
         const rawPhone = clientInLegajo.phone.replace(/\D/g, '');
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const targetPhone = (rawPhone.length === 10 && countryPrefix === '57')
-          ? countryPrefix + rawPhone
-          : (rawPhone.startsWith(countryPrefix) ? rawPhone : countryPrefix + rawPhone);
+        const targetPhone = normalizePhone(rawPhone, state.settings.country);
         const companyName = (state.settings.companyAlias || state.settings.companyName || 'LA EMPRESA').toUpperCase();
         const contactPhone = state.settings.contactPhone ? ` ${state.settings.contactPhone}` : '';
         const currSym = state.settings.currencySymbol || '$';
@@ -2907,7 +2899,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-blue-600">
                           {(() => {
                             const digits = client.phone.replace(/\D/g, '');
-                            const displayPhone = digits.startsWith('595') ? '+' + digits : '+595' + digits.replace(/^0/, '');
+                            const displayPhone = '+' + normalizePhone(digits, state.settings.country);
                             return <a href={`tel:${displayPhone}`} className="hover:underline">{displayPhone}</a>;
                           })()}
                         </td>
@@ -3151,12 +3143,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4">
                           {(() => {
                             const digits = client.phone.replace(/\D/g, '');
-                            const displayPhone = digits.startsWith('595') ? '+' + digits : '+595' + digits.replace(/^0/, '');
+                            const displayPhone = '+' + normalizePhone(digits, state.settings.country);
                             return <a href={`tel:${displayPhone}`} className="text-blue-700 hover:underline">{displayPhone}</a>;
                           })()}
                           {client.secondaryPhone && (() => {
                             const sDigits = client.secondaryPhone.replace(/\D/g, '');
-                            const sDisplayPhone = sDigits.startsWith('595') ? '+' + sDigits : '+595' + sDigits.replace(/^0/, '');
+                            const sDisplayPhone = '+' + normalizePhone(sDigits, state.settings.country);
                             return <p className="text-slate-400 text-[10px]"><a href={`tel:${sDisplayPhone}`} className="hover:underline">{sDisplayPhone}</a></p>;
                           })()}
                         </td>
@@ -4515,7 +4507,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                     onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, frequency: e.target.value }))}
                                     className="flex-1 bg-slate-900 text-white font-black text-[9px] outline-none text-right uppercase border-none focus:ring-0 cursor-pointer"
                                   >
-                                    {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{state.settings.language === 'fr' ? (f === Frequency.DAILY || f === 'Diaria' ? 'QUOTIDIEN (L - S)' : f === Frequency.DAILY_MF ? 'QUOTIDIEN (L - V)' : f === Frequency.WEEKLY ? 'HEBDOMADAIRE' : f === Frequency.BIWEEKLY ? 'BIMENSUEL' : 'MENSUEL') : f}</option>)}
+                                    {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{state.settings.language === 'fr' ? (f === Frequency.DAILY || f === Frequency.DAILY_MF ? 'QUOTIDIEN' : f === Frequency.WEEKLY ? 'HEBDOMADAIRE' : f === Frequency.BIWEEKLY ? 'BIMENSUEL' : 'MENSUEL') : f}</option>)}
                                   </select>
                                 </div>
                               </div>

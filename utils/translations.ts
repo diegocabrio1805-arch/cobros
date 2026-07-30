@@ -833,7 +833,9 @@ export const translations = {
       yourProfit: 'Tu Ganancia',
       delinquency: 'Control de Morosidad Semanal',
       average: 'Promedio Semanal',
-      history: 'Abono de Clientes'
+      history: 'Abono de Clientes',
+      expensePlaceholder: 'Observación',
+      allConsolidated: 'TODOS (CONSOLIDADO)'
     },
     notifications: {
       title: 'Centro de Alertas',
@@ -895,7 +897,12 @@ export const translations = {
       testPrintBtn: 'PROBAR IMPRESIÓN',
       printerWarning: '* Conecte su impresora térmica vía Bluetooth para imprimir recibos automáticamente tras cada cobro.',
       linked: 'Vinculado:',
-      saveAndExit: 'GUARDAR Y SALIR'
+      saveAndExit: 'GUARDAR Y SALIR',
+      linkPrinterTitle: 'Vincular Impresora',
+      searchLinkedBtn: 'BUSCAR VINCULADOS',
+      noDevicesFound: 'No se encontraron dispositivos',
+      printerBluetoothHint: 'Asegúrate de haber vinculado tu impresora en los ajustes de Bluetooth del celular.',
+      unknownDevice: 'Desconocido'
     },
     settings: {
       title: 'Configuración Regional',
@@ -1749,7 +1756,9 @@ export const translations = {
       yourProfit: 'Your Profit',
       delinquency: 'Weekly Delinquency Control',
       average: 'Weekly Average',
-      history: 'Client Payments'
+      history: 'Client Payments',
+      expensePlaceholder: 'Observation',
+      allConsolidated: 'ALL (CONSOLIDATED)'
     },
     notifications: {
       title: 'Alert Center',
@@ -1811,7 +1820,12 @@ export const translations = {
       testPrintBtn: 'TEST PRINT',
       printerWarning: '* Connect your thermal printer via Bluetooth to automatically print receipts.',
       linked: 'Linked:',
-      saveAndExit: 'SAVE AND EXIT'
+      saveAndExit: 'SAVE AND EXIT',
+      linkPrinterTitle: 'Link Printer',
+      searchLinkedBtn: 'SEARCH LINKED',
+      noDevicesFound: 'No devices found',
+      printerBluetoothHint: 'Make sure you have paired your printer in the phone Bluetooth settings.',
+      unknownDevice: 'Unknown'
     },
     settings: {
       title: 'Regional Settings',
@@ -2665,7 +2679,9 @@ export const translations = {
       yourProfit: 'Votre profit',
       delinquency: 'Contrôle de morosité',
       average: 'Moyenne hebdomadaire',
-      history: 'Paiements clients'
+      history: 'Paiements clients',
+      expensePlaceholder: 'Observation',
+      allConsolidated: 'TOUS (CONSOLIDÉ)'
     },
     notifications: {
       title: 'Centre d\'Alertes',
@@ -2727,7 +2743,12 @@ export const translations = {
       testPrintBtn: 'TESTER L\'IMPRESSION',
       printerWarning: '* Connectez votre imprimante thermique via Bluetooth pour imprimer des reçus automatiquement.',
       linked: 'Lié:',
-      saveAndExit: 'ENREGISTRER ET QUITTER'
+      saveAndExit: 'ENREGISTRER ET QUITTER',
+      linkPrinterTitle: 'Associer Imprimante',
+      searchLinkedBtn: 'CHERCHER ASSOCIÉS',
+      noDevicesFound: 'Aucun appareil trouvé',
+      printerBluetoothHint: 'Assurez-vous d\'avoir associé votre imprimante dans les paramètres Bluetooth du téléphone.',
+      unknownDevice: 'Inconnu'
     },
     settings: {
       title: 'Paramètres Régionaux',
@@ -3581,7 +3602,9 @@ export const translations = {
       yourProfit: 'Seu lucro',
       delinquency: 'Controle de inadimplência',
       average: 'Média semanal',
-      history: 'Pagamentos clientes'
+      history: 'Pagamentos clientes',
+      expensePlaceholder: 'Observação',
+      allConsolidated: 'TODOS (CONSOLIDADO)'
     },
     notifications: {
       title: 'Centro de Alertas',
@@ -3643,7 +3666,12 @@ export const translations = {
       testPrintBtn: 'TESTAR IMPRESSÃO',
       printerWarning: '* Conecte sua impressora térmica via Bluetooth para imprimir recibos automaticamente.',
       linked: 'Vinculado:',
-      saveAndExit: 'SALVAR E SAIR'
+      saveAndExit: 'SALVAR E SAIR',
+      linkPrinterTitle: 'Vincular Impressora',
+      searchLinkedBtn: 'BUSCAR VINCULADOS',
+      noDevicesFound: 'Nenhum dispositivo encontrado',
+      printerBluetoothHint: 'Certifique-se de ter vinculado sua impressora nas configurações de Bluetooth do celular.',
+      unknownDevice: 'Desconhecido'
     },
     settings: {
       title: 'Configurações Regionais',

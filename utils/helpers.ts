@@ -62,6 +62,68 @@ export const getTimeZoneForCountry = (country: string): string => {
   return COUNTRY_TIMEZONES[country] || 'America/Bogota';
 };
 
+const COUNTRY_PHONE_PREFIXES: Record<string, string> = {
+  'AG': '1268',  // Antigua y Barbuda
+  'AR': '54',    // Argentina
+  'BS': '1242',  // Bahamas
+  'BB': '1246',  // Barbados
+  'BZ': '501',   // Belice
+  'BO': '591',   // Bolivia
+  'BR': '55',    // Brasil
+  'CA': '1',     // Canadá
+  'CL': '56',    // Chile
+  'CO': '57',    // Colombia
+  'CR': '506',   // Costa Rica
+  'CU': '53',    // Cuba
+  'DM': '1767',  // Dominica
+  'EC': '593',   // Ecuador
+  'SV': '503',   // El Salvador
+  'US': '1',     // Estados Unidos
+  'GD': '1473',  // Granada
+  'GT': '502',   // Guatemala
+  'GY': '592',   // Guyana
+  'HT': '509',   // Haití
+  'HN': '504',   // Honduras
+  'JM': '1876',  // Jamaica
+  'MX': '52',    // México
+  'NI': '505',   // Nicaragua
+  'PA': '507',   // Panamá
+  'PY': '595',   // Paraguay
+  'PE': '51',    // Perú
+  'DO': '1809',  // Rep. Dominicana
+  'KN': '1869',  // San Cristóbal y Nieves
+  'VC': '1784',  // San Vicente y Granadinas
+  'LC': '1758',  // Santa Lucía
+  'SR': '597',   // Surinam
+  'TT': '1868',  // Trinidad y Tobago
+  'UY': '598',   // Uruguay
+  'VE': '58',    // Venezuela
+};
+
+/**
+ * Retorna el prefijo telefónico internacional del país (sin '+').
+ * Ej: 'PY' → '595', 'CO' → '57', 'MX' → '52'
+ */
+export const getCountryPhonePrefix = (countryCode: string): string => {
+  return COUNTRY_PHONE_PREFIXES[countryCode] || '595';
+};
+
+/**
+ * Normaliza un número de teléfono al formato internacional completo (sin '+').
+ * - Elimina caracteres no numéricos
+ * - Elimina el 0 inicial si existe y ya no arranca con el prefijo
+ * - Agrega el prefijo si el número no lo incluye aún
+ */
+export const normalizePhone = (phone: string, countryCode: string): string => {
+  const prefix = getCountryPhonePrefix(countryCode);
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return prefix;
+  if (digits.startsWith(prefix)) return digits;
+  // Eliminar el 0 inicial (formato local) antes de agregar prefijo
+  const withoutLeadingZero = digits.startsWith('0') ? digits.slice(1) : digits;
+  return prefix + withoutLeadingZero;
+};
+
 const safeParseDate = (dateStr: any): Date | null => {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -278,7 +340,7 @@ export const formatLocalDate = (date: Date | string | null | undefined, country:
   return new Intl.DateTimeFormat(locale, defaultOptions).format(d);
 };
 
-export const formatLocalTime = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
+export const formatLocalTime = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}, language: string = 'es'): string => {
   if (!date) return '---';
   let d: Date;
   if (typeof date === 'string') {
@@ -295,6 +357,7 @@ export const formatLocalTime = (date: Date | string | null | undefined, country:
   }
   if (isNaN(d.getTime())) return '---';
   
+  const locale = language === 'en' ? 'en-US' : language === 'fr' ? 'fr-FR' : language === 'pt' ? 'pt-BR' : 'es-ES';
   const defaultOptions: Intl.DateTimeFormatOptions = {
     timeZone: getTimeZoneForCountry(country),
     hour: '2-digit',
@@ -303,7 +366,7 @@ export const formatLocalTime = (date: Date | string | null | undefined, country:
     ...options
   };
   
-  return new Intl.DateTimeFormat('es-ES', defaultOptions).format(d);
+  return new Intl.DateTimeFormat(locale, defaultOptions).format(d);
 };
 
 export const formatCountryTime = (country: CountryCode): string => {

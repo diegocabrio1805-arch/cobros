@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -313,9 +313,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
   const handleDirectWhatsApp = (phone: string) => {
     if (!phone) return alert("Número de teléfono no disponible");
-    const cleanPhone = phone.replace(/\D/g, '');
-    const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-    const targetPhone = (cleanPhone.length === 10 && countryPrefix === '57') ? countryPrefix + cleanPhone : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
+    const targetPhone = normalizePhone(phone, state.settings.country);
     window.open(`https://wa.me/${targetPhone}`, '_blank');
   };
 
@@ -663,9 +661,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         
         setTimeout(() => {
           const phone = client.phone.replace(/\D/g, '');
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+          window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
         resetUI();
       }
@@ -758,9 +754,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     /*
     if (client) {
       const phone = client.phone.replace(/\D/g, '');
-      const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-      const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('ticket')}`, '_blank');
+      window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent('ticket')}`, '_blank');
     }
     */
 
@@ -922,9 +916,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           receipt.includes(c.name.toUpperCase().substring(0, 10))
         );
         const phone = client?.phone.replace(/\D/g, '') || '';
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
+        window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`, '_blank');
       }
     } catch (err) {
       console.error("Error sharing PDF:", err);
@@ -1947,9 +1939,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
                   if (client) {
                     const phone = client.phone.replace(/\D/g, '');
-                    const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-                    const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
+                    window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`, '_blank');
                   }
                 }}
                 className="flex-1 py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"

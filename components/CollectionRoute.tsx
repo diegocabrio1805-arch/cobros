@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { supabase } from '../utils/supabaseClient';
@@ -11,11 +11,8 @@ import { getFastLocation } from '../utils/gpsHelper';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 // Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
-const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
-  const cleanPhone = phone.replace(/\D/g, '');
-  const targetPhone = (cleanPhone.length === 10 && countryPrefix === '57')
-    ? countryPrefix + cleanPhone
-    : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
+const openWhatsApp = (phone: string, text: string, countryCode: string) => {
+  const targetPhone = normalizePhone(phone, countryCode);
   const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
   if (Capacitor.isNativePlatform()) {
     window.open(wpUrl, '_system');
@@ -497,8 +494,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         });
         
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        openWhatsApp(client.phone, 'ticket', countryPrefix);
+        openWhatsApp(client.phone, 'ticket', state.settings.country);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         const remainingBalance = Math.max(0, loan.totalAmount - totalPaid);
@@ -515,8 +511,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         }
         
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        const countryPrefixNoPay = state.settings.country === 'PY' ? '595' : '57';
-        openWhatsApp(client.phone, msg, countryPrefixNoPay);
+        openWhatsApp(client.phone, msg, state.settings.country);
         resetUI();
       }
     } catch (e) {
