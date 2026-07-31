@@ -478,17 +478,29 @@ c.isActive !== false;
     let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e =>
       isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined)
     );
-    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
-      isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) &&
-      !log.deletedAt &&
-      (
-        // Logs de auditoría de eliminados: siempre visibles (no tienen clientId activo)
-        log.type === CollectionLogType.DELETED_PAYMENT ||
-        // Logs normales: solo mostrar si el cliente sigue activo en el sistema
-        !log.clientId ||
-        activeClientIds.has(log.clientId)
-      )
+    // Construir set de todos los loan IDs activos de esta rama para el pre-filtro
+    const allActiveLoanIds = new Set((Array.isArray(state.loans) ? state.loans : [])
+      .filter(l => activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt)
+      .map(l => l.id)
     );
+
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
+      if (log.deletedAt) return false;
+
+      // Logs de auditoría de eliminados: siempre visibles
+      if (log.type === CollectionLogType.DELETED_PAYMENT) return true;
+
+      // Logs normales: aceptar si el cliente o el préstamo pertenecen a esta rama
+      // Esto es crítico para pagos históricos registrados por el admin en clientes del cobrador
+      const logClientId = log.clientId || (log as any).client_id;
+      const logLoanId = log.loanId || (log as any).loan_id;
+
+      if (logClientId && activeClientIds.has(logClientId)) return true;
+      if (logLoanId && allActiveLoanIds.has(logLoanId)) return true;
+
+      // Fallback: verificar por branch/recordedBy (para logs sin clientId ni loanId)
+      return isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined);
+    });
 
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
       if (u.deletedAt || (u as any).deleted_at) return false;
@@ -556,6 +568,7 @@ c.isActive !== false;
 
       collectionLogs = collectionLogs.filter(log => 
         (log.clientId && visibleClientIds.has(log.clientId)) ||
+        (log.loanId && visibleLoanIds.has(log.loanId || (log as any).loan_id)) ||
         (log.type === CollectionLogType.DELETED_PAYMENT && (log.recordedBy || (log as any).recorded_by) === user.id)
       );
 
