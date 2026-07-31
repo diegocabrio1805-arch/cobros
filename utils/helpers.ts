@@ -866,34 +866,6 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
   try {
     if (!loan || !loan.createdAt) return 0;
 
-    // 0. Prioridad absoluta: Atraso explícito importado desde Excel o Supabase
-    const importedAtrasoRaw = (loan as any).daysOverdue !== undefined
-      ? (loan as any).daysOverdue
-      : ((loan as any).atraso !== undefined
-          ? (loan as any).atraso
-          : (loan.raw_data?.ATRASO !== undefined
-              ? loan.raw_data.ATRASO
-              : (loan.raw_data?.daysOverdue !== undefined ? loan.raw_data.daysOverdue : undefined)));
-
-    if (importedAtrasoRaw !== undefined && importedAtrasoRaw !== null && importedAtrasoRaw !== '') {
-      const importedAtraso = typeof importedAtrasoRaw === 'number'
-        ? importedAtrasoRaw
-        : parseInt(String(importedAtrasoRaw).replace(/\D/g, ''), 10);
-
-      if (!isNaN(importedAtraso)) {
-        const initialPaid = Number(loan.totalPaid || 0);
-        const currentPaid = customTotalPaid !== undefined ? Number(customTotalPaid) : initialPaid;
-
-        if (currentPaid <= initialPaid) {
-          return Math.max(0, importedAtraso);
-        } else {
-          // Se han registrado abonos adicionales desde la importación
-          const extraPaidMoney = currentPaid - initialPaid;
-          const extraPaidCuotas = Math.floor(extraPaidMoney / (loan.installmentValue || 1));
-          return Math.max(0, importedAtraso - extraPaidCuotas);
-        }
-      }
-    }
 
     const todayStr = getLocalDateStringForCountry(settings?.country || 'CO');
     const today = new Date(todayStr + 'T00:00:00');
