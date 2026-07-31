@@ -487,8 +487,7 @@ c.isActive !== false;
     let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       if (log.deletedAt) return false;
 
-      // Logs de auditoría de eliminados: siempre visibles
-      if (log.type === CollectionLogType.DELETED_PAYMENT) return true;
+      // Logs (incluyendo auditoría de eliminados): aceptar si el cliente o préstamo pertenecen a esta rama
 
       // Logs normales: aceptar si el cliente o el préstamo pertenecen a esta rama
       // Esto es crítico para pagos históricos registrados por el admin en clientes del cobrador
