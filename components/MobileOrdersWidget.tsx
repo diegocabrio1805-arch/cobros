@@ -58,7 +58,22 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
     const validOrders = uniqueOrders.filter(order => {
       const balance = getClientBalance(order.clientId);
-      return balance < order.principal;
+      if (balance >= order.principal) return false;
+
+      // REGLA 2: Evitar "Pedidos Fantasma" (Zombie Orders)
+      if (order.createdAt) {
+        const orderDate = new Date(order.createdAt);
+        const marginDate = new Date(orderDate.getTime() - 2 * 60000); 
+        
+        const hasNewerLoan = (Array.isArray(state.loans) ? state.loans : []).filter(
+          l => (l.clientId || (l as any).client_id) === order.clientId && 
+               new Date(l.createdAt) >= marginDate
+        ).length > 0;
+        
+        if (hasNewerLoan) return false;
+      }
+
+      return true;
     });
 
     setOrders(validOrders);
