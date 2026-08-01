@@ -5,6 +5,7 @@ import { StorageService } from '../utils/localforageStorage';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 import { generateUUID } from '../utils/helpers';
+import { BackgroundTask } from '@capawesome/capacitor-background-task';
 
 
 const isValidUuid = (id: string | undefined | null) => {
@@ -82,9 +83,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setIsOnline(false);
         };
         
+        const handleQueueAdded = () => {
+            console.log('[Sync] New item in queue, triggering instant process');
+            setTimeout(() => processQueue(), 50);
+        };
+        
         if (typeof window !== 'undefined') {
             window.addEventListener('online', handleNativeOnline);
             window.addEventListener('offline', handleNativeOffline);
+            window.addEventListener('sync_queue_added', handleQueueAdded);
         }
 
         const setupListener = async () => {
@@ -224,6 +231,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             Promise.resolve(handlerPromise).then(h => h?.remove?.()).catch(() => {});
             Promise.resolve(appHandlerPromise).then(h => h?.remove?.()).catch(() => {});
             if (channel) supabase.removeChannel(channel);
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('online', handleNativeOnline);
+                window.removeEventListener('offline', handleNativeOffline);
+                window.removeEventListener('sync_queue_added', handleQueueAdded);
+            }
         };
     }, []);
 
@@ -512,6 +524,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     }, []);
 
     const processQueue = useCallback(async (force = false, fullSync = false, skipPull = false) => {
+        let bgTaskId: string | null = null;
+        try {
+            if (typeof window !== 'undefined') {
+                bgTaskId = await BackgroundTask.beforeExit(async () => {
+                    console.warn('[Sync] OS ended background task.');
+                    if (bgTaskId) BackgroundTask.finish({ taskId: bgTaskId });
+                }).catch(() => null);
+            }
+        } catch (e) { }
+
         if (isProcessingRef.current) {
             pendingRunRef.current = true;
             pendingParamsRef.current = {
@@ -850,6 +872,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 setTimeout(() => processQueue(false, false, false), 100);
             } else {
                 setIsSyncing(false);
+            }
+
+            if (bgTaskId) {
+                BackgroundTask.finish({ taskId: bgTaskId }).catch(() => {});
             }
         }
     }, [pullData]);

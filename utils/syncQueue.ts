@@ -10,6 +10,10 @@ export const addToSyncQueue = (item: { operation: string; data: any }) => {
             retryCount: 0
         });
         localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+        
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('sync_queue_added'));
+        }
     } catch (error) {
         console.error('Error adding to sync queue:', error);
     }
