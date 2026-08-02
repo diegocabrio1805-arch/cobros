@@ -133,6 +133,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
         });
 
         if (authError || !authData.user) {
+          try {
+            // Verificar si el usuario realmente no existe en la base de datos
+            const { data: exists } = await supabase.rpc('check_user_exists', { p_username: cleanUsername.toLowerCase() });
+            if (exists === false) {
+              setError("USUARIO NO EXISTENTE");
+              return;
+            }
+          } catch (e) {
+            // Si el RPC falla por red o permisos, ignorar y caer al error normal
+          }
+
           handleFailedLogin();
           return;
         }
@@ -185,7 +196,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
         }
         handleSuccessfulLogin(localUser);
       } else {
-        handleFailedLogin();
+        // Validación offline: Si no existe ni siquiera en la lista de usuarios locales
+        const existsLocally = users.some(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
+        if (!existsLocally) {
+          setError("USUARIO NO EXISTENTE");
+        } else {
+          handleFailedLogin();
+        }
       }
     }
   };

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { AppState, User, Role } from '../types';
 import { getTranslation } from '../utils/translations';
 import { compressImage, generateUUID } from '../utils/helpers';
+import { supabase } from '../utils/supabaseClient';
 
 interface ManagersProps {
   state: AppState;
@@ -269,9 +270,26 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                         <i className="fa-solid fa-pen-to-square text-xs"></i>
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('¿Está seguro de que desea eliminar este gerente?')) {
-                            onDeleteUser(user.id);
+                        onClick={async () => {
+                          if (window.confirm(`¿Está seguro de que desea eliminar COMPLETAMENTE al gerente "${user.name}"?\n\n(Se eliminarán también sus cobradores y clientes de Supabase)`)) {
+                            try {
+                              // Borrado en cascada en Supabase
+                              const { error } = await supabase.rpc('delete_manager_and_cascade', { p_manager_id: user.id });
+                              if (error) throw error;
+                              // Borrado local
+                              onDeleteUser(user.id);
+                              alert('Gerente eliminado exitosamente de la base de datos.');
+                            } catch (err: any) {
+                              console.error('Error técnico al eliminar gerente:', err);
+                              
+                              // Construir mensaje detallado con los datos técnicos de Supabase
+                              let errorDetails = err.message || 'Error desconocido';
+                              if (err.details) errorDetails += `\nDetalles: ${err.details}`;
+                              if (err.hint) errorDetails += `\nPista: ${err.hint}`;
+                              if (err.code) errorDetails += `\nCódigo SQL: ${err.code}`;
+                              
+                              alert(`Hubo un error técnico al eliminar el gerente.\n\nPor favor, pasa esta información a soporte para solucionarlo:\n\n${errorDetails}`);
+                            }
                           }
                         }}
                         className={`w-9 h-9 md:w-10 md:h-10 border rounded-lg transition-all shadow-sm active:scale-90 flex items-center justify-center ${isCritical ? 'bg-white border-red-200 text-red-600 hover:bg-red-50' : 'bg-white border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'}`}

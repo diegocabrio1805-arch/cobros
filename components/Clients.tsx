@@ -326,7 +326,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
   const [selectedCollector, setSelectedCollector] = useState<string>('all');
-  const [carteraSortBy, setCarteraSortBy] = useState<'registro' | 'saldo' | 'atraso' | 'renovaciones'>('registro');
+  const [carteraSortBy, setCarteraSortBy] = useState<'registro' | 'saldo' | 'atraso' | 'renovaciones' | 'cuotamayor'>('registro');
 
   // PAGINACIÓN PARA GAMA BAJA
   const [currentPage, setCurrentPage] = useState(1);
@@ -770,6 +770,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const totalCreditAmount = activeLoan.totalAmount;
       isFullyPaid = balance <= 0.01;
 
+      if (isFullyPaid) {
+         return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: true, maxDaysOverdue: 0, totalCreditAmount: 0, totalInstallments: 0, paidInstallments: 0 };
+      }
+
       // Progreso Cuotas (del principal/reciente)
       const activeLoanPaid = totalPaid;
       const progress = activeLoanPaid / (activeLoan.installmentValue || 1);
@@ -1032,6 +1036,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const delaysB = Math.max(0, (b as any)._metrics?.daysOverdue || 0);
         const delaysA = Math.max(0, (a as any)._metrics?.daysOverdue || 0);
         return delaysB - delaysA;
+      }
+      if (carteraSortBy === 'cuotamayor') {
+        const paidB = (b as any)._metrics?.paidInstallments || 0;
+        const paidA = (a as any)._metrics?.paidInstallments || 0;
+        return paidB - paidA;
       }
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -3079,6 +3088,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <option value="saldo">POR SALDO</option>
                           <option value="atraso">POR ATRASO</option>
                           <option value="renovaciones">POR RENOV.</option>
+                          <option value="cuotamayor">POR CUOTA MAYOR</option>
                         </select>
                       </th>
                       <th className="px-6 py-4">{((t as any).clients?.table || {}).client}</th>
