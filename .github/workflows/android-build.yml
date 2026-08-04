@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK + AAB (Google Play)
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Build APK + AAB para Google Play
     runs-on: ubuntu-latest
 
     steps:
@@ -26,7 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Project
         run: npm run build
@@ -102,22 +102,33 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.package-version.outputs.version }}-LATEST
-          name: v${{ steps.package-version.outputs.version }} - Optimized for Samsung/Xiaomi
+          tag_name: v${{ steps.package-version.outputs.version }}-build-${{ github.run_number }}
+          name: "Anexo Cobro v${{ steps.package-version.outputs.version }} (build #${{ github.run_number }})"
           body: |
-            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Versión Optimizada
-            
-            **Mejoras de Rendimiento y Estabilidad:**
-            - 🚀 **Optimizado para Samsung/Xiaomi**: Mejoras específicas para dispositivos de gama baja.
-            - 📁 **Carga Local**: Ahora la app carga instantáneamente desde el dispositivo (evita cierres por red lenta).
-            - 🛠️ **R8/ProGuard**: Código optimizado y comprimido para menor consumo de RAM.
-            - 📊 **Excel Profesional**: Importación y exportación masiva funcional (45 columnas).
-            - 🏠 **Interfaz Superior**: Modals y ventanas emergentes corregidas.
+            ## Anexo Cobro v${{ steps.package-version.outputs.version }}
+
+            ### Archivos disponibles
+            | Archivo | Uso |
+            |---------|-----|
+            | `*_Debug.apk` | Instalacion directa en celular (pruebas) |
+            | `*_Release.apk` | APK optimizado firmado |
+            | `*_PlayStore.aab` | **Subir a Google Play Console** |
+
+            ### Cumplimiento politicas Google Play (Agosto 2026)
+            - targetSdkVersion 35 - cumple requisito de API level
+            - compileSdkVersion 36
+            - versionCode 69700 (ascendente)
+
+            ### Como subir a Google Play
+            1. Descargar el archivo `*_PlayStore.aab`
+            2. Ir a Google Play Console
+            3. Produccion > Crear nueva version
+            4. Arrastrar el .aab y publicar
           fail_on_unmatched_files: false
           files: |
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_*.apk
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_*.aab
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_APK_Bundle.zip
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Optimized.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_PlayStore.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
