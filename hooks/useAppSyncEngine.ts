@@ -581,6 +581,11 @@ c.isActive !== false;
       });
 
       simulatedOrders = simulatedOrders.filter(o => {
+        // Strict isolation: Si el cliente no me pertenece ni está en mis loans, NO veo el pedido.
+        if (!visibleClientIds.has(o.clientId)) {
+          return false;
+        }
+
         const orderCollectorId = o.collectorId || (o as any).collector_id;
         if (orderCollectorId) {
           return orderCollectorId.toLowerCase() === user.id.toLowerCase();

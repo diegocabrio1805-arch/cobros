@@ -149,19 +149,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         return totalBalance;
       })();
       
-      if (balance >= order.principal) return false;
+      if (balance > 0 && balance >= order.principal * 0.9) return false;
 
       // REGLA 2: Evitar "Pedidos Fantasma" (Zombie Orders)
       // Si el cliente ya tiene un préstamo creado en la misma fecha o después de este pedido,
       // significa que el pedido ya fue aprobado/procesado.
       if (order.createdAt) {
         const orderDate = new Date(order.createdAt);
-        // Permitir un margen de error de 2 minutos por desincronización de relojes
-        const marginDate = new Date(orderDate.getTime() - 2 * 60000); 
+        // Margen de 12 horas antes para cubrir cualquier diferencia de zona horaria o creación en el día
+        const marginDate = new Date(orderDate.getTime() - (12 * 60 * 60 * 1000)); 
         
         const hasNewerLoan = (Array.isArray(state.loans) ? state.loans : []).some(
           l => (l.clientId || (l as any).client_id) === order.clientId && 
-               new Date(l.createdAt) >= marginDate
+               new Date(l.createdAt || (l as any).created_at) >= marginDate
         );
         if (hasNewerLoan) return false;
       }

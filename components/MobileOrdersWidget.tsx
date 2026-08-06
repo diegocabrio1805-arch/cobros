@@ -55,19 +55,21 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
       }
     }
     
-    // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
     const validOrders = uniqueOrders.filter(order => {
       const balance = getClientBalance(order.clientId);
-      if (balance >= order.principal) return false;
+      // Se considera entregado si el cliente tiene un saldo activo mayor o igual al principal del pedido simulado.
+      if (balance > 0 && balance >= order.principal * 0.9) return false;
 
       // REGLA 2: Evitar "Pedidos Fantasma" (Zombie Orders)
+      // Buscar si el cliente tiene un préstamo cuya fecha de creación es POSTERIOR O IGUAL al día del pedido
       if (order.createdAt) {
         const orderDate = new Date(order.createdAt);
-        const marginDate = new Date(orderDate.getTime() - 2 * 60000); 
+        // Margen de 12 horas antes para cubrir cualquier diferencia de zona horaria o creación en el día
+        const marginDate = new Date(orderDate.getTime() - (12 * 60 * 60 * 1000)); 
         
         const hasNewerLoan = (Array.isArray(state.loans) ? state.loans : []).filter(
           l => (l.clientId || (l as any).client_id) === order.clientId && 
-               new Date(l.createdAt) >= marginDate
+               new Date(l.createdAt || (l as any).created_at) >= marginDate
         ).length > 0;
         
         if (hasNewerLoan) return false;
@@ -159,7 +161,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                             <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Efec a Entregar</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-right whitespace-nowrap">Cuota</th>
                            <th className="px-2.5 py-2 border-r border-slate-800/60 text-center whitespace-nowrap">Frecuencia</th>
-                           {isPowerUser && <th className="px-2.5 py-2 text-center whitespace-nowrap">Acción</th>}
+                           <th className="px-2.5 py-2 text-center whitespace-nowrap">Acción</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-850 text-slate-200">
@@ -193,16 +195,14 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
                                  <td className="px-2.5 py-2 text-center uppercase text-[11px] border-r border-slate-855 whitespace-nowrap">
                                     {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
                                  </td>
-                                 {isPowerUser && (
-                                    <td className="px-2.5 py-2 text-center whitespace-nowrap">
-                                       <button 
-                                          onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
-                                          className="w-5 h-5 rounded bg-rose-950/50 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition-colors mx-auto"
-                                       >
-                                          <i className="fa-solid fa-trash text-[9px]"></i>
-                                       </button>
-                                    </td>
-                                 )}
+                                 <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                                    <button 
+                                       onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                                       className="w-5 h-5 rounded bg-rose-950/50 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition-colors mx-auto"
+                                    >
+                                       <i className="fa-solid fa-trash text-[9px]"></i>
+                                    </button>
+                                 </td>
                               </tr>
                            );
                         })}
