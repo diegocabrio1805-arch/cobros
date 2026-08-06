@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone, isHoliday } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -4079,13 +4079,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       let cancelado: Date | null = null;
                                       let atraso = 0;
                                       
-                                      // Normaliza un array de feriados del préstamo a Set de strings "YYYY-MM-DD"
-                                      const holidaySet = new Set<string>(
-                                        (loan.customHolidays || []).map((h: any) => {
-                                          const d = typeof h === 'string' ? new Date(h) : new Date(h.date || h);
-                                          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                                        })
-                                      );
+                                      // Obtener país del sistema y feriados personalizados del préstamo
+                                      const country = state.settings?.country || 'PY';
+                                      const customHols = (loan.customHolidays || []).map((h: any) => {
+                                        const d = typeof h === 'string' ? new Date(h) : new Date(h.date || h);
+                                        return d.toISOString().split('T')[0];
+                                      });
 
                                       const calcBusinessDays = (start: Date, end: Date) => {
                                         let current = new Date(start);
@@ -4096,9 +4095,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         let days = 0;
                                         while (current <= endDate) {
                                           const isSunday = current.getDay() === 0;
-                                          const key = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}-${String(current.getDate()).padStart(2,'0')}`;
-                                          const isHoliday = holidaySet.has(key);
-                                          if (!isSunday && !isHoliday) days++;
+                                          // Usa isHoliday del helper: incluye feriados del país + personalizados del préstamo
+                                          const isHol = isHoliday(current, country, customHols);
+                                          if (!isSunday && !isHol) days++;
                                           current.setDate(current.getDate() + 1);
                                         }
                                         return days;
