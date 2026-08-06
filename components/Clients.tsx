@@ -4079,6 +4079,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       let cancelado: Date | null = null;
                                       let atraso = 0;
                                       
+                                      // Normaliza un array de feriados del préstamo a Set de strings "YYYY-MM-DD"
+                                      const holidaySet = new Set<string>(
+                                        (loan.customHolidays || []).map((h: any) => {
+                                          const d = typeof h === 'string' ? new Date(h) : new Date(h.date || h);
+                                          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                                        })
+                                      );
+
                                       const calcBusinessDays = (start: Date, end: Date) => {
                                         let current = new Date(start);
                                         current.setDate(current.getDate() + 1);
@@ -4087,26 +4095,45 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         endDate.setHours(0,0,0,0);
                                         let days = 0;
                                         while (current <= endDate) {
-                                          if (current.getDay() !== 0) days++; // Omitir domingos
+                                          const isSunday = current.getDay() === 0;
+                                          const key = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}-${String(current.getDate()).padStart(2,'0')}`;
+                                          const isHoliday = holidaySet.has(key);
+                                          if (!isSunday && !isHoliday) days++;
                                           current.setDate(current.getDate() + 1);
                                         }
                                         return days;
                                       };
 
-                                      if (loan.status === 'PAID') {
-                                        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === 'PAGO').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                                        cancelado = loanLogs.length > 0 ? new Date(loanLogs[0].date) : (loan.updatedAt ? new Date(loan.updatedAt) : null);
+                                      if (loan.status === 'Pagado' || loan.status === 'PAID') {
+                                        // Crédito FINALIZADO: la fecha de cierre real es el inicio del SIGUIENTE crédito del cliente
+                                        const clientLoans = (Array.isArray(state.loans) ? state.loans : [])
+                                          .filter(l => l.clientId === clientInLegajo?.id)
+                                          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                        
+                                        const currentLoanStart = new Date(loan.createdAt).getTime();
+                                        const nextLoan = clientLoans.find(l => new Date(l.createdAt).getTime() > currentLoanStart);
+                                        
+                                        // Fecha de cierre = inicio del siguiente crédito (si existe) o updatedAt del préstamo
+                                        const nextLoanStart = nextLoan ? new Date(nextLoan.createdAt) : null;
+                                        const updatedAtDate = loan.updatedAt ? new Date(loan.updatedAt) : null;
+                                        
+                                        // Usar el más reciente disponible
+                                        const candidates = [nextLoanStart, updatedAtDate].filter(Boolean) as Date[];
+                                        cancelado = candidates.length > 0
+                                          ? candidates.reduce((max, d) => d > max ? d : max)
+                                          : null;
+                                        
                                         if (cancelado && cancelado > vencimiento) {
                                           atraso = calcBusinessDays(vencimiento, cancelado);
+                                        } else {
+                                          atraso = 0;
                                         }
                                       } else {
+                                        // Crédito ACTIVO o en MORA: días de atraso hasta HOY
                                         if (activeLoanInLegajo && loan.id === activeLoanInLegajo.id) {
                                           atraso = getClientMetrics(clientInLegajo!).daysOverdue;
                                         } else {
-                                          const now = new Date();
-                                          if (now > vencimiento) {
-                                            atraso = calcBusinessDays(vencimiento, now);
-                                          }
+                                          atraso = 0;
                                         }
                                       }
 
