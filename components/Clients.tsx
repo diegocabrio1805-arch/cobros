@@ -1594,7 +1594,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
         const countryPrefix = getCountryPhonePrefix(state.settings.country);
-        openWhatsApp(clientInLegajo.phone, 'ticket', state.settings.country);
+        openWhatsApp(clientInLegajo.phone, 'registro', state.settings.country);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
         const totalPaid = calculateTotalPaidFromLogs(activeLoanInLegajo, state.collectionLogs);
@@ -1894,7 +1894,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         // WhatsApp fallback (usando el texto limpio)
         const phone = clientInLegajo.phone.replace(/\D/g, '');
         const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
-        const wpUrl = `https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`;
+        const wpUrl = `https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`;
         window.open(wpUrl, '_blank');
       } else {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -1977,7 +1977,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       printWin?.print();
 
       const phone = clientInLegajo.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("ticket")}`, '_blank');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("registro")}`, '_blank');
 
       setShowEditLogModal(false);
       setEditingLogId(null);

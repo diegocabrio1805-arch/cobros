@@ -494,7 +494,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         });
         
         // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        openWhatsApp(client.phone, 'ticket', state.settings.country);
+        openWhatsApp(client.phone, 'registro', state.settings.country);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         const remainingBalance = Math.max(0, loan.totalAmount - totalPaid);

@@ -632,7 +632,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         // WhatsApp
         if (client) {
           const phone = client.phone.replace(/\D/g, '');
-          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("ticket")}`, '_blank');
+          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("registro")}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
         const client = state.clients.find(c => c.id === loan.clientId);
@@ -754,7 +754,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     /*
     if (client) {
       const phone = client.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent('ticket')}`, '_blank');
+      window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent('registro')}`, '_blank');
     }
     */
 
@@ -916,7 +916,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           receipt.includes(c.name.toUpperCase().substring(0, 10))
         );
         const phone = client?.phone.replace(/\D/g, '') || '';
-        window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`, '_blank');
+        window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`, '_blank');
       }
     } catch (err) {
       console.error("Error sharing PDF:", err);
@@ -1939,7 +1939,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
                   if (client) {
                     const phone = client.phone.replace(/\D/g, '');
-                    window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("ticket")}`, '_blank');
+                    window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`, '_blank');
                   }
                 }}
                 className="flex-1 py-4 bg-emerald-600 text-white rounded-md font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"

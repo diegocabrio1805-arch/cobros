@@ -373,7 +373,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
              setTimeout(() => {
                 const phone = client.phone.replace(/\D/g, '');
                 if (phone) {
-                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent('ticket')}`, '_blank');
+                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent('registro')}`, '_blank');
                 }
              }, 1000);
           }

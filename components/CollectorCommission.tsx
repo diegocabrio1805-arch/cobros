@@ -1070,62 +1070,81 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     }
   };
 
-  const handleShareLogImage = async (log: CollectionLog) => {
-    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === log.clientId);
-    if (!client) return;
+  const handleShareLogImage = (log: CollectionLog) => {
     setSharingLog(log);
+  };
+
+  const handleExecuteShare = async () => {
+    if (!sharingLog || !receiptImageRef.current) return;
+    const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === sharingLog.clientId);
+    if (!client) return;
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobileShareSupported = isMobile && Boolean(navigator.share && navigator.canShare);
+    const phone = client.phone.replace(/\D/g, '');
+    const waText = encodeURIComponent(`registro`);
+
+    // 1. Abrimos WhatsApp inmediatamente para evitar el bloqueo de ventanas emergentes (Popup Blocker)
+    // Solo lo hacemos si NO estamos en móvil (ya que el móvil usa navigator.share)
+    if (!isMobileShareSupported) {
+      window.open(`https://wa.me/${phone}?text=${waText}`, '_blank');
+    }
+
     setIsGeneratingImage(true);
+    
+    // Pequeña pausa para asegurar renderizado
+    await new Promise(r => setTimeout(r, 300));
 
-    // Pequeño delay para que el DOM se renderice con los datos del sharingLog
-    setTimeout(async () => {
-      if (receiptImageRef.current) {
-        try {
-          const canvas = await html2canvas(receiptImageRef.current, {
-            scale: 4, // HD Resolution
-            backgroundColor: '#ffffff',
-            useCORS: true,
-            logging: false
-          });
+    try {
+      const canvas = await html2canvas(receiptImageRef.current, {
+        scale: 4, // HD Resolution
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false
+      });
 
-          canvas.toBlob(async (blob) => {
-            if (!blob) return;
-            const fileName = log.type === CollectionLogType.PAYMENT ? `Recibo_${client.name}.png` : `Notificacion_${client.name}.png`;
-            const file = new File([blob], fileName, { type: 'image/png' });
-
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                files: [file],
-                title: `Comprobante de Gestión - ${state.settings.companyName || 'ANEXO COBRO'}`,
-                text: `Hola ${client.name}, adjunto el soporte de la gestión realizada hoy.`
-              });
-            } else {
-              // Fallback for Desktop: Copy to clipboard and open WhatsApp Web
-              try {
-                const item = new ClipboardItem({ 'image/png': blob });
-                await navigator.clipboard.write([item]);
-                alert("¡Imagen copiada al portapapeles!\nEn la ventana de WhatsApp que se abrirá, presiona 'Strg + V' o 'Ctrl + V' para pegar y enviar la imagen.");
-              } catch (clipErr) {
-                console.warn("No se pudo copiar al portapapeles:", clipErr);
-                // Standard download fallback if clipboard fails
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-              }
-
-              const phone = client.phone.replace(/\D/g, '');
-              const waText = encodeURIComponent(`Hola ${client.name}, le adjunto su soporte actualizado. Clic aquí para descargar la app o revisar el adjunto.`);
-              window.open(`https://wa.me/${phone}?text=${waText}`, '_blank');
-            }
-          }, 'image/png');
-        } catch (err) {
-          console.error("Error generating image:", err);
-        } finally {
-          setIsGeneratingImage(false);
-          setSharingLog(null);
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const fileName = sharingLog.type === CollectionLogType.PAYMENT ? `Recibo_${client.name}.png` : `Notificacion_${client.name}.png`;
+        
+        const file = new File([blob], fileName, { type: 'image/png' });
+        
+        if (isMobileShareSupported) {
+          try {
+            await navigator.share({
+              files: [file],
+              text: 'registro'
+            });
+          } catch (err) {
+            console.log("Web share cancelled or failed:", err);
+            // Si el share nativo falla, al menos descargamos la imagen
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        } else {
+          // 2. En Desktop ya abrimos WhatsApp arriba, así que aquí solo descargamos la imagen automáticamente en segundo plano
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
-      }
-    }, 600);
+      }, 'image/png');
+    } catch (err) {
+      console.error("Error generating image:", err);
+    } finally {
+      setIsGeneratingImage(false);
+      setSharingLog(null);
+    }
   };
 
   return (
@@ -1567,10 +1586,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                           <div className="flex justify-center gap-1">
                             <button
                               onClick={() => handleShareLogImage(log)}
-                              disabled={isGeneratingImage && sharingLog?.id === log.id}
-                              className={`w-8 h-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm active:scale-90 transition-all ${isGeneratingImage && sharingLog?.id === log.id ? 'opacity-50 animate-pulse' : ''}`}
+                              className={`w-8 h-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm active:scale-90 transition-all hover:bg-blue-600 hover:text-white`}
                             >
-                              {isGeneratingImage && sharingLog?.id === log.id ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-image"></i>}
+                              <i className="fa-solid fa-image"></i>
                             </button>
                             {isPowerUser && (
                               <button onClick={() => deleteCollectionLog?.(log.id)} className="w-8 h-8 rounded-md bg-red-50 text-red-600 flex items-center justify-center shadow-sm"><i className="fa-solid fa-trash"></i></button>
@@ -1605,12 +1623,11 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         </div>
       )}
 
-      {/* TEMPLATE OCULTO PARA CAPTURA DE IMAGEN (NOTIFICACION/RECIBO) */}
-      <div className="fixed -left-[4000px] top-0 pointer-events-none z-[-1]">
-        {sharingLog && (() => {
-          const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === sharingLog.clientId);
-          const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === sharingLog.loanId);
-          if (!client || !loan) return null;
+      {/* MODAL DE VISTA PREVIA Y ENVÍO DE IMAGEN */}
+      {sharingLog && (() => {
+        const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === sharingLog.clientId);
+        const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === sharingLog.loanId);
+        if (!client || !loan) return null;
 
           const isNoPay = sharingLog.type === CollectionLogType.NO_PAGO;
           const installments = Array.isArray(loan.installments) ? loan.installments : [];
@@ -1620,9 +1637,44 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           const daysOverdue = getDaysOverdue(loan, settingsToUse, totalPaid);
           const paidInstallments = installments.filter(i => i.status === PaymentStatus.PAID).length;
 
-          return (
-            <div ref={receiptImageRef} className="w-[600px] bg-white border-[12px] border-red-600 rounded-md p-10 font-sans overflow-hidden shadow-2xl">
-              {/* Header Card */}
+        return (
+          <div className="fixed inset-0 bg-slate-900/80 z-[9999] flex flex-col items-center justify-start p-4 md:p-10 overflow-y-auto animate-fadeIn backdrop-blur-sm custom-scrollbar">
+            <div className="w-full max-w-[650px] mx-auto flex flex-col items-center">
+              
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSharingLog(null); }}
+                disabled={isGeneratingImage}
+                className="bg-red-500/20 text-red-100 hover:bg-red-500 hover:text-white border border-red-500/30 px-6 py-3 rounded-full mb-6 flex items-center gap-3 shadow-xl transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <i className="fa-solid fa-xmark text-xl"></i>
+                <span className="text-xs md:text-sm font-black uppercase tracking-widest">Cancelar y Cerrar</span>
+              </button>
+
+              <div 
+                className={`relative w-full transition-all duration-300 h-[450px] sm:h-[550px] md:h-[650px] lg:h-[700px] ${isGeneratingImage ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:scale-[1.02] active:scale-95 group'}`}
+                onClick={handleExecuteShare}
+              >
+                {/* Contenedor absoluto que escala el ticket sin romper el layout */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 origin-top scale-[0.45] sm:scale-[0.55] md:scale-[0.65] lg:scale-[0.7] transition-transform">
+                  
+                  {/* Overlay on hover */}
+                  <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center rounded-xl">
+                     <div className="bg-emerald-600 text-white rounded-full w-20 h-20 flex flex-col items-center justify-center shadow-2xl transform scale-50 group-hover:scale-100 transition-transform duration-300">
+                        <i className="fa-solid fa-paper-plane text-2xl mb-1"></i>
+                        <span className="font-black text-[9px] uppercase tracking-widest">ENVIAR</span>
+                     </div>
+                  </div>
+                  
+                  {isGeneratingImage && (
+                    <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center rounded-xl">
+                      <i className="fa-solid fa-spinner animate-spin text-4xl text-emerald-600 mb-4"></i>
+                      <span className="font-black uppercase tracking-widest text-emerald-800 text-sm">Generando...</span>
+                    </div>
+                  )}
+
+                  {/* El Ticket (Sin transformaciones directas) */}
+                  <div ref={receiptImageRef} className={`w-[600px] bg-white border-[12px] ${isNoPay ? 'border-red-600' : 'border-emerald-600'} rounded-xl p-8 font-sans shadow-2xl`}>
+                    {/* Header Card */}
               <div className="bg-red-600 rounded-md p-8 text-center text-white mb-10 shadow-lg">
                 <h1 className="text-5xl font-black uppercase tracking-tighter mb-1">{settingsToUse.companyName || 'ANEXO COBRO'}</h1>
                 <p className="text-lg font-bold opacity-90 uppercase tracking-widest">
@@ -1690,9 +1742,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 </div>
               </div>
             </div>
-          );
-        })()}
+          </div>
+          </div>
+
+
+        </div>
       </div>
+    );
+  })()}
 
       {/* RESUMEN GLOBAL RUTAS (SI ES MANAGER/ADMIN) */}
       {showGlobalSummary && (() => {
