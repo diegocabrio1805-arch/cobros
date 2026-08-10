@@ -208,12 +208,37 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
   });
 
   const seenMigs = new Set<string>();
+  
+  // Find the latest migration log for this loan (if any)
+  const migLogs = validLogs.filter(l => String(l.id || '').startsWith('LOG-MIG-'));
+  // Sort descending by date
+  migLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const latestMigLog = migLogs.length > 0 ? migLogs[0] : null;
+  const migDateStr = latestMigLog ? new Date(latestMigLog.date).toISOString() : null;
+
   const totalFromLogs = validLogs.reduce((acc: number, log: any) => {
     const id = String(log.id || '');
+    
+    // Si es un log de migración, solo tomamos el más reciente y descartamos duplicados
     if (id.startsWith('LOG-MIG-')) {
         const lId = String(log.loanId || log.loan_id || '').trim();
         if (seenMigs.has(lId)) return acc; 
         seenMigs.add(lId);
+        
+        // Solo sumamos el migration log más reciente, los antiguos se ignoran
+        if (latestMigLog && id !== latestMigLog.id) {
+            return acc;
+        }
+    } else {
+        // Si no es un log de migración, comprobamos si es ANTERIOR a la migración
+        if (migDateStr) {
+            const logDateStr = new Date(log.date).toISOString();
+            // Si el log es más antiguo (o del mismo exacto instante) que la migración, se ignora
+            // porque el LOG-MIG- ya consolida todo el pago hasta esa fecha.
+            if (logDateStr <= migDateStr) {
+                return acc;
+            }
+        }
     }
     
     // Robust parsing for amount
