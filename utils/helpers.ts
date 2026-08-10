@@ -211,10 +211,14 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
   
   // Find the latest migration log for this loan (if any)
   const migLogs = validLogs.filter(l => String(l.id || '').startsWith('LOG-MIG-'));
-  // Sort descending by date
-  migLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Sort descending by updated_at (which is when the import actually happened) or fallback to date
+  migLogs.sort((a, b) => {
+      const aTime = new Date(a.updated_at || a.updatedAt || a.date).getTime();
+      const bTime = new Date(b.updated_at || b.updatedAt || b.date).getTime();
+      return bTime - aTime;
+  });
   const latestMigLog = migLogs.length > 0 ? migLogs[0] : null;
-  const migDateStr = latestMigLog ? new Date(latestMigLog.date).toISOString() : null;
+  const migDateStr = latestMigLog ? new Date(latestMigLog.updated_at || latestMigLog.updatedAt || latestMigLog.date).toISOString() : null;
 
   const totalFromLogs = validLogs.reduce((acc: number, log: any) => {
     const id = String(log.id || '');

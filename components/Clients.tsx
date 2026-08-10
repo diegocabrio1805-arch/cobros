@@ -825,6 +825,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     return metricsMap;
   // HOTFIX PERF: state.settings removido de deps — getDaysOverdue es estable en sesión de cobro
   // Solo recalcular cuando cambian datos reales (clientes, préstamos, logs)
+  // FORCE_RELOAD_DUMMY_COMMENT
   }, [state.clients, state.loans, state.collectionLogs]);
 
   const filteredClients = useMemo(() => {
