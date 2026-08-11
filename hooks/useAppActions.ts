@@ -683,7 +683,7 @@ export const useAppActions = (
       return { 
         ...loan, 
         installments: newInstallments, 
-        status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE,
+        status: (allPaid && currentBalance <= 0.01) ? LoanStatus.PAID : LoanStatus.ACTIVE,
         totalPaid: totalPaidSoFar,
         balance: currentBalance,
         updatedAt: timestamp

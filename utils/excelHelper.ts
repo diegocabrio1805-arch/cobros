@@ -334,125 +334,132 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     const isExplicitBalance = idxs.balance !== undefined && row[idxs.balance ?? -1] !== undefined && String(row[idxs.balance ?? -1]).trim() !== '' && String(row[idxs.balance ?? -1]).trim() !== '-';
                     const rawExplicitBalance = isExplicitBalance ? Math.round(parseAmount(row[idxs.balance ?? -1])) : null;
 
-                    if (isCobradoMapped) {
-                        // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
-                        totalPaidMoney = Math.round(cobradoRaw);
-                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-                        
-                        // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto directamente
-                        if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
-                            balance = rawExplicitBalance;
-                            if (totalAmount < balance + totalPaidMoney) {
-                                totalAmount = balance + totalPaidMoney;
+                        if (isCobradoMapped) {
+                            // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
+                            totalPaidMoney = Math.round(cobradoRaw);
+                            if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+                            
+                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto directamente
+                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
+                                balance = rawExplicitBalance;
+                                if (totalAmount < balance + totalPaidMoney) {
+                                    totalAmount = balance + totalPaidMoney;
+                                }
+                            } else {
+                                balance = Math.max(0, totalAmount - totalPaidMoney);
                             }
+                            
+                            // Usar Math.floor para no marcar cuotas parciales como PAGADAS enteras
+                            paidInst = instValue > 0 ? Math.floor(totalPaidMoney / instValue) : paidInst;
+                            console.log(`[FORENSIC] SALDO Y MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
                         } else {
-                            balance = Math.max(0, totalAmount - totalPaidMoney);
-                        }
-                        paidInst = instValue > 0 ? Math.round(totalPaidMoney / instValue) : paidInst;
-                        console.log(`[FORENSIC] SALDO Y MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
-                    } else {
-                        // ==========================================================================
-                        // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
-                        // ==========================================================================
+                            // ==========================================================================
+                            // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
+                            // ==========================================================================
 
-                        // Si PAG contiene monto de dinero (>500) en vez de cantidad de cuotas
-                        if (paidInst > 500 && instValue > 0) {
-                            totalPaidMoney = paidInst;
-                            paidInst = Math.round(paidInst / instValue);
-                        } else {
-                            totalPaidMoney = paidInst * instValue;
-                        }
-                        if (pendInst > 500 && instValue > 0) {
-                            pendInst = Math.round(pendInst / instValue);
-                        }
-
-                        if (totalInst === 0) totalInst = paidInst + pendInst;
-
-                        // PRIMARIO: si MONTO ≈ PAG × V.CUOTA (±2%), MONTO = cobrado
-                        let montoCobradoDetected = false;
-                        if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
-                            const expectedCobrado = paidInst * instValue;
-                            const diff = Math.abs(totalAmount - expectedCobrado);
-                            if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
-                                const montoCobrado = totalAmount;
-                                totalAmount = totalInst * instValue;
-                                totalPaidMoney = montoCobrado;
-                                montoCobradoDetected = true;
-                                console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                            // Si PAG contiene monto de dinero (>500) en vez de cantidad de cuotas
+                            if (paidInst > 500 && instValue > 0) {
+                                totalPaidMoney = paidInst;
+                                paidInst = Math.floor(paidInst / instValue);
+                            } else {
+                                totalPaidMoney = paidInst * instValue;
                             }
-                        }
-
-                        // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5%
-                        if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
-                            const calculatedMaxTotal = totalInst * instValue;
-                            if (totalAmount < calculatedMaxTotal * 0.95) {
-                                const montoCobrado = totalAmount;
-                                totalAmount = calculatedMaxTotal;
-                                totalPaidMoney = montoCobrado;
-                                paidInst = Math.round(montoCobrado / instValue);
-                                console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                            if (pendInst > 500 && instValue > 0) {
+                                pendInst = Math.floor(pendInst / instValue);
                             }
-                        }
 
-                        if (totalInst === 0) totalInst = paidInst + pendInst;
+                            if (totalInst === 0) totalInst = paidInst + pendInst;
 
-                        const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
-                        const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
+                            // PRIMARIO: si MONTO ≈ PAG × V.CUOTA (±2%), MONTO = cobrado
+                            let montoCobradoDetected = false;
+                            if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
+                                const expectedCobrado = paidInst * instValue;
+                                const diff = Math.abs(totalAmount - expectedCobrado);
+                                if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
+                                    const montoCobrado = totalAmount;
+                                    totalAmount = totalInst * instValue;
+                                    totalPaidMoney = montoCobrado;
+                                    montoCobradoDetected = true;
+                                    console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                                }
+                            }
 
-                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+                            // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5%
+                            if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
+                                const calculatedMaxTotal = totalInst * instValue;
+                                if (totalAmount < calculatedMaxTotal * 0.95) {
+                                    const montoCobrado = totalAmount;
+                                    totalAmount = calculatedMaxTotal;
+                                    totalPaidMoney = montoCobrado;
+                                    paidInst = Math.floor(montoCobrado / instValue);
+                                    console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
+                                }
+                            }
 
-                        const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
-                        const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
+                            if (totalInst === 0) totalInst = paidInst + pendInst;
 
-                        // PRIORIDAD: saldo explícito en Excel
-                        if (hasExplicitBalance && excelBalance > 0) {
-                            balance = excelBalance;
-                        } else if (totalPaidFromPag > 0 || paidInst > 0) {
-                            balance = Math.max(0, totalAmount - totalPaidFromPag);
-                            if (balance === 0 && excelBalance > 0) {
+                            const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
+                            const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
+
+                            if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+
+                            const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
+                            const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
+
+                            // PRIORIDAD: saldo explícito en Excel
+                            if (hasExplicitBalance && excelBalance > 0) {
                                 balance = excelBalance;
-                                totalAmount = totalPaidFromPag + excelBalance;
+                            } else if (totalPaidFromPag > 0 || paidInst > 0) {
+                                balance = Math.max(0, totalAmount - totalPaidFromPag);
+                                if (balance === 0 && excelBalance > 0) {
+                                    balance = excelBalance;
+                                    totalAmount = totalPaidFromPag + excelBalance;
+                                }
+                            } else {
+                                balance = totalAmount;
                             }
-                        } else {
-                            balance = totalAmount;
                         }
-                    }
 
-                    // --- RECONSTRUCCIÓN ROBUSTA DE DATOS FALTANTES (POST-HOC) ---
-                    // Si totalAmount es 0, intentamos reconstruirlo
-                    if (totalAmount === 0) {
-                        if (instValue > 0 && totalInst > 0) {
-                            totalAmount = instValue * totalInst;
-                        } else if (balance > 0) {
-                            totalAmount = balance + totalPaidMoney;
-                        } else if (principal > 0) {
-                            totalAmount = Math.round(principal * 1.25); // Fallback razonable: 25% interés
+                        // --- RECONSTRUCCIÓN ROBUSTA DE DATOS FALTANTES (POST-HOC) ---
+                        // Si totalAmount es 0, intentamos reconstruirlo
+                        if (totalAmount === 0) {
+                            if (instValue > 0 && totalInst > 0) {
+                                totalAmount = instValue * totalInst;
+                            } else if (balance > 0) {
+                                totalAmount = balance + totalPaidMoney;
+                            } else if (principal > 0) {
+                                totalAmount = Math.round(principal * 1.25); // Fallback razonable: 25% interés
+                            }
                         }
-                    }
 
-                    // Si totalInst es 0, intentamos reconstruirlo o asumir default
-                    if (totalInst === 0) {
-                        if (totalAmount > 0 && instValue > 0) {
-                            totalInst = Math.round(totalAmount / instValue);
-                        } else {
-                            totalInst = 24; // Default para evitar división por cero o errores de métricas
+                        // Si totalInst es 0, intentamos reconstruirlo o asumir default
+                        if (totalInst === 0) {
+                            if (totalAmount > 0 && instValue > 0) {
+                                totalInst = Math.round(totalAmount / instValue);
+                            } else {
+                                totalInst = 24; // Default para evitar división por cero o errores de métricas
+                            }
                         }
-                    }
 
-                    // Si instValue es 0, intentamos reconstruirlo
-                    if (instValue === 0 && totalAmount > 0 && totalInst > 0) {
-                        instValue = Math.round(totalAmount / totalInst);
-                    }
-                    
-                    // Si el saldo es 0 pero totalAmount es positivo y no hay cobrado explícito igual al total
-                    if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) {
-                        // Heurística de emergencia: si el saldo falló en detectarse pero hay cuotas pendientes
-                        if (pendInst > 0 && instValue > 0) {
-                            balance = pendInst * instValue;
-                        } else if (totalInst > paidInst && instValue > 0) {
-                            balance = (totalInst - paidInst) * instValue;
+                        // Si instValue es 0, intentamos reconstruirlo
+                        if (instValue === 0 && totalAmount > 0 && totalInst > 0) {
+                            instValue = Math.round(totalAmount / totalInst);
                         }
-                    }
+                        
+                        // Si el saldo es 0 pero totalAmount es positivo y no hay cobrado explícito igual al total
+                        if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) {
+                            // Heurística de emergencia: si el saldo falló en detectarse pero hay cuotas pendientes
+                            if (pendInst > 0 && instValue > 0) {
+                                balance = pendInst * instValue;
+                            } else if (totalInst > paidInst && instValue > 0) {
+                                balance = (totalInst - paidInst) * instValue;
+                            }
+                        }
+                        
+                        // SEGURIDAD CRÍTICA: Si el cliente AÚN DEBE DINERO, es imposible que haya pagado el 100% de las cuotas.
+                        if (balance > 0 && totalInst <= paidInst) {
+                            totalInst = paidInst + 1;
+                        }
 
                     if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15);
 
