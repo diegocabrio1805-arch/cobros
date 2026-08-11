@@ -72,7 +72,7 @@ const App: React.FC = () => {
     recalculateLoanStatus, deleteLoan: deleteLoanAction, addCollectionAttempt, 
     deleteCollectionLog, updateCollectionLog, addBulkData, updateCollectionLogNotes, 
     addExpense, removeExpense, updateExpense, addIsolatedExpenseAction, removeIsolatedExpenseAction, updateInitialCapital, updateCommissionBrackets, 
-    handleSyncUser, deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors 
+    handleSyncUser, deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport 
   } = actions;
 
   // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real.
