@@ -368,6 +368,7 @@ const App: React.FC = () => {
                 fetchClientPhotos={sync.fetchClientPhotos}
                 deleteClient={deleteClient}
                 addBulkData={addBulkData}
+                undoLastBulkImport={undoLastBulkImport}
                 renewLoan={renewLoan}
                 setState={setState}
                 pushLoan={sync.pushLoan}

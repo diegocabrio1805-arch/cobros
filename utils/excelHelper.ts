@@ -216,6 +216,28 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                 const colMap = getColMap(clientHeaderRow);
 
+                const levenshtein = (a: string, b: string) => {
+                    if (a.length === 0) return b.length;
+                    if (b.length === 0) return a.length;
+                    const matrix = [];
+                    for (let i = 0; i <= b.length; i++) {
+                        matrix[i] = [i];
+                    }
+                    for (let j = 0; j <= a.length; j++) {
+                        matrix[0][j] = j;
+                    }
+                    for (let i = 1; i <= b.length; i++) {
+                        for (let j = 1; j <= a.length; j++) {
+                            if (b.charAt(i - 1) == a.charAt(j - 1)) {
+                                matrix[i][j] = matrix[i - 1][j - 1];
+                            } else {
+                                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+                            }
+                        }
+                    }
+                    return matrix[b.length][a.length];
+                };
+
                 const findCol = (synonyms: string[]) => {
                     const normSyns = synonyms.map(s => normalizeHeader(s));
                     // PASO 1: Búsqueda de coincidencia exacta previa
@@ -232,6 +254,30 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                             return true;
                         });
                         if (partial !== undefined) return colMap[partial];
+                    }
+                    // PASO 3: Búsqueda difusa (Levenshtein) para atrapar errores de tipeo o nombres invertidos
+                    for (const sNorm of normSyns) {
+                        if (sNorm.length < 4) continue; // No usar fuzzy para siglas muy cortas como 'TOT' o 'PAG'
+                        let bestMatch = null;
+                        let bestDist = Infinity;
+                        
+                        for (const k of Object.keys(colMap)) {
+                            // Si son muy diferentes en longitud, ignorar
+                            if (Math.abs(k.length - sNorm.length) > 5) continue;
+                            
+                            const dist = levenshtein(sNorm, k);
+                            // Permitimos una distancia de hasta 3 caracteres para palabras medianas/largas
+                            const threshold = sNorm.length <= 6 ? 2 : 3;
+                            
+                            if (dist <= threshold && dist < bestDist) {
+                                // Seguridad adicional para no confundir cosas obvias
+                                if ((sNorm.includes('FECHA') || k.includes('FECHA')) && sNorm.includes('FECHA') !== k.includes('FECHA')) continue;
+                                
+                                bestDist = dist;
+                                bestMatch = k;
+                            }
+                        }
+                        if (bestMatch !== null) return colMap[bestMatch];
                     }
                     return undefined;
                 };

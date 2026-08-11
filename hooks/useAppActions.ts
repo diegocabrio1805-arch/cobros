@@ -873,12 +873,41 @@ export const useAppActions = (
     await handleForceSync(false);
   };
 
+  const undoLastBulkImport = async () => {
+    // Buscar todas las importaciones hechas en los últimos 30 minutos
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60000).toISOString();
+    const importedLogs = state.collectionLogs.filter(l => 
+      l.id.startsWith('LOG-MIG-') && 
+      (l.created_at || l.date) >= thirtyMinsAgo
+    );
+    
+    if (importedLogs.length === 0) return 0;
+    
+    const clientIdsToUndo = new Set(importedLogs.map(l => l.clientId));
+    
+    // Solo borrar si el cliente fue CREADO recientemente (no solo actualizado)
+    // Para simplificar y ser seguros, borramos los clientes y forzamos un resync
+    // pero idealmente deberíamos usar deleteRemoteClientAction.
+    
+    let deletedCount = 0;
+    for (const cid of clientIdsToUndo) {
+      const client = state.clients.find(c => c.id === cid);
+      // Solo deshacemos si el cliente en sí fue creado en los últimos 30 mins
+      if (client && client.createdAt && client.createdAt >= thirtyMinsAgo) {
+        await deleteRemoteClientAction(cid);
+        deletedCount++;
+      }
+    }
+    
+    return deletedCount;
+  };
+
   return {
     handleLogin, handleLogout, addUser, updateUser, deleteUser, updateSettings,
     addClient, addLoan, updateClient, deleteClient, updateLoan, recalculateAllLoansBalances,
     recalculateLoanStatus, deleteLoan, addCollectionAttempt, deleteCollectionLog,
     updateCollectionLog, addBulkData, updateCollectionLogNotes, addExpense, removeExpense,
     updateExpense, addIsolatedExpenseAction, removeIsolatedExpenseAction, updateInitialCapital, updateCommissionBrackets, handleSyncUser,
-    deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors
+    deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport
   };
 };

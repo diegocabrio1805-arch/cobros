@@ -81,9 +81,13 @@ interface ClientsProps {
   recalculateLoanStatus?: (loanId: string) => void;
   deleteClient?: (clientId: string) => void;
   addBulkData?: (clients: Client[], loans: Loan[], logs: CollectionLog[]) => Promise<void> | void;
+  undoLastBulkImport?: () => Promise<number>;
   renewLoan?: (newLoan: Loan, previousLoanIds: string[]) => Promise<void>;
   setState?: React.Dispatch<React.SetStateAction<AppState>>;
   pushLoan?: (loan: Loan) => Promise<boolean>;
+  pushPayment?: (payment: Payment) => Promise<void>;
+  pushLog?: (log: CollectionLog) => Promise<void>;
+  updateInitialCapital?: (amount: number, date: string, type: 'diario' | 'semanal' | 'quincenal' | 'mensual', isTotalBalance?: boolean) => void;
   activeLocation?: { lat: number, lng: number, timestamp: number } | null;
   initialDossierClientId?: string | null;
   onClearInitialDossier?: () => void;
@@ -239,7 +243,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan, activeLocation, initialDossierClientId, onClearInitialDossier }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, undoLastBulkImport, renewLoan, activeLocation, initialDossierClientId, onClearInitialDossier, setState, pushLoan }) => {
   const t = getTranslation(state.settings.language);
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -2479,7 +2483,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
       const country = state.settings.country || 'CO';
 
-      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, state.clients, state.loans);
+      // Anti-Clones: Fetch global clients to prevent creating duplicates across branches
+      let globalClients = state.clients;
+      try {
+          const { supabase } = await import('../utils/supabaseClient');
+          const { data, error } = await supabase.from('clients').select('id, name, document_id');
+          if (data && !error) {
+              globalClients = data.map((c: any) => ({
+                  id: c.id,
+                  name: c.name,
+                  documentId: c.document_id
+              })) as any[];
+          }
+      } catch (err) {
+          console.warn("Failed to fetch global clients for deduplication", err);
+      }
+
+      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, globalClients, state.loans);
       setPreviewData(data);
     } catch (err) {
       console.error(err);
@@ -5172,6 +5192,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pag</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pend</th>
                         <th className="p-3 text-[9px] font-black uppercase text-right">Saldo</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-center">Estado Final</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -5234,6 +5255,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     >
                       Finalizar
                     </button>
+                    {undoLastBulkImport && (
+                      <button 
+                        onClick={async () => {
+                          if (window.confirm("¿ESTÁ SEGURO? Esto borrará de la base de datos todos los clientes y préstamos importados en los últimos 30 minutos.")) {
+                            const deleted = await undoLastBulkImport();
+                            alert(`Se han borrado ${deleted} clientes de la última importación masiva.`);
+                            setPreviewData(null); setImportSummary(null); setShowImportModal(false);
+                          }
+                        }}
+                        className="flex-1 py-4 bg-red-600 text-white rounded-md font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-200 hover:bg-red-700 transition-all active:scale-95"
+                      >
+                        <i className="fa-solid fa-rotate-left mr-2"></i> DESHACER IMPORTACIÓN
+                      </button>
+                    )}
                     {importSummary.failed > 0 && (
                       <button 
                         onClick={handleResetImport}
