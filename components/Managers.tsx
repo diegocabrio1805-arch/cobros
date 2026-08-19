@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, User, Role } from '../types';
 import { getTranslation } from '../utils/translations';
 import { compressImage, generateUUID } from '../utils/helpers';
@@ -203,10 +203,43 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
   const managers = (Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.MANAGER);
   const selectedManager = (Array.isArray(state.users) ? state.users : []).find(u => u.id === showCollectorManagerModal);
-  const currentCollectors = (Array.isArray(state.users) ? state.users : []).filter(u =>
-    u.role === Role.COLLECTOR && u.name?.toUpperCase() !== 'FABIAN PEDROZO' &&
-    (u.managedBy || (u as any).managed_by)?.toLowerCase() === showCollectorManagerModal?.toLowerCase()
-  );
+  
+  const [forceFetchedCollectors, setForceFetchedCollectors] = useState<any[]>([]);
+
+  // Fetch directo a Supabase para bypassear fallos de sincronización locales
+  useEffect(() => {
+    if (showCollectorManagerModal) {
+      import('../utils/supabaseClient').then(({ supabase }) => {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'Cobrador')
+          .eq('managed_by', showCollectorManagerModal)
+          .then(({ data }) => {
+            if (data && data.length > 0) {
+              const mapped = data.map(u => ({
+                ...u,
+                expiryDate: u.expiry_date,
+                managedBy: u.managed_by,
+                requiresLocation: u.requires_location,
+                payConfig: u.pay_config
+              }));
+              setForceFetchedCollectors(mapped);
+            }
+          });
+      });
+    }
+  }, [showCollectorManagerModal]);
+
+  // Combinar cobradores del estado local con los obtenidos directamente de Supabase
+  const currentCollectors = [...(Array.isArray(state.users) ? state.users : []), ...forceFetchedCollectors]
+    .filter((u, index, self) => self.findIndex(s => s.id === u.id) === index) // Deduplicar
+    .filter(u => {
+      if (u.role !== Role.COLLECTOR || u.name?.toUpperCase() === 'FABIAN PEDROZO') return false;
+      const mBy = (u.managedBy || (u as any).managed_by || u.id)?.toLowerCase();
+      if (!showCollectorManagerModal) return false;
+      return mBy === showCollectorManagerModal.toLowerCase();
+    });
 
   return (
     <div className="space-y-6 animate-fadeIn pb-24 px-1">
