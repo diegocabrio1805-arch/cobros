@@ -1015,7 +1015,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     {orders.map((order) => {
                        const client = Array.isArray(state.clients) ? state.clients.find(c => c.id === order.clientId) : null;
                        const activeLoan = Array.isArray(state.loans) ? state.loans.find(l => l.clientId === order.clientId && l.status !== LoanStatus.PAID) : null;
-                       const colId = activeLoan?.collectorId || client?.addedBy;
+                       const colId = order.collectorId || activeLoan?.collectorId || client?.addedBy;
                        const collector = Array.isArray(state.users) ? state.users.find(u => u.id === colId) : null;
                        const collectorName = collector ? collector.name : 'Sin Asignar';
 
