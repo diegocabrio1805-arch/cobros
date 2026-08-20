@@ -155,8 +155,13 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       requiresLocation: collectorForm.requiresLocation // Preserve GPS setting
     };
 
-    if (isEditingCollector) onUpdateUser(userData);
-    else onAddUser(userData);
+    if (isEditingCollector) {
+      onUpdateUser(userData);
+      setForceFetchedCollectors(prev => prev.map(u => u.id === userData.id ? { ...u, ...userData } : u));
+    } else {
+      onAddUser(userData);
+      setForceFetchedCollectors(prev => [...prev, userData]);
+    }
 
     resetCollectorForm();
   };
@@ -479,6 +484,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                               <button onClick={() => {
                                 if (window.confirm('¿Está seguro de que desea eliminar este cobrador?')) {
                                   onDeleteUser(col.id);
+                                  setForceFetchedCollectors(prev => prev.filter(u => u.id !== col.id));
                                 }
                               }} className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-red-600 transition-all flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
                             </div>
@@ -525,7 +531,10 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <button
-                                onClick={() => onUpdateUser({ ...col, requiresLocation: true })}
+                                onClick={() => {
+                                  onUpdateUser({ ...col, requiresLocation: true });
+                                  setForceFetchedCollectors(prev => prev.map(u => u.id === col.id ? { ...u, requiresLocation: true } : u));
+                                }}
                                 disabled={col.requiresLocation}
                                 className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${col.requiresLocation ? 'bg-emerald-600 text-white opacity-50' : 'bg-blue-600 text-white active:scale-95'}`}
                               >
@@ -533,7 +542,10 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                                 {col.requiresLocation ? (state.settings.language === 'fr' ? 'ACTIF' : state.settings.language === 'pt' ? 'ATIVO' : 'ACTIVO') : (state.settings.language === 'fr' ? 'ACTIVER' : state.settings.language === 'pt' ? 'ATIVAR' : 'ACTIVAR')}
                               </button>
                               <button
-                                onClick={() => onUpdateUser({ ...col, requiresLocation: false })}
+                                onClick={() => {
+                                  onUpdateUser({ ...col, requiresLocation: false });
+                                  setForceFetchedCollectors(prev => prev.map(u => u.id === col.id ? { ...u, requiresLocation: false } : u));
+                                }}
                                 disabled={!col.requiresLocation}
                                 className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${!col.requiresLocation ? 'bg-slate-400 text-white opacity-50' : 'bg-red-600 text-white active:scale-95'}`}
                               >
