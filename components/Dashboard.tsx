@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
 import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
-import { formatDate, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
+import { formatDate, formatDateWithDay, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getTranslation } from '../utils/translations';
@@ -13,6 +13,7 @@ import { addToSyncQueue } from '../utils/syncQueue';
 
 interface DashboardProps {
   state: AppState;
+  onViewClientDossier?: (clientId: string) => void;
 }
 
 const Custom3DBar = (props: any) => {
@@ -83,7 +84,7 @@ const Custom3DBar = (props: any) => {
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ state }) => {
+const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => {
   const [insights, setInsights] = useState<any>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -1047,7 +1048,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                                  </div>
                               ) : '---'}
                            </td>
-                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDate(order.simulationDate)}</td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDateWithDay(order.simulationDate)}</td>
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.principal, state.settings)}
                           </td>
@@ -1074,14 +1075,23 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                           <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.totalAmount, state.settings)}
                           </td>
-                          <td className="px-4 py-3 text-center">
-                             <button 
-                                onClick={() => handleDeleteOrder(order.id)}
-                                className="w-8 h-8 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center mx-auto"
-                                title="Eliminar Pedido"
-                             >
-                                <i className="fa-solid fa-trash text-xs"></i>
-                             </button>
+                          <td className="px-4 py-3">
+                             <div className="flex justify-center items-center gap-2">
+                               <button 
+                                  onClick={() => onViewClientDossier && onViewClientDossier(order.clientId)}
+                                  className="w-8 h-8 rounded-md bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center"
+                                  title="Ver Expediente"
+                               >
+                                  <i className="fa-solid fa-folder-open text-xs"></i>
+                               </button>
+                               <button 
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="w-8 h-8 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center"
+                                  title="Eliminar Pedido"
+                               >
+                                  <i className="fa-solid fa-trash text-xs"></i>
+                               </button>
+                             </div>
                           </td>
                        </tr>
                     );

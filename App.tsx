@@ -341,7 +341,7 @@ const App: React.FC = () => {
 
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
-            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} />}
+            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
             <Suspense fallback={

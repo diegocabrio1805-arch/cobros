@@ -1221,6 +1221,18 @@ export const formatDate = (dateString: string): string => {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+export const formatDateWithDay = (dateString: string): string => {
+  if (!dateString) return '---';
+  const cleanDate = dateString.split('T')[0];
+  const date = new Date(cleanDate + 'T00:00:00');
+  
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const dayName = days[date.getDay()];
+  const formattedDate = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  
+  return `${dayName}, ${formattedDate}`;
+};
+
 /**
  * Robustly parses a currency string by stripping non-numeric characters.
  * Handles cases like "25.000", "$ 25.000", "25,000.00" etc.
