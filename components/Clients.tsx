@@ -3051,24 +3051,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{(((t as any).clients?.list || {})?.btnDetail || 'DETALLE')}</button>
-                            {isAdminOrManager && (() => {
-                              const c = item as unknown as Client;
-                               const daysPassed = c.lastWhatsAppMsgDate
-                                 ? Math.floor((Date.now() - new Date(c.lastWhatsAppMsgDate).getTime()) / 86400000)
-                                 : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
-                              const isRed = daysPassed >= 7;
-                              const btnColor = isRed ? 'bg-red-600' : 'bg-emerald-600';
-
-                              return (
-                                <button 
-                                  onClick={() => handleGenerateWhatsAppSummary(c)}
-                                  disabled={isSharing && whatsappSummaryClient?.id === c.id}
-                                  className={`w-8 h-8 rounded-md ${btnColor} text-white flex items-center justify-center active:scale-90 transition-all shadow-sm font-black text-[12px] ${isSharing && whatsappSummaryClient?.id === c.id ? 'opacity-50' : ''}`} 
-                                  title={`Resumen WhatsApp (hace ${daysPassed} días)`}>
-                                  {isSharing && whatsappSummaryClient?.id === c.id ? <i className="fa-solid fa-spinner animate-spin"></i> : daysPassed}
-                                </button>
-                              );
-                            })()}
+                            {/* Contador de WhatsApp removido de Renovaciones por pedido del usuario */}
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(item.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
