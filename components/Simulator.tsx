@@ -4,6 +4,7 @@ import { calculateTotalReturn, generateAmortizationTable, formatCurrency, format
 import { getTranslation } from '../utils/translations';
 import { v4 as uuidv4 } from 'uuid';
 import { addToSyncQueue } from '../utils/syncQueue';
+import { supabase } from '../utils/supabaseClient';
 
 interface SimulatorProps {
    settings?: AppSettings;
@@ -144,12 +145,63 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                      : (state?.currentUser?.managedBy || state?.currentUser?.id)
       };
 
+      // Agregar a la cola local como respaldo (garantiza que no se pierda si hay error de red)
       addToSyncQueue({
          operation: 'ADD_SIMULATED_ORDER',
          data: order
       });
-      const event = new CustomEvent('force-sync');
-      window.dispatchEvent(event);
+
+      // PUSH DIRECTO a Supabase (camino rápido) — sin esperar el ciclo de sync
+      // Si falla, la cola ya lo tiene guardado y lo reintentará automáticamente
+      const pushDirectToSupabase = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return; // sin sesión, la cola se encarga
+          
+          const payload = {
+            id: order.id,
+            client_id: order.clientId,
+            client_name: order.clientName,
+            principal: order.principal,
+            interest_rate: order.interestRate,
+            installments: order.installments,
+            total_amount: order.totalAmount,
+            installment_value: order.installmentValue,
+            frequency: order.frequency,
+            simulation_date: order.simulationDate,
+            table_data: order.table,
+            collector_id: order.collectorId || null,
+            branch_id: order.branchId || null,
+            created_at: order.createdAt || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { error } = await supabase.from('simulated_orders').upsert(payload);
+          
+          if (!error) {
+            // Éxito: sacar de la cola para evitar duplicado en el próximo sync
+            const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+            const filtered = currentQueue.filter((q: any) => !(q.operation === 'ADD_SIMULATED_ORDER' && q.data?.id === order.id));
+            localStorage.setItem('syncQueue', JSON.stringify(filtered));
+            console.log('[Pedido] Subido directamente a Supabase ✓');
+          } else {
+            console.warn('[Pedido] Push directo falló, la cola lo reintentará:', error.message);
+          }
+        } catch (e) {
+          console.warn('[Pedido] Error en push directo, la cola lo reintentará:', e);
+        }
+        // Disparar sync para que el estado local se actualice con el nuevo pedido
+        if (typeof (window as any)._triggerForceSync === 'function') {
+          (window as any)._triggerForceSync();
+        } else {
+          window.dispatchEvent(new CustomEvent('force-sync'));
+        }
+      };
+
+      pushDirectToSupabase();
+
+      // Disparar force-sync inmediatamente para actualizar la vista local
+      window.dispatchEvent(new CustomEvent('force-sync'));
       alert("Pedido cargado exitosamente y enviado a sincronización.");
 
       // Reset fields
