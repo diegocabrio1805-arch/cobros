@@ -1000,7 +1000,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
               <table className="w-full text-left border-collapse min-w-[800px]">
                  <thead>
                     <tr className="bg-[#1e293b] text-slate-300 text-[10px] font-bold uppercase tracking-wider">
-                       <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md">Cliente</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50 rounded-tl-md w-12 text-center">#</th>
+                       <th className="px-4 py-3 border-r border-[#334155]/50">Cliente</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Registro</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Fecha de Entrega</th>
                        <th className="px-4 py-3 border-r border-[#334155]/50 text-right">Monto a Prestar</th>
@@ -1013,7 +1014,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {orders.map((order) => {
+                    {orders.map((order, index) => {
                        const client = Array.isArray(state.clients) ? state.clients.find(c => c.id === order.clientId) : null;
                        const activeLoan = Array.isArray(state.loans) ? state.loans.find(l => l.clientId === order.clientId && l.status !== LoanStatus.PAID) : null;
                        const colId = order.collectorId || activeLoan?.collectorId || client?.addedBy;
@@ -1024,6 +1025,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                        
                        return (
                        <tr key={order.id} className="bg-white hover:bg-slate-50 transition-colors group text-sm border-b border-slate-100">
+                          <td className="px-4 py-3 text-center text-slate-400 font-bold border-r border-slate-50 text-xs">
+                             {index + 1}
+                          </td>
                           <td className="px-4 py-3 font-black text-slate-800 uppercase text-xs truncate max-w-[200px] border-r border-slate-50">
                              {order.clientName}
                              <span className={`block text-[10px] font-bold uppercase mt-0.5 truncate ${
