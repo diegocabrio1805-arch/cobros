@@ -1052,7 +1052,22 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                                  </div>
                               ) : '---'}
                            </td>
-                          <td className="px-4 py-3 text-right text-emerald-600 font-bold text-xs uppercase border-r border-slate-50">{formatDateWithDay(order.simulationDate)}</td>
+                          <td className="px-4 py-3 text-center border-r border-slate-50">
+                             {(() => {
+                               const raw = formatDateWithDay(order.simulationDate);
+                               if (!raw || raw === '---') return <span className="text-slate-400">---</span>;
+                               const commaIdx = raw.indexOf(',');
+                               if (commaIdx === -1) return <span className="text-emerald-600 font-bold text-xs uppercase">{raw}</span>;
+                               const dayName = raw.slice(0, commaIdx);
+                               const dateOnly = raw.slice(commaIdx + 1).trim();
+                               return (
+                                 <div className="flex flex-col items-center leading-tight">
+                                   <span className="text-emerald-600 font-black text-[10px] uppercase">{dayName}</span>
+                                   <span className="text-emerald-600 font-bold text-xs">{dateOnly}</span>
+                                 </div>
+                               );
+                             })()}
+                          </td>
                           <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.principal, state.settings)}
                           </td>
