@@ -85,7 +85,7 @@ interface ClientsProps {
   renewLoan?: (newLoan: Loan, previousLoanIds: string[]) => Promise<void>;
   setState?: React.Dispatch<React.SetStateAction<AppState>>;
   pushLoan?: (loan: Loan) => Promise<boolean>;
-  pushPayment?: (payment: Payment) => Promise<void>;
+  pushPayment?: (payment: any) => Promise<void>;
   pushLog?: (log: CollectionLog) => Promise<void>;
   updateInitialCapital?: (amount: number, date: string, type: 'diario' | 'semanal' | 'quincenal' | 'mensual', isTotalBalance?: boolean) => void;
   activeLocation?: { lat: number, lng: number, timestamp: number } | null;

@@ -878,7 +878,7 @@ export const useAppActions = (
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60000).toISOString();
     const importedLogs = state.collectionLogs.filter(l => 
       l.id.startsWith('LOG-MIG-') && 
-      (l.created_at || l.date) >= thirtyMinsAgo
+      ((l as any).created_at || l.date) >= thirtyMinsAgo
     );
     
     if (importedLogs.length === 0) return 0;

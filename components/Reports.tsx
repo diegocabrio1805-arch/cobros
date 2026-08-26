@@ -521,6 +521,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
                         <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? ((t as any).reports.map?.popups?.liquidation || 'LIQUIDACIÓN') : (log.type === CollectionLogType.PAYMENT ? ((t as any).reports.map?.popups?.payment || 'PAGO') : ((t as any).reports.map?.popups?.noPayment || 'NO PAGO'))}</p>
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
+                        ${log.type === CollectionLogType.NO_PAGO && log.notes ? `<p style="margin:4px 0 0 0; font-size:10px; font-weight:bold; color:#f43f5e; background-color:#fff1f2; padding:3px; border-radius:4px; font-style:italic;">OBS: ${log.notes}</p>` : ''}
                         ${log.amount ? `<p style="margin-top:4px; font-weight:900; font-family:monospace;">${formatCurrency(log.amount, activeSettings)}</p>` : ''}
                         ${distanceNote ? `<p style="margin-top:6px; font-size:9px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px; line-height:1.6;">📍 ${distanceNote}</p>` : ''}
                     </div>

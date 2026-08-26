@@ -875,7 +875,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }
 
             if (bgTaskId) {
-                BackgroundTask.finish({ taskId: bgTaskId }).catch(() => {});
+                try { BackgroundTask.finish({ taskId: bgTaskId }); } catch(e) {}
             }
         }
     }, [pullData]);

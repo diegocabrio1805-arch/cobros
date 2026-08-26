@@ -48,6 +48,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   const [editingReceipt, setEditingReceipt] = useState<ReceiptData | null>(null);
   const [lastLogId, setLastLogId] = useState<string | null>(null);
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [noPayLoanId, setNoPayLoanId] = useState<string | null>(null);
+  const [noPayNotes, setNoPayNotes] = useState('');
 
   // --- BANCARD QR INTEGRATION STATES ---
   const [isQrPayment, setIsQrPayment] = useState(false);
@@ -532,7 +534,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     setMethod('cash');
   };
 
-  const handleQuickAction = async (loanId: string, type: CollectionLogType, customAmount?: number, isVirtual: boolean = false, isRenewal: boolean = false) => {
+  const handleQuickAction = async (loanId: string, type: CollectionLogType, customAmount?: number, isVirtual: boolean = false, isRenewal: boolean = false, notes?: string) => {
     if (isProcessingPayment) return;
     const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === loanId);
     if (!loan) return;
@@ -573,7 +575,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         location: currentLocation,
         isVirtual,
         isRenewal,
-        companySnapshot: state.settings
+        companySnapshot: state.settings,
+        notes: notes
       };
 
       addCollectionAttempt(log);
@@ -1108,7 +1111,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 // Recopilar logs de TODOS los préstamos de este cliente (para el historial de la tarjeta)
                 const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === loan.clientId && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
                 const cardLoanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-                  .filter(l => clientLoans.some(cl => cl.id === l.loanId) && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
+                  .filter(l => clientLoans.some(cl => cl.id === l.loanId) && (l.type === CollectionLogType.PAYMENT || l.type === CollectionLogType.NO_PAGO) && !l.isOpening && !l.deletedAt);
                 
                 const progress = Math.min(100, (totalPaid / loan.totalAmount) * 100);
                 const installmentsPaid = Number((totalPaid / loan.installmentValue).toFixed(1));
@@ -1335,19 +1338,31 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                 <tr className="text-[7px] font-black text-slate-500 uppercase tracking-tighter border-b border-white/5">
                                   <th className="px-3 py-2">{state.settings.language === 'fr' ? 'DATE / HEURE' : state.settings.language === 'pt' ? 'DATA / HORA' : 'Fecha / Hora'}</th>
                                   <th className="px-3 py-2">{state.settings.language === 'fr' ? 'Concept' : state.settings.language === 'pt' ? 'Conceito' : 'Concepto'}</th>
+                                  <th className="px-3 py-2">OBS.</th>
                                   <th className="px-3 py-2 text-right">{state.settings.language === 'fr' ? 'Montant' : state.settings.language === 'pt' ? 'Valor' : 'Monto'}</th>
                                   <th className="px-3 py-2 text-center">{state.settings.language === 'fr' ? 'Actions' : state.settings.language === 'pt' ? 'Ações' : 'Acciones'}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-white/5">
                                 {cardLoanLogs.length === 0 ? (
-                                  <tr><td colSpan={4} className="px-3 py-6 text-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Aucun paiement récent' : state.settings.language === 'pt' ? 'Sem abonos recentes' : 'Sin abonos recientes'}</td></tr>
+                                  <tr><td colSpan={5} className="px-3 py-6 text-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Aucun paiement récent' : state.settings.language === 'pt' ? 'Sem abonos recentes' : 'Sin abonos recientes'}</td></tr>
                                 ) : (
                                   [...cardLoanLogs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5).map(log => (
                                     <tr key={log.id} className="text-[9px] font-bold text-slate-300 hover:bg-white/5">
                                       <td className="px-3 py-2">{formatDate(log.date)}<br/><span className="text-[7px] opacity-40">{new Date(log.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
-                                      <td className="px-3 py-2 uppercase text-[8px]">{log.isRenewal ? 'Renovación' : (log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : state.settings.language === 'pt' ? 'Pagamento Recebido' : 'Abono Recibido') : 'No Pago')}</td>
-                                      <td className="px-3 py-2 text-right font-black text-white">{formatCurrency(log.amount || 0, state.settings)}</td>
+                                      <td className={`px-3 py-2 uppercase text-[8px] font-black ${
+                                        log.type === CollectionLogType.NO_PAGO 
+                                          ? 'text-red-500' 
+                                          : log.isRenewal 
+                                            ? 'text-amber-500' 
+                                            : log.isVirtual 
+                                              ? 'text-sky-400' 
+                                              : 'text-emerald-500'
+                                      }`}>
+                                        {log.isRenewal ? 'Renovación' : (log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : state.settings.language === 'pt' ? 'Pagamento Recebido' : 'Abono Recibido') : 'No Pago')}
+                                      </td>
+                                      <td className="px-3 py-2 uppercase text-[7px] text-slate-400 font-medium max-w-[100px] truncate" title={log.notes || ''}>{log.type === CollectionLogType.NO_PAGO && log.notes ? log.notes : '-'}</td>
+                                      <td className="px-3 py-2 text-right font-black text-white">{log.type === CollectionLogType.NO_PAGO ? '-' : formatCurrency(log.amount || 0, state.settings)}</td>
                                       <td className="px-3 py-2 text-center">
                                         {isAdminOrManager && (
                                           <button 
@@ -1405,7 +1420,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         {balance > 0.01 && (
                           <>
                             <button
-                              onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
+                              onClick={() => {
+                                setNoPayLoanId(loan.id);
+                                setNoPayNotes('');
+                              }}
                               className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-md md:rounded-md font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
                             >
                               {((t as any).loans?.card || {}).noPaymentBtn || 'No Pago'}
@@ -2005,6 +2023,52 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           </div>
         </div>
       )}
+
+      {/* MODAL DE OBSERVACIÓN NO PAGO */}
+      {noPayLoanId && (
+        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-md shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
+            <div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest text-red-500">
+                <i className="fa-solid fa-triangle-exclamation mr-2"></i> MOTIVO DE NO PAGO
+              </h3>
+              <button onClick={() => setNoPayLoanId(null)} className="text-slate-400 hover:text-white transition-colors">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observación (Opcional pero recomendado)</label>
+                <textarea
+                  value={noPayNotes}
+                  onChange={e => setNoPayNotes(e.target.value)}
+                  placeholder="Ej: Cliente de viaje, local cerrado, pidió pasar mañana..."
+                  className="w-full h-24 p-3 bg-slate-900 border border-slate-700 text-white text-sm font-medium rounded-md outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all resize-none"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setNoPayLoanId(null)}
+                  className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest rounded-md transition-all active:scale-95"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    handleQuickAction(noPayLoanId, CollectionLogType.NO_PAGO, undefined, false, false, noPayNotes);
+                    setNoPayLoanId(null);
+                  }}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-widest rounded-md shadow-lg shadow-red-900/50 transition-all active:scale-95 flex justify-center items-center gap-2"
+                >
+                  <i className="fa-solid fa-save"></i> Guardar No Pago
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
       {receipt && (
         <div id="receipt-container-hidden-loans" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>

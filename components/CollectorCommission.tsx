@@ -1541,6 +1541,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <tr className="text-[9px] font-black text-slate-500 uppercase border-b border-slate-200">
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.date || 'Fecha'}</th>
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.client || 'Cliente'}</th>
+                    <th className="px-5 py-4 text-center">OBS.</th>
 
                     <th className="px-5 py-4 text-center">{(t as any).commissionBook?.auditModal?.table?.method || 'Medio'}</th>
                     <th className="px-5 py-4 text-right">{(t as any).commissionBook?.auditModal?.table?.amount || 'Monto'}</th>
@@ -1557,6 +1558,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
                         <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
+                        <td className="px-5 py-3 text-[10px] text-slate-500 font-bold whitespace-normal max-w-[150px] text-center">
+                          {isNoPay && log.notes ? log.notes : '-'}
+                        </td>
 
                         <td className="px-5 py-3 text-center">
                           {log.isVirtual && !isNoPay ? (
