@@ -16,8 +16,8 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
-      launchAutoHide: false, // Mantener Splash Screen hasta que cargue la web
+      launchShowDuration: 3000,   // Red de seguridad: oculta a los 3s si hide() falla
+      launchAutoHide: false,      // Mantener Splash Screen hasta que cargue React
       backgroundColor: "#ffffffff",
       androidScaleType: "CENTER_CROP",
       showSpinner: false
