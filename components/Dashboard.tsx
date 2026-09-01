@@ -1068,8 +1068,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                                );
                              })()}
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-700 font-mono font-bold text-xs border-r border-slate-50">
-                             {formatCurrency(order.principal, state.settings)}
+                          <td className="px-4 py-3 text-right border-r border-slate-50">
+                             <div className="flex flex-col items-end leading-tight">
+                                <span className="text-slate-700 font-mono font-bold text-xs">
+                                   {formatCurrency(order.principal, state.settings)}
+                                </span>
+                                <span className="text-indigo-500 font-black text-[10px] uppercase mt-0.5">
+                                   {order.interestRate}%
+                                </span>
+                             </div>
                           </td>
                           <td className={`px-4 py-3 text-right font-mono font-bold text-xs border-r border-slate-50 ${balance > 0 ? 'text-amber-500 font-black' : 'text-slate-400'}`}>
 
@@ -1088,8 +1095,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                           <td className="px-4 py-3 text-right text-blue-600 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.installmentValue, state.settings)}
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-700 font-bold text-[10px] uppercase border-r border-slate-50">
-                             {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
+                          <td className="px-4 py-3 text-right border-r border-slate-50">
+                             <div className="flex flex-col items-end leading-tight">
+                                <span className="text-slate-700 font-bold text-[10px] uppercase">
+                                   {((getTranslation(state.settings.language) as any).clients?.registrationForm?.frequencies?.[order.frequency]) || order.frequency}
+                                </span>
+                                <span className="text-orange-600 font-black text-[10px] uppercase mt-0.5">
+                                   {order.installments} CUOTAS
+                                </span>
+                             </div>
                           </td>
                           <td className="px-4 py-3 text-right text-emerald-600 font-mono font-bold text-xs border-r border-slate-50">
                              {formatCurrency(order.totalAmount, state.settings)}
