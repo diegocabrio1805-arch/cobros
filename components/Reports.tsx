@@ -1517,9 +1517,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   <table className="w-full text-left">
                      <thead className="sticky top-0 z-20">
                         <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 shadow-sm">
-                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.number || '#'}</th>
-                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.time || 'Hora'}</th>
-                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.status || 'Estado'}</th>
+                           <th className="px-6 py-4 w-12">{(t as any).reports.historyTable?.headers?.number || '#'}</th>
+                           <th className="px-6 py-4 w-24">{(t as any).reports.historyTable?.headers?.time || 'Hora'}</th>
+                           <th className="px-6 py-4 w-48">{(t as any).reports.historyTable?.headers?.status || 'Estado'}</th>
+                           <th className="px-6 py-4 text-center">{(t as any).reports.historyTable?.headers?.obs || 'Obs'}</th>
                            <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.client || 'Cliente'}</th>
                            <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.amount || 'Monto'}</th>
                            <th className="px-6 py-4 text-center">{(t as any).reports.historyTable?.headers?.gps || 'GPS'}</th>
@@ -1606,16 +1607,19 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  <td className="px-6 py-4 text-[11px] font-black text-slate-400 font-mono">{idx + 1}</td>
                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
-                                    <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
-                                       <span className={`text-lg w-8 h-8 flex items-center justify-center ${bgClass}`}>{emoji}</span>
-                                       {label}
+                                    <span className={`flex items-center flex-wrap gap-2 text-[10px] font-black uppercase ${colorClass}`}>
+                                       <span className={`text-lg w-8 h-8 flex items-center justify-center shrink-0 ${bgClass}`}>{emoji}</span>
+                                       <span>{label}</span>
                                     </span>
                                  </td>
+                                 <td className="px-6 py-4 text-[14px] font-bold italic text-rose-500 text-center">
+                                    {log.type === CollectionLogType.NO_PAGO && log.notes ? log.notes : <span className="text-slate-300 not-italic font-medium">-</span>}
+                                 </td>
                                  <td className="px-6 py-4">
-                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[150px]">
+                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[350px]">
                                        {client ? (client.name + (client.deletedAt ? ` ${(t as any).reports.historyTable?.deleted || '(ELIMINADO)'}` : '')) : '---'}
                                     </p>
-                                    <p className="text-[7px] font-black text-slate-400 uppercase truncate max-w-[150px]">{client?.address}</p>
+                                    <p className="text-[7px] font-black text-slate-400 uppercase truncate max-w-[350px]">{client?.address}</p>
                                  </td>
                                  <td className="px-6 py-4 font-black font-mono text-[10px] text-slate-700">
                                     {log.amount ? formatCurrency(log.amount, activeSettings) : '-'}
