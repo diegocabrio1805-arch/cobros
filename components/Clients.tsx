@@ -3001,6 +3001,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <th className="px-6 py-4 text-center">%</th>
                       <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'RECOUVRÉ' : 'Cobrado'}</th>
                       <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'FRÉQUENCE' : state.settings.language === 'pt' ? 'FREQUÊNCIA' : 'Frecuencia'}</th>
                       <th className="px-6 py-4 text-right">{(((t as any).clients?.list || {})?.thArrears || 'Atraso')}</th>
                       <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                     </tr>
@@ -3047,6 +3048,26 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center text-blue-600">{item._loan!.interestRate}%</td>
                         <td className="px-6 py-4 text-right text-emerald-600 font-mono">{formatCurrency(item._metrics.totalPaid || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-center">{item._loan!.totalInstallments}</td>
+                        <td className="px-6 py-4 text-center">
+                          {(() => {
+                            const freq = item._loan!.frequency || '';
+                            const isDiaria = freq.includes('DIARIA') || freq.includes('Diaria') || freq.includes('Diario');
+                            const isSemanal = freq.toLowerCase().includes('semanal') || freq.toLowerCase().includes('weekly');
+                            const isQuincenal = freq.toLowerCase().includes('quincenal') || freq.toLowerCase().includes('biweekly');
+                            const isMensual = freq.toLowerCase().includes('mensual') || freq.toLowerCase().includes('monthly');
+                            let label = freq || '—';
+                            let color = 'bg-slate-100 text-slate-600';
+                            if (isDiaria) { label = state.settings.language === 'fr' ? 'QUOTIDIEN' : 'DIARIA'; color = 'bg-blue-100 text-blue-700'; }
+                            else if (isSemanal) { label = state.settings.language === 'fr' ? 'HEBDO' : 'SEMANAL'; color = 'bg-emerald-100 text-emerald-700'; }
+                            else if (isQuincenal) { label = state.settings.language === 'fr' ? 'BIMENSUEL' : 'QUINCENAL'; color = 'bg-amber-100 text-amber-700'; }
+                            else if (isMensual) { label = state.settings.language === 'fr' ? 'MENSUEL' : 'MENSUAL'; color = 'bg-purple-100 text-purple-700'; }
+                            return (
+                              <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wide ${color}`}>
+                                {label}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -3060,7 +3081,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </tr>
                     ))}
                     {renovacionesExcelData.length === 0 && (
-                      <tr><td colSpan={10} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay renovaciones en este periodo</td></tr>
+                      <tr><td colSpan={11} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay renovaciones en este periodo</td></tr>
                     )}
                   </tbody>
                 </table>
