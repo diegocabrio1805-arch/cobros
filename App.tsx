@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { supabase } from './utils/supabaseClient';
 import { getTranslation } from './utils/translations';
 import { formatCurrency, formatLocalDate } from './utils/helpers';
@@ -171,6 +172,14 @@ const App: React.FC = () => {
     }
     setIsPulling(false);
   };
+
+  useEffect(() => {
+    if (!isInitializing) {
+      setTimeout(() => {
+        SplashScreen.hide().catch(e => console.log('Splash hide error:', e));
+      }, 500);
+    }
+  }, [isInitializing]);
 
   if (isInitializing) {
     return (
