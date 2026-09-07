@@ -232,12 +232,6 @@ const App: React.FC = () => {
         <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-[999] shadow-sm">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isMobileMenuOpen ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}
-              >
-                <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
-              </button>
               <div>
                 <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{resolvedSettings.companyName || <span className="text-[10px] font-black opacity-40 ml-2">ANEXO COBRO</span>}</h1>
                 <div className="flex items-center gap-2 mt-1">
@@ -259,9 +253,17 @@ const App: React.FC = () => {
             </div>
           </div>
 
+          {/* FLOATING MENU BUTTON */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className={`md:hidden fixed left-3 top-[62px] z-[1000] w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-lg ${isMobileMenuOpen ? 'bg-orange-500 text-white shadow-orange-300/50' : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-400/40'}`}
+          >
+            <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'} text-base`}></i>
+          </button>
+
           {/* MOBILE MENU OVERLAY */}
           {isMobileMenuOpen && (
-            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[990] overflow-y-auto">
+            <div className="fixed inset-0 top-[110px] left-0 w-full h-[calc(100vh-110px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[990] overflow-y-auto">
               <div className="col-span-2 mb-2 flex flex-col gap-2">
                 <WeatherWidget />
                 
