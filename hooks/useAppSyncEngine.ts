@@ -381,7 +381,7 @@ export const useAppSyncEngine = (
         if (msSinceLastSync > 60000 && !sync.isSyncing && sync.isOnline) {
             sync.pullData();
         }
-    }, 30000); // Health check cada 30s
+    }, 60000); // Health check cada 60s (FIX A02: reduce picos de CPU en dispositivos lentos; Realtime cubre el resto)
     const syncInterval = setInterval(() => {
       if (!sync.isSyncing && sync.isOnline && !isPrintingNow()) {
         handleForceSync(true);

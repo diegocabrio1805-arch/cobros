@@ -77,21 +77,27 @@ const App: React.FC = () => {
   } = actions;
 
   // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real.
-  // DELAY DE 8s: Protege el cold start de Render. Si el servidor tarda en despertar,
-  // getSession() puede devolver null temporalmente y expulsar al cobrador por error.
+  // FIX SAMSUNG A02: Los cobradores usan autenticación NATIVA (username/password en profiles),
+  // NO Supabase Auth. Por eso getSession() siempre devuelve null para ellos.
+  // Antes, en dispositivos lentos (A02), los 8s+5s se cumplían antes de que el sistema
+  // detectara que era un cobrador nativo → logout forzado erróneo a los ~60s.
+  // Solución: excluir Role.COLLECTOR de esta validación por completo.
   useEffect(() => {
     if (isInitializing) return;
+    // Los cobradores tienen su propio sistema de auth en `profiles`. No usar Supabase Auth.
+    if (!state.currentUser || state.currentUser.role === Role.COLLECTOR) return;
+
     let cancelled = false;
     const validateSession = async () => {
-      // Esperar 8s para que Render complete su cold start antes de validar
-      await new Promise(r => setTimeout(r, 8000));
+      // Delay generoso: protege cold start de Render Y da margen a dispositivos lentos (A02, etc.)
+      await new Promise(r => setTimeout(r, 15000));
       if (cancelled) return;
       if (state.currentUser && navigator.onLine) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session && !cancelled) {
-            // Segundo intento: dar 5s más al servidor antes de hacer logout definitivo
-            await new Promise(r => setTimeout(r, 5000));
+            // Segundo intento: delay extendido para dispositivos lentos
+            await new Promise(r => setTimeout(r, 8000));
             const { data: { session: session2 } } = await supabase.auth.getSession();
             if (!session2 && !cancelled) {
               console.warn("[App] Session mismatch confirmed after retry. Forcing login.");
@@ -105,7 +111,7 @@ const App: React.FC = () => {
     };
     validateSession();
     return () => { cancelled = true; };
-  }, [state.currentUser?.id, handleLogout, isInitializing]);
+  }, [state.currentUser?.id, state.currentUser?.role, handleLogout, isInitializing]);
 
   // AUTO-PURGE EXPIRED COLLECTORS (20 DAYS)
   useEffect(() => {

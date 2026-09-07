@@ -200,6 +200,8 @@ export const useAppInitialization = () => {
         setIsInitializing(false); // El spinner global desaparece AQUÍ
 
         // === FASE 2: ARRAYS PESADOS (hilo liberado, siguiente tick del evento) ===
+        // FIX A02: setTimeout(100) en lugar de setTimeout(0) para dar margen real al motor JS
+        // del WebView en dispositivos lentos antes de parsear arrays pesados (clientes, préstamos...).
         setTimeout(() => {
           try {
             const parsedClients = Array.isArray(rawData?.clients) ? rawData.clients : [];
@@ -227,7 +229,7 @@ export const useAppInitialization = () => {
           } finally {
             setIsSecondaryLoading(false);
           }
-        }, 0);
+        }, 100);
 
       } catch (err) {
         console.error("Critical Boot Error:", err);
