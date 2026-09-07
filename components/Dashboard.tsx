@@ -1481,7 +1481,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                   </div>
                   {/* Total General (Gastos + Nómina) */}
                   <div className="px-4 py-2 border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Total General</span>
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Total General Gasto</span>
                     <span className="font-mono font-black text-rose-400 text-base lg:text-xl xl:text-2xl leading-none">
                       {formatCurrency(currentMonthTotalExpenses, state.settings)}
                     </span>
