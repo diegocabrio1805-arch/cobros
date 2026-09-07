@@ -56,6 +56,14 @@ export const useAppInitialization = () => {
           const remoteVersion = match[1];
           if (remoteVersion !== CURRENT_VERSION_ID) {
             console.log(`[Update] New version found: ${remoteVersion}. Scheduling refresh...`);
+            // FIX A02: No recargar si hay operaciones pendientes de sincronización.
+            // En dispositivos lentos el cobrador puede estar en medio de registrar un pago.
+            const pendingQueue = localStorage.getItem('syncQueue');
+            const hasPending = pendingQueue && JSON.parse(pendingQueue || '[]').length > 0;
+            if (hasPending) {
+              console.log('[Update] Sync pendiente detectado. Posponiendo recarga de actualización.');
+              return;
+            }
             if ('caches' in window) {
                 const names = await caches.keys();
                 await Promise.all(names.map(name => caches.delete(name)));

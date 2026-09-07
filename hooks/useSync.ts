@@ -258,12 +258,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const online = await checkConnection();
             if (!online) return null;
 
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                setSyncError('Sesión caducada.');
-                return null;
-            }
-
+            // FIX A02: Los cobradores nativos no tienen sesión de Supabase Auth (usan profiles).
+            // Omitir el check de getSession() aquí — los errores reales de auth llegan
+            // como errores HTTP (401/403) desde las queries de Supabase y son capturados abajo.
             const lastSyncTime = localStorage.getItem('last_sync_timestamp_v8');
             const PAGE_SIZE = 1000; // AUMENTADO a 1000 para minimizar latencia de red en zonas de baja cobertura
 
@@ -559,12 +556,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 return;
             }
 
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                setSyncError('Sesión requerida.');
-                return;
-            }
-
+            // FIX A02: igual que pullData — cobradores nativos no tienen Supabase session.
+            // El sync de la cola no debe bloquearse por esto.
             const queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
             setQueueLength(queue.length);
 

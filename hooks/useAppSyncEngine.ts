@@ -244,16 +244,25 @@ export const useAppSyncEngine = (
       const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
       if (value) {
         try {
+          const user = JSON.parse(value);
+          // FIX A02: Los cobradores usan auth NATIVA (profiles), no Supabase Auth.
+          // getSession() SIEMPRE devuelve null para ellos → antes los expulsaba borrando su sesión.
+          // Solución: si es cobrador, restaurar directamente sin verificar Supabase Auth.
+          if (user && user.role === 'COLLECTOR') {
+            setState((prev: AppState) => ({ ...prev, currentUser: user }));
+            setTimeout(() => handleForceSync(true), 1000);
+            return;
+          }
+          // Admin/Manager: sí verificar sesión de Supabase Auth antes de restaurar
           if (navigator.onLine) {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-              console.log("No valid Supabase session on recover. Forcing logout.");
+              console.log("No valid Supabase session on recover (Admin/Manager). Forcing logout.");
               await Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
               setState((prev: AppState) => ({ ...prev, currentUser: null }));
               return;
             }
           }
-          const user = JSON.parse(value);
           setState((prev: AppState) => ({ ...prev, currentUser: user }));
           setTimeout(() => handleForceSync(true), 1000);
         } catch (e) { }
