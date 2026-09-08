@@ -4136,13 +4136,21 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         
                                         const currentLoanStart = new Date(loan.createdAt).getTime();
                                         const nextLoan = clientLoans.find(l => new Date(l.createdAt).getTime() > currentLoanStart);
-                                        
-                                        // Fecha de cierre = inicio del siguiente crédito (si existe) o updatedAt del préstamo
+
+                                        // Fecha de cierre = ÚLTIMO PAGO (prioridad 1), o inicio del siguiente crédito, o updatedAt
+                                        const loanPayments = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.itemType === 'payment');
+                                        let lastPaymentDate: Date | null = null;
+                                        if (loanPayments.length > 0) {
+                                          const sorted = loanPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                                          lastPaymentDate = new Date(sorted[0].date);
+                                        }
+
                                         const nextLoanStart = nextLoan ? new Date(nextLoan.createdAt) : null;
-                                        const updatedAtDate = loan.updatedAt ? new Date(loan.updatedAt) : null;
+                                        const rawUpdatedAt = loan.updatedAt || (loan as any).updated_at;
+                                        const updatedAtDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
                                         
-                                        // Usar el más reciente disponible
-                                        const candidates = [nextLoanStart, updatedAtDate].filter(Boolean) as Date[];
+                                        // Usar el más reciente disponible (priorizando pagos reales)
+                                        const candidates = [lastPaymentDate, nextLoanStart, updatedAtDate].filter(Boolean) as Date[];
                                         cancelado = candidates.length > 0
                                           ? candidates.reduce((max, d) => d > max ? d : max)
                                           : null;
@@ -4167,7 +4175,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           <td className="p-2 uppercase text-slate-500 text-[7px] leading-tight">
                                             <span className="block"><strong className="text-slate-700">Inic:</strong> {inicio.toLocaleDateString()}</span>
                                             <span className="block"><strong className="text-slate-700">Venc:</strong> {vencimiento.toLocaleDateString()}</span>
-                                            {loan.status === 'PAID' && cancelado && <span className="block text-emerald-600"><strong className="text-emerald-700">Canc:</strong> {cancelado.toLocaleDateString()}</span>}
+                                            {(loan.status === 'PAID' || loan.status === 'Pagado') && cancelado && <span className="block text-emerald-600"><strong className="text-emerald-700">Canc:</strong> {cancelado.toLocaleDateString()}</span>}
                                           </td>
                                           <td className="p-2 text-right text-slate-900 font-mono align-middle">{formatCurrency(loan.principal, state.settings)}</td>
                                           <td className="p-2 text-right text-emerald-700 font-mono align-middle">{formatCurrency(loan.totalAmount, state.settings)}</td>
