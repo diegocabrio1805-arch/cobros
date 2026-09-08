@@ -1147,13 +1147,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         ].map((stat, i) => (
           <div key={i} className="bg-white p-5 rounded-md border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
             <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-md ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform duration-300`}>
-                <i className={`fa-solid ${stat.icon}`}></i>
+            <div className="relative z-10 flex flex-col items-start gap-3">
+              <div className="flex items-center gap-3 w-full">
+                <div className={`w-10 h-10 rounded-md ${stat.bg} ${stat.color} flex shrink-0 items-center justify-center text-lg shadow-inner group-hover:scale-105 transition-transform duration-300`}>
+                  <i className={`fa-solid ${stat.icon}`}></i>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest break-words flex-1">{stat.label}</p>
               </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
-                <p className="text-xl font-bold text-slate-900 font-mono tracking-tight">{stat.value}</p>
+              <div className="w-full">
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 font-mono tracking-tighter break-all">{stat.value}</p>
               </div>
             </div>
           </div>
