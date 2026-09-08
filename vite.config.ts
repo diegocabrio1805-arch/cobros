@@ -82,6 +82,7 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'es2015',
+      modulePreload: false, // FIX: Elimina warnings amarillos de "cross-world service worker resource mismatch"
       minify: mode === 'production' ? 'terser' : false,
       sourcemap: mode !== 'production',
       cssCodeSplit: true,
