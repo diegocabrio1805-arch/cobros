@@ -14,8 +14,8 @@ export const useAppInitialization = () => {
     id: SYSTEM_ADMIN_ID, 
     name: 'Administrador', 
     role: Role.ADMIN, 
-    username: 'DDANTE1983', 
-    password: 'Cobros2026' 
+    username: 'DDIEGO2025', 
+    password: 'Cobros2025' 
   };
 
   const defaultInitialState: AppState = {

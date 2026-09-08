@@ -1,6 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Client, CollectionLogType, LoanStatus, Role } from '../types';
-import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp } from '../utils/helpers';
+import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
+
+// Helper optimizado: abre WhatsApp sin bloquear/cerrar la app en Android (igual que Clients.tsx)
+const openWhatsApp = (phone: string, text: string, countryCode: string) => {
+  const targetPhone = normalizePhone(phone, countryCode);
+  const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+  if (Capacitor.isNativePlatform()) {
+    window.open(wpUrl, '_system'); // '_system' es el método correcto para Capacitor/Android
+  } else {
+    window.open(wpUrl, '_blank');
+  }
+};
 import PullToRefresh from './PullToRefresh';
 import { getTranslation } from '../utils/translations';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -340,17 +351,18 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
           companySnapshot: state.settings
         };
         await addCollectionAttempt(log, true);
-        if (onForceSync) await onForceSync(true, "Registrando...", false, true);
       }
 
       if (type === CollectionLogType.PAYMENT) {
           const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
           if (client) {
-             const totalPaidHistory = calculateTotalPaidFromLogs(loan, state.collectionLogs) + amountToApply;
+             // FIX: Calcular historial manualmente sin depender del estado stale
+             const totalPaidBefore = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+             const totalPaidHistory = totalPaidBefore + amountToApply;
              const receiptText = generateReceiptText({
                 clientName: client.name,
                 amountPaid: amountToApply,
-                previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToApply)),
+                previousBalance: Math.max(0, loan.totalAmount - totalPaidBefore),
                 loanId: loan.id,
                 startDate: loan.createdAt,
                 expiryDate: loan.createdAt,
@@ -365,20 +377,17 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                 principal: loan.totalAmount,
              }, state.settings);
 
+             // FIX: Mostrar ticket INMEDIATAMENTE, sin esperar la sync de red
              setReceipt(receiptText);
              import('../services/bluetoothPrinterService').then(({ printText }) => {
                 printText(receiptText).catch(e => console.error("Auto print failed", e));
              });
-             
-             setTimeout(() => {
-                const phone = client.phone.replace(/\D/g, '');
-                if (phone) {
-                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent('registro')}`, '_blank');
-                }
-             }, 1000);
+
+             // FIX: Usar '_system' en Capacitor para NO cerrar la app
+             openWhatsApp(client.phone, 'registro', state.settings.country);
           }
       } else {
-          // If NO PAGO, send WhatsApp message and clear selection
+          // NO PAGO: enviar WhatsApp y limpiar selección
           const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
           if (client) {
              const totalPaidHistory = calculateTotalPaidFromLogs(loan, state.collectionLogs);
@@ -395,15 +404,15 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                  message = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
              }
 
-             setTimeout(() => {
-                const phone = client.phone.replace(/\D/g, '');
-                if (phone) {
-                   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-                }
-             }, 1000);
+             // FIX: Usar '_system' en Capacitor para NO cerrar la app
+             openWhatsApp(client.phone, message, state.settings.country);
           }
           resetUI();
       }
+
+      // FIX: Sync en background DESPUÉS de mostrar el ticket (no bloquea la UI)
+      if (onForceSync) onForceSync(true, "Registrando...", false, true).catch(e => console.warn('[Sync] Error en sync post-pago:', e));
+
       setSelectedClient(null);
     } finally {
       setIsProcessing(false);
