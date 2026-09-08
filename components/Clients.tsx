@@ -4138,7 +4138,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         const nextLoan = clientLoans.find(l => new Date(l.createdAt).getTime() > currentLoanStart);
 
                                         // Fecha de cierre = ÚLTIMO PAGO (prioridad 1), o inicio del siguiente crédito, o updatedAt
-                                        const loanPayments = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.itemType === 'payment');
+                                        const loanPayments = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === 'PAGO');
                                         let lastPaymentDate: Date | null = null;
                                         if (loanPayments.length > 0) {
                                           const sorted = loanPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
