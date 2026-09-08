@@ -221,9 +221,15 @@ export const useAppSyncEngine = (
     }
   }, [setSuccessMessage, forceFullSync, processQueue, pullData]);
 
+  const saveTimeoutRef = useRef<any>(null);
+
   useEffect(() => {
     if (isInitializing) return;
-    const timer = setTimeout(() => {
+    
+    // DEBOUNCE: Agrupar múltiples actualizaciones rápidas en un solo guardado
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    saveTimeoutRef.current = setTimeout(() => {
       try {
         StorageService.setItem('prestamaster_v2', state);
         if (state.currentUser) {
@@ -232,9 +238,11 @@ export const useAppSyncEngine = (
       } catch (e) {
         console.error("IDB Save Error:", e);
       }
-    }, 1500);
+    }, 2000); // 2 segundos de gracia
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
   }, [state, isInitializing]);
 
   useEffect(() => {

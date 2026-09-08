@@ -9,9 +9,13 @@ localforage.config({
 export const StorageService = {
     async getItem<T>(key: string): Promise<T | null> {
         try {
-            const data = await localforage.getItem<string>(key);
-            if (data) return JSON.parse(data) as T;
-            return null;
+            // FIX PERFORMANCE: IndexedDB clona objetos nativamente. Parsear es redundante y lento.
+            const data = await localforage.getItem<any>(key);
+            // Retrocompatibilidad: Si el dato viene como string (versión vieja), lo parseamos
+            if (typeof data === 'string') {
+                return JSON.parse(data) as T;
+            }
+            return data as T;
         } catch (e) {
             console.error(`Error loading ${key} from localforage:`, e);
             return null;
@@ -20,7 +24,8 @@ export const StorageService = {
 
     async setItem(key: string, value: any): Promise<void> {
         try {
-            await localforage.setItem(key, JSON.stringify(value));
+            // FIX PERFORMANCE: Delegar la clonación al navegador. NO usar JSON.stringify.
+            await localforage.setItem(key, value);
         } catch (e) {
             console.error(`Error saving ${key} to localforage:`, e);
             if (e instanceof Error && e.name === 'QuotaExceededError') {
