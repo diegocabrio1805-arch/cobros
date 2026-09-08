@@ -15,7 +15,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         }
     },
     global: {
-        headers: { 'x-application-name': 'anexo-cobro-mobile' },
         fetch: async (url, options) => {
             try {
                 return await fetch(url, options);
