@@ -15,6 +15,11 @@ export const useAppActions = (
   const handleLogin = (user: User) => {
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
     const normalizedUser = { ...user, role: normalizedRole };
+    
+    // GUARDAR PREFERENCES INMEDIATAMENTE PARA EVITAR QUE INITIAL_SESSION LO KICKEE
+    // Esto previene que en modo local (React Strict Mode) se cierre la sesión instantáneamente
+    Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(normalizedUser) }).catch(console.error);
+
     setState(prev => ({ ...prev, currentUser: normalizedUser }));
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
     
