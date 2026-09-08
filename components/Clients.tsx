@@ -4145,15 +4145,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           lastPaymentDate = new Date(sorted[0].date);
                                         }
 
-                                        const nextLoanStart = nextLoan ? new Date(nextLoan.createdAt) : null;
                                         const rawUpdatedAt = loan.updatedAt || (loan as any).updated_at;
                                         const updatedAtDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
+                                        const nextLoanStart = nextLoan ? new Date(nextLoan.createdAt) : null;
                                         
-                                        // Usar el más reciente disponible (priorizando pagos reales)
-                                        const candidates = [lastPaymentDate, nextLoanStart, updatedAtDate].filter(Boolean) as Date[];
-                                        cancelado = candidates.length > 0
-                                          ? candidates.reduce((max, d) => d > max ? d : max)
-                                          : null;
+                                        // Prioridad estricta para la fecha de cancelación:
+                                        // 1. La fecha del último pago real de este crédito.
+                                        // 2. La fecha en que se actualizó el estado a 'Pagado' (updatedAt).
+                                        // 3. Si es un crédito muy antiguo sin fechas, asumir que se cerró al abrir el siguiente.
+                                        if (lastPaymentDate) {
+                                          cancelado = lastPaymentDate;
+                                        } else if (updatedAtDate) {
+                                          cancelado = updatedAtDate;
+                                        } else if (nextLoanStart) {
+                                          cancelado = nextLoanStart;
+                                        } else {
+                                          cancelado = null;
+                                        }
                                         
                                         if (cancelado && cancelado > vencimiento) {
                                           atraso = calcBusinessDays(vencimiento, cancelado);
