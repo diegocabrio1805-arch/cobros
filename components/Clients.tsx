@@ -4153,9 +4153,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           atraso = 0;
                                         }
                                       } else {
-                                        // Crédito ACTIVO o en MORA: días de atraso hasta HOY
-                                        if (activeLoanInLegajo && loan.id === activeLoanInLegajo.id) {
-                                          atraso = getClientMetrics(clientInLegajo!).daysOverdue;
+                                        // Crédito ACTIVO o en MORA: días de atraso desde el vencimiento hasta HOY
+                                        const today = new Date();
+                                        if (today > vencimiento) {
+                                          atraso = calcBusinessDays(vencimiento, today);
                                         } else {
                                           atraso = 0;
                                         }
