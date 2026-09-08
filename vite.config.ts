@@ -26,7 +26,11 @@ export default defineConfig(({ mode }) => {
         additionalLegacyPolyfills: ['regenerator-runtime/runtime']
       }),
       VitePWA({
-        registerType: 'autoUpdate', // Automatically update SW when ready
+        // 'prompt': El SW descarga la actualización en background pero NO toma control
+        // hasta que el usuario presione "Recargar App" en el banner del AutoUpdater.
+        // Esto elimina el error "message channel closed" que ocurría cuando el SW viejo
+        // tomaba control a mitad de una sync de pagos.
+        registerType: 'prompt',
         injectRegister: 'auto',
         manifest: {
           name: 'Anexo Cobro',
@@ -54,8 +58,11 @@ export default defineConfig(({ mode }) => {
           // Las navegaciones las maneja NetworkFirst en runtimeCaching.
           navigateFallback: null,
           cleanupOutdatedCaches: true,
-          skipWaiting: true,
-          clientsClaim: true,
+          // FIX: Eliminados skipWaiting y clientsClaim.
+          // Con 'prompt', el SW nuevo espera hasta que el usuario confirme la recarga.
+          // Así no interrumpe operaciones async (sync de pagos, apertura de WhatsApp).
+          // skipWaiting: true,  ← REMOVIDO (causaba "message channel closed")
+          // clientsClaim: true, ← REMOVIDO (causaba pérdida de canal del SW)
           runtimeCaching: [
             {
               // Captura TODAS las navegaciones (mode === 'navigate')
@@ -71,6 +78,7 @@ export default defineConfig(({ mode }) => {
           ]
         }
       })
+
     ],
     build: {
       target: 'es2015',
