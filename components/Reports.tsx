@@ -1416,9 +1416,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                </button>
                <button
                   onClick={() => setSelectedFilter('nopayment')}
-                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'} flex items-center gap-1`}
+                  title="😡 En el lugar | 😤 Fuera de rango | 👀 Sin ubicación"
                >
-                  😡 {(t as any).reports.filters?.noPayment || 'No Pago'}
+                  <span>😡 😤 👀</span>
+                  <span className="ml-1">{(t as any).reports.filters?.noPayment || 'No Pago'}</span>
                </button>
                <button
                   onClick={() => setSelectedFilter('liquidation')}
@@ -1454,11 +1456,19 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                <button
                   onClick={handleLocalAuditPDF}
                   disabled={selectedCollector === 'all'}
-                  className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-none shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
-               >
-                  <i className="fa-solid fa-clipboard-check"></i>
-                  {(t as any).reports.buttons?.auditor || 'Auditor'}
-               </button>
+                   className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-none shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
+                >
+                   <i className="fa-solid fa-clipboard-check"></i>
+                   {(t as any).reports.buttons?.auditor || 'Auditor'}
+                </button>
+             </div>
+
+            {/* Leyenda de íconos de No Pago */}
+            <div className="flex flex-wrap items-center gap-4 px-4 py-3 bg-slate-800 border-l-4 border-slate-600 text-[9px] font-black uppercase tracking-widest text-slate-200 mt-2">
+               <span className="text-slate-300 font-black uppercase text-[10px]">📋 Leyenda No Pago:</span>
+               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-red-500 text-white"><span className="text-base">😡</span> En el lugar (menos de 50m)</span>
+               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-orange-400 text-white"><span className="text-base">😤</span> Fuera de rango (lejos del local)</span>
+               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-amber-400 text-white"><span className="text-base">👀</span> Sin ubicación — Registrar Ubicación</span>
             </div>
          </div>
 
