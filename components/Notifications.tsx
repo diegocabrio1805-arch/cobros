@@ -15,25 +15,31 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
 
   const alerts = useMemo(() => {
     const pendingAlerts: any[] = [];
-    (Array.isArray(state.loans) ? state.loans : []).filter(l => l.status === LoanStatus.ACTIVE).forEach(loan => {
+    const processedClients = new Set<string>();
+
+    (Array.isArray(state.loans) ? state.loans : []).filter(l => l.status === LoanStatus.ACTIVE && !l.deletedAt).forEach(loan => {
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
-      if (!client) return;
+      if (!client || processedClients.has(client.id) || client.deletedAt || client.isHidden) return;
+      
       const mDays = getDaysOverdue(loan, state.settings);
 
-      (Array.isArray(loan.installments) ? loan.installments : []).forEach(inst => {
+      const pendingInst = (Array.isArray(loan.installments) ? loan.installments : []).find(inst => {
         const dueDate = new Date(inst.dueDate + 'T00:00:00');
         dueDate.setHours(0, 0, 0, 0);
-        if (inst.status !== PaymentStatus.PAID && (dueDate <= today || mDays > 0)) {
-          pendingAlerts.push({
-            id: `${loan.id}-${inst.number}`,
-            client,
-            loan,
-            installment: inst,
-            isOverdue: mDays > 0,
-            daysDiff: mDays
-          });
-        }
+        return inst.status !== PaymentStatus.PAID && (dueDate <= today || mDays > 0);
       });
+
+      if (pendingInst) {
+        processedClients.add(client.id);
+        pendingAlerts.push({
+          id: `${loan.id}-${pendingInst.number}`,
+          client,
+          loan,
+          installment: pendingInst,
+          isOverdue: mDays > 0,
+          daysDiff: mDays
+        });
+      }
     });
     return pendingAlerts.sort((a, b) => (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0));
   }, [state.loans, state.clients]);
