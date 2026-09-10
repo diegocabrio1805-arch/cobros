@@ -423,13 +423,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      emoji = '👀';
                   } else if (hasLogLocation) {
                      const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000; // en metros
-                     if (dist <= 50) {
-                        // Dentro de 50m → rojo (fue a la casa)
+                     if (dist <= 100) {
+                        // Dentro de 100m → rojo (fue a la casa)
                         bgColor = '#ef4444';
                         borderColor = '#991b1b';
                         emoji = '😡';
                      } else {
-                        // Fuera de 50m → naranja oscuro (no fue a la casa)
+                        // Fuera de 100m → naranja oscuro (no fue a la casa)
                         bgColor = '#f97316';
                         borderColor = '#c2410c';
                         emoji = '😤';
