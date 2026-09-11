@@ -219,7 +219,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [excelStartDate, setExcelStartDate] = useState(countryTodayStr);
   const [excelEndDate, setExcelEndDate] = useState(countryTodayStr);
-  const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'cash' | 'virtual' | 'renewal' | 'nopay'>('all');
+  // paymentTypeFilter: 'all' = mostrar todo | Set<string> = multi-selección activa
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | Set<string>>('all');
+  const filterClickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const [likedLogs, setLikedLogs] = useState<Record<string, boolean>>(() => {
     try {
@@ -248,8 +250,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   // Estado para override manual de Mora (deseado: default 0)
   const [manualMoraPercent, setManualMoraPercent] = useState<number | null>(0);
   const [sencilloAmount, setSencilloAmount] = useState<number>(0);
-  const [expenseAmount, setExpenseAmount] = useState<number>(0);
-  const [expenseNote, setExpenseNote] = useState<string>('');
+  // Gastos múltiples (máx 4)
+  const [expenses, setExpenses] = useState<{ note: string; amount: number }[]>([{ note: '', amount: 0 }]);
+  const totalExpenseAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const addExpense = () => { if (expenses.length < 4) setExpenses(prev => [...prev, { note: '', amount: 0 }]); };
+  const removeExpense = (idx: number) => { if (expenses.length > 1) setExpenses(prev => prev.filter((_, i) => i !== idx)); };
+  const updateExpense = (idx: number, field: 'note' | 'amount', value: string | number) => {
+    setExpenses(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e));
+  };
   const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
 
   // Salary Mode and inputs — persisted per collector in localStorage
@@ -677,11 +685,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
       if (!selectedHistoricalRoutes.includes('all') && !selectedHistoricalRoutes.includes(logCollectorId)) return false;
 
-      // 4. Type Filters
-      if (paymentTypeFilter === 'nopay') return log.type === CollectionLogType.NO_PAGO;
-      if (paymentTypeFilter === 'virtual') return log.isVirtual;
-      if (paymentTypeFilter === 'renewal') return log.isRenewal;
-      if (paymentTypeFilter === 'cash') return !log.isVirtual && !log.isRenewal && log.type === CollectionLogType.PAYMENT;
+      // 4. Type Filters (multi-selección)
+      if (paymentTypeFilter !== 'all') {
+        const matchNopay   = paymentTypeFilter.has('nopay')   && log.type === CollectionLogType.NO_PAGO;
+        const matchVirtual = paymentTypeFilter.has('virtual') && log.isVirtual && log.type !== CollectionLogType.NO_PAGO;
+        const matchRenewal = paymentTypeFilter.has('renewal') && log.isRenewal && log.type !== CollectionLogType.NO_PAGO;
+        const matchCash    = paymentTypeFilter.has('cash')    && !log.isVirtual && !log.isRenewal && log.type === CollectionLogType.PAYMENT;
+        return matchNopay || matchVirtual || matchRenewal || matchCash;
+      }
 
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -993,17 +1004,19 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         "", "" // Empty
       ]);
 
-      const summaryRow3Idx = wsData.length;
-      const gastoLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
-      const gastoMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
-      const gastoLabel = expenseNote ? `Gasto / ${expenseNote}` : 'Gasto';
-      wsData.push([
-        { v: gastoLabel, t: "s", s: gastoLabelStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
-        { v: "", t: "s", s: emptyBorderStyle },
-        { v: expenseAmount, t: "n", s: gastoMoneyStyle },
-        "", "" // Empty
-      ]);
+      // Generar una fila roja por cada gasto
+      expenses.filter(e => e.amount > 0 || e.note).forEach((gasto, gi) => {
+        const gastoLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
+        const gastoMoneyStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FFFF0000" } }, border: borderAll, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
+        const gastoLabel = gasto.note ? gasto.note : `Gasto ${gi + 1}`;
+        wsData.push([
+          { v: gastoLabel, t: "s", s: gastoLabelStyle },
+          { v: "", t: "s", s: emptyBorderStyle },
+          { v: "", t: "s", s: emptyBorderStyle },
+          { v: gasto.amount, t: "n", s: gastoMoneyStyle },
+          "", ""
+        ]);
+      });
 
       const summaryRow4Idx = wsData.length;
       const rendirLabelStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: "FF00B050" } }, border: borderAll, alignment: { vertical: "center", horizontal: "left" } };
@@ -1012,7 +1025,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         { v: 'Total a Rendir:', t: "s", s: rendirLabelStyle },
         { v: "", t: "s", s: emptyBorderStyle },
         { v: "", t: "s", s: emptyBorderStyle },
-        { v: totalCollectedInRange + sencilloAmount - expenseAmount, t: "n", s: rendirMoneyStyle },
+        { v: totalCollectedInRange + sencilloAmount - totalExpenseAmount, t: "n", s: rendirMoneyStyle },
         "", "" // Empty
       ]);
 
@@ -1034,7 +1047,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       ws['!merges'].push({ s: { r: 2, c: 1 }, e: { r: 2, c: 4 } }); // Period Merge B3:E3
       ws['!merges'].push({ s: { r: summaryRow1Idx, c: 0 }, e: { r: summaryRow1Idx, c: 2 } });
       ws['!merges'].push({ s: { r: summaryRow2Idx, c: 0 }, e: { r: summaryRow2Idx, c: 2 } });
-      ws['!merges'].push({ s: { r: summaryRow3Idx, c: 0 }, e: { r: summaryRow3Idx, c: 2 } });
       ws['!merges'].push({ s: { r: summaryRow4Idx, c: 0 }, e: { r: summaryRow4Idx, c: 2 } });
       ws['!merges'].push({ s: { r: summaryRow5Idx, c: 0 }, e: { r: summaryRow5Idx, c: 2 } });
 
@@ -1345,26 +1357,72 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           <i className="fa-solid fa-minus text-red-300 text-lg"></i>
 
-          {/* Gasto Editable */}
-          <div className="flex-1 text-center space-y-2">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.expense}</p>
-            <div className="flex flex-col items-center gap-1">
-              <input 
-                type="text" 
-                value={expenseNote} 
-                onChange={(e) => setExpenseNote(e.target.value)} 
-                className="w-full max-w-[120px] bg-slate-50 text-center font-bold rounded-md py-1 text-xs outline-none focus:ring-1 focus:ring-red-400 text-slate-600 border border-slate-200" 
-                placeholder={t.commission?.expensePlaceholder || "Observacion"}
-              />
-              <div className="flex items-center justify-center gap-1">
-                <span className="text-xl font-black text-red-400">$</span>
-                <input 
-                  type="number" 
-                  value={expenseAmount === 0 ? '' : expenseAmount} 
-                  onChange={(e) => setExpenseAmount(e.target.value === '' ? 0 : Number(e.target.value))} 
-                  className="w-24 bg-red-50 text-center font-black rounded-md py-2 text-xl outline-none focus:ring-2 focus:ring-red-500 text-red-600 shadow-inner" 
-                  placeholder="0"
-                />
+          {/* Gastos — tabla tipo Excel */}
+          <div className="flex-1 min-w-[220px]">
+            {/* Header de sección */}
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.expense}</p>
+              {expenses.length < 4 && (
+                <button
+                  onClick={addExpense}
+                  title="Agregar gasto"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-600 text-[8px] font-black hover:bg-blue-100 transition-all"
+                >
+                  <i className="fa-solid fa-plus text-[7px]"></i> AGREGAR
+                </button>
+              )}
+            </div>
+
+            {/* Tabla */}
+            <div className="rounded-md border border-slate-200 overflow-hidden shadow-sm">
+              {/* Cabecera */}
+              <div className="grid grid-cols-[1fr_100px_20px] bg-slate-500 text-white text-[8px] font-black uppercase tracking-wider">
+                <div className="px-2 py-1.5 border-r border-slate-400">Concepto</div>
+                <div className="px-2 py-1.5 text-right border-r border-slate-400">Monto</div>
+                <div className="px-1 py-1.5"></div>
+              </div>
+
+              {/* Filas de gastos */}
+              {expenses.map((exp, idx) => (
+                <div
+                  key={idx}
+                  className={`grid grid-cols-[1fr_100px_20px] border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
+                >
+                  <div className="border-r border-slate-100">
+                    <input
+                      type="text"
+                      value={exp.note}
+                      onChange={(e) => updateExpense(idx, 'note', e.target.value)}
+                      className="w-full h-full px-2 py-1.5 text-[10px] font-semibold text-slate-700 bg-transparent outline-none placeholder-slate-300 focus:bg-blue-50/40"
+                      placeholder="Observación..."
+                    />
+                  </div>
+                  <div className="border-r border-slate-100">
+                    <input
+                      type="number"
+                      value={exp.amount === 0 ? '' : exp.amount}
+                      onChange={(e) => updateExpense(idx, 'amount', e.target.value === '' ? 0 : Number(e.target.value))}
+                      className="w-full h-full px-2 py-1.5 text-[10px] font-black text-blue-700 bg-transparent outline-none text-right placeholder-slate-300 focus:bg-blue-50/40 font-mono"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {expenses.length > 1 ? (
+                      <button onClick={() => removeExpense(idx)} className="w-4 h-4 rounded-sm bg-slate-400 text-white flex items-center justify-center text-[8px] hover:bg-slate-600 transition-all">
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    ) : (
+                      <span className="w-4 h-4"></span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Fila total */}
+              <div className="grid grid-cols-[1fr_100px_20px] bg-blue-900 text-white text-[9px] font-black">
+                <div className="px-2 py-1.5 border-r border-blue-800 uppercase tracking-wider">Total Gastos</div>
+                <div className="px-2 py-1.5 text-right border-r border-blue-800 font-mono">{totalExpenseAmount.toLocaleString()}</div>
+                <div></div>
               </div>
             </div>
           </div>
@@ -1376,7 +1434,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           {/* Total a Rendir */}
           <div className="flex-1 text-center md:text-right space-y-1 bg-slate-900 text-white p-5 rounded-md shadow-xl">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.totalToYield}</p>
-            <p className="text-3xl font-black text-blue-400 font-mono">{formatCurrency(totalCollectedInRange + sencilloAmount - expenseAmount, state.settings)}</p>
+            <p className="text-3xl font-black text-blue-400 font-mono">{formatCurrency(totalCollectedInRange + sencilloAmount - totalExpenseAmount, state.settings)}</p>
           </div>
 
         </div>
@@ -1526,11 +1584,68 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <MiniDatePicker value={excelEndDate} onChange={setExcelEndDate} label="Hasta" />
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                  {['all', 'cash', 'virtual', 'renewal', 'nopay'].map(f => (
-                    <button key={f} onClick={() => setPaymentTypeFilter(f as any)} className={`px-3 py-1.5 rounded-md text-[8px] font-black uppercase whitespace-nowrap ${paymentTypeFilter === f ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                      {f === 'all' ? ((t as any).commissionBook?.auditModal?.filters?.all || 'Todo') : f === 'cash' ? ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo') : f === 'virtual' ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.') : f === 'renewal' ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago')}
-                    </button>
-                  ))}
+                  {(['all', 'cash', 'virtual', 'renewal', 'nopay'] as const).map(f => {
+                    const isAll = f === 'all';
+                    const isActive = isAll
+                      ? paymentTypeFilter === 'all'
+                      : paymentTypeFilter !== 'all' && paymentTypeFilter.has(f);
+                    const isMultiMode = paymentTypeFilter !== 'all' && (paymentTypeFilter as Set<string>).size > 1;
+                    const label = f === 'all' ? ((t as any).commissionBook?.auditModal?.filters?.all || 'Todo')
+                      : f === 'cash' ? ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo')
+                      : f === 'virtual' ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.')
+                      : f === 'renewal' ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.')
+                      : ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago');
+
+                    const handleFilterClick = () => {
+                      if (isAll) {
+                        // Siempre limpia al clickear "Todo"
+                        clearTimeout(filterClickTimers.current[f]);
+                        setPaymentTypeFilter('all');
+                        return;
+                      }
+
+                      if (filterClickTimers.current[f]) {
+                        // *** DOBLE CLIC: agrega/quita del conjunto ***
+                        clearTimeout(filterClickTimers.current[f]);
+                        delete filterClickTimers.current[f];
+                        setPaymentTypeFilter(prev => {
+                          const current = prev === 'all' ? new Set<string>() : new Set(prev as Set<string>);
+                          if (current.has(f)) {
+                            current.delete(f);
+                          } else {
+                            current.add(f);
+                          }
+                          return current.size === 0 ? 'all' : current;
+                        });
+                      } else {
+                        // *** PRIMER CLIC: espera para ver si hay segundo clic ***
+                        filterClickTimers.current[f] = setTimeout(() => {
+                          delete filterClickTimers.current[f];
+                          // Un solo clic: selección exclusiva
+                          setPaymentTypeFilter(new Set([f]));
+                        }, 280);
+                      }
+                    };
+
+                    return (
+                      <button
+                        key={f}
+                        onClick={handleFilterClick}
+                        title={isAll ? 'Ver todo' : `1 clic: solo ${label} | 2 clics: sumar a selección`}
+                        className={`relative px-3 py-1.5 rounded-md text-[8px] font-black uppercase whitespace-nowrap transition-all
+                          ${isActive
+                            ? isMultiMode && !isAll
+                              ? 'bg-purple-600 text-white ring-2 ring-purple-400 ring-offset-1 ring-offset-slate-900'
+                              : 'bg-blue-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                      >
+                        {label}
+                        {isActive && isMultiMode && !isAll && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full flex items-center justify-center text-[5px] text-white font-black">+</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
