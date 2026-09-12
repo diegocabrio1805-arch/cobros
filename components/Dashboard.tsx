@@ -992,9 +992,24 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
       {/* SECCIÓN PEDIDOS */}
       {orders.length > 0 && (
         <div className="bg-[#0f172a] rounded-md border border-slate-800 shadow-xl overflow-hidden p-5">
-           <h3 className="text-base font-bold text-white uppercase tracking-widest leading-none mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-list-check text-emerald-500"></i>
-              Pedidos Pendientes
+           <h3 className="text-base font-bold text-white uppercase tracking-widest leading-none mb-4 grid grid-cols-3 items-center">
+              <span className="flex items-center gap-2">
+                <i className="fa-solid fa-list-check text-emerald-500"></i>
+                Pedidos Pendientes
+              </span>
+              <span className="flex flex-col items-center gap-0.5">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest" style={{fontFamily: "'Inter', sans-serif", letterSpacing: '0.15em'}}>Total a Entregar</span>
+                <span className="text-emerald-400 font-black font-mono text-base" style={{fontFamily: "'Inter', sans-serif", fontWeight: 800, letterSpacing: '-0.02em'}}>
+                  {formatCurrency(
+                    orders.reduce((sum, o) => {
+                      const bal = getClientBalance(o.clientId);
+                      return sum + Math.max(0, o.principal - bal);
+                    }, 0),
+                    state.settings
+                  )}
+                </span>
+              </span>
+              <span></span>
            </h3>
            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-[800px]">
