@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency } from '../types';
+import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
+import PenaltyModal from './PenaltyModal';
 import { Geolocation } from '@capacitor/geolocation';
 import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
@@ -23,9 +24,10 @@ interface LoansProps {
   onForceSync?: (silent?: boolean) => Promise<void>;
   setActiveTab: (tab: string) => void;
   activeLocation?: { lat: number, lng: number, timestamp: number } | null;
+  onUpdateLoan?: (loan: Loan) => void;
 }
 
-const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync, setActiveTab, activeLocation }) => {
+const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync, setActiveTab, activeLocation, onUpdateLoan }) => {
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const qrChannelRef = useRef<any>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -85,6 +87,18 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   // PAGINATION LOGIC
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+
+  // ── Penalty state ──────────────────────────────────────────────────────────
+  const [penaltyLoanId, setPenaltyLoanId] = useState<string | null>(null);
+  const penaltyLoan = penaltyLoanId
+    ? (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === penaltyLoanId) ?? null
+    : null;
+
+  const handlePenaltySuccess = (updatedLoan: Loan, penalty: Penalty) => {
+    if (onUpdateLoan) onUpdateLoan(updatedLoan);
+    setPenaltyLoanId(null);
+    if (onForceSync) onForceSync(true);
+  };
 
   const t = getTranslation(state.settings.language);
   const isAdminOrManager = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
@@ -1415,6 +1429,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                             <i className="fa-solid fa-trash-can text-sm"></i>
                           </button>
                         )}
+                        {isAdminOrManager && (
+                          <button
+                            onClick={() => setPenaltyLoanId(loan.id)}
+                            className="w-10 md:w-12 h-10 md:h-12 rounded-md md:rounded-md bg-orange-900/40 text-orange-400 hover:bg-orange-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-orange-800"
+                            title="Agregar Penalización"
+                          >
+                            <i className="fa-solid fa-triangle-exclamation text-sm"></i>
+                          </button>
+                        )}
                       </div>
                       <div className="flex-1 flex gap-2">
                         {balance > 0.01 && (
@@ -2086,6 +2109,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           </div>
         </div>
       )}
+
+      {/* Modal de Penalización — solo Admin/Gerente */}
+      {penaltyLoan && isAdminOrManager && (
+        <PenaltyModal
+          loan={penaltyLoan}
+          state={state}
+          onClose={() => setPenaltyLoanId(null)}
+          onSuccess={handlePenaltySuccess}
+        />
+      )}
+
     </div>
   );
 };

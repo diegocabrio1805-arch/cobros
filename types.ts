@@ -40,6 +40,19 @@ export enum CollectionLogType {
   DELETED_PAYMENT = 'PAGO_ELIMINADO'
 }
 
+export interface Penalty {
+  id: string;
+  loanId: string;
+  clientId: string;
+  branchId?: string;
+  amount: number;
+  reason?: string;
+  addedBy?: string;
+  extraInstallments: number;       // cuotas extra que se agregaron
+  lastInstallmentAmount: number;   // monto de la última cuota extra (puede diferir)
+  createdAt: string;
+}
+
 export type Language = 'es' | 'en' | 'pt' | 'fr';
 
 export type CountryCode =
@@ -301,6 +314,7 @@ export interface AppState {
   initialCapital: number;
   settings: AppSettings;
   branchSettings?: Record<string, AppSettings>;
+  penalties: Penalty[];
   deletedItems?: DeletedItem[];
 }
 

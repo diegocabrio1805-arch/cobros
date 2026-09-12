@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client } from '../types';
+import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client, Loan, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { supabase } from '../utils/supabaseClient';
 import { ColoredReceipt } from './ColoredReceipt';
+import PenaltyModal from './PenaltyModal';
 import { Geolocation } from '@capacitor/geolocation';
 import PullToRefresh from './PullToRefresh';
 import { getFastLocation } from '../utils/gpsHelper';
@@ -30,9 +31,10 @@ interface CollectionRouteProps {
   deleteClient?: (clientId: string) => void;
   onForceSync?: (silent?: boolean, message?: string, fullSync?: boolean, skipPull?: boolean) => Promise<void>;
   activeLocation?: { lat: number, lng: number, timestamp: number } | null;
+  onUpdateLoan?: (loan: Loan) => void;
 }
 
-const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync, activeLocation }) => {
+const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync, activeLocation, onUpdateLoan }) => {
   const [viewMode, setViewMode] = useState<'active' | 'hidden'>('active');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState<string>('0');
@@ -45,6 +47,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const [isSharing, setIsSharing] = useState(false);
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const qrChannelRef = useRef<any>(null);
+
+  // ── Penalty state ──────────────────────────────────────────────────────────
+  const [penaltyLoanId, setPenaltyLoanId] = useState<string | null>(null);
+  const penaltyLoan = penaltyLoanId
+    ? (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === penaltyLoanId) ?? null
+    : null;
 
   // --- BANCARD QR INTEGRATION STATES ---
   const [isQrProcessing, setIsQrProcessing] = useState(false);
@@ -126,6 +134,15 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     if (deleteClient && confirm(`¿ESTÁ SEGURO DE ELIMINAR A ${client.name.toUpperCase()}?\n\nESTA ACCIÓN BORRARÁ TODO SU HISTORIAL DE CRÉDITOS Y PAGOS.\nNO SE PUEDE DESHACER.`)) {
       deleteClient(client.id);
     }
+  };
+
+  // ── Penalty handler ───────────────────────────────────────────────────────
+  const handlePenaltySuccess = (updatedLoan: Loan, penalty: Penalty) => {
+    // Actualiza el loan en el estado local a través del callback del padre
+    if (onUpdateLoan) onUpdateLoan(updatedLoan);
+    setPenaltyLoanId(null);
+    // Sincronizar para que el cobrador vea los cambios
+    if (onForceSync) onForceSync(true, 'Penalización aplicada ✓', false, true);
   };
 
   // OPTIMIZATION: Index logs by loanId once to avoid O(n^2) behavior
@@ -852,6 +869,14 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                                   {item.paidPeriod > 0 && (
                                     <button onClick={() => handleDeleteHistoryPayment(item.id)} className="w-9 h-9 text-red-500 bg-white border border-red-100 rounded-md flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-trash-can"></i></button>
                                   )}
+                                  <button
+                                    id={`penalty-btn-${item.id}`}
+                                    title="Agregar Penalización"
+                                    onClick={() => setPenaltyLoanId(item.id)}
+                                    className="w-9 h-9 text-orange-500 bg-white border border-orange-200 rounded-md flex items-center justify-center shadow-sm active:scale-90 hover:bg-orange-50 transition-all"
+                                  >
+                                    <i className="fa-solid fa-triangle-exclamation"></i>
+                                  </button>
                                   <button onClick={() => item.client && handleDeleteClient(item.client)} className="px-3 py-2 bg-red-600 text-white rounded-md font-black text-[8px] uppercase active:scale-95 transition-all shadow-md">ELIMINAR</button>
                                 </>
                               )}
@@ -1065,6 +1090,16 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           </div>
         )}
       </div>
+
+      {/* Modal de Penalización — solo Admin/Gerente */}
+      {penaltyLoan && isAdminOrManager && (
+        <PenaltyModal
+          loan={penaltyLoan}
+          state={state}
+          onClose={() => setPenaltyLoanId(null)}
+          onSuccess={handlePenaltySuccess}
+        />
+      )}
     </PullToRefresh>
   );
 };

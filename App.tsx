@@ -404,6 +404,7 @@ const App: React.FC = () => {
                 onForceSync={handleForceSync} 
                 setActiveTab={setActiveTab}
                 activeLocation={activeLocation}
+                onUpdateLoan={updateLoan}
               />
             )}
             {activeTab === 'route' && (
@@ -423,6 +424,7 @@ const App: React.FC = () => {
                   deleteClient={deleteRemoteClientAction} 
                   onForceSync={handleForceSync}
                   activeLocation={activeLocation}
+                  onUpdateLoan={updateLoan}
                 />
               )
             )}
