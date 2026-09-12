@@ -479,7 +479,7 @@ const App: React.FC = () => {
             )}
             {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
             {activeTab === 'simulator' && <Simulator settings={resolvedSettings} state={filteredState} />}
-            {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} />}
+            {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} updateClient={updateClient} />}
             {activeTab === 'settings' && (
               <Settings 
                 state={filteredState} 

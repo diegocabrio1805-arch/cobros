@@ -10,11 +10,12 @@ import { saveAndOpenPDF } from '../utils/pdfHelper';
 interface ReportsProps {
    state: AppState;
    settings?: AppSettings;
+   updateClient?: (client: Client) => void;
 }
 
 declare const L: any;
 
-const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
+const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
    const mapRef = useRef<HTMLDivElement>(null);
    const leafletMap = useRef<any>(null);
    const layerGroup = useRef<any>(null);
@@ -26,6 +27,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const [selectedDate, setSelectedDate] = useState<string>(countryTodayStr);
    const [endDate, setEndDate] = useState<string>(countryTodayStr); // NEW
    const [selectedFilter, setSelectedFilter] = useState<'all' | 'payment' | 'nopayment' | 'liquidation'>('all');
+   const [noPaymentSubFilter, setNoPaymentSubFilter] = useState<'all' | 'in_range' | 'out_of_range' | 'no_location'>('all');
    const [stats, setStats] = useState({ totalStops: 0, devilStops: 0, totalDistance: 0 });
 
    const [aiReport, setAiReport] = useState<any>(null);
@@ -42,6 +44,39 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    const lastMapUpdate = useRef<number>(0);
    const lastManualAction = useRef<number>(0);
    const markerRefs = useRef<Map<string, any>>(new Map()); // log.id → L.Marker
+
+   // --- WINDOW GLOBAL PARA BOTÓN DE ASIGNAR UBICACIÓN ---
+   useEffect(() => {
+      (window as any).__assignMapLocation = (clientId: string, lat: number, lng: number) => {
+         const client = state.clients.find(c => c.id === clientId);
+         if (!client || !updateClient) {
+            alert('Error al localizar cliente o actualizar.');
+            return;
+         }
+         
+         const option = prompt(`¿Qué ubicación deseas actualizar para ${client.name.toUpperCase()}?\n\nEscribe "C" para CASA o "N" para NEGOCIO:`, "C");
+         if (option) {
+            const optUpper = option.toUpperCase();
+            if (optUpper === "C" || optUpper === "N") {
+               const updatedClient = { ...client };
+               if (optUpper === "C") {
+                  updatedClient.location = { lat, lng };
+               } else {
+                  updatedClient.domicilioLocation = { lat, lng };
+               }
+               updateClient(updatedClient);
+               alert(`✅ Ubicación de ${optUpper === "C" ? "CASA" : "NEGOCIO"} guardada exitosamente en el legajo del cliente.`);
+               setMapData(prev => [...prev]); // Trigger redraw of map to remove button
+            } else {
+               alert("❌ Opción inválida. Debes escribir C o N.");
+            }
+         }
+      };
+
+      return () => {
+         delete (window as any).__assignMapLocation;
+      };
+   }, [state.clients, updateClient]);
 
    // HELPER: Robust Collector Assignment Match
    const checkLoanAssignment = (loan: any, targetId: string) => {
@@ -309,13 +344,19 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          L.control.layers(baseMaps).addTo(leafletMap.current);
          L.control.zoom({ position: 'bottomright' }).addTo(leafletMap.current);
 
-         layerGroup.current = L.layerGroup().addTo(leafletMap.current);
+         if (!leafletMap.current) return;
       }
 
-      if (layerGroup.current) {
-         layerGroup.current.clearLayers();
-         markerRefs.current.clear();
+      if (!leafletMap.current || mapData.length === 0) return;
 
+      if (!layerGroup.current) {
+         layerGroup.current = L.featureGroup().addTo(leafletMap.current);
+      }
+      
+      layerGroup.current.clearLayers();
+      markerRefs.current.clear();
+
+      try {
          if (mapData.length === 0) {
             setStats({ totalStops: 0, devilStops: 0, totalDistance: 0 });
             return;
@@ -392,6 +433,28 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                const isRenewal = log.isRenewal;
                const isNoPayment = !isPayment && !isRenewal;
 
+               const clientLat = client?.location?.lat;
+               const clientLng = client?.location?.lng;
+               const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+               const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+
+               let subType: 'in_range' | 'out_of_range' | 'no_location' | null = null;
+               if (isNoPayment) {
+                  if (!hasClientLocation) {
+                     subType = 'no_location';
+                  } else if (hasLogLocation) {
+                     const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000;
+                     if (dist <= 100) subType = 'in_range';
+                     else subType = 'out_of_range';
+                  } else {
+                     subType = 'no_location';
+                  }
+               }
+
+               if (noPaymentSubFilter !== 'all' && (!isNoPayment || subType !== noPaymentSubFilter)) {
+                  return; // skip rendering this marker
+               }
+
                let bgColor = '#ef4444'; // Red (No Payment default)
                let borderColor = '#991b1b';
                let emoji = '😡';
@@ -410,35 +473,21 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   borderColor = '#065f46';
                   emoji = '😊';
                } else if (isNoPayment) {
-                  // Verificar distancia entre el registro y la casa del cliente
-                  const clientLat = client?.location?.lat;
-                  const clientLng = client?.location?.lng;
-                  const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
-                  const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
-
-                  if (!hasClientLocation) {
+                  if (subType === 'no_location') {
                      // Sin ubicación registrada del cliente → naranja fosforescente
                      bgColor = '#ff6a00';
                      borderColor = '#cc5500';
                      emoji = '👀';
-                  } else if (hasLogLocation) {
-                     const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000; // en metros
-                     if (dist <= 100) {
-                        // Dentro de 100m → rojo (fue a la casa)
-                        bgColor = '#ef4444';
-                        borderColor = '#991b1b';
-                        emoji = '😡';
-                     } else {
-                        // Fuera de 100m → naranja oscuro (no fue a la casa)
-                        bgColor = '#f97316';
-                        borderColor = '#c2410c';
-                        emoji = '😤';
-                     }
-                  } else {
-                     // Sin GPS en el log → naranja fosforescente
-                     bgColor = '#ff6a00';
-                     borderColor = '#cc5500';
-                     emoji = '👀';
+                  } else if (subType === 'in_range') {
+                     // Dentro de 100m → rojo (fue a la casa)
+                     bgColor = '#ef4444';
+                     borderColor = '#991b1b';
+                     emoji = '😡';
+                  } else if (subType === 'out_of_range') {
+                     // Fuera de 100m → naranja oscuro (no fue a la casa)
+                     bgColor = '#f97316';
+                     borderColor = '#c2410c';
+                     emoji = '😤';
                   }
                }
 
@@ -478,9 +527,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
                // Para NO PAGO sin ubicación del cliente
                if (isNoPayment && !hasHomeLoc && !hasBizLoc) {
-                  distanceNote = ((t as any).reports.map?.popups?.noClientLoc || 'Sin ubicación del cliente');
+                  const assignBtn = updateClient && client ? `<br><button onclick="window.__assignMapLocation('${client.id}', ${lat}, ${lng})" style="margin-top:6px; cursor:pointer; font-size:10px; font-weight:bold; color:white; background-color:#ea580c; border:none; padding:6px 10px; border-radius:6px; width:100%; box-shadow:0 2px 4px rgba(0,0,0,0.2);">📍 Asignar al cliente</button>` : '';
+                  distanceNote = `⚠️ <span style="color:#ef4444">${((t as any).reports.map?.popups?.noClientLoc || 'Sin ubicación del cliente')}</span>${assignBtn}`;
                } else {
-                  distanceNote = `${homePart} / ${bizPart}`;
+                  distanceNote = `📍 ${homePart} / ${bizPart}`;
                }
 
                const markerHtml = `
@@ -523,7 +573,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
                         ${log.type === CollectionLogType.NO_PAGO && log.notes ? `<p style="margin:4px 0 0 0; font-size:10px; font-weight:bold; color:#f43f5e; background-color:#fff1f2; padding:3px; border-radius:4px; font-style:italic;">OBS: ${log.notes}</p>` : ''}
                         ${log.amount ? `<p style="margin-top:4px; font-weight:900; font-family:monospace;">${formatCurrency(log.amount, activeSettings)}</p>` : ''}
-                        ${distanceNote ? `<p style="margin-top:6px; font-size:9px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px; line-height:1.6;">📍 ${distanceNote}</p>` : ''}
+                        ${distanceNote ? `<p style="margin-top:6px; font-size:9px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px; line-height:1.6; text-align:center;">${distanceNote}</p>` : ''}
                     </div>
                   `)
                   .addTo(layerGroup.current);
@@ -538,12 +588,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             }
          });
 
-         // Removed Polyline as requested (Ghost Line)
-         // if (points.length > 1) {
-         //    L.polyline(points, { color: '#4285F4', weight: 5, opacity: 0.8 }).addTo(layerGroup.current);
-         // }
-
-         // Smart centering: Solo centrar si no hay coordenadas previas o los puntos son nuevos
          const validPoints = points.filter(p => Math.abs(p[0]) > 0.1 || Math.abs(p[1]) > 0.1);
 
          if (validPoints.length > 0) {
@@ -552,7 +596,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             setTimeout(() => {
                if (leafletMap.current) {
                   leafletMap.current.invalidateSize();
-                  // Solo centramos automáticamente si es la primera vez que tenemos puntos o si el usuario cambió filtros
                   leafletMap.current.fitBounds(bounds, { padding: [50, 50], animate: false });
                }
             }, 300);
@@ -572,9 +615,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             totalDistance: parseFloat(calculatedDist.toFixed(2)),
             noGpsCount
          });
+      } catch (e) {
+         console.error('Error drawing map markers', e);
       }
-   }, [mapData]); // ELIMINADO state.clients para evitar parpadeos innecesarios en cada sincronización
-
+   }, [mapData, selectedFilter, t, isLiveTracking, noPaymentSubFilter, activeSettings, updateClient]);
    // --- NEW PDF EXPORT FUNCTION ---
    const handleExportPDF = (report: any, collectorId: string) => {
       if (!report) return;
@@ -1466,9 +1510,18 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             {/* Leyenda de íconos de No Pago */}
             <div className="flex flex-wrap items-center gap-4 px-4 py-3 bg-slate-800 border-l-4 border-slate-600 text-[9px] font-black uppercase tracking-widest text-slate-200 mt-2">
                <span className="text-slate-300 font-black uppercase text-[10px]">📋 Leyenda No Pago:</span>
-               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-red-500 text-white"><span className="text-base">😡</span> En el lugar (menos de 50m)</span>
-               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-orange-400 text-white"><span className="text-base">😤</span> Fuera de rango (lejos del local)</span>
-               <span className="flex items-center gap-1 bg-slate-700 px-2 py-1 border border-amber-400 text-white"><span className="text-base">👀</span> Sin ubicación — Registrar Ubicación</span>
+               <button 
+                 onClick={() => setNoPaymentSubFilter(prev => prev === 'in_range' ? 'all' : 'in_range')}
+                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'in_range' ? 'bg-red-500 text-white border-red-500 scale-105 shadow-md' : 'bg-slate-700 border-red-500 text-white hover:bg-slate-600 hover:scale-105'}`}
+               ><span className="text-base">😡</span> En el lugar (menos de 50m)</button>
+               <button 
+                 onClick={() => setNoPaymentSubFilter(prev => prev === 'out_of_range' ? 'all' : 'out_of_range')}
+                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'out_of_range' ? 'bg-orange-500 text-white border-orange-500 scale-105 shadow-md' : 'bg-slate-700 border-orange-400 text-white hover:bg-slate-600 hover:scale-105'}`}
+               ><span className="text-base">😤</span> Fuera de rango (lejos del local)</button>
+               <button 
+                 onClick={() => setNoPaymentSubFilter(prev => prev === 'no_location' ? 'all' : 'no_location')}
+                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'no_location' ? 'bg-amber-500 text-white border-amber-500 scale-105 shadow-md' : 'bg-slate-700 border-amber-400 text-white hover:bg-slate-600 hover:scale-105'}`}
+               ><span className="text-base">👀</span> Sin ubicación — Registrar Ubicación</button>
             </div>
          </div>
 
