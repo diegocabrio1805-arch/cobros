@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -1643,8 +1644,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       )}
 
       {/* MODALES DE PAGO OMITIDOS POR BREVEDAD */}
-      {showPaymentInput && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
+      {showPaymentInput && createPortal(
+        <div className="fixed inset-0 bg-[#0f172a]/95 flex items-start justify-center z-[9999] p-2 overflow-y-auto pt-10 md:pt-20" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
           <div className="bg-white rounded-md shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'ENREGISTRER PAIEMENT' : state.settings.language === 'pt' ? 'REGISTRAR PAGAMENTO' : 'Registrar Abono'}</h3></div>
@@ -1730,11 +1731,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               )}
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
-      {editingReceipt && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[170] p-4 overflow-y-auto pt-10 md:pt-20">
+      {editingReceipt && createPortal(
+        <div className="fixed inset-0 bg-[#0f172a]/95 flex items-start justify-center z-[9999] p-4 overflow-y-auto pt-10 md:pt-20" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
           <div className="bg-white rounded-md shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div>
@@ -2005,11 +2006,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
-      {receipt && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[160] p-4 overflow-y-auto pt-10 md:pt-20">
+      {receipt && createPortal(
+        <div className="fixed inset-0 bg-[#0f172a]/95 flex items-start justify-center z-[9999] p-4 overflow-y-auto pt-10 md:pt-20" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
           <div className="bg-white rounded-md text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
             {/* Header de navegación en el ticket */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
@@ -2060,12 +2061,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               </div>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* MODAL DE OBSERVACIÓN NO PAGO */}
-      {noPayLoanId && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+      {noPayLoanId && createPortal(
+        <div className="fixed inset-0 bg-slate-300/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
           <div className="bg-slate-800 border border-slate-700 rounded-md shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
             <div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-black text-white uppercase tracking-widest text-red-500">
@@ -2105,7 +2106,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               </div>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN IMAGEN */}
