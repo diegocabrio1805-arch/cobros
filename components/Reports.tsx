@@ -1445,40 +1445,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
                </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50">
-               <button
-                  onClick={() => setSelectedFilter('all')}
-                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'all' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-               >
-                  🚀 {(t as any).reports.filters?.all || 'Todos'}
-               </button>
-               <button
-                  onClick={() => setSelectedFilter('payment')}
-                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'payment' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-               >
-                  😊 {(t as any).reports.filters?.payments || 'Pagos'}
-               </button>
-               <button
-                  onClick={() => setSelectedFilter('nopayment')}
-                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'} flex items-center gap-1`}
-                  title="😡 En el lugar | 😤 Fuera de rango | 👀 Sin ubicación"
-               >
-                  <span>😡 😤 👀</span>
-                  <span className="ml-1">{(t as any).reports.filters?.noPayment || 'No Pago'}</span>
-               </button>
-               <button
-                  onClick={() => setSelectedFilter('liquidation')}
-                  className={`px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-               >
-                  😇 {(t as any).reports.filters?.renew || 'Renovar'}
-               </button>
-
-
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50 justify-end">
                {/* 
                <button
                   onClick={handleRunAiAudit}
                   disabled={selectedCollector === 'all'}
-                  className="ml-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                >
                   <i className="fa-solid fa-robot"></i>
                   {t.reports.runAudit}
@@ -1490,7 +1462,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
                      href="https://www.google.com/android/find/u/1/?pageId=none"
                      target="_blank"
                      rel="noopener noreferrer"
-                     className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-none shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
+                     className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-none shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
                   >
                      <i className="fa-brands fa-google"></i>
                      {(t as any).reports.buttons?.googleTracker || 'Google Localizador'}
@@ -1500,28 +1472,61 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
                <button
                   onClick={handleLocalAuditPDF}
                   disabled={selectedCollector === 'all'}
-                   className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-none shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
+                   className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-none shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600"
                 >
                    <i className="fa-solid fa-clipboard-check"></i>
                    {(t as any).reports.buttons?.auditor || 'Auditor'}
                 </button>
              </div>
 
-            {/* Leyenda de íconos de No Pago */}
-            <div className="flex flex-wrap items-center gap-4 px-4 py-3 bg-slate-800 border-l-4 border-slate-600 text-[9px] font-black uppercase tracking-widest text-slate-200 mt-2">
-               <span className="text-slate-300 font-black uppercase text-[10px]">📋 Leyenda No Pago:</span>
-               <button 
-                 onClick={() => setNoPaymentSubFilter(prev => prev === 'in_range' ? 'all' : 'in_range')}
-                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'in_range' ? 'bg-red-500 text-white border-red-500 scale-105 shadow-md' : 'bg-slate-700 border-red-500 text-white hover:bg-slate-600 hover:scale-105'}`}
-               ><span className="text-base">😡</span> En el lugar (menos de 50m)</button>
-               <button 
-                 onClick={() => setNoPaymentSubFilter(prev => prev === 'out_of_range' ? 'all' : 'out_of_range')}
-                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'out_of_range' ? 'bg-orange-500 text-white border-orange-500 scale-105 shadow-md' : 'bg-slate-700 border-orange-400 text-white hover:bg-slate-600 hover:scale-105'}`}
-               ><span className="text-base">😤</span> Fuera de rango (lejos del local)</button>
-               <button 
-                 onClick={() => setNoPaymentSubFilter(prev => prev === 'no_location' ? 'all' : 'no_location')}
-                 className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'no_location' ? 'bg-amber-500 text-white border-amber-500 scale-105 shadow-md' : 'bg-slate-700 border-amber-400 text-white hover:bg-slate-600 hover:scale-105'}`}
-               ><span className="text-base">👀</span> Sin ubicación — Registrar Ubicación</button>
+            {/* Filtros y Leyenda de íconos de No Pago en la misma barra oscura */}
+            <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 bg-slate-800 border-l-4 border-slate-600 mt-2">
+               
+               {/* Botones de Filtro (Izquierda) */}
+               <div className="flex flex-wrap gap-2">
+                  <button
+                     onClick={() => { setSelectedFilter('all'); setNoPaymentSubFilter('all'); }}
+                     className={`flex items-center gap-1 px-4 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border ${selectedFilter === 'all' && noPaymentSubFilter === 'all' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-700 text-white border-slate-400 hover:bg-slate-600'}`}
+                  >
+                     <span className="text-base">🚀</span> <span>{(t as any).reports.filters?.all || 'Todos'}</span>
+                  </button>
+                  <button
+                     onClick={() => { setSelectedFilter('payment'); setNoPaymentSubFilter('all'); }}
+                     className={`flex items-center gap-1 px-4 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border ${selectedFilter === 'payment' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-slate-700 text-white border-emerald-500 hover:bg-slate-600'}`}
+                  >
+                     <span className="text-base">😊</span> <span>{(t as any).reports.filters?.payments || 'Pagos'}</span>
+                  </button>
+                  <button
+                     onClick={() => { setSelectedFilter('nopayment'); setNoPaymentSubFilter('all'); }}
+                     className={`flex items-center gap-1 px-4 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border ${selectedFilter === 'nopayment' && noPaymentSubFilter === 'all' ? 'bg-red-600 text-white border-red-600 shadow-lg' : 'bg-slate-700 text-white border-red-500 hover:bg-slate-600'}`}
+                     title="😡 En el lugar | 😤 Fuera de rango | 👀 Sin ubicación"
+                  >
+                     <span className="text-base tracking-tighter">😡😤👀</span> <span>{(t as any).reports.filters?.noPayment || 'No Pago'}</span>
+                  </button>
+                  <button
+                     onClick={() => { setSelectedFilter('liquidation'); setNoPaymentSubFilter('all'); }}
+                     className={`flex items-center gap-1 px-4 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-slate-700 text-white border-blue-500 hover:bg-slate-600'}`}
+                  >
+                     <span className="text-base">😇</span> <span>{(t as any).reports.filters?.renew || 'Renovar'}</span>
+                  </button>
+               </div>
+
+               {/* Leyenda (Derecha) */}
+               <div className="flex flex-wrap items-center gap-4 text-[9px] font-black uppercase tracking-widest text-slate-200">
+                  <span className="text-slate-300 font-black uppercase text-[10px]">📋 Leyenda No Pago:</span>
+                  <button 
+                    onClick={() => { setSelectedFilter('nopayment'); setNoPaymentSubFilter('in_range'); }}
+                    className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'in_range' ? 'bg-red-500 text-white border-red-500 scale-105 shadow-md' : 'bg-slate-700 border-red-500 text-white hover:bg-slate-600 hover:scale-105'}`}
+                  ><span className="text-base">😡</span> En el lugar (menos de 50m)</button>
+                  <button 
+                    onClick={() => { setSelectedFilter('nopayment'); setNoPaymentSubFilter('out_of_range'); }}
+                    className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'out_of_range' ? 'bg-orange-500 text-white border-orange-500 scale-105 shadow-md' : 'bg-slate-700 border-orange-400 text-white hover:bg-slate-600 hover:scale-105'}`}
+                  ><span className="text-base">😤</span> Fuera de rango (lejos del local)</button>
+                  <button 
+                    onClick={() => { setSelectedFilter('nopayment'); setNoPaymentSubFilter('no_location'); }}
+                    className={`flex items-center gap-1 px-2 py-1 border transition-all rounded-sm cursor-pointer ${noPaymentSubFilter === 'no_location' ? 'bg-amber-500 text-white border-amber-500 scale-105 shadow-md' : 'bg-slate-700 border-amber-400 text-white hover:bg-slate-600 hover:scale-105'}`}
+                  ><span className="text-base">👀</span> Sin ubicación — Registrar Ubicación</button>
+               </div>
             </div>
          </div>
 
