@@ -138,6 +138,20 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
   // ── Penalty handler ───────────────────────────────────────────────────────
   const handlePenaltySuccess = (updatedLoan: Loan, penalty: Penalty) => {
+    // Generar log local para historial
+    const log: CollectionLog = {
+      id: penalty.id, // Reusamos el ID de la penalidad
+      clientId: penalty.clientId,
+      loanId: penalty.loanId,
+      type: CollectionLogType.PENALTY,
+      amount: penalty.amount,
+      date: penalty.createdAt || new Date().toISOString(),
+      location: { lat: 0, lng: 0 },
+      companySnapshot: state.settings,
+      notes: penalty.reason
+    };
+    addCollectionAttempt(log, true); // true para skipSync (porque el update lo fuerza)
+
     // Actualiza el loan en el estado local a través del callback del padre
     if (onUpdateLoan) onUpdateLoan(updatedLoan);
     setPenaltyLoanId(null);

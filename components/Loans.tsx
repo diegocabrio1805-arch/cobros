@@ -95,6 +95,20 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     : null;
 
   const handlePenaltySuccess = (updatedLoan: Loan, penalty: Penalty) => {
+    // Generar log local para historial
+    const log: CollectionLog = {
+      id: penalty.id, // Reusamos el ID de la penalidad
+      clientId: penalty.clientId,
+      loanId: penalty.loanId,
+      type: CollectionLogType.PENALTY,
+      amount: penalty.amount,
+      date: penalty.createdAt || new Date().toISOString(),
+      location: { lat: 0, lng: 0 },
+      companySnapshot: state.settings,
+      notes: penalty.reason
+    };
+    addCollectionAttempt(log, true); // true para skipSync (porque el update lo fuerza)
+
     if (onUpdateLoan) onUpdateLoan(updatedLoan);
     setPenaltyLoanId(null);
     if (onForceSync) onForceSync(true);
@@ -1367,13 +1381,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                                       <td className={`px-3 py-2 uppercase text-[8px] font-black ${
                                         log.type === CollectionLogType.NO_PAGO 
                                           ? 'text-red-500' 
-                                          : log.isRenewal 
-                                            ? 'text-amber-500' 
-                                            : log.isVirtual 
-                                              ? 'text-sky-400' 
-                                              : 'text-emerald-500'
+                                          : log.type === CollectionLogType.PENALTY
+                                            ? 'text-orange-500'
+                                            : log.isRenewal 
+                                              ? 'text-amber-500' 
+                                              : log.isVirtual 
+                                                ? 'text-sky-400' 
+                                                : 'text-emerald-500'
                                       }`}>
-                                        {log.isRenewal ? 'Renovación' : (log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : state.settings.language === 'pt' ? 'Pagamento Recebido' : 'Abono Recibido') : 'No Pago')}
+                                        {log.type === CollectionLogType.PENALTY ? 'MORA / PENALIZACIÓN' : (log.isRenewal ? 'Renovación' : (log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : state.settings.language === 'pt' ? 'Pagamento Recebido' : 'Abono Recibido') : 'No Pago'))}
                                       </td>
                                       <td className="px-3 py-2 uppercase text-[7px] text-slate-400 font-medium max-w-[100px] truncate" title={log.notes || ''}>{log.type === CollectionLogType.NO_PAGO && log.notes ? log.notes : '-'}</td>
                                       <td className="px-3 py-2 text-right font-black text-white">{log.type === CollectionLogType.NO_PAGO ? '-' : formatCurrency(log.amount || 0, state.settings)}</td>

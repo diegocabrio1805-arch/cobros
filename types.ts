@@ -37,7 +37,8 @@ export enum CollectionLogType {
   PAYMENT = 'PAGO',
   NO_PAGO = 'NO_PAGO',
   OPENING = 'APERTURA',
-  DELETED_PAYMENT = 'PAGO_ELIMINADO'
+  DELETED_PAYMENT = 'PAGO_ELIMINADO',
+  PENALTY = 'PENALIZACION'
 }
 
 export interface Penalty {

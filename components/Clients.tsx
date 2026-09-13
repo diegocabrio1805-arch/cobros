@@ -3956,6 +3956,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         {activeLoanInLegajo.interestRate > 0 && (
                                           <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/10">{state.settings.language === 'fr' ? 'CRÉDIT APPROUVÉ' : 'Crédito Habilitado'}</td><td className="p-3 text-right font-black text-slate-300">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
                                         )}
+                                        {(() => {
+                                          const totalPenalty = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+                                            .filter(l => l.loanId === activeLoanInLegajo.id && l.type === CollectionLogType.PENALTY && !l.deletedAt)
+                                            .reduce((acc, log) => acc + (log.amount || 0), 0);
+                                          if (totalPenalty > 0) {
+                                            return (
+                                              <tr className="hover:bg-orange-900/10 transition-colors"><td className="p-3 text-orange-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-orange-900/5"><i className="fa-solid fa-triangle-exclamation mr-1"></i> {state.settings.language === 'fr' ? 'PÉNALITÉ' : 'Mora / Penalización'}</td><td className="p-3 text-right font-black text-orange-400">+{formatCurrency(totalPenalty, state.settings)}</td></tr>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
                                         <tr className="hover:bg-emerald-900/10 transition-colors"><td className="p-3 text-emerald-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-emerald-900/5">{state.settings.language === 'fr' ? 'PAYÉ' : 'Abonado'}</td><td className="p-3 text-right font-black text-emerald-400">{formatCurrency(m.totalPaid, state.settings)}</td></tr>
                                         <tr className="hover:bg-red-900/10 transition-colors"><td className="p-3 text-red-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-red-900/5">{state.settings.language === 'fr' ? 'SOLDE RESTANT' : 'Saldo Pendiente'}</td><td className="p-3 text-right font-black text-red-400">{formatCurrency(m.balance, state.settings)}</td></tr>
                                         <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/20">{state.settings.language === 'fr' ? 'PROGRÈS ÉCHÉANCES' : 'Progreso Cuotas'}</td><td className="p-3 text-right font-black text-white">{m.installmentsStr}</td></tr>
@@ -4027,13 +4038,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                             log.isOpening ? 'text-emerald-400' :
                                               log.isRenewal ? 'text-amber-400' :
                                                 log.type === CollectionLogType.PAYMENT ? 'text-slate-300' :
-                                                  'text-red-400'
+                                                  log.type === CollectionLogType.PENALTY ? 'text-orange-500' :
+                                                    'text-red-400'
                                             }`}>
                                             {isLoanGrant ? (state.settings.language === 'fr' ? 'CRÉDIT' : 'CRÉDITO') :
                                               log.isOpening ? (state.settings.language === 'fr' ? 'Crédit Approuvé' : 'Crédito Habilitado') :
                                                 log.isRenewal ? (state.settings.language === 'fr' ? 'RENOUVELLEMENT' : state.settings.language === 'pt' ? 'RENOVAÇÃO' : 'RENOVACIÓN') :
                                                   log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : 'Abono Recibido') :
-                                                    (state.settings.language === 'fr' ? 'Visite sans paiement' : state.settings.language === 'pt' ? 'Visita sem Pagamento' : 'Visita sin Pago')}
+                                                    log.type === CollectionLogType.PENALTY ? (state.settings.language === 'fr' ? 'PÉNALITÉ' : 'MORA / PENALIZACIÓN') :
+                                                      (state.settings.language === 'fr' ? 'Visite sans paiement' : state.settings.language === 'pt' ? 'Visita sem Pagamento' : 'Visita sin Pago')}
                                           </p>
                                         </td>
                                         <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">

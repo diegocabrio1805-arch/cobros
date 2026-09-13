@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, AppSettings, Language, CountryCode, Role } from '../types';
 import { getTranslation } from '../utils/translations';
 import { supabase } from '../utils/supabaseClient';
@@ -823,9 +824,9 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       </div>
 
       {
-        showSupportModal && (
-          <div className="fixed inset-0 bg-[#0f172a] flex items-start pt-10 md:pt-20 justify-center z-[150] p-4 overflow-y-auto animate-fadeIn">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
+        showSupportModal && createPortal(
+          <div className="fixed inset-0 bg-[#0f172a]/95 flex items-center justify-center z-[9999] p-4 overflow-y-auto animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-5 bg-blue-600 text-white flex justify-between items-center sticky top-0 z-10">
                 <div>
                   <h3 className="text-base font-black uppercase tracking-tighter leading-none">Soporte Técnico</h3>
@@ -860,12 +861,12 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </button>
               </form>
             </div>
-          </div>
+          </div>, document.body
         )
       }
       {
-        showPrinterModal && (
-          <div className="fixed inset-0 bg-[#0f172a] flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
+        showPrinterModal && createPortal(
+          <div className="fixed inset-0 bg-[#0f172a]/95 flex items-center justify-center z-[9999] p-4 overflow-y-auto animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
             <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn mx-4">
               <div className="bg-slate-900 p-6 flex justify-between items-center">
                 <h3 className="text-white font-black uppercase text-lg tracking-tighter">
@@ -922,7 +923,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 </div>
               </div>
             </div>
-          </div>
+          </div>, document.body
         )
       }
     </div >

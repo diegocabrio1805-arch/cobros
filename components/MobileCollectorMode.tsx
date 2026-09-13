@@ -670,7 +670,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                      <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3"><i className="fa-solid fa-clock-rotate-left mr-1"></i> Historial Reciente (Últimos 4)</h4>
                      <div className="space-y-2">
                         {state.collectionLogs
-                          .filter(l => l.loanId === loan.id && (l.type === CollectionLogType.PAYMENT || l.type === CollectionLogType.NO_PAGO) && !l.deletedAt)
+                          .filter(l => l.loanId === loan.id && (l.type === CollectionLogType.PAYMENT || l.type === CollectionLogType.NO_PAGO || l.type === CollectionLogType.PENALTY) && !l.deletedAt)
                           .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                           .slice(0, 4)
                           .map(log => (
@@ -682,6 +682,8 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                                <div className="text-right">
                                  {log.type === CollectionLogType.NO_PAGO ? (
                                     <p className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-900/20 px-2 py-1 rounded">No Pago</p>
+                                 ) : log.type === CollectionLogType.PENALTY ? (
+                                    <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest bg-orange-900/20 px-2 py-1 rounded">Penalización</p>
                                  ) : (
                                     <p className="text-sm font-mono font-black text-emerald-400">{formatCurrency(log.amount || 0, state.settings)}</p>
                                  )}

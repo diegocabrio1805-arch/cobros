@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Loan, Penalty } from '../types';
 import { formatCurrency, generateUUID } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
@@ -119,8 +120,8 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({ loan, state, onClose, onSuc
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[300] p-4 animate-fadeIn">
+  const modalContent = (
+    <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[9999] p-4 animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-slate-200 overflow-hidden">
 
         {/* Header */}
@@ -250,6 +251,8 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({ loan, state, onClose, onSuc
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default PenaltyModal;
