@@ -1139,7 +1139,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 // Recopilar logs de TODOS los préstamos de este cliente (para el historial de la tarjeta)
                 const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === loan.clientId && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
                 const cardLoanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-                  .filter(l => clientLoans.some(cl => cl.id === l.loanId) && (l.type === CollectionLogType.PAYMENT || l.type === CollectionLogType.NO_PAGO) && !l.isOpening && !l.deletedAt);
+                  .filter(l => clientLoans.some(cl => cl.id === l.loanId) && (l.type === CollectionLogType.PAYMENT || l.type === CollectionLogType.NO_PAGO || l.type === CollectionLogType.PENALTY) && !l.isOpening && !l.deletedAt);
                 
                 const progress = Math.min(100, (totalPaid / loan.totalAmount) * 100);
                 const installmentsPaid = Number((totalPaid / loan.installmentValue).toFixed(1));
