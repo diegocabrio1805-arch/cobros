@@ -1475,7 +1475,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
       }
 
-      updateClient(editClientFormData);
+      let clientToSave = editClientFormData;
+
+      // Si se cambió el cobrador en el préstamo, actualizar también el addedBy del cliente
+      if (editLoanFormData) {
+        const newCollectorId = editLoanFormData.collectorId || (editLoanFormData as any).collector_id;
+        if (newCollectorId) {
+          clientToSave = { ...editClientFormData, addedBy: newCollectorId };
+        }
+      }
+
+      updateClient(clientToSave);
       if (editLoanFormData && updateLoan) {
         const loanToSave = {
           ...editLoanFormData,
@@ -1489,6 +1499,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       alert("Expediente y Crédito actualizados.");
     }
   };
+
 
   const handleOpenDossierPayment = () => {
     if (!activeLoanInLegajo) return;
@@ -4610,8 +4621,26 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                     {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{state.settings.language === 'fr' ? (f === Frequency.DAILY || f === Frequency.DAILY_MF ? 'QUOTIDIEN' : f === Frequency.WEEKLY ? 'HEBDOMADAIRE' : f === Frequency.BIWEEKLY ? 'BIMENSUEL' : 'MENSUEL') : f}</option>)}
                                   </select>
                                 </div>
+                                {/* SELECTOR DE COBRADOR */}
+                                <div className="flex p-2 items-center gap-2 border-t border-slate-800 col-span-2">
+                                  <label className="text-[7px] font-black text-slate-400 uppercase shrink-0">
+                                    <i className="fa-solid fa-user-tie mr-1 text-emerald-400"></i>
+                                    {state.settings.language === 'fr' ? 'Collecteur' : state.settings.language === 'pt' ? 'Cobrador' : 'Cobrador'}
+                                  </label>
+                                  <select
+                                    value={editLoanFormData.collectorId || (editLoanFormData as any).collector_id || ''}
+                                    onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, collectorId: e.target.value, collector_id: e.target.value }))}
+                                    className="flex-1 bg-slate-900 text-emerald-400 font-black text-[9px] outline-none text-right uppercase border-none focus:ring-0 cursor-pointer"
+                                  >
+                                    <option value="" className="bg-white text-slate-400">— {state.settings.language === 'fr' ? 'Sin Cobrador' : state.settings.language === 'pt' ? 'Sem Cobrador' : 'Sin Cobrador'} —</option>
+                                    {collectors.map(col => (
+                                      <option key={col.id} value={col.id} className="bg-white text-slate-800 uppercase">{col.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
                               </div>
                               <p className="text-[8px] text-orange-400 italic text-center opacity-80">{state.settings.language === 'fr' ? '* L\'édition de ces valeurs recalculera tout le calendrier.' : '* Editar estos valores recalculará todo el cronograma.'}</p>
+
                             </div>
                           )}
                         </div>
