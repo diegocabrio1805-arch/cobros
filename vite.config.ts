@@ -99,7 +99,12 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'vendor-react': ['react', 'react-dom'],
             'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/network']
+            'vendor-capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/network'],
+            // Chunks separados para componentes pesados → el APK los descarga bajo demanda
+            'chunk-clients': ['./components/Clients'],
+            'chunk-dashboard': ['./components/Dashboard'],
+            'chunk-reports': ['./components/Reports'],
+            'chunk-loans': ['./components/Loans', './components/CollectionRoute'],
           }
         }
       },

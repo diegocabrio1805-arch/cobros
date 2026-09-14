@@ -207,6 +207,17 @@ export const useAppInitialization = () => {
         console.log(`[App] ⚡ Fase 1 (Layout ready) en ${phase1Time}ms`);
         setIsInitializing(false); // El spinner global desaparece AQUÍ
 
+        // OCULTAR SPINNER NATIVO DEL HTML (elimina pantalla blanca en APK)
+        try {
+          const nativeSplash = document.getElementById('native-splash');
+          if (nativeSplash) {
+            nativeSplash.style.transition = 'opacity 0.3s ease';
+            nativeSplash.style.opacity = '0';
+            setTimeout(() => { if (nativeSplash.parentNode) nativeSplash.parentNode.removeChild(nativeSplash); }, 350);
+          }
+        } catch(e) {}
+
+
         // === FASE 2: ARRAYS PESADOS (hilo liberado, siguiente tick del evento) ===
         // FIX A02: setTimeout(100) en lugar de setTimeout(0) para dar margen real al motor JS
         // del WebView en dispositivos lentos antes de parsear arrays pesados (clientes, préstamos...).

@@ -11,23 +11,27 @@ import { startConnectionKeeper } from './services/bluetoothPrinterService';
 import { useGPSWarmer } from './hooks/useGPSWarmer';
 import { useLiveTracker } from './hooks/useLiveTracker';
 
-// ── CARGA ESTÁTICA (Eager) ── Pestañas críticas del cobrador: navegación instantánea ──
+// ── CARGA ESTÁTICA (Eager) ── Solo lo mínimo para arrancar ──
 import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
 import Login from './components/Login';
-import Clients from './components/Clients';
-import Loans from './components/Loans';
-import CollectionRoute from './components/CollectionRoute';
-import Reports from './components/Reports';
-import MobileCollectorMode from './components/MobileCollectorMode';
-import WeatherWidget from './components/WeatherWidget';
-import HolidaysWidget from './components/HolidaysWidget';
-import MobileOrdersWidget from './components/MobileOrdersWidget';
 import FloatingBackButton from './components/FloatingBackButton';
 import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
 import AutoUpdater from './components/AutoUpdater';
+
+// ── CARGA DIFERIDA (Lazy) ── Todo lo pesado se carga después del arranque ──
+// CRÍTICOS del flujo (se descargan en segundo plano, listos cuando el usuario los abre)
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Clients = lazy(() => import('./components/Clients'));          // 407KB - el más pesado
+const Loans = lazy(() => import('./components/Loans'));
+const CollectionRoute = lazy(() => import('./components/CollectionRoute'));
+const Reports = lazy(() => import('./components/Reports'));
+const MobileCollectorMode = lazy(() => import('./components/MobileCollectorMode'));
+const WeatherWidget = lazy(() => import('./components/WeatherWidget'));
+const HolidaysWidget = lazy(() => import('./components/HolidaysWidget'));
+const MobileOrdersWidget = lazy(() => import('./components/MobileOrdersWidget'));
+
 
 // ── CARGA DIFERIDA (Lazy) ── Secciones administrativas/secundarias ──
 // Solo se descargan la primera vez que el Admin/Manager las abre
