@@ -435,7 +435,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
 
                const clientLat = client?.location?.lat;
                const clientLng = client?.location?.lng;
-               const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+               const bizLatCheck = client?.domicilioLocation?.lat;
+               const bizLngCheck = client?.domicilioLocation?.lng;
+               
+               const hasHomeLocationCheck = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
+               const hasBizLocationCheck = bizLatCheck && bizLngCheck && (Math.abs(bizLatCheck) > 0.1 || Math.abs(bizLngCheck) > 0.1);
+               
+               const hasClientLocation = hasHomeLocationCheck || hasBizLocationCheck;
                const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
 
                let subType: 'in_range' | 'out_of_range' | 'no_location' | null = null;
@@ -443,7 +449,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
                   if (!hasClientLocation) {
                      subType = 'no_location';
                   } else if (hasLogLocation) {
-                     const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000;
+                     let dist = Infinity;
+                     if (hasHomeLocationCheck) {
+                        dist = Math.min(dist, calculateDistance(lat, lng, clientLat, clientLng) * 1000);
+                     }
+                     if (hasBizLocationCheck) {
+                        dist = Math.min(dist, calculateDistance(lat, lng, bizLatCheck, bizLngCheck) * 1000);
+                     }
                      if (dist <= 100) subType = 'in_range';
                      else subType = 'out_of_range';
                   } else {
