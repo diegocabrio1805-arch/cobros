@@ -1015,10 +1015,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || !!anyHistoricLoan;
       }
       const validCollectorIds = collectors.map(col => col.id.toLowerCase());
+      // FIX: Incluir el ID del usuario actual y del branchId para clientes creados por el admin/gerente
+      const currentUserId = state.currentUser?.id?.toLowerCase() || '';
+      const branchId = (state.currentUser?.branchId || (state.currentUser as any)?.branch_id || '').toLowerCase();
+      const validIds = [...validCollectorIds, currentUserId, branchId].filter(Boolean);
       const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
       const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       const loanCollectorId = (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase();
-      if (validCollectorIds.includes(addedByLower) || (loanCollectorId && validCollectorIds.includes(loanCollectorId))) return true;
+      if (validIds.includes(addedByLower) || (loanCollectorId && validIds.includes(loanCollectorId))) return true;
       const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && validCollectorIds.includes((l.collectorId || (l as any).collector_id)?.toLowerCase() || ''));
       return !!anyHistoricLoan;
     }).map(client => {
@@ -2809,9 +2813,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   <i className="fa-solid fa-folder-open text-[10px]"></i>
                                 </button>
                                 {isAdminOrManager && (() => {
-                                  const daysPassed = client.lastWhatsAppMsgDate
-                                    ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
-                                    : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
+                                  const _activeLoanDate2 = client._metrics?.activeLoan?.createdAt;
+                                  const _refDate2 = client.lastWhatsAppMsgDate ? new Date(client.lastWhatsAppMsgDate) : _activeLoanDate2 ? new Date(_activeLoanDate2) : new Date(client.createdAt || Date.now());
+                                  const daysPassed = Math.floor((Date.now() - _refDate2.getTime()) / 86400000);
                                   const isRed = daysPassed >= 7;
                                   const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
                                   return (
@@ -2947,9 +2951,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{(((t as any).clients?.list || {})?.btnView || 'VER')}</button>
                             {isAdminOrManager && (() => {
-                              const daysPassed = client.lastWhatsAppMsgDate
-                                ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
-                                : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
+                              const _activeLoanDate3 = client._metrics?.activeLoan?.createdAt;
+                              const _refDate3 = client.lastWhatsAppMsgDate ? new Date(client.lastWhatsAppMsgDate) : _activeLoanDate3 ? new Date(_activeLoanDate3) : new Date(client.createdAt || Date.now());
+                              const daysPassed = Math.floor((Date.now() - _refDate3.getTime()) / 86400000);
                               const isRed = daysPassed >= 7;
                               const btnColor = isRed ? 'bg-red-600' : 'bg-emerald-600';
 
@@ -3207,9 +3211,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex items-center justify-center gap-1.5">
                             <button onClick={() => setShowLegajo(client.id)} className="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center active:scale-90 transition-all" title="Expediente"><i className="fa-solid fa-folder-open text-[10px]"></i></button>
                             {isAdminOrManager && (() => {
-                               const daysPassed = client.lastWhatsAppMsgDate
-                                 ? Math.floor((Date.now() - new Date(client.lastWhatsAppMsgDate).getTime()) / 86400000)
-                                 : Math.floor((Date.now() - new Date('2026-07-28').getTime()) / 86400000);
+                               // FIX: usar createdAt del préstamo activo (o del cliente) como referencia cuando no hay lastWhatsAppMsgDate
+                               const activeLoanDate = client._metrics?.activeLoan?.createdAt;
+                               const refDate = client.lastWhatsAppMsgDate
+                                 ? new Date(client.lastWhatsAppMsgDate)
+                                 : activeLoanDate
+                                   ? new Date(activeLoanDate)
+                                   : new Date(client.createdAt || Date.now());
+                               const daysPassed = Math.floor((Date.now() - refDate.getTime()) / 86400000);
                               const isRed = daysPassed >= 7;
                               const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
                               return (
