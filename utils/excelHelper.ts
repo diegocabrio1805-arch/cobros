@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx-js-style';
 import { Client, Loan, Frequency, LoanStatus, PaymentStatus, CollectionLog, CollectionLogType } from '../types';
-import { parseAmount, formatDate, generateUUID, generateAmortizationTable } from './helpers';
+import { parseAmount, formatDate, generateUUID, generateAmortizationTable, parseUniversalCoordinates } from './helpers';
 import { mapHeadersWithAI } from '../services/geminiService';
 
 /**
@@ -178,7 +178,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const normalizeHeader = (s: string) => String(s || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "").trim();
 
                 const STRICT_KEYWORDS = [
-                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", "MODALIDADDEPAGO", "CUOTASATRASADAS", // Plantilla Actual
+                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", "MODALIDADDEPAGO", "CUOTASATRASADAS", "UBICACION", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
                     "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
                     "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL", // Comunes
@@ -299,7 +299,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI", "FEC.DES.", "FECHA DEL PAGARE"]),
                     sellerCode: findCol(["CODIGO DE VENDEDOR", "CODIGODEVENDEDOR", "COD. VEND.", "CODVEND"]),
                     atraso: findCol(["CUOTAS ATRASADAS", "ATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "MOROSIDAD"]),
-                    modalidad: findCol(["MODALIDAD DE PAGO", "MODALIDAD", "FRECUENCIA", "TIPO DE PAGO", "MODALIDAD DE COBRO"])
+                    modalidad: findCol(["MODALIDAD DE PAGO", "MODALIDAD", "FRECUENCIA", "TIPO DE PAGO", "MODALIDAD DE COBRO"]),
+                    ubicacion: findCol(["UBICACION", "UBICACIÓN", "UBICACIÓN GPS", "COORDENADAS", "LOCATION", "UBICACION GPS"])
                 };
 
                 console.log("[FORENSIC] Column Mapping Identified:", {
@@ -356,6 +357,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let totalInst = Math.round(parseAmount(row[idxs.totalInst ?? -1]));
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
                     let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
+                    
+                    const ubicacionParsed = parseUniversalCoordinates(String(row[idxs.ubicacion ?? -1] || ''));
                     
                     const modStr = String(row[idxs.modalidad ?? -1] || '').trim().toUpperCase();
                     let loanFreq = Frequency.DAILY;
@@ -556,6 +559,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         documentId: String(row[idxs.docId ?? -1] || '---'),
                         phone: String(row[idxs.phone ?? -1] || '---'),
                         address: String(row[idxs.addr ?? -1] || '---'),
+                        ...(ubicacionParsed ? { location: ubicacionParsed } : {}),
                         addedBy: collectorId,
                         branchId: branchId,
                         sellerCode: finalSellerCode,
@@ -648,17 +652,17 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
         "DOCUMENT", "NOM COMPLET", "TÉLÉPHONE", "ADRESSE",
         "MONTANT PRÊTÉ", "VALEUR ÉCHÉANCE", "TOTAL À PAYER", "MONTANT PERÇU",
         "SOLDE RESTANT", "ÉCHÉANCES TOTALES", "ÉCHÉANCES PAYÉES",
-        "DATE DÉBUT", "VENDEUR", "MODALITÉ DE PAIEMENT", "VERSEMENTS EN RETARD"
+        "DATE DÉBUT", "VENDEUR", "MODALITÉ DE PAIEMENT", "VERSEMENTS EN RETARD", "UBICACION"
     ] : isPt ? [
         "DOCUMENTO", "NOME COMPLETO", "TELEFONE", "ENDEREÇO",
         "VALOR EMPRESTADO", "VALOR PARCELA", "TOTAL A PAGAR", "VALOR COBRADO",
         "SALDO PENDENTE", "PARCELAS TOTAIS", "PARCELAS PAGAS",
-        "DATA INÍCIO", "VENDEDOR", "MODALIDADE DE PAGAMENTO", "PARCELAS ATRASADAS"
+        "DATA INÍCIO", "VENDEDOR", "MODALIDADE DE PAGAMENTO", "PARCELAS ATRASADAS", "UBICACION"
     ] : [
         "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION",
         "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", "MONTO COBRADO",
         "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS",
-        "FECHA INICIO", "VENDEDOR", "MODALIDAD DE PAGO", "CUOTAS ATRASADAS"
+        "FECHA INICIO", "VENDEDOR", "MODALIDAD DE PAGO", "CUOTAS ATRASADAS", "UBICACION"
     ];
 
     const exampleName = isFr ? "JEAN DUPONT" : isPt ? "JOÃO SILVA" : "JUAN PEREZ";
@@ -672,7 +676,7 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
             "1234567", exampleName, "0981123456", exampleAddr, 
             2000000, 100000, 2400000, 1200000,
             1200000, 24, 12,
-            "13/03/2026", "VEND-01", "DIARIO", 0
+            "13/03/2026", "VEND-01", "DIARIO", 0, "-25.312107, -57.603218"
         ]
     ];
 
