@@ -2826,7 +2826,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 {isAdminOrManager && (() => {
                                   const _activeLoanDate2 = client._metrics?.activeLoan?.createdAt;
                                   const _refDate2 = client.lastWhatsAppMsgDate ? new Date(client.lastWhatsAppMsgDate) : _activeLoanDate2 ? new Date(_activeLoanDate2) : new Date(client.createdAt || Date.now());
-                                  const daysPassed = Math.floor((Date.now() - _refDate2.getTime()) / 86400000);
+                                  let daysPassed = Math.floor((Date.now() - _refDate2.getTime()) / 86400000);
+                                  if ((client._metrics?.balance || 0) <= 1) daysPassed = 0;
                                   const isRed = daysPassed >= 7;
                                   const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
                                   return (
@@ -2964,7 +2965,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             {isAdminOrManager && (() => {
                               const _activeLoanDate3 = client._metrics?.activeLoan?.createdAt;
                               const _refDate3 = client.lastWhatsAppMsgDate ? new Date(client.lastWhatsAppMsgDate) : _activeLoanDate3 ? new Date(_activeLoanDate3) : new Date(client.createdAt || Date.now());
-                              const daysPassed = Math.floor((Date.now() - _refDate3.getTime()) / 86400000);
+                              let daysPassed = Math.floor((Date.now() - _refDate3.getTime()) / 86400000);
+                              if ((client._metrics?.balance || 0) <= 1) daysPassed = 0;
                               const isRed = daysPassed >= 7;
                               const btnColor = isRed ? 'bg-red-600' : 'bg-emerald-600';
 
@@ -3229,7 +3231,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                  : activeLoanDate
                                    ? new Date(activeLoanDate)
                                    : new Date(client.createdAt || Date.now());
-                               const daysPassed = Math.floor((Date.now() - refDate.getTime()) / 86400000);
+                               let daysPassed = Math.floor((Date.now() - refDate.getTime()) / 86400000);
+                               if ((client._metrics?.balance || 0) <= 1) daysPassed = 0;
                               const isRed = daysPassed >= 7;
                               const btnColor = isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700';
                               return (

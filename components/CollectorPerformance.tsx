@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { AppState, Role, CollectionLogType, PaymentStatus, LoanStatus, CollectionLog } from '../types';
-import { formatCurrency, calculateMonthlyStats } from '../utils/helpers';
+import { formatCurrency, calculateMonthlyStats, calculateTotalPaidFromLogs } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF } from '../utils/pdfHelper';
@@ -31,7 +31,14 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
       const cId = (l as any).collectorId || (l as any).collector_id;
       const status = (l as any).status;
-      return cId === collectorId && (status === LoanStatus.ACTIVE || status === 'Activo');
+      const isActiveStatus = (status === LoanStatus.ACTIVE || status === 'Activo');
+      
+      if (!isActiveStatus) return false;
+      
+      const totalPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+      const isFullyPaid = Math.max(0, l.totalAmount - totalPaid) <= 0.01;
+      
+      return cId === collectorId && !isFullyPaid;
     });
 
     const assignedClientIds = new Set((Array.isArray(assignedLoans) ? assignedLoans : []).map(l => (l as any).clientId || (l as any).client_id));
