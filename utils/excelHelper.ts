@@ -178,7 +178,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const normalizeHeader = (s: string) => String(s || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "").trim();
 
                 const STRICT_KEYWORDS = [
-                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", // Plantilla Actual
+                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", "MODALIDADDEPAGO", "CUOTASATRASADAS", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
                     "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
                     "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL", // Comunes
@@ -298,7 +298,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     balance: findCol(["SALDO PENDIENTE", "SALDO ACTUAL", "BALANCE", "SALDO", "DEUDA", "SALDO TOTAL", "SALDOTOTAL", "SALDO TOTAL."]),
                     date: findCol(["FECHA INICIO", "FECHA", "DATE", "FEC. DES", "FECDES", "INICIO", "FEC. EMI", "FEC.DES.", "FECHA DEL PAGARE"]),
                     sellerCode: findCol(["CODIGO DE VENDEDOR", "CODIGODEVENDEDOR", "COD. VEND.", "CODVEND"]),
-                    atraso: findCol(["ATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "MOROSIDAD"])
+                    atraso: findCol(["CUOTAS ATRASADAS", "ATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "MOROSIDAD"]),
+                    modalidad: findCol(["MODALIDAD DE PAGO", "MODALIDAD", "FRECUENCIA", "TIPO DE PAGO", "MODALIDAD DE COBRO"])
                 };
 
                 console.log("[FORENSIC] Column Mapping Identified:", {
@@ -355,7 +356,18 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let totalInst = Math.round(parseAmount(row[idxs.totalInst ?? -1]));
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
                     let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
-                    let diasAtraso = parseDaysDelayed(row[idxs.atraso ?? -1]);
+                    
+                    const modStr = String(row[idxs.modalidad ?? -1] || '').trim().toUpperCase();
+                    let loanFreq = Frequency.DAILY;
+                    if (modStr.includes('MENSUAL') || modStr.includes('MES')) loanFreq = Frequency.MONTHLY;
+                    else if (modStr.includes('QUINCENAL') || modStr.includes('QUINCENA') || modStr.includes('BISEMANAL')) loanFreq = Frequency.BIWEEKLY;
+                    else if (modStr.includes('SEMANAL') || modStr.includes('SEMANA')) loanFreq = Frequency.WEEKLY;
+
+                    let rawAtraso = parseDaysDelayed(row[idxs.atraso ?? -1]);
+                    let diasAtraso = rawAtraso;
+                    if (loanFreq === Frequency.MONTHLY) diasAtraso = rawAtraso * 30;
+                    else if (loanFreq === Frequency.BIWEEKLY) diasAtraso = rawAtraso * 15;
+                    else if (loanFreq === Frequency.WEEKLY) diasAtraso = rawAtraso * 7;
 
                     if (totalInst === 0 && pendInst === 0) {
                         pendInst = Math.max(0, totalInst - paidInst);
@@ -566,7 +578,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         principal,
                         virtualInterestRate,
                         totalInst || 24,
-                        Frequency.DAILY,
+                        loanFreq,
                         loanDate,
                         country,
                         []
@@ -586,7 +598,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         principal: Math.round(principal),
                         interestRate: virtualInterestRate,
                         totalInstallments: Math.round(totalInst || 24),
-                        frequency: Frequency.DAILY, 
+                        frequency: loanFreq, 
                         totalAmount: Math.round(totalAmount),
                         installmentValue: Math.round(instValue),
                         status: balance <= 0 ? LoanStatus.PAID : LoanStatus.ACTIVE,
@@ -596,7 +608,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         totalPaid: Math.round(loanInitialPaid),
                         balance: Math.round(balance),
                         daysOverdue: diasAtraso,
-                        raw_data: { ATRASO: diasAtraso, daysOverdue: diasAtraso }
+                        raw_data: { ATRASO: rawAtraso, daysOverdue: diasAtraso }
                     } as any);
 
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
@@ -636,17 +648,17 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
         "DOCUMENT", "NOM COMPLET", "TÉLÉPHONE", "ADRESSE",
         "MONTANT PRÊTÉ", "VALEUR ÉCHÉANCE", "TOTAL À PAYER", "MONTANT PERÇU",
         "SOLDE RESTANT", "ÉCHÉANCES TOTALES", "ÉCHÉANCES PAYÉES",
-        "DATE DÉBUT", "VENDEUR"
+        "DATE DÉBUT", "VENDEUR", "MODALITÉ DE PAIEMENT", "VERSEMENTS EN RETARD"
     ] : isPt ? [
         "DOCUMENTO", "NOME COMPLETO", "TELEFONE", "ENDEREÇO",
         "VALOR EMPRESTADO", "VALOR PARCELA", "TOTAL A PAGAR", "VALOR COBRADO",
         "SALDO PENDENTE", "PARCELAS TOTAIS", "PARCELAS PAGAS",
-        "DATA INÍCIO", "VENDEDOR"
+        "DATA INÍCIO", "VENDEDOR", "MODALIDADE DE PAGAMENTO", "PARCELAS ATRASADAS"
     ] : [
         "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION",
         "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", "MONTO COBRADO",
         "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS",
-        "FECHA INICIO", "VENDEDOR"
+        "FECHA INICIO", "VENDEDOR", "MODALIDAD DE PAGO", "CUOTAS ATRASADAS"
     ];
 
     const exampleName = isFr ? "JEAN DUPONT" : isPt ? "JOÃO SILVA" : "JUAN PEREZ";
@@ -660,7 +672,7 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
             "1234567", exampleName, "0981123456", exampleAddr, 
             2000000, 100000, 2400000, 1200000,
             1200000, 24, 12,
-            "13/03/2026", "VEND-01"
+            "13/03/2026", "VEND-01", "DIARIO", 0
         ]
     ];
 
