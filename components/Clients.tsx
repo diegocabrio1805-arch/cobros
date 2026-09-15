@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone, isHoliday } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone, isHoliday, parseUniversalCoordinates } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -3607,9 +3607,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               onClick={() => {
                                 const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${clientData.location?.lat}, ${clientData.location?.lng}`);
                                 if (input) {
-                                  const parts = input.split(',');
-                                  if (parts.length >= 2) {
-                                    setClientData({...clientData, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  const parsed = parseUniversalCoordinates(input);
+                                  if (parsed) {
+                                    setClientData({...clientData, location: parsed});
                                   }
                                 }
                               }}
@@ -3625,9 +3625,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               onClick={() => {
                                 const input = window.prompt((state.settings.language === 'fr' ? "Saisir coordonnées MAISON (lat, lng):" : "Ingresar coordenadas CASA (lat, lng):"));
                                 if (input) {
-                                  const parts = input.split(',');
-                                  if (parts.length >= 2) {
-                                    setClientData({...clientData, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  const parsed = parseUniversalCoordinates(input);
+                                  if (parsed) {
+                                    setClientData({...clientData, location: parsed});
                                   }
                                 }
                               }}
@@ -3650,9 +3650,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               onClick={() => {
                                 const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${clientData.domicilioLocation?.lat}, ${clientData.domicilioLocation?.lng}`);
                                 if (input) {
-                                  const parts = input.split(',');
-                                  if (parts.length >= 2) {
-                                    setClientData({...clientData, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  const parsed = parseUniversalCoordinates(input);
+                                  if (parsed) {
+                                    setClientData({...clientData, domicilioLocation: parsed});
                                   }
                                 }
                               }}
@@ -3668,9 +3668,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               onClick={() => {
                                 const input = window.prompt((state.settings.language === 'fr' ? "Saisir coordonnées TRAVAIL (lat, lng):" : "Ingresar coordenadas NEGOCIO (lat, lng):"));
                                 if (input) {
-                                  const parts = input.split(',');
-                                  if (parts.length >= 2) {
-                                    setClientData({...clientData, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  const parsed = parseUniversalCoordinates(input);
+                                  if (parsed) {
+                                    setClientData({...clientData, domicilioLocation: parsed});
                                   }
                                 }
                               }}
@@ -4497,9 +4497,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       onClick={() => {
                                         const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${editClientFormData.location?.lat}, ${editClientFormData.location?.lng}`);
                                         if (input) {
-                                          const parts = input.split(',');
-                                          if (parts.length >= 2) {
-                                            setEditClientFormData(prev => prev ? {...prev, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          const parsed = parseUniversalCoordinates(input);
+                                          if (parsed) {
+                                            setEditClientFormData(prev => prev ? {...prev, location: parsed} : null);
                                           }
                                         }
                                       }}
@@ -4515,9 +4515,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       onClick={() => {
                                         const input = window.prompt("Ingresar coordenadas CASA (lat, lng):");
                                         if (input) {
-                                          const parts = input.split(',');
-                                          if (parts.length >= 2) {
-                                            setEditClientFormData(prev => prev ? {...prev, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          const parsed = parseUniversalCoordinates(input);
+                                          if (parsed) {
+                                            setEditClientFormData(prev => prev ? {...prev, location: parsed} : null);
                                           }
                                         }
                                       }}
@@ -4539,9 +4539,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       onClick={() => {
                                         const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${editClientFormData.domicilioLocation?.lat}, ${editClientFormData.domicilioLocation?.lng}`);
                                         if (input) {
-                                          const parts = input.split(',');
-                                          if (parts.length >= 2) {
-                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          const parsed = parseUniversalCoordinates(input);
+                                          if (parsed) {
+                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: parsed} : null);
                                           }
                                         }
                                       }}
@@ -4557,9 +4557,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       onClick={() => {
                                         const input = window.prompt("Ingresar coordenadas NEGOCIO (lat, lng):");
                                         if (input) {
-                                          const parts = input.split(',');
-                                          if (parts.length >= 2) {
-                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          const parsed = parseUniversalCoordinates(input);
+                                          if (parsed) {
+                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: parsed} : null);
                                           }
                                         }
                                       }}

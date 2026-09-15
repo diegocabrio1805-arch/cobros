@@ -1290,3 +1290,69 @@ export const getRenewalButtonColor = (maxOverdueDays: number): string => {
   if (maxOverdueDays <= 60) return 'bg-orange-600 hover:bg-orange-700';
   return 'bg-red-600 hover:bg-red-700';
 };
+
+/**
+ * Universal Coordinate Parser
+ * Safely extracts lat/lng from DD, DMS, DDM or Google Maps links.
+ */
+export const parseUniversalCoordinates = (input: string | null | undefined): { lat: number, lng: number } | null => {
+    if (!input) return null;
+    let str = input.trim();
+
+    // 1. Google Maps URL extraction
+    const urlMatch = str.match(/(?:q=|@|ll=)(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (urlMatch) {
+        return { lat: parseFloat(urlMatch[1]), lng: parseFloat(urlMatch[2]) };
+    }
+
+    // 2. Pure Decimal Degrees (DD)
+    const ddMatch = str.match(/^(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)$/);
+    if (ddMatch) {
+        return { lat: parseFloat(ddMatch[1]), lng: parseFloat(ddMatch[2]) };
+    }
+
+    // 3. Helper to convert DMS/DDM to decimal
+    const parseComponent = (comp: string): number | null => {
+        // match degrees, minutes, seconds and direction
+        const regex = /(\d+(?:\.\d+)?)°?\s*(?:(\d+(?:\.\d+)?)['′]\s*)?(?:(\d+(?:\.\d+)?)["″]\s*)?([NSEWO])/i;
+        const m = comp.match(regex);
+        if (!m) return null;
+
+        const deg = parseFloat(m[1]) || 0;
+        const min = parseFloat(m[2]) || 0;
+        const sec = parseFloat(m[3]) || 0;
+        const dir = m[4].toUpperCase();
+
+        let dec = deg + (min / 60) + (sec / 3600);
+        if (dir === 'S' || dir === 'W' || dir === 'O') {
+            dec = dec * -1;
+        }
+        return dec;
+    };
+
+    let latPart = "";
+    let lngPart = "";
+
+    if (str.includes(',')) {
+        const parts = str.split(',');
+        latPart = parts[0];
+        lngPart = parts.slice(1).join(',');
+    } else {
+        const nsMatch = str.match(/([NS])/i);
+        if (nsMatch && nsMatch.index !== undefined) {
+            latPart = str.substring(0, nsMatch.index + 1);
+            lngPart = str.substring(nsMatch.index + 1);
+        } else {
+            return null;
+        }
+    }
+
+    const latDec = parseComponent(latPart);
+    const lngDec = parseComponent(lngPart);
+
+    if (latDec !== null && lngDec !== null && !isNaN(latDec) && !isNaN(lngDec)) {
+        return { lat: latDec, lng: lngDec };
+    }
+
+    return null;
+};
