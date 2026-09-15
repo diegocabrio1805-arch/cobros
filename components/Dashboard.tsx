@@ -381,8 +381,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap]);
 
 
-  const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
-  const totalProfit = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
+  // Pre-calcular set de clientes válidos para no sumar data de clientes eliminados
+  const validClientIdsSetDashboard = useMemo(() => {
+    return new Set((Array.isArray(state.clients) ? state.clients : [])
+      .filter(c => !c.deletedAt)
+      .map(c => c.id));
+  }, [state.clients]);
+
+  const validLoansDashboard = (Array.isArray(state.loans) ? state.loans : [])
+    .filter(l => validClientIdsSetDashboard.has(l.clientId || (l as any).client_id));
+
+  const totalPrincipal = validLoansDashboard.reduce((acc, l) => acc + l.principal, 0);
+  const totalProfit = validLoansDashboard.reduce((acc, l) => acc + (l.totalAmount - l.principal), 0);
   const totalExpenses = Number(state.initialCapital) || 0;
   const netUtility = totalProfit - totalExpenses;
 
@@ -390,13 +400,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   // Esto asegura que el "Recaudo de Hoy" coincida exactamente con la suma de la tabla
   const collectedToday = collectorStats.reduce((acc, curr) => acc + curr.recaudo, 0);
 
-  // Sumar todos los abonos históricos reales (excluyendo aperturas y pagos borrados)
+  // Sumar todos los abonos históricos reales (excluyendo aperturas y pagos borrados y de clientes eliminados)
   const totalCollectedAllTime = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-    .filter(log => log.type === CollectionLogType.PAYMENT && !log.deletedAt)
+    .filter(log => log.type === CollectionLogType.PAYMENT && !log.deletedAt && validClientIdsSetDashboard.has(log.clientId || (log as any).client_id))
     .reduce((acc, log) => acc + (log.amount || 0), 0);
 
   // Calcular el saldo pendiente total de los clientes (Capital en la Calle)
-  const totalOwedAmount = (Array.isArray(state.loans) ? state.loans : [])
+  const totalOwedAmount = validLoansDashboard
     .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
     .reduce((acc, l) => {
       const totalPaid = logsByLoanId.get(l.id) || 0;
@@ -405,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     }, 0);
 
   // Calcular lo cobrado SOLO de los créditos que siguen activos (no cancelados/pagados)
-  const totalPaidActiveLoans = (Array.isArray(state.loans) ? state.loans : [])
+  const totalPaidActiveLoans = validLoansDashboard
     .filter(l => {
       if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) return true;
       if (l.status === LoanStatus.PAID) {
