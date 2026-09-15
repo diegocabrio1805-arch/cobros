@@ -178,7 +178,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     doc.setTextColor(30);
     currentY += 8;
 
-    const missedCols = [80, 50, 40];
+    const missedCols = [70, 65, 35];
     drawCell(((t as any).performanceDashboard?.pdf?.clientName || 'NOMBRE DEL CLIENTE'), 20, currentY, missedCols[0], rowH, true);
     drawCell(((t as any).performanceDashboard?.pdf?.daysWithoutVisit || 'DÍAS SIN GESTIÓN'), 20 + missedCols[0], currentY, missedCols[1], rowH, true);
     drawCell('DÍAS DE ATRASO', 20 + missedCols[0] + missedCols[1], currentY, missedCols[2], rowH, true);
