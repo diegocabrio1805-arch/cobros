@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { AppState, Role, CollectionLogType, PaymentStatus, LoanStatus, CollectionLog } from '../types';
-import { formatCurrency, calculateMonthlyStats, calculateTotalPaidFromLogs } from '../utils/helpers';
+import { formatCurrency, calculateMonthlyStats, calculateTotalPaidFromLogs, getDaysOverdue } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF } from '../utils/pdfHelper';
@@ -178,9 +178,10 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     doc.setTextColor(30);
     currentY += 8;
 
-    const missedCols = [100, 70];
+    const missedCols = [80, 50, 40];
     drawCell(((t as any).performanceDashboard?.pdf?.clientName || 'NOMBRE DEL CLIENTE'), 20, currentY, missedCols[0], rowH, true);
     drawCell(((t as any).performanceDashboard?.pdf?.daysWithoutVisit || 'DÍAS SIN GESTIÓN'), 20 + missedCols[0], currentY, missedCols[1], rowH, true);
+    drawCell('DÍAS DE ATRASO', 20 + missedCols[0] + missedCols[1], currentY, missedCols[2], rowH, true);
     currentY += rowH;
 
     stats.missedClients.forEach((client: any) => {
@@ -190,8 +191,20 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
       const lastLog = allLogs.length > 0 ? new Date(Math.max(...allLogs.map(l => new Date(l.date).getTime()))) : null;
       const diff = lastLog ? Math.floor((new Date().getTime() - lastLog.getTime()) / (1000 * 3600 * 24)) : ((t as any).performanceDashboard?.pdf?.never || 'NUNCA');
 
-      drawCell(client.name.substring(0, 40), 20, currentY, missedCols[0], rowH);
-      drawCell(`${diff} ${diff !== ((t as any).performanceDashboard?.pdf?.never || 'NUNCA') ? ((t as any).performanceDashboard?.pdf?.daysLate || 'días atrasado') : ''}`.trim(), 20 + missedCols[0], currentY, missedCols[1], rowH);
+      const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => 
+        (l.clientId === client.id || (l as any).client_id === client.id) && 
+        (l.status === LoanStatus.ACTIVE || l.status === 'Activo')
+      );
+      
+      let diasAtrasoReal = 0;
+      if (activeLoan) {
+        const totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+        diasAtrasoReal = getDaysOverdue(activeLoan, state.settings, totalPaid);
+      }
+
+      drawCell(client.name.substring(0, 35), 20, currentY, missedCols[0], rowH);
+      drawCell(`${diff} ${diff !== ((t as any).performanceDashboard?.pdf?.never || 'NUNCA') ? 'días sin gestión de pago' : ''}`.trim(), 20 + missedCols[0], currentY, missedCols[1], rowH);
+      drawCell(`${diasAtrasoReal} días atrasado`, 20 + missedCols[0] + missedCols[1], currentY, missedCols[2], rowH);
       currentY += rowH;
     });
 
