@@ -178,7 +178,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const normalizeHeader = (s: string) => String(s || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "").trim();
 
                 const STRICT_KEYWORDS = [
-                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", "MODALIDADDEPAGO", "CUOTASATRASADAS", "UBICACION", // Plantilla Actual
+                    "NOMBRECOMPLETO", "DOCUMENTO", "MONTO", "VALORCUOTA", "TOTALAPAGAR", "SALDOPENDIENTE", "HABILITADO", "VCUOTA", "MONTOCOBRADO", "MODALIDADDEPAGO", "CUOTASATRASADAS", "UBICACIONCASA", "UBICACIONNEGOCIO", // Plantilla Actual
                     "DOCID", "PRINCIPAL", "TOTALAMT", "INSTVALUE", "BALANCE", "ID", "RAZONSOCIAL", // JSON / Bot Viejo
                     "OPN", "NOMBRERAZONSOCIAL", "IMPORTPAGARE", "SALDO", "FECDES", "CTASPEND", "CTASTOT", "CTAPAG", "LOCALIDAD", "CELULAR", // Cartera nativa
                     "PLAZO", "CUOTAS", "PENDIENTE", "PAGADO", "CAPITAL", // Comunes
@@ -300,6 +300,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     sellerCode: findCol(["CODIGO DE VENDEDOR", "CODIGODEVENDEDOR", "COD. VEND.", "CODVEND"]),
                     atraso: findCol(["CUOTAS ATRASADAS", "ATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "MOROSIDAD"]),
                     modalidad: findCol(["MODALIDAD DE PAGO", "MODALIDAD", "FRECUENCIA", "TIPO DE PAGO", "MODALIDAD DE COBRO"]),
+                    ubicacionCasa: findCol(["UBICACION CASA", "COORDENADAS CASA", "UBICACIÓN CASA", "CASA GPS"]),
+                    ubicacionNegocio: findCol(["UBICACION NEGOCIO", "COORDENADAS NEGOCIO", "UBICACIÓN NEGOCIO", "NEGOCIO GPS"]),
                     ubicacion: findCol(["UBICACION", "UBICACIÓN", "UBICACIÓN GPS", "COORDENADAS", "LOCATION", "UBICACION GPS"])
                 };
 
@@ -358,7 +360,11 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     let paidInst = Math.round(parseAmount(row[idxs.paidInst ?? -1]));
                     let pendInst = Math.round(parseAmount(row[idxs.pendInst ?? -1]));
                     
-                    const ubicacionParsed = parseUniversalCoordinates(String(row[idxs.ubicacion ?? -1] || ''));
+                    const ubicacionCasaParsed = parseUniversalCoordinates(String(row[idxs.ubicacionCasa ?? -1] || ''));
+                    const ubicacionNegocioParsed = parseUniversalCoordinates(String(row[idxs.ubicacionNegocio ?? -1] || ''));
+                    const ubicacionGenericaParsed = parseUniversalCoordinates(String(row[idxs.ubicacion ?? -1] || ''));
+                    
+                    const finalUbicacionCasa = ubicacionCasaParsed || ubicacionGenericaParsed;
                     
                     const modStr = String(row[idxs.modalidad ?? -1] || '').trim().toUpperCase();
                     let loanFreq = Frequency.DAILY;
@@ -559,7 +565,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         documentId: String(row[idxs.docId ?? -1] || '---'),
                         phone: String(row[idxs.phone ?? -1] || '---'),
                         address: String(row[idxs.addr ?? -1] || '---'),
-                        ...(ubicacionParsed ? { location: ubicacionParsed } : {}),
+                        ...(finalUbicacionCasa ? { location: finalUbicacionCasa } : {}),
+                        ...(ubicacionNegocioParsed ? { domicilioLocation: ubicacionNegocioParsed } : {}),
                         addedBy: collectorId,
                         branchId: branchId,
                         sellerCode: finalSellerCode,
@@ -652,17 +659,17 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
         "DOCUMENT", "NOM COMPLET", "TÉLÉPHONE", "ADRESSE",
         "MONTANT PRÊTÉ", "VALEUR ÉCHÉANCE", "TOTAL À PAYER", "MONTANT PERÇU",
         "SOLDE RESTANT", "ÉCHÉANCES TOTALES", "ÉCHÉANCES PAYÉES",
-        "DATE DÉBUT", "VENDEUR", "MODALITÉ DE PAIEMENT", "VERSEMENTS EN RETARD", "UBICACION"
+        "DATE DÉBUT", "VENDEUR", "MODALITÉ DE PAIEMENT", "VERSEMENTS EN RETARD", "UBICACION CASA", "UBICACION NEGOCIO"
     ] : isPt ? [
         "DOCUMENTO", "NOME COMPLETO", "TELEFONE", "ENDEREÇO",
         "VALOR EMPRESTADO", "VALOR PARCELA", "TOTAL A PAGAR", "VALOR COBRADO",
         "SALDO PENDENTE", "PARCELAS TOTAIS", "PARCELAS PAGAS",
-        "DATA INÍCIO", "VENDEDOR", "MODALIDADE DE PAGAMENTO", "PARCELAS ATRASADAS", "UBICACION"
+        "DATA INÍCIO", "VENDEDOR", "MODALIDADE DE PAGAMENTO", "PARCELAS ATRASADAS", "UBICACION CASA", "UBICACION NEGOCIO"
     ] : [
         "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION",
         "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", "MONTO COBRADO",
         "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS",
-        "FECHA INICIO", "VENDEDOR", "MODALIDAD DE PAGO", "CUOTAS ATRASADAS", "UBICACION"
+        "FECHA INICIO", "VENDEDOR", "MODALIDAD DE PAGO", "CUOTAS ATRASADAS", "UBICACION CASA", "UBICACION NEGOCIO"
     ];
 
     const exampleName = isFr ? "JEAN DUPONT" : isPt ? "JOÃO SILVA" : "JUAN PEREZ";
@@ -676,7 +683,7 @@ export const downloadExcelTemplate = (lang: string = 'es') => {
             "1234567", exampleName, "0981123456", exampleAddr, 
             2000000, 100000, 2400000, 1200000,
             1200000, 24, 12,
-            "13/03/2026", "VEND-01", "DIARIO", 0, "-25.312107, -57.603218"
+            "13/03/2026", "VEND-01", "DIARIO", 0, "-25.312107, -57.603218", "-25.313000, -57.604000"
         ]
     ];
 
