@@ -280,6 +280,23 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     return map;
   }, [state.loans, state.settings, logsByLoanId]);
 
+  // 1.8. Precalcular la fecha del último log (visita) de cada cliente para la métrica de abandono
+  const lastVisitMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const log of logs) {
+      if (log.deletedAt) continue;
+      const cId = log.clientId || (log as any).client_id;
+      if (!cId) continue;
+      const time = new Date(log.date || log.createdAt).getTime();
+      const current = map.get(cId) || 0;
+      if (time > current) {
+        map.set(cId, time);
+      }
+    }
+    return map;
+  }, [state.collectionLogs]);
+
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
     const todayDateStr = getLocalDateStringForCountry(state.settings.country); 
@@ -327,6 +344,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
       let cancelledClientsCount = 0;
       let mora35ClientsCount = 0;
       let overdueLoansCount = 0;
+      let abandonedClientsCount = 0;
+      let sanosClientsCount = 0;
 
       validClientsForCollector.forEach(c => {
         const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
@@ -345,11 +364,26 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         
         if (balance > 0.01) {
            uniqueActiveClients++;
-           if (daysOverdue > 35) {
-             mora35ClientsCount++;
-           }
            if (daysOverdue > 0) {
              overdueLoansCount++;
+           }
+           
+           // Cálculo de Abandono
+           const lastVisitTime = lastVisitMap.get(c.id);
+           let isAbandoned = false;
+           if (!lastVisitTime) {
+               isAbandoned = true;
+           } else {
+               const diffDays = Math.abs(new Date().getTime() - lastVisitTime) / (1000 * 60 * 60 * 24);
+               if (diffDays > 10) isAbandoned = true;
+           }
+           
+           if (isAbandoned) {
+               abandonedClientsCount++;
+           } else if (daysOverdue > 35) {
+               mora35ClientsCount++;
+           } else {
+               sanosClientsCount++;
            }
         } else {
            cancelledClientsCount++;
@@ -375,10 +409,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         cancelledClients: cancelledClientsCount,
         visitados: uniqueClientsVisitedToday,
         isCompleted: isRouteCompleted,
-        overdueCount: overdueLoansCount
+        overdueCount: overdueLoansCount,
+        abandonedClientsCount: abandonedClientsCount,
+        sanosClientsCount: sanosClientsCount
       };
     });
-  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap]);
+  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap, lastVisitMap]);
 
 
   // Pre-calcular set de clientes válidos para no sumar data de clientes eliminados
@@ -1285,21 +1321,30 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                         </div>
                       </td>
                       <td className="px-6 py-3 text-center">
-                        <p className="text-[11px] font-black uppercase flex items-center justify-center gap-1.5">
-                          <span className="text-emerald-600 group-hover:text-emerald-400 transition-colors">{stat.activeClients} Act.</span>
-                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
-                          <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span>
-                          <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
-                          <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span>
-                          {stat.activeClients - stat.visitados > 0 && (
-                            <>
-                              <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
-                              <span className="text-amber-500 group-hover:text-amber-400 transition-colors font-bold" title="Clientes Activos NO visitados hoy">
-                                {stat.activeClients - stat.visitados} SIN VISITAR
-                              </span>
-                            </>
-                          )}
-                        </p>
+                        <div className="w-full flex flex-col items-center">
+                          <div className="text-[10px] font-bold text-slate-500 group-hover:text-white transition-colors mb-1">TOTAL: {stat.activeClients + stat.cancelledClients} CLIENTES ASIGNADOS</div>
+                          <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
+                            {stat.sanosClientsCount > 0 && (
+                              <div title={`Al día: ${stat.sanosClientsCount}`} className="h-full bg-emerald-500 transition-all duration-500 hover:brightness-110" style={{ width: `${(stat.sanosClientsCount / (stat.activeClients + stat.cancelledClients)) * 100}%` }}></div>
+                            )}
+                            {stat.mora35Clients > 0 && (
+                              <div title={`En Mora: ${stat.mora35Clients}`} className="h-full bg-rose-500 transition-all duration-500 hover:brightness-110" style={{ width: `${(stat.mora35Clients / (stat.activeClients + stat.cancelledClients)) * 100}%` }}></div>
+                            )}
+                            {stat.abandonedClientsCount > 0 && (
+                              <div title={`Abandonados (>10d): ${stat.abandonedClientsCount}`} className="h-full bg-amber-500 transition-all duration-500 hover:brightness-110" style={{ width: `${(stat.abandonedClientsCount / (stat.activeClients + stat.cancelledClients)) * 100}%` }}></div>
+                            )}
+                            {stat.cancelledClients > 0 && (
+                              <div title={`Cancelados: ${stat.cancelledClients}`} className="h-full bg-slate-300 transition-all duration-500 hover:brightness-110" style={{ width: `${(stat.cancelledClients / (stat.activeClients + stat.cancelledClients)) * 100}%` }}></div>
+                            )}
+                          </div>
+                          
+                          <div className="w-full flex justify-between mt-1.5 text-[9px] font-black uppercase tracking-tight">
+                            {stat.sanosClientsCount > 0 ? <span className="text-emerald-600 group-hover:text-emerald-400 transition-colors">{stat.sanosClientsCount} Al Día</span> : <span className="text-transparent">0</span>}
+                            {stat.mora35Clients > 0 ? <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span> : <span className="text-transparent">0</span>}
+                            {stat.abandonedClientsCount > 0 ? <span className="text-amber-600 group-hover:text-amber-400 transition-colors">{stat.abandonedClientsCount} Aband.</span> : <span className="text-transparent">0</span>}
+                            {stat.cancelledClients > 0 ? <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span> : <span className="text-transparent">0</span>}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   ))}
