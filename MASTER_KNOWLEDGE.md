@@ -34,6 +34,11 @@ Este documento sirve como la **Memoria Central** del proyecto, consolidando toda
     - Borra el `Service Worker` y la caché del navegador.
 - **Beneficio**: Corrige errores de "app colgada" sin necesidad de que el usuario desinstale y vuelva a instalar la APK.
 
+### 3. Reducción de Consumo Disk IO (Supabase)
+- **Problema Histórico**: La app sincroniza en segundo plano cada 60s usando consultas incrementales (`.gt('updated_at')`). Sin índices, esto causaba *Full Table Scans* masivos que agotaban el límite de lectura de disco ("Disk IO budget") de la capa gratuita/micro de Supabase, congelando la base de datos.
+- **Solución Activa**: Se crearon índices B-Tree en las columnas `updated_at` y `deleted_at` para todas las tablas, y un índice compuesto `(type, date DESC)` en `collection_logs`. Esto reduce drásticamente las lecturas en disco.
+- **Referencia**: El script SQL original de recuperación se encuentra respaldado en `PARCHE_OPTIMIZAR_DISK_IO.sql`.
+
 ## 🛠 Arquitectura Técnica
 
 - **Frontend**: React 18 con Vite.
