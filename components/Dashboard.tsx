@@ -1273,15 +1273,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                       <td className="px-6 py-3 border-r border-slate-50 group-hover:border-transparent transition-colors">
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-300 transition-colors">
-                             <div className="flex items-center gap-2">
-                               <span>{(t as any).performance || 'Rendimiento'}</span>
-                               {stat.clientes - stat.visitados > 0 && (
-                                 <span title="Clientes que el cobrador no gestionó hoy" className="text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded text-[8px] border border-rose-500/20">
-                                   <i className="fa-solid fa-triangle-exclamation mr-1"></i>
-                                   Faltan {stat.clientes - stat.visitados}
-                                 </span>
-                               )}
-                             </div>
+                             <span>{(t as any).performance || 'Rendimiento'}</span>
                              <span>{stat.visitados} / {stat.clientes}</span>
                           </div>
                           <div className="h-2 bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200/50 group-hover:border-slate-800 shadow-inner transition-colors">
@@ -1299,6 +1291,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                           <span className="text-rose-600 group-hover:text-rose-400 transition-colors">{stat.mora35Clients} Mora</span>
                           <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
                           <span className="text-slate-600 group-hover:text-white transition-colors">{stat.cancelledClients} Canc.</span>
+                          {stat.activeClients - stat.visitados > 0 && (
+                            <>
+                              <span className="text-slate-300 group-hover:text-slate-600 transition-colors font-medium">/</span>
+                              <span className="text-amber-500 group-hover:text-amber-400 transition-colors font-bold" title="Clientes Activos NO visitados hoy">
+                                {stat.activeClients - stat.visitados} SIN VISITAR
+                              </span>
+                            </>
+                          )}
                         </p>
                       </td>
                     </tr>
