@@ -398,18 +398,26 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                     const cobradoRaw = idxs.cobrado !== undefined ? parseAmount(row[idxs.cobrado ?? -1]) : 0;
                     const isCobradoMapped = idxs.cobrado !== undefined;
-                    const isExplicitBalance = idxs.balance !== undefined && row[idxs.balance ?? -1] !== undefined && String(row[idxs.balance ?? -1]).trim() !== '' && String(row[idxs.balance ?? -1]).trim() !== '-';
-                    const rawExplicitBalance = isExplicitBalance ? Math.round(parseAmount(row[idxs.balance ?? -1])) : null;
+                    
+                    const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
+                    let rawExplicitBalance: number | null = null;
+                    if (idxs.balance !== undefined && rawBalanceStr !== '' && rawBalanceStr !== '-') {
+                        const match = rawBalanceStr.match(/[-+]?\s*\d[0-9.,]*/);
+                        if (match) {
+                            const cleanMatch = match[0].replace(/\s+/g, '');
+                            rawExplicitBalance = Math.round(parseAmount(cleanMatch));
+                        }
+                    }
 
                         if (isCobradoMapped) {
                             // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
                             totalPaidMoney = Math.round(cobradoRaw);
                             if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
                             
-                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto directamente
-                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
+                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel y NO es 0, tomar el valor exacto
+                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance) && rawExplicitBalance !== 0) {
                                 balance = rawExplicitBalance;
-                                if (totalAmount < balance + totalPaidMoney) {
+                                if (balance > 0 && totalAmount < balance + totalPaidMoney) {
                                     totalAmount = balance + totalPaidMoney;
                                 }
                             } else {
@@ -466,22 +474,17 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                             if (totalInst === 0) totalInst = paidInst + pendInst;
 
                             const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
-                            const excelBalance = Math.round(parseAmount(row[idxs.balance ?? -1]));
+                            const excelBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance) ? rawExplicitBalance : 0;
 
                             if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
 
-                            const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
-                            const hasExplicitBalance = rawBalanceStr !== '' && rawBalanceStr !== '-';
+                            const hasExplicitBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance) && rawExplicitBalance !== 0;
 
-                            // PRIORIDAD: saldo explícito en Excel
-                            if (hasExplicitBalance && excelBalance > 0) {
+                            // PRIORIDAD: saldo explícito en Excel que NO sea 0
+                            if (hasExplicitBalance) {
                                 balance = excelBalance;
                             } else if (totalPaidFromPag > 0 || paidInst > 0) {
                                 balance = Math.max(0, totalAmount - totalPaidFromPag);
-                                if (balance === 0 && excelBalance > 0) {
-                                    balance = excelBalance;
-                                    totalAmount = totalPaidFromPag + excelBalance;
-                                }
                             } else {
                                 balance = totalAmount;
                             }
@@ -538,8 +541,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     } else if (instValue <= 0) {
                         errors.push({ row: i + 1, clientName: name, reason: "El valor de la cuota está en cero." });
                         isRowValid = false;
-                    } else if (balance < 0 || balance > totalAmount) {
-                        errors.push({ row: i + 1, clientName: name, reason: `Saldo inválido (Mayor al total o -).` });
+                    } else if (balance > totalAmount) {
+                        errors.push({ row: i + 1, clientName: name, reason: `Saldo inválido (Mayor al total).` });
                         isRowValid = false;
                     } else if (Number.isNaN(balance) || Number.isNaN(totalAmount)) {
                         errors.push({ row: i + 1, clientName: name, reason: "Contiene valores de texto donde van números." });
