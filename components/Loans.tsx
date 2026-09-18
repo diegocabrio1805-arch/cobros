@@ -580,8 +580,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
       const remainingBalance = loan.totalAmount - currentTotalPaid;
 
-      if (type === CollectionLogType.PAYMENT && amountToPay > (remainingBalance + 0.01)) {
-        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(remainingBalance, state.settings)}).`);
+      const visualBalance = loan.balance !== undefined ? loan.balance : remainingBalance;
+
+      if (type === CollectionLogType.PAYMENT && amountToPay > (visualBalance + 0.01)) {
+        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(visualBalance, state.settings)}).`);
         setIsProcessingPayment(false);
         return;
       }
