@@ -769,7 +769,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
 
       totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
-      balance = Math.max(0, activeLoan.totalAmount - totalPaid);
+      // SOLUCIÓN DEFINITIVA: Usar el balance guardado en BD (saldo visual de la planilla) como fuente de verdad.
+      // Esto evita conflictos cuando se importa una planilla nueva con historial previo.
+      const storedBalance = (activeLoan as any).balance;
+      balance = (storedBalance !== undefined && storedBalance !== null && storedBalance >= 0)
+        ? storedBalance
+        : Math.max(0, activeLoan.totalAmount - totalPaid);
 
       const totalCreditAmount = activeLoan.totalAmount;
       isFullyPaid = balance <= 0.01;
