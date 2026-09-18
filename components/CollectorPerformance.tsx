@@ -1,10 +1,11 @@
 
 import React, { useMemo } from 'react';
 import { AppState, Role, CollectionLogType, PaymentStatus, LoanStatus, CollectionLog } from '../types';
-import { formatCurrency, calculateMonthlyStats, calculateTotalPaidFromLogs, getDaysOverdue } from '../utils/helpers';
+import { formatCurrency, calculateMonthlyStats, calculateTotalPaidFromLogs, getDaysOverdue, generateAmortizationTable, isHoliday } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF } from '../utils/pdfHelper';
+import CollectorComparisons from './CollectorComparisons';
 
 interface CollectorPerformanceProps {
   state: AppState;
@@ -208,6 +209,196 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
       currentY += rowH;
     });
 
+    // --- AUDITORÍA COMPLEJA (REPLICACIÓN DE DASHBOARD) ---
+    // 1. Logs By Loan Id
+    const logsByLoanId = new Map<string, number>();
+    state.collectionLogs.forEach(log => {
+      if (log.deletedAt) return;
+      if (log.type !== CollectionLogType.PAYMENT && String(log.type).toUpperCase() !== 'PAGO') return;
+      if (log.isOpening || (log as any).is_opening) return;
+      const loanId = log.loanId || log.loan_id;
+      if (!loanId) return;
+      const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
+      logsByLoanId.set(loanId, (logsByLoanId.get(loanId) || 0) + amt);
+    });
+
+    // 2. Last Visit Map
+    const lastVisitMap = new Map<string, number>();
+    state.collectionLogs.forEach(log => {
+      if (log.deletedAt) return;
+      const cId = log.clientId || (log as any).client_id;
+      if (!cId) return;
+      const time = new Date(log.date || log.createdAt).getTime();
+      const current = lastVisitMap.get(cId) || 0;
+      if (time > current) {
+        lastVisitMap.set(cId, time);
+      }
+    });
+
+    // 3. Categorización
+    const sanos: any[] = [];
+    const mora: any[] = [];
+    const abandonados: any[] = [];
+    const cancelados: any[] = [];
+
+    const uidLower = collector.id.toLowerCase();
+    const validClients = state.clients.filter(c => !c.isHidden && !c.deletedAt);
+    
+    const validClientsForCollector = validClients.filter(c => {
+      const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
+      const activeLoan = state.loans.find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT || l.status === 'Activo'));
+      const anyHistoricLoan = state.loans.find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === uidLower);
+      return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!anyHistoricLoan;
+    });
+
+    validClientsForCollector.forEach(c => {
+      const clientLoans = state.loans.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT || l.status === 'Activo'));
+      const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const activeLoan = sortedLoans[0];
+      
+      let balance = 0;
+      let daysOverdue = 0;
+      
+      if (activeLoan) {
+         const paid = logsByLoanId.get(activeLoan.id) || 0;
+         balance = Math.max(0, activeLoan.totalAmount - paid);
+         daysOverdue = getDaysOverdue(activeLoan, state.settings, paid);
+      }
+      
+      if (balance > 0.01) {
+         const lastVisitTime = lastVisitMap.get(c.id);
+         let isAbandoned = false;
+         let diffDays = 0;
+         if (!lastVisitTime) {
+             isAbandoned = true;
+         } else {
+             diffDays = Math.abs(new Date().getTime() - lastVisitTime) / (1000 * 60 * 60 * 24);
+             if (diffDays > 10) isAbandoned = true;
+         }
+         
+         const clientData = { client: c, balance, daysOverdue, lastVisitTime, diffDays };
+         
+         if (isAbandoned) {
+             abandonados.push(clientData);
+         } else if (daysOverdue > 35) {
+             mora.push(clientData);
+         } else {
+             sanos.push(clientData);
+         }
+      } else {
+         const allClientLoans = state.loans.filter(l => (l.clientId || (l as any).client_id) === c.id);
+         const maxOverdue = allClientLoans.length > 0 ? Math.max(...allClientLoans.map(loan => {
+           // Si el crédito sigue activo (aunque el cliente tenga saldo 0 total, este crédito podría estar bugueado)
+           if (loan.status === LoanStatus.ACTIVE || loan.status === 'Activo') {
+             const p = logsByLoanId.get(loan.id) || 0;
+             return getDaysOverdue(loan, state.settings, p);
+           }
+           
+           // Si está pagado, calcular días entre vencimiento teórico y última fecha de pago (cancelación)
+           const inicio = new Date(loan.createdAt);
+           const amortization = generateAmortizationTable(loan.principal, loan.interestRate, loan.totalInstallments, loan.frequency, inicio, state.settings.country, loan.customHolidays || []);
+           const vencimiento = amortization.length > 0 ? new Date(amortization[amortization.length - 1].dueDate) : inicio;
+           
+           const loanPayments = state.collectionLogs.filter(log => log.loanId === loan.id && log.type === 'PAGO');
+           let cancelado: Date | null = null;
+           
+           if (loanPayments.length > 0) {
+             const sorted = loanPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+             cancelado = new Date(sorted[0].date);
+           } else if (loan.updatedAt || (loan as any).updated_at) {
+             cancelado = new Date(loan.updatedAt || (loan as any).updated_at);
+           }
+
+           if (cancelado && cancelado > vencimiento) {
+             const country = state.settings?.country || 'PY';
+             const customHols = (loan.customHolidays || []).map((h: any) => {
+               const d = typeof h === 'string' ? new Date(h) : new Date(h.date || h);
+               return d.toISOString().split('T')[0];
+             });
+             
+             let current = new Date(vencimiento);
+             current.setDate(current.getDate() + 1);
+             current.setHours(0,0,0,0);
+             const endDate = new Date(cancelado);
+             endDate.setHours(0,0,0,0);
+             
+             let days = 0;
+             while (current <= endDate) {
+               const isSunday = current.getDay() === 0;
+               const isHol = isHoliday(current, country, customHols);
+               if (!isSunday && !isHol) days++;
+               current.setDate(current.getDate() + 1);
+             }
+             return days;
+           }
+           return 0;
+         })) : 0;
+         
+         cancelados.push({ client: c, maxOverdue });
+      }
+    });
+
+    // Ordenar Cancelados: menos mora a más mora
+    cancelados.sort((a, b) => a.maxOverdue - b.maxOverdue);
+
+    // Helper para dibujar tablas
+    const drawCustomTable = (title: string, titleColor: number[], data: any[], type: 'sanos'|'mora'|'abandonados'|'cancelados') => {
+      if (data.length === 0) return;
+      currentY += 15;
+      if (currentY > 260) { doc.addPage(); currentY = 20; }
+      
+      doc.setTextColor(titleColor[0], titleColor[1], titleColor[2]);
+      doc.text(title.toUpperCase(), 20, currentY);
+      doc.setTextColor(30);
+      currentY += 8;
+
+      let cols = [70, 50, 50]; // Nombre, Dato1, Dato2
+      let headers: string[] = [];
+      if (type === 'sanos' || type === 'mora') {
+        headers = ['NOMBRE DEL CLIENTE', 'SALDO ACTUAL', 'DÍAS DE ATRASO'];
+      } else if (type === 'abandonados') {
+        headers = ['NOMBRE DEL CLIENTE', 'SALDO ACTUAL', 'DÍAS ABANDONADO'];
+      } else if (type === 'cancelados') {
+        headers = ['NOMBRE DEL CLIENTE', 'MÁX. ATRASO HISTÓRICO', 'ESTADO'];
+      }
+
+      drawCell(headers[0], 20, currentY, cols[0], rowH, true);
+      drawCell(headers[1], 20 + cols[0], currentY, cols[1], rowH, true);
+      drawCell(headers[2], 20 + cols[0] + cols[1], currentY, cols[2], rowH, true);
+      currentY += rowH;
+
+      data.forEach((item: any) => {
+        if (currentY > 270) { doc.addPage(); currentY = 20; }
+        
+        let d1 = '';
+        let d2 = '';
+        if (type === 'sanos' || type === 'mora' || type === 'abandonados') {
+          d1 = formatCurrency(item.balance, state.settings);
+          if (type === 'abandonados') {
+            d2 = item.lastVisitTime ? `${Math.floor(item.diffDays)} días` : 'NUNCA';
+          } else {
+            d2 = `${item.daysOverdue} días`;
+          }
+        } else if (type === 'cancelados') {
+          d1 = `${item.maxOverdue} días`;
+          d2 = 'CANCELADO';
+        }
+
+        drawCell(item.client.name.substring(0, 35), 20, currentY, cols[0], rowH);
+        drawCell(d1, 20 + cols[0], currentY, cols[1], rowH);
+        drawCell(d2, 20 + cols[0] + cols[1], currentY, cols[2], rowH);
+        currentY += rowH;
+      });
+    };
+
+    drawCustomTable(`AL DÍA (${sanos.length})`, [16, 185, 129], sanos, 'sanos');
+    drawCustomTable(`EN MORA (${mora.length})`, [244, 63, 94], mora, 'mora');
+    drawCustomTable(`ABANDONADOS (${abandonados.length})`, [245, 158, 11], abandonados, 'abandonados');
+    drawCustomTable(`CANCELADOS (${cancelados.length})`, [100, 116, 139], cancelados, 'cancelados');
+
+    currentY += 20;
+    if (currentY > 270) { doc.addPage(); currentY = 20; }
+
     // Footer
     doc.setFontSize(8);
     doc.setTextColor(150);
@@ -238,6 +429,8 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
           </div>
         </div>
       </div>
+
+      <CollectorComparisons state={state} />
 
       <div className="grid grid-cols-1 gap-6">
         {(Array.isArray(collectors) ? collectors : []).length === 0 ? (
