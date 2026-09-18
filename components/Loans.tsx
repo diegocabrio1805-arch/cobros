@@ -217,13 +217,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const baseLoan = displayLoans[0];
 
       const totalPaid = calculateTotalPaidFromLogs(baseLoan, allLogs);
-      // SOLUCIÓN DEFINITIVA: Si el préstamo tiene un balance guardado en BD (saldo visual de la planilla),
-      // lo usamos como fuente de verdad para VISUALIZACIÓN y VALIDACIÓN de pagos.
-      // Esto resuelve conflictos cuando se importa una planilla nueva con historial previo.
-      const storedBalance = (baseLoan as any).balance;
-      const consolidatedBalance = (storedBalance !== undefined && storedBalance !== null && storedBalance >= 0)
-        ? storedBalance
-        : Math.max(0, baseLoan.totalAmount - totalPaid);
+      const consolidatedBalance = Math.max(0, baseLoan.totalAmount - totalPaid);
       
       const consolidatedPrincipal = baseLoan.principal || 0;
       const consolidatedTotalAmount = baseLoan.totalAmount || 0;

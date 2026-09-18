@@ -324,31 +324,7 @@ export const useAppActions = (
 
       const useLogs = providedLogs || prev.collectionLogs;
       const totalPaid = calculateTotalPaidFromLogs(loan, useLogs);
-      
-      // SOLUCIÓN DEFINITIVA: Si el préstamo tiene un balance guardado en BD (saldo visual de la planilla),
-      // calculamos el nuevo balance descontando SOLO los pagos REALES realizados DESPUÉS de la importación.
-      // Esto evita que el historial previo (pagos fantasma de migración) afecte el saldo actual.
-      const storedBalance = (loan as any).balance;
-      let balance: number;
-      if (storedBalance !== undefined && storedBalance !== null && storedBalance >= 0) {
-        // Calcular solo los pagos posteriores a la última migración (no incluir LOG-MIG-)
-        const migLog = useLogs.find(l => String(l.id || '').startsWith('LOG-MIG-') && (l.loanId || (l as any).loan_id) === loan.id);
-        const migDate = migLog ? new Date(migLog.updatedAt || (migLog as any).updated_at || migLog.date).getTime() : 0;
-        const realPayments = useLogs.filter(l => {
-          const lLoanId = l.loanId || (l as any).loan_id;
-          if (lLoanId !== loan.id) return false;
-          if (String(l.id || '').startsWith('LOG-MIG-')) return false;
-          if (l.deletedAt || (l as any).deleted_at) return false;
-          if (!(l.type === 'PAGO' || l.type === 'PAYMENT')) return false;
-          if (l.isOpening || (l as any).is_opening) return false;
-          const logTime = new Date(l.date).getTime();
-          return logTime > migDate;
-        });
-        const realPaid = realPayments.reduce((acc, l) => acc + (typeof l.amount === 'number' ? l.amount : (parseFloat(String(l.amount || '0')) || 0)), 0);
-        balance = Math.round(Math.max(0, storedBalance - realPaid) * 100) / 100;
-      } else {
-        balance = Math.round(Math.max(0, loan.totalAmount - totalPaid) * 100) / 100;
-      }
+      const balance = Math.round(Math.max(0, loan.totalAmount - totalPaid) * 100) / 100;
 
       const newInstallments = (loan.installments || []).map(i => ({ ...i, paidAmount: 0, status: PaymentStatus.PENDING }));
       let totalToApply = totalPaid;
