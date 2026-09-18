@@ -575,15 +575,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
 
-      // VALIDACIÓN DE SALDO: No permitir pagos mayores al saldo
+      // VALIDACIÓN DE SALDO: Usar el mismo cálculo que usa la pantalla para mostrar el saldo
       const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
       const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
-      const remainingBalance = loan.totalAmount - currentTotalPaid;
+      const remainingBalance = Math.max(0, loan.totalAmount - currentTotalPaid);
 
-      const visualBalance = loan.balance !== undefined ? loan.balance : remainingBalance;
-
-      if (type === CollectionLogType.PAYMENT && amountToPay > (visualBalance + 0.01)) {
-        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(visualBalance, state.settings)}).`);
+      if (type === CollectionLogType.PAYMENT && amountToPay > (remainingBalance + 0.01)) {
+        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(remainingBalance, state.settings)}).`);
         setIsProcessingPayment(false);
         return;
       }

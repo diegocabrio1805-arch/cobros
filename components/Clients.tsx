@@ -1533,12 +1533,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     try {
       const amountToPay = customAmount || Number(dossierPaymentAmount);
 
-      // VALIDACIÓN: El abono no puede ser mayor al saldo (usando el saldo visual como pidió el usuario)
+      // VALIDACIÓN: El abono no puede ser mayor al saldo calculado desde logs (igual que muestra la pantalla)
       const metrics = getClientMetrics(clientInLegajo);
-      const visualBalance = activeLoanInLegajo.balance !== undefined ? activeLoanInLegajo.balance : metrics.balance;
       
-      if (type === CollectionLogType.PAYMENT && amountToPay > visualBalance + 0.01) {
-        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(visualBalance, state.settings)}).`);
+      if (type === CollectionLogType.PAYMENT && amountToPay > metrics.balance + 0.01) {
+        alert(`ERROR: El abono (${formatCurrency(amountToPay, state.settings)}) no puede superar el saldo pendiente (${formatCurrency(metrics.balance, state.settings)}).`);
         setIsProcessingDossierAction(false);
         return;
       }
