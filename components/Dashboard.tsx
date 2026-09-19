@@ -88,6 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   const [insights, setInsights] = useState<any>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [visitPeriod, setVisitPeriod] = useState<'semanal' | 'quincenal' | 'mensual'>('quincenal');
   const ITEMS_PER_PAGE = 8;
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
 
@@ -312,6 +313,30 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
       return logDateStr === todayDateStr;
     });
 
+    // Calcular inicio de la quincena actual (1-15 o 16-fin)
+    const nowLocal = new Date(new Date().toLocaleString('en-US', { timeZone: state.settings.country === 'PY' ? 'America/Asuncion' : 'America/Argentina/Buenos_Aires' }));
+    const periodStartDate = new Date(nowLocal);
+    
+    if (visitPeriod === 'semanal') {
+      const dayOfWeek = periodStartDate.getDay(); // 0 = Domingo
+      periodStartDate.setDate(periodStartDate.getDate() - dayOfWeek);
+    } else if (visitPeriod === 'mensual') {
+      periodStartDate.setDate(1);
+    } else {
+      if (nowLocal.getDate() <= 15) {
+        periodStartDate.setDate(1);
+      } else {
+        periodStartDate.setDate(16);
+      }
+    }
+    periodStartDate.setHours(0, 0, 0, 0);
+
+    const logsPeriodBase = collectionLogsSafe.filter(log => {
+      if (log.isOpening) return false;
+      const logDate = new Date(new Date(log.date).toLocaleString('en-US', { timeZone: state.settings.country === 'PY' ? 'America/Asuncion' : 'America/Argentina/Buenos_Aires' }));
+      return logDate.getTime() >= periodStartDate.getTime() && logDate.getTime() <= nowLocal.getTime();
+    });
+
     return visibleCollectors.map(user => {
       const uidLower = user.id.toLowerCase();
       // Use recordedBy + same date comparison method as Auditoría Histórica
@@ -324,7 +349,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         .filter(l => l.type === CollectionLogType.PAYMENT)
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
-      const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
+      const logsPeriod = logsPeriodBase.filter(log => {
+        const logRecordedBy = (log.recordedBy || (log as any).recorded_by)?.toLowerCase();
+        return logRecordedBy === uidLower;
+      });
       const assignedLoans = loansSafe.filter(l =>
         (l.collectorId?.toLowerCase() === uidLower || (l as any).collector_id?.toLowerCase() === uidLower)
       );
@@ -346,6 +374,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
       let overdueLoansCount = 0;
       let abandonedClientsCount = 0;
       let sanosClientsCount = 0;
+      let totalCarteraBalance = 0;
+      const activeClientIds = new Set<string>();
 
       validClientsForCollector.forEach(c => {
         const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
@@ -364,6 +394,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         
         if (balance > 0.01) {
            uniqueActiveClients++;
+           totalCarteraBalance += balance;
+           activeClientIds.add(c.id);
            if (daysOverdue > 0) {
              overdueLoansCount++;
            }
@@ -390,16 +422,22 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         }
       });
 
+      const validLogsToday = logsToday.filter(l => activeClientIds.has(l.clientId || (l as any).client_id));
+      const uniqueClientsVisitedToday = new Set(validLogsToday.map(l => l.clientId || (l as any).client_id)).size;
+
+      const validLogsPeriod = logsPeriod.filter(l => activeClientIds.has(l.clientId || (l as any).client_id));
+      const uniqueClientsVisitedPeriod = new Set(validLogsPeriod.map(l => l.clientId || (l as any).client_id)).size;
+
       const financialMoraRate = uniqueActiveClients > 0 ? (overdueLoansCount / uniqueActiveClients) * 100 : 0;
-      const routeCompletionRate = uniqueActiveClients > 0 ? (uniqueClientsVisitedToday / uniqueActiveClients) * 100 : 0;
-      const isRouteCompleted = uniqueActiveClients > 0 && uniqueClientsVisitedToday >= uniqueActiveClients;
+      const routeCompletionRate = uniqueActiveClients > 0 ? (uniqueClientsVisitedPeriod / uniqueActiveClients) * 100 : 0;
+      const isRouteCompleted = uniqueActiveClients > 0 && uniqueClientsVisitedPeriod >= uniqueActiveClients;
       const monthlyStats = calculateMonthlyStats(loansSafe, collectionLogsSafe, new Date().getMonth(), new Date().getFullYear(), user.id);
 
       return {
         id: user.id,
         name: user.name,
         recaudo: recaudoHoy,
-        monthlyGoal: monthlyStats.monthlyGoal,
+        monthlyGoal: totalCarteraBalance,
         remainingGoal: monthlyStats.remainingBalance,
         financialMora: financialMoraRate,
         routeCompletion: routeCompletionRate,
@@ -408,13 +446,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         mora35Clients: mora35ClientsCount,
         cancelledClients: cancelledClientsCount,
         visitados: uniqueClientsVisitedToday,
+        visitadosPeriodo: uniqueClientsVisitedPeriod,
         isCompleted: isRouteCompleted,
         overdueCount: overdueLoansCount,
         abandonedClientsCount: abandonedClientsCount,
         sanosClientsCount: sanosClientsCount
       };
     });
-  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap, lastVisitMap]);
+  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap, lastVisitMap, visitPeriod]);
 
 
   // Pre-calcular set de clientes válidos para no sumar data de clientes eliminados
@@ -1239,7 +1278,29 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
               </div>
             </div>
 
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex bg-slate-100 p-1 rounded-md shadow-inner border border-slate-200">
+                <button
+                  onClick={() => setVisitPeriod('semanal')}
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded transition-all ${visitPeriod === 'semanal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Semanal
+                </button>
+                <button
+                  onClick={() => setVisitPeriod('quincenal')}
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded transition-all ${visitPeriod === 'quincenal' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Quincenal
+                </button>
+                <button
+                  onClick={() => setVisitPeriod('mensual')}
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded transition-all ${visitPeriod === 'mensual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Mensual
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
@@ -1259,6 +1320,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                 <i className="fa-solid fa-chevron-right text-sm"></i>
               </button>
             </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto custom-scrollbar">
@@ -1268,7 +1330,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                   <tr className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-20">
                     <th className="px-6 py-4 border-r border-white/5 w-1/4">{(t as any).collectorRoute || 'Cobrador / Ruta'}</th>
                     <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).collectedToday || 'Recaudo de Hoy'}</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).monthlyGoal || 'Meta Mensual'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">Saldo Total Cartera</th>
                     <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">{(t as any).effectiveness || 'Efectividad'}</th>
                     <th className="px-6 py-4 border-r border-white/5 w-[20%]">{(t as any).visitProgress || 'Progreso de Visitas'}</th>
                     <th className="px-6 py-4 text-center w-[18%]">Clientes Act. / Mora</th>
@@ -1306,16 +1368,37 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
                         </div>
                       </td>
                       <td className="px-6 py-3 border-r border-slate-50 group-hover:border-transparent transition-colors">
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-300 transition-colors">
-                             <span>{(t as any).performance || 'Rendimiento'}</span>
-                             <span>{stat.visitados} / {stat.clientes}</span>
+                        <div className="space-y-2 w-full">
+                          <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-300 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1" title="Visitados Hoy">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> 
+                                Hoy <span className="text-slate-800 group-hover:text-white font-black">{stat.visitados}</span>
+                              </span>
+                              <span className="flex items-center gap-1" title="Total en el Periodo">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div> 
+                                {visitPeriod === 'semanal' ? 'Seman.' : visitPeriod === 'mensual' ? 'Mens.' : 'Quinc.'} <span className="text-slate-800 group-hover:text-white font-black">{stat.visitadosPeriodo}</span>
+                              </span>
+                            </div>
+                            <span className="text-slate-400" title="Meta Total de Clientes Activos">
+                              Meta: <span className="text-slate-800 group-hover:text-white font-black">{stat.clientes}</span>
+                            </span>
                           </div>
-                          <div className="h-2 bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200/50 group-hover:border-slate-800 shadow-inner transition-colors">
-                            <div
-                              className={`h-full rounded-full transition-all duration-1000 shadow-sm bg-gradient-to-r ${stat.isCompleted ? 'from-emerald-400 to-emerald-500 shadow-emerald-500/20' : 'from-indigo-400 to-blue-500 shadow-blue-500/20'}`}
-                              style={{ width: `${Math.max(5, stat.routeCompletion)}%` }}
-                            />
+                          <div className="flex h-2.5 w-full bg-slate-100 group-hover:bg-slate-800/50 rounded-full overflow-hidden shadow-inner transition-colors border border-slate-200/50 group-hover:border-slate-700">
+                            {stat.clientes > 0 && stat.visitados > 0 && (
+                              <div 
+                                className="bg-blue-500 hover:brightness-110 transition-all duration-1000 shadow-sm" 
+                                style={{ width: `${(stat.visitados / stat.clientes) * 100}%` }} 
+                                title="Visitados Hoy"
+                              ></div>
+                            )}
+                            {stat.clientes > 0 && (stat.visitadosPeriodo - stat.visitados) > 0 && (
+                              <div 
+                                className="bg-purple-400 hover:brightness-110 transition-all duration-1000 shadow-sm" 
+                                style={{ width: `${((stat.visitadosPeriodo - stat.visitados) / stat.clientes) * 100}%` }} 
+                                title="Resto del Periodo"
+                              ></div>
+                            )}
                           </div>
                         </div>
                       </td>
