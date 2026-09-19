@@ -142,21 +142,29 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         // REALTIME SUBSCRIPTION FOR INSTANT UPDATES
         let channel: any = null;
         let reconnectTimeout: any = null;
+        // FIX ALTA-1: Guard de ciclo de vida para evitar callbacks en componentes desmontados
+        let isMounted = true;
 
         const subscribeToRealtime = () => {
+            if (!isMounted) return; // 🛡️ Guard
+
             if (channel) {
                 supabase.removeChannel(channel);
             }
 
-            channel = supabase.channel('system_changes')
+            // FIX ALTA-1: Nombre de canal único por montaje para evitar colisiones "closed before connected"
+            const channelName = `system_changes_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            channel = supabase.channel(channelName)
                 .on(
                     'postgres_changes',
                     { event: '*', schema: 'public' },
                     async (payload) => {
+                        if (!isMounted) return; // 🛡️ Guard
                         const isDeleteEvent = payload.eventType === 'DELETE';
                         const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses'].includes(payload.table);
 
                         const triggerSync = async () => {
+                            if (!isMounted) return; // 🛡️ Guard
                             try {
                                 const newData = await pullData(false);
                                 if (newData && onDataUpdated) {
@@ -177,6 +185,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     }
                 )
                 .subscribe((status) => {
+                    if (!isMounted) return; // 🛡️ Guard
                     (window as any)._lastRealtimeStatus = status;
 
                     if (status === 'SUBSCRIBED') {
@@ -187,7 +196,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
                         if ((window as any)._rtHeartbeat) clearInterval((window as any)._rtHeartbeat);
                         (window as any)._rtHeartbeat = setInterval(() => {
-                            if (channel && channel.state === 'joined') {
+                            if (isMounted && channel && channel.state === 'joined') {
                                 channel.send({ type: 'broadcast', event: 'heartbeat', payload: { t: Date.now() } });
                             }
                         }, 45000);
@@ -197,12 +206,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const shouldPull = !isSyncing && (!lastSyncTime || (Date.now() - parseInt(lastSyncTime)) > 120000);
                         if (shouldPull) {
                             pullData(false).then(newData => {
-                                if (newData && onDataUpdated) onDataUpdated(newData);
+                                if (isMounted && newData && onDataUpdated) onDataUpdated(newData);
                             });
                         }
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                         if ((window as any)._rtHeartbeat) clearInterval((window as any)._rtHeartbeat);
-                        if (!reconnectTimeout) {
+                        if (!reconnectTimeout && isMounted) {
                             reconnectTimeout = setTimeout(() => {
                                 reconnectTimeout = null;
                                 subscribeToRealtime();
@@ -225,6 +234,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         const appHandlerPromise = setupAppListener();
 
         return () => {
+            isMounted = false; // 🛡️ Marcar componente como desmontado
             clearInterval(interval);
             clearInterval(healthCheckInterval);
             if (reconnectTimeout) clearTimeout(reconnectTimeout);

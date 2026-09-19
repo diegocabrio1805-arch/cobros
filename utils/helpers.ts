@@ -211,14 +211,18 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
   
   // Find the latest migration log for this loan (if any)
   const migLogs = validLogs.filter(l => String(l.id || '').startsWith('LOG-MIG-'));
-  // Sort descending by updated_at (which is when the import actually happened) or fallback to date
+  // FIX CRÍTICO-2: Ordenar por el campo 'date' (fecha real del saldo importado),
+  // NO por 'updated_at' que puede ser "hoy" si el log fue modificado por un script correctivo.
   migLogs.sort((a, b) => {
-      const aTime = new Date(a.updated_at || a.updatedAt || a.date).getTime();
-      const bTime = new Date(b.updated_at || b.updatedAt || b.date).getTime();
+      const aTime = new Date(a.date).getTime();
+      const bTime = new Date(b.date).getTime();
       return bTime - aTime;
   });
   const latestMigLog = migLogs.length > 0 ? migLogs[0] : null;
-  const migDateStr = latestMigLog ? new Date(latestMigLog.updated_at || latestMigLog.updatedAt || latestMigLog.date).toISOString() : null;
+  // FIX CRÍTICO-2: Usar 'date' (no 'updated_at') para construir la fecha de corte de migración.
+  // Si se usara 'updated_at' y el script de corrección tocó el log hoy, migDateStr sería "hoy"
+  // y se excluirían TODOS los pagos reales del historial del cliente.
+  const migDateStr = latestMigLog ? new Date(latestMigLog.date).toISOString() : null;
 
   const totalFromLogs = validLogs.reduce((acc: number, log: any) => {
     const id = String(log.id || '');
@@ -237,9 +241,10 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
         // Si no es un log de migración, comprobamos si es ANTERIOR a la migración
         if (migDateStr) {
             const logDateStr = new Date(log.date).toISOString();
-            // Si el log es más antiguo (o del mismo exacto instante) que la migración, se ignora
-            // porque el LOG-MIG- ya consolida todo el pago hasta esa fecha.
-            if (logDateStr <= migDateStr) {
+            // FIX CRÍTICO-2: Comparación estricta < (antes <=) para NO excluir pagos
+            // realizados en el mismo día que la fecha del LOG-MIG (fecha de inicio del crédito).
+            // El LOG-MIG consolida pagos ANTERIORES a su fecha, no los del mismo día.
+            if (logDateStr < migDateStr) {
                 return acc;
             }
         }

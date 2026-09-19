@@ -47,6 +47,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const [isSharing, setIsSharing] = useState(false);
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const qrChannelRef = useRef<any>(null);
+  // FIX CRÍTICO-1: Evitar doble débito si el callback QR y un clic manual ocurren simultáneamente
+  const qrPaymentProcessedRef = useRef(false);
 
   // ── Penalty state ──────────────────────────────────────────────────────────
   const [penaltyLoanId, setPenaltyLoanId] = useState<string | null>(null);
@@ -212,10 +214,11 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         .filter(inst => new Date(inst.dueDate + 'T00:00:00') <= todayEnd)
         .reduce((acc, inst) => acc + inst.amount, 0);
 
+      // FIX MEDIA-CL4: Redondeo seguro para evitar imprecisiones de punto flotante en JS
       // Si lo pagado históricamente cubre o supera lo debido hasta hoy, el saldo es 0 (Al Día)
-      const realDailyBalance = Math.max(0, dueUntilToday - totalPaidAllTime);
+      const realDailyBalance = Math.round(Math.max(0, dueUntilToday - totalPaidAllTime) * 100) / 100;
 
-      const totalBalance = Math.max(0, loan.totalAmount - totalPaidAllTime);
+      const totalBalance = Math.round(Math.max(0, loan.totalAmount - totalPaidAllTime) * 100) / 100;
 
       return {
         ...loan,
@@ -392,6 +395,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           async (payload: any) => {
             console.log("Cambio detectado en tiempo real:", payload);
             if (payload.new && payload.new.status === 'COMPLETED') {
+              if (qrPaymentProcessedRef.current) return; // 🛡️ Guard CRÍTICO-1
+              qrPaymentProcessedRef.current = true;
+              
               // Limpiar la suscripción y el QR
               if (qrChannelRef.current) {
                 supabase.removeChannel(qrChannelRef.current);
@@ -999,9 +1005,23 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
                           const finalAmount = parseAmount(amountInput);
 
+                          // FIX MEDIA-CL2: Bloquear pagos nulos
+                          if (finalAmount <= 0) {
+                              alert('El monto a pagar debe ser mayor a cero.');
+                              return;
+                          }
+
+                          // FIX MEDIA-CL1: Alerta si el monto supera el saldo adeudado
+                          const currentBalance = item.totalBalance;
+                          if (finalAmount > currentBalance + 0.01) {
+                              if (!confirm(`¡ATENCIÓN!\n\nEl monto $${formatCurrency(finalAmount, state.settings)} supera el saldo pendiente del cliente ($${formatCurrency(currentBalance, state.settings)}).\n\n¿Estás seguro de continuar con este monto excedido?`)) {
+                                  return;
+                              }
+                          }
+
                           const threshold = 500;
                           if (finalAmount > 0 && finalAmount < threshold) {
-                            if (!confirm(`¡ATENCIÓN!\n\nHas ingresado un monto de ${formatCurrency(finalAmount, state.settings)}.\n\n¿Estás SEGURO de que este monto es correcto y no quisiste poner un número mayor?`)) {
+                            if (!confirm(`¡ATENCIÓN!\n\nHas ingresado un monto inusualmente bajo de ${formatCurrency(finalAmount, state.settings)}.\n\n¿Estás SEGURO de que este monto es correcto y no quisiste poner un número mayor?`)) {
                               return;
                             }
                           }
