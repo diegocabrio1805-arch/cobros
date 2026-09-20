@@ -23,10 +23,10 @@ import AppLoading from './components/AppLoading';
 
 // ── CARGA DIFERIDA (Lazy) ── Todo lo pesado se carga después del arranque ──
 // CRÍTICOS del flujo (se descargan en segundo plano, listos cuando el usuario los abre)
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const Clients = lazy(() => import('./components/Clients'));          // 407KB - el más pesado
-const Loans = lazy(() => import('./components/Loans'));
-const CollectionRoute = lazy(() => import('./components/CollectionRoute'));
+import Dashboard from './components/Dashboard';
+import Clients from './components/Clients';
+import Loans from './components/Loans';
+import CollectionRoute from './components/CollectionRoute';
 const Reports = lazy(() => import('./components/Reports'));
 const MobileCollectorMode = lazy(() => import('./components/MobileCollectorMode'));
 const WeatherWidget = lazy(() => import('./components/WeatherWidget'));
