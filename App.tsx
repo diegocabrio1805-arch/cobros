@@ -19,6 +19,7 @@ import LocationEnforcer from './components/LocationEnforcer';
 import ErrorBoundary from './components/ErrorBoundary';
 import LicenseReminder from './components/LicenseReminder';
 import AutoUpdater from './components/AutoUpdater';
+import AppLoading from './components/AppLoading';
 
 // ── CARGA DIFERIDA (Lazy) ── Todo lo pesado se carga después del arranque ──
 // CRÍTICOS del flujo (se descargan en segundo plano, listos cuando el usuario los abre)
@@ -192,14 +193,7 @@ const App: React.FC = () => {
   }, [isInitializing]);
 
   if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Cargando Sistema...</p>
-        </div>
-      </div>
-    );
+    return <AppLoading />;
   }
 
   if (!state.currentUser) {
@@ -365,11 +359,7 @@ const App: React.FC = () => {
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
-            <Suspense fallback={
-              <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin opacity-60" />
-              </div>
-            }>
+            <Suspense fallback={<AppLoading />}>
             {activeTab === 'clients' && (
               <Clients 
                 state={filteredState} 

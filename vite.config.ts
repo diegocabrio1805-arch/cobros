@@ -82,7 +82,7 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'es2015',
-      modulePreload: false, // FIX: Elimina warnings amarillos de "cross-world service worker resource mismatch"
+      modulePreload: { polyfill: true },
       minify: mode === 'production' ? 'terser' : false,
       sourcemap: mode !== 'production',
       cssCodeSplit: true,
@@ -105,8 +105,11 @@ export default defineConfig(({ mode }) => {
             'chunk-dashboard': ['./components/Dashboard'],
             'chunk-reports': ['./components/Reports'],
             'chunk-loans': ['./components/Loans', './components/CollectionRoute'],
+            'chunk-admin': ['./components/Collectors', './components/Managers', './components/Settings'],
+            'chunk-misc': ['./components/Expenses', './components/CollectorCommission', './components/CollectorPerformance', './components/Simulator'],
           }
-        }
+        },
+        treeshake: 'safest',
       },
       chunkSizeWarningLimit: 2000
     },
