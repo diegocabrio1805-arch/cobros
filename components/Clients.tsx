@@ -982,49 +982,49 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }).filter(Boolean).sort((a, b) => new Date((b as any)._loan.createdAt).getTime() - new Date((a as any)._loan.createdAt).getTime());
   }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch, clientMetricsMap]);
 
+  // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
+  const renewalCountMap = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (Array.isArray(state.loans)) {
+      state.loans.forEach(l => {
+        if (l.isRenewal) {
+          counts[l.clientId] = (counts[l.clientId] || 0) + 1;
+        }
+      });
+    }
+    return counts;
+  }, [state.loans]);
+
+  const activeLoanMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    if (Array.isArray(state.loans)) {
+      state.loans.forEach(l => {
+        if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
+          map[l.clientId] = l;
+        }
+      });
+    }
+    return map;
+  }, [state.loans]);
+
+  const historicLoanCollectorsMap = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    if (Array.isArray(state.loans)) {
+      state.loans.forEach(l => {
+        const colId = (l.collectorId || (l as any).collector_id)?.toLowerCase() || '';
+        if (!map[l.clientId]) map[l.clientId] = new Set();
+        if (colId) map[l.clientId].add(colId);
+      });
+    }
+    return map;
+  }, [state.loans]);
+
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
     if (viewMode !== 'cartera') return [];
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
-
-    // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
-    const renewalCountMap = useMemo(() => {
-      const counts: Record<string, number> = {};
-      if (Array.isArray(state.loans)) {
-        state.loans.forEach(l => {
-          if (l.isRenewal) {
-            counts[l.clientId] = (counts[l.clientId] || 0) + 1;
-          }
-        });
-      }
-      return counts;
-    }, [state.loans]);
-
-    const activeLoanMap = useMemo(() => {
-      const map: Record<string, any> = {};
-      if (Array.isArray(state.loans)) {
-        state.loans.forEach(l => {
-          if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
-            map[l.clientId] = l;
-          }
-        });
-      }
-      return map;
-    }, [state.loans]);
-
-    const historicLoanCollectorsMap = useMemo(() => {
-      const map: Record<string, Set<string>> = {};
-      if (Array.isArray(state.loans)) {
-        state.loans.forEach(l => {
-          const colId = (l.collectorId || (l as any).collector_id)?.toLowerCase() || '';
-          if (!map[l.clientId]) map[l.clientId] = new Set();
-          if (colId) map[l.clientId].add(colId);
-        });
-      }
-      return map;
-    }, [state.loans]);
 
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden || c.deletedAt) return false;
