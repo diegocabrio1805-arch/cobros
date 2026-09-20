@@ -17,12 +17,6 @@ interface DashboardProps {
   onViewClientDossier?: (clientId: string) => void;
 }
 
-        <circle cx={cx} cy={cy} r={2} fill={fill} opacity={0.9} />
-      </g>
-    </g>
-  );
-};
-
 const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => {
   const [insights, setInsights] = useState<any>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);

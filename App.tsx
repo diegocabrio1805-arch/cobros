@@ -377,7 +377,7 @@ const App: React.FC = () => {
             {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
-            <Suspense fallback={<AppLoading />}>
+            <Suspense fallback={<div className="flex-1 w-full h-full min-h-[500px] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-slate-300 border-t-emerald-500 animate-spin"></div></div>}>
             {activeTab === 'clients' && (
               <Clients 
                 state={filteredState} 
