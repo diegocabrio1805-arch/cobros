@@ -7,23 +7,12 @@
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Anexo Cobro v6.8.0-STABLE</title>
 
-  <!-- Preconnect: Resuelve DNS en paralelo antes de que se pidan los recursos -->
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-
-  <!-- Font Awesome: media=print + onload = carga sin bloquear render -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-
-  <!-- Leaflet CSS: no bloquea -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" /></noscript>
-
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="icon" type="image/png" href="/favicon.png">
-  <!-- Leaflet JS: defer = se descarga en paralelo pero ejecuta DESPUÉS del HTML -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script>
     // SECURITY ALIAS: Prevents "handleSync is not defined" from legacy cached components
@@ -101,78 +90,28 @@
     })();
   </script>
   <div id="root">
-    <!-- SPINNER NATIVO: visible inmediatamente, antes de que React cargue. Diseño nuevo. -->
+    <!-- SPINNER NATIVO: visible inmediatamente, antes de que React cargue. Elimina pantalla en blanco en APK -->
     <div id="native-splash" style="
       position:fixed; top:0; left:0; width:100%; height:100%;
-      background:#1a2a4a;
+      background:#0f172a;
       display:flex; flex-direction:column;
       align-items:center; justify-content:center;
-      z-index:99999;
+      z-index:99999; font-family:sans-serif;
     ">
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
-        #ns-title {
-          font-family: 'Orbitron', monospace;
-          font-size: 30px;
-          font-weight: 900;
-          letter-spacing: 6px;
-          color: #e0f0ff;
-          text-transform: uppercase;
-          line-height: 1;
-        }
-        #ns-title span {
-          color: #00bfff;
-          text-shadow: 0 0 18px rgba(0,191,255,0.7), 0 0 40px rgba(0,191,255,0.3);
-        }
-        #ns-sub {
-          font-family: 'Orbitron', monospace;
-          font-size: 9px;
-          letter-spacing: 8px;
-          color: rgba(0,191,255,0.35);
-          margin-top: 8px;
-          text-transform: uppercase;
-        }
-        #ns-divider {
-          width: 200px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, #00bfff55, transparent);
-          margin: 10px auto 0;
-        }
-        #ns-loading {
-          font-family: 'Orbitron', monospace;
-          color: #4da6ff;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 8px;
-          margin-bottom: 16px;
-        }
-        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
-      </style>
-      <div style="text-align:center; margin-bottom:32px;">
-        <div id="ns-title">ANEXO<span>COBRO</span></div>
-        <div id="ns-divider"></div>
-        <div id="ns-sub">Sistema Core</div>
-      </div>
-      <div id="ns-loading">LOADING...</div>
-      <div id="ns-bar" style="width:280px; height:34px; border:1.5px solid #0066cc; display:flex; padding:3px; gap:2px; box-sizing:border-box;">
-        <div id="ns-fill" style="height:100%; background:#00bfff; width:0%; transition:width 0.2s ease;"></div>
-      </div>
-      <div id="ns-pct" style="font-family:'Orbitron',monospace; color:#4da6ff; font-size:24px; font-weight:900; margin-top:12px; letter-spacing:3px;">0%</div>
+      <div style="
+        width:60px; height:60px;
+        border:4px solid #1e293b;
+        border-top:4px solid #059669;
+        border-radius:50%;
+        animation:spin 0.8s linear infinite;
+        margin-bottom:24px;
+      "></div>
+      <p style="color:#94a3b8; font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase; margin:0;">Cargando...</p>
+      <p style="color:#334155; font-size:10px; margin-top:8px;">Anexo Cobro</p>
     </div>
-    <script>
-      (function() {
-        var pct = 0;
-        var fill = document.getElementById('ns-fill');
-        var label = document.getElementById('ns-pct');
-        var iv = setInterval(function() {
-          pct = Math.min(pct + Math.floor(Math.random() * 8) + 3, 90);
-          if (fill) fill.style.width = pct + '%';
-          if (label) label.textContent = pct + '%';
-          if (pct >= 90) clearInterval(iv);
-        }, 200);
-        window.__nativeSplashInterval = iv;
-      })();
-    </script>
+    <style>
+      @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    </style>
   </div>
   <script>
     // Parche preventivo para bases de datos corruptas
