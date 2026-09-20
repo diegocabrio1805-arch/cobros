@@ -48,7 +48,7 @@ const Profile = lazy(() => import('./components/Profile'));
 const Generator = lazy(() => import('./components/Generator/Generator'));
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTabRaw] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [initialDossierClientId, setInitialDossierClientId] = useState<string | null>(null);
   const [pullY, setPullY] = useState(0);
@@ -56,20 +56,6 @@ const App: React.FC = () => {
   const pullStartY = useRef(0);
   const MAX_PULL = 120;
   const REFRESH_THRESHOLD = 80;
-
-  // ── KEEP-ALIVE: Registra las pestañas visitadas ──
-  // Una vez visitada, la pestaña se mantiene montada en memoria (display:none)
-  // para que el segundo acceso sea instantáneo.
-  const visitedTabsRef = useRef<Set<string>>(new Set(['dashboard']));
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['dashboard']));
-
-  const setActiveTab = (tab: string) => {
-    setActiveTabRaw(tab);
-    if (!visitedTabsRef.current.has(tab)) {
-      visitedTabsRef.current.add(tab);
-      setVisitedTabs(new Set(visitedTabsRef.current));
-    }
-  };
 
   // 1. Initialize State and App Data
   const { state, setState, isInitializing, isSecondaryLoading, resolvedSettings } = useAppInitialization();
@@ -370,216 +356,139 @@ const App: React.FC = () => {
 
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
-            {/* DASHBOARD: siempre presente cuando el usuario es powerUser */}
-            <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
-              {isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
-            </div>
-
-            {/* ================================================================
-                KEEP-ALIVE: Los componentes se montan la PRIMERA vez que se visitan
-                y luego se ocultan con display:none. Esto hace que el cambio de
-                pestaña sea INSTANTÁNEO desde la segunda visita en adelante.
-                ================================================================ */}
+            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
+            {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
             <Suspense fallback={<AppLoading />}>
-
-            {/* CLIENTES - 407KB, el más pesado. Keep-alive crítico. */}
-            {visitedTabs.has('clients') && (
-              <div style={{ display: activeTab === 'clients' ? 'block' : 'none' }}>
-                <Clients
-                  state={filteredState}
-                  addClient={addClient}
-                  addLoan={addLoan}
-                  updateClient={updateClient}
-                  updateLoan={updateLoan}
-                  deleteCollectionLog={deleteCollectionLog}
-                  updateCollectionLog={updateCollectionLog}
-                  updateCollectionLogNotes={updateCollectionLogNotes}
-                  addCollectionAttempt={addCollectionAttempt}
-                  globalState={state}
-                  onForceSync={handleForceSync}
-                  deleteLoan={deleteLoanAction}
-                  recalculateLoanStatus={recalculateLoanStatus}
-                  setActiveTab={setActiveTab}
-                  fetchClientPhotos={sync.fetchClientPhotos}
-                  deleteClient={deleteClient}
-                  addBulkData={addBulkData}
-                  undoLastBulkImport={undoLastBulkImport}
-                  renewLoan={renewLoan}
-                  setState={setState}
-                  pushLoan={sync.pushLoan}
-                  activeLocation={activeLocation}
-                  initialDossierClientId={initialDossierClientId}
-                  onClearInitialDossier={() => setInitialDossierClientId(null)}
-                />
-              </div>
+            {activeTab === 'clients' && (
+              <Clients 
+                state={filteredState} 
+                addClient={addClient} 
+                addLoan={addLoan} 
+                updateClient={updateClient} 
+                updateLoan={updateLoan} 
+                deleteCollectionLog={deleteCollectionLog} 
+                updateCollectionLog={updateCollectionLog} 
+                updateCollectionLogNotes={updateCollectionLogNotes} 
+                addCollectionAttempt={addCollectionAttempt} 
+                globalState={state} 
+                onForceSync={handleForceSync} 
+                deleteLoan={deleteLoanAction}
+                recalculateLoanStatus={recalculateLoanStatus}
+                setActiveTab={setActiveTab}
+                fetchClientPhotos={sync.fetchClientPhotos}
+                deleteClient={deleteClient}
+                addBulkData={addBulkData}
+                undoLastBulkImport={undoLastBulkImport}
+                renewLoan={renewLoan}
+                setState={setState}
+                pushLoan={sync.pushLoan}
+                activeLocation={activeLocation}
+                initialDossierClientId={initialDossierClientId}
+                onClearInitialDossier={() => setInitialDossierClientId(null)}
+              />
             )}
-
-            {/* COBROS */}
-            {visitedTabs.has('loans') && (
-              <div style={{ display: activeTab === 'loans' ? 'block' : 'none' }}>
-                <Loans
-                  state={filteredState}
-                  addLoan={addLoan}
-                  updateLoanDates={() => { }}
-                  addCollectionAttempt={addCollectionAttempt}
-                  deleteCollectionLog={deleteCollectionLog}
+            {activeTab === 'loans' && (
+              <Loans 
+                state={filteredState} 
+                addLoan={addLoan} 
+                updateLoanDates={() => { }} 
+                addCollectionAttempt={addCollectionAttempt} 
+                deleteCollectionLog={deleteCollectionLog} 
+                onForceSync={handleForceSync} 
+                setActiveTab={setActiveTab}
+                activeLocation={activeLocation}
+                onUpdateLoan={updateLoan}
+              />
+            )}
+            {activeTab === 'route' && (
+              !isPowerUser ? (
+                <MobileCollectorMode 
+                  state={filteredState} 
+                  addCollectionAttempt={addCollectionAttempt} 
                   onForceSync={handleForceSync}
-                  setActiveTab={setActiveTab}
+                  activeLocation={activeLocation}
+                />
+              ) : (
+                <CollectionRoute 
+                  state={filteredState} 
+                  addCollectionAttempt={addCollectionAttempt} 
+                  deleteCollectionLog={deleteCollectionLog} 
+                  updateClient={updateClient} 
+                  deleteClient={deleteRemoteClientAction} 
+                  onForceSync={handleForceSync}
                   activeLocation={activeLocation}
                   onUpdateLoan={updateLoan}
                 />
-              </div>
+              )
             )}
-
-            {/* RUTA / MODO COBRADOR */}
-            {visitedTabs.has('route') && (
-              <div style={{ display: activeTab === 'route' ? 'block' : 'none' }}>
-                {!isPowerUser ? (
-                  <MobileCollectorMode
-                    state={filteredState}
-                    addCollectionAttempt={addCollectionAttempt}
-                    onForceSync={handleForceSync}
-                    activeLocation={activeLocation}
-                  />
-                ) : (
-                  <CollectionRoute
-                    state={filteredState}
-                    addCollectionAttempt={addCollectionAttempt}
-                    deleteCollectionLog={deleteCollectionLog}
-                    updateClient={updateClient}
-                    deleteClient={deleteRemoteClientAction}
-                    onForceSync={handleForceSync}
-                    activeLocation={activeLocation}
-                    onUpdateLoan={updateLoan}
-                  />
-                )}
-              </div>
+            {activeTab === 'notifications' && <Notifications state={filteredState} />}
+            {activeTab === 'expenses' && isPowerUser && (
+              <Expenses 
+                state={{ ...filteredState, expenses: state.expenses }} 
+                addExpense={addExpense} 
+                removeExpense={removeExpense} 
+                updateExpense={updateExpense}
+                addIsolatedExpenseAction={addIsolatedExpenseAction}
+                removeIsolatedExpenseAction={removeIsolatedExpenseAction}
+                updateInitialCapital={updateInitialCapital} 
+                updateUser={updateUser}
+                updateSettings={updateSettings}
+                onViewClientDossier={(clientId) => {
+                  setInitialDossierClientId(clientId);
+                  setActiveTab('clients');
+                }}
+              />
             )}
-
-            {/* RECORDATORIOS */}
-            {visitedTabs.has('notifications') && (
-              <div style={{ display: activeTab === 'notifications' ? 'block' : 'none' }}>
-                <Notifications state={filteredState} />
-              </div>
+            {activeTab === 'commission' && (
+              <CollectorCommission 
+                state={filteredState} 
+                setCommissionPercentage={(p) => { 
+                  setState(prev => ({ ...prev, commissionPercentage: p })); 
+                  setTimeout(() => handleForceSync(true), 200); 
+                }} 
+                updateCommissionBrackets={updateCommissionBrackets} 
+                deleteCollectionLog={deleteCollectionLog} 
+                updateUser={updateUser}
+              />
             )}
-
-            {/* CAPITAL */}
-            {visitedTabs.has('expenses') && isPowerUser && (
-              <div style={{ display: activeTab === 'expenses' ? 'block' : 'none' }}>
-                <Expenses
-                  state={{ ...filteredState, expenses: state.expenses }}
-                  addExpense={addExpense}
-                  removeExpense={removeExpense}
-                  updateExpense={updateExpense}
-                  addIsolatedExpenseAction={addIsolatedExpenseAction}
-                  removeIsolatedExpenseAction={removeIsolatedExpenseAction}
-                  updateInitialCapital={updateInitialCapital}
-                  updateUser={updateUser}
-                  updateSettings={updateSettings}
-                  onViewClientDossier={(clientId) => {
-                    setInitialDossierClientId(clientId);
-                    setActiveTab('clients');
-                  }}
-                />
-              </div>
+            {activeTab === 'collectors' && (
+              <Collectors 
+                state={filteredState} 
+                onAddUser={addUser} 
+                onUpdateUser={updateUser} 
+                onDeleteUser={deleteUser} 
+                updateSettings={updateSettings} 
+                setActiveTab={setActiveTab} 
+              />
             )}
-
-            {/* MI COMISIÓN */}
-            {visitedTabs.has('commission') && (
-              <div style={{ display: activeTab === 'commission' ? 'block' : 'none' }}>
-                <CollectorCommission
-                  state={filteredState}
-                  setCommissionPercentage={(p) => {
-                    setState(prev => ({ ...prev, commissionPercentage: p }));
-                    setTimeout(() => handleForceSync(true), 200);
-                  }}
-                  updateCommissionBrackets={updateCommissionBrackets}
-                  deleteCollectionLog={deleteCollectionLog}
-                  updateUser={updateUser}
-                />
-              </div>
+            {activeTab === 'managers' && isAdmin && (
+              <Managers 
+                state={filteredState} 
+                onAddUser={addUser} 
+                onUpdateUser={updateUser} 
+                onDeleteUser={deleteUser} 
+                setActiveTab={setActiveTab} 
+              />
             )}
-
-            {/* RUTAS / COBRADORES */}
-            {visitedTabs.has('collectors') && (
-              <div style={{ display: activeTab === 'collectors' ? 'block' : 'none' }}>
-                <Collectors
-                  state={filteredState}
-                  onAddUser={addUser}
-                  onUpdateUser={updateUser}
-                  onDeleteUser={deleteUser}
-                  updateSettings={updateSettings}
-                  setActiveTab={setActiveTab}
-                />
-              </div>
+            {activeTab === 'performance' && isPowerUser && <CollectorPerformance state={filteredState} />}
+            {activeTab === 'simulator' && <Simulator settings={resolvedSettings} state={filteredState} />}
+            {activeTab === 'reports' && isPowerUser && <Reports state={filteredState} settings={resolvedSettings} updateClient={updateClient} />}
+            {activeTab === 'settings' && (
+              <Settings 
+                state={filteredState} 
+                updateSettings={updateSettings} 
+                setActiveTab={setActiveTab} 
+                onForceSync={() => handleForceSync(true)} 
+                onClearQueue={clearQueue} 
+                isOnline={isOnline} 
+                isSyncing={isSyncing} 
+                isFullSyncing={isFullSyncing} 
+                onDeepReset={handleDeepReset} 
+              />
             )}
-
-            {/* GERENTES */}
-            {visitedTabs.has('managers') && isAdmin && (
-              <div style={{ display: activeTab === 'managers' ? 'block' : 'none' }}>
-                <Managers
-                  state={filteredState}
-                  onAddUser={addUser}
-                  onUpdateUser={updateUser}
-                  onDeleteUser={deleteUser}
-                  setActiveTab={setActiveTab}
-                />
-              </div>
-            )}
-
-            {/* RENDIMIENTO */}
-            {visitedTabs.has('performance') && isPowerUser && (
-              <div style={{ display: activeTab === 'performance' ? 'block' : 'none' }}>
-                <CollectorPerformance state={filteredState} />
-              </div>
-            )}
-
-            {/* SIMULADOR */}
-            {visitedTabs.has('simulator') && (
-              <div style={{ display: activeTab === 'simulator' ? 'block' : 'none' }}>
-                <Simulator settings={resolvedSettings} state={filteredState} />
-              </div>
-            )}
-
-            {/* REPORTES */}
-            {visitedTabs.has('reports') && isPowerUser && (
-              <div style={{ display: activeTab === 'reports' ? 'block' : 'none' }}>
-                <Reports state={filteredState} settings={resolvedSettings} updateClient={updateClient} />
-              </div>
-            )}
-
-            {/* OPCIONES */}
-            {visitedTabs.has('settings') && (
-              <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
-                <Settings
-                  state={filteredState}
-                  updateSettings={updateSettings}
-                  setActiveTab={setActiveTab}
-                  onForceSync={() => handleForceSync(true)}
-                  onClearQueue={clearQueue}
-                  isOnline={isOnline}
-                  isSyncing={isSyncing}
-                  isFullSyncing={isFullSyncing}
-                  onDeepReset={handleDeepReset}
-                />
-              </div>
-            )}
-
-            {/* GENERADOR */}
-            {visitedTabs.has('generator') && (
-              <div style={{ display: activeTab === 'generator' ? 'block' : 'none' }}>
-                <Generator settings={resolvedSettings} />
-              </div>
-            )}
-
-            {/* MI PERFIL */}
-            {visitedTabs.has('profile') && (
-              <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
-                <Profile state={filteredState} onUpdateUser={updateUser} />
-              </div>
-            )}
-
+            {activeTab === 'generator' && <Generator settings={resolvedSettings} />}
+            {activeTab === 'profile' && <Profile state={filteredState} onUpdateUser={updateUser} />}
             </Suspense>
             </ErrorBoundary>
           </div>
