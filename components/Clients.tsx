@@ -4,7 +4,6 @@ import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortiza
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
-import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
 import PullToRefresh from './PullToRefresh';
 import { Capacitor } from '@capacitor/core';
@@ -20,12 +19,11 @@ const openWhatsApp = (phone: string, text: string, countryCode: string) => {
 };
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
-import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
 import { getFastLocation } from '../utils/gpsHelper';
 import { exportClientsToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
-import * as XLSX from 'xlsx-js-style';
+
 
 const BANCA_CLIENT_TYPES = [
   { code: '130', label: 'MICRO UNI P/ FORMAL' },

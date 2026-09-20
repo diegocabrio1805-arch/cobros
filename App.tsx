@@ -152,6 +152,24 @@ const App: React.FC = () => {
     }
   }, [handleForceSync, state.currentUser?.id, state.clients.length, isSyncing, isFullSyncing, isInitializing]);
 
+  // BACKGROUND CHUNK PRE-LOADING (Task 2)
+  // Precarga los chunks más pesados en segundo plano para que el cambio de pestaña sea instantáneo
+  useEffect(() => {
+    if (isInitializing || isSecondaryLoading) return;
+    
+    const prefetchTimer = setTimeout(() => {
+      if (state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) {
+        import('./components/Clients').catch(() => {});
+        import('./components/Loans').catch(() => {});
+        import('./components/CollectionRoute').catch(() => {});
+      } else {
+        import('./components/MobileCollectorMode').catch(() => {});
+      }
+    }, 4000);
+    
+    return () => clearTimeout(prefetchTimer);
+  }, [isInitializing, isSecondaryLoading, state.currentUser?.role]);
+
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
   // Pull to Refresh Handlers

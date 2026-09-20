@@ -3,9 +3,6 @@ import React, { useState, useMemo, useRef } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
 import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
-import html2canvas from 'html2canvas';
-import { jsPDF } from "jspdf";
-import * as XLSX from 'xlsx-js-style';
 
 // ── MINI DATE PICKER PERSONALIZADO ──────────────────────────────────────────
 const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];

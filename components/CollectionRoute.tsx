@@ -21,8 +21,6 @@ const openWhatsApp = (phone: string, text: string, countryCode: string) => {
     window.open(wpUrl, '_blank');
   }
 };
-import html2canvas from 'html2canvas';
-
 interface CollectionRouteProps {
   state: AppState;
   addCollectionAttempt: (log: CollectionLog, skipSync?: boolean) => void;

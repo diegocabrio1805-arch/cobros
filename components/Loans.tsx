@@ -8,7 +8,6 @@ import { generateAIStatement, generateNoPaymentAIReminder } from '../services/ge
 import { ColoredReceipt } from './ColoredReceipt';
 import PenaltyModal from './PenaltyModal';
 import { Geolocation } from '@capacitor/geolocation';
-import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
