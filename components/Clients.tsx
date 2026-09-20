@@ -989,12 +989,45 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
+    // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
+    const renewalCountMap = useMemo(() => {
+      const counts: Record<string, number> = {};
+      if (Array.isArray(state.loans)) {
+        state.loans.forEach(l => {
+          if (l.isRenewal) {
+            counts[l.clientId] = (counts[l.clientId] || 0) + 1;
+          }
+        });
+      }
+      return counts;
+    }, [state.loans]);
+
+    const activeLoanMap = useMemo(() => {
+      const map: Record<string, any> = {};
+      if (Array.isArray(state.loans)) {
+        state.loans.forEach(l => {
+          if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
+            map[l.clientId] = l;
+          }
+        });
+      }
+      return map;
+    }, [state.loans]);
+
+    const historicLoanCollectorsMap = useMemo(() => {
+      const map: Record<string, Set<string>> = {};
+      if (Array.isArray(state.loans)) {
+        state.loans.forEach(l => {
+          const colId = (l.collectorId || (l as any).collector_id)?.toLowerCase() || '';
+          if (!map[l.clientId]) map[l.clientId] = new Set();
+          if (colId) map[l.clientId].add(colId);
+        });
+      }
+      return map;
+    }, [state.loans]);
+
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden || c.deletedAt) return false;
-
-      // Filtro de Fecha (Registro del Cliente) - Opcional: Solo si se activa explícitamente o se busca un rango específico
-      // Si las fechas son las de hoy (por defecto), mostramos todo para evitar que parezca que faltan clientes
-      // FILTRO DE FECHA REMOVIDO: En CARTERA GENERAL queremos ver toda la cartera histórica o activa independientemente de la fecha ingresada
 
       // Búsqueda Global
       if (s) {
@@ -1007,31 +1040,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
-        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === collectorLower);
+        const activeLoan = activeLoanMap[c.id];
         const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
-        return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || !!anyHistoricLoan;
+        const hasHistoric = historicLoanCollectorsMap[c.id]?.has(collectorLower);
+        return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || hasHistoric;
       }
+      
       const validCollectorIds = collectors.map(col => col.id.toLowerCase());
-      // FIX: Incluir el ID del usuario actual y del branchId para clientes creados por el admin/gerente
       const currentUserId = state.currentUser?.id?.toLowerCase() || '';
       const branchId = (state.currentUser?.branchId || (state.currentUser as any)?.branch_id || '').toLowerCase();
       const validIds = [...validCollectorIds, currentUserId, branchId].filter(Boolean);
+      
       const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
-      const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      const activeLoan = activeLoanMap[c.id];
       const loanCollectorId = (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase();
+      
       if (validIds.includes(addedByLower) || (loanCollectorId && validIds.includes(loanCollectorId))) return true;
-      const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && validCollectorIds.includes((l.collectorId || (l as any).collector_id)?.toLowerCase() || ''));
-      return !!anyHistoricLoan;
+      
+      const hasAnyHistoric = validCollectorIds.some(vid => historicLoanCollectorsMap[c.id]?.has(vid));
+      return hasAnyHistoric;
     }).map(client => {
       const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
-      return { ...client, _metrics: metrics };
-    // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
-    }).map(client => {
-      const renewalCount = Array.isArray(state.loans)
-        ? state.loans.reduce((acc, l) => acc + (l.clientId === client.id && l.isRenewal ? 1 : 0), 0)
-        : 0;
-      return { ...client, _renewalCount: renewalCount };
+      const renewalCount = renewalCountMap[client.id] || 0;
+      return { ...client, _metrics: metrics, _renewalCount: renewalCount };
     }).sort((a, b) => {
       if (carteraSortBy === 'renovaciones') {
         return ((b as any)._renewalCount || 0) - ((a as any)._renewalCount || 0);

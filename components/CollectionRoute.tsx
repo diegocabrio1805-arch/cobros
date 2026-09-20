@@ -183,8 +183,18 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
     const endLimit = parseLocal(endDate);
     endLimit.setHours(23, 59, 59, 999);
 
+    const clientsMap = (Array.isArray(state.clients) ? state.clients : []).reduce((acc, c) => {
+      acc[c.id] = c;
+      return acc;
+    }, {} as Record<string, any>);
+
+    const usersMap = (Array.isArray(state.users) ? state.users : []).reduce((acc, u) => {
+      acc[u.id.toLowerCase()] = u;
+      return acc;
+    }, {} as Record<string, any>);
+
     return (Array.isArray(routeLoans) ? routeLoans : []).map(loan => {
-      const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
+      const client = clientsMap[loan.clientId];
       const loanLogs = logsByLoan[loan.id] || [];
 
       // Regla de Oro: Histórico total para determinar si está adelantado o en mora
@@ -201,7 +211,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const hasNoPayReport = (Array.isArray(rangeLogs) ? rangeLogs : []).some(log => log.type === CollectionLogType.NO_PAGO);
-      const collector = (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === loan.collectorId?.toLowerCase() || u.id.toLowerCase() === (loan as any).collector_id?.toLowerCase());
+      
+      const collectorIdLower = (loan.collectorId || (loan as any).collector_id || '').toLowerCase();
+      const collector = usersMap[collectorIdLower];
 
       // CALCULO DE SALDO PENDIENTE REAL HASTA HOY
       const todayEnd = new Date();
