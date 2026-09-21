@@ -55,7 +55,7 @@ export const parseDaysDelayed = (val: any): number => {
 };
 
 export const EXCEL_COLUMNS = [
-    "Op. Nº", "Nombre / Razon Social", "Import. Pagare", "Monto cobrado", "Saldo", 
+    "Op. Nº", "Nombre / Razon Social", "Crédito", "Import. Pagare", "Monto cobrado", "Saldo", 
     "Fec. Des.", "vto pagare", "Val. Cuota", "Ctas. Pend", "Ctas. Tot", "Cta. Pag", 
     "Prox Vto.", "Atraso", "Fecha ultimo", "Localidad", "Celular", "Calif.", 
     "Cod. Vend.", "Producto", "Banca"
@@ -78,10 +78,12 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
         const totalInstallments = m?.totalInstallments || 0;
         const atraso = m?.daysOverdue || 0;
         const installmentValue = m?.activeLoan?.installmentValue || 0;
+        const principal = m?.activeLoan?.principal || 0;
 
         return {
             "Op. Nº": client.externalId || client.id,
             "Nombre / Razon Social": client.name,
+            "Crédito": principal,
             "Import. Pagare": totalAmount,
             "Monto cobrado": totalPaid,
             "Saldo": balance,
