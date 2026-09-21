@@ -2634,6 +2634,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </button>
               </div>
             )}
+            
+            {viewMode === 'renovaciones' && isAdminOrManager && (
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <button
+                  onClick={() => exportClientsToExcel(renovacionesExcelData as Client[], state.loans)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             {viewMode === 'ocultos' && isAdminOrManager && Object.keys(checkedHiddenClients).some(k => checkedHiddenClients[k]) && (
