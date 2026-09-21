@@ -145,6 +145,79 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
     XLSX.writeFile(wb, `CARTERA_CLIENTES_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
 
+/**
+ * Exporta la pestaña de RENOVACIONES usando exactamente los mismos datos que muestra la pantalla.
+ * Lee de `_loan` (el préstamo de la renovación) y NO de `_metrics.activeLoan` (que puede ser otro préstamo).
+ */
+export const exportRenovacionesToExcel = (items: any[]) => {
+    const MONETARY_COLS = new Set(["Crédito", "Monto", "Interés", "Cobrado", "Val. Cuota"]);
+
+    const applyStyles = (ws: any) => {
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        const monCols = new Set<number>();
+
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const hAddr = XLSX.utils.encode_cell({ r: 0, c: C });
+            if (!ws[hAddr]) continue;
+            if (MONETARY_COLS.has(ws[hAddr].v)) monCols.add(C);
+            ws[hAddr].s = {
+                fill: { fgColor: { rgb: "EA580C" } }, // Naranja Renovaciones
+                font: { color: { rgb: "FFFFFF" }, bold: true },
+                alignment: { horizontal: "center" }
+            };
+        }
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                if (!ws[addr]) continue;
+                // Formato moneda: separador de miles + 2 decimales
+                if (monCols.has(C) && ws[addr].t === 'n') {
+                    ws[addr].z = '#,##0.00';
+                }
+            }
+        }
+    };
+
+    const data = items.map(item => {
+        const loan = item._loan;   // ← el préstamo exacto de la renovación
+        const m    = item._metrics;
+
+        const principal      = loan?.principal      || 0;
+        const totalAmount    = loan?.totalAmount    || 0;
+        const interest       = totalAmount - principal;
+        const interestRate   = loan?.interestRate   || 0;
+        const totalPaid      = m?.totalPaid         || 0;
+        const totalInst      = loan?.totalInstallments || 0;
+        const instValue      = loan?.installmentValue  || 0;
+        const freq           = loan?.frequency      || '—';
+        const atraso         = m?.daysOverdue       || 0;
+        const fechaRenov     = loan?.createdAt      ? formatDate(loan.createdAt) : '—';
+
+        return {
+            "Fecha Renov.":            fechaRenov,
+            "Cliente":                 item.name,
+            "Crédito":                 principal,
+            "Monto":                   totalAmount,
+            "Interés":                 interest,
+            "%":                       `${interestRate.toFixed(1)}%`,
+            "Cobrado":                 totalPaid,
+            "Cuotas":                  totalInst,
+            "Val. Cuota":              instValue,
+            "Frecuencia":              freq,
+            "Atraso (días)":           atraso,
+            "Localidad":               item.address || '—',
+            "Celular":                 item.phone   || '—',
+        };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    applyStyles(ws);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Renovaciones");
+    XLSX.writeFile(wb, `RENOVACIONES_${new Date().toISOString().split('T')[0]}.xlsx`);
+};
+
+
 export interface ImportError {
     row: number;
     clientName?: string;

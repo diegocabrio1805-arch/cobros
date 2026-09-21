@@ -21,7 +21,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
 import { getFastLocation } from '../utils/gpsHelper';
-import { exportClientsToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
+import { exportClientsToExcel, exportRenovacionesToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
 
 
@@ -2638,7 +2638,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             {viewMode === 'renovaciones' && isAdminOrManager && (
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <button
-                  onClick={() => exportClientsToExcel(renovacionesExcelData as Client[], state.loans)}
+                  onClick={() => exportRenovacionesToExcel(renovacionesExcelData as any[])}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
