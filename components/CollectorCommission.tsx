@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
+import * as XLSX from 'xlsx-js-style';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
 import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -921,10 +922,31 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       // Row 2: Empty
       wsData.push([]);
 
-      // Row 3: Period
+      // Row 3: Period (with day names before "Periodo")
+      const DIAS_ORDEN = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const periodoStart = new Date(excelStartDate + 'T00:00:00');
+      const periodoEnd   = new Date(excelEndDate   + 'T23:59:59');
+      const diasEnRango = new Set<number>();
+      const cursor = new Date(periodoStart);
+      while (cursor <= periodoEnd) {
+        diasEnRango.add(cursor.getDay());
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      // Sort by weekday order (Sun=0..Sat=6) and join
+      const diasTexto = [...diasEnRango]
+        .sort((a, b) => a - b)
+        .map(d => DIAS_ORDEN[d])
+        .join(', ');
+      const MESES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      const formatDMYES = (isoDate: string) => {
+        const [y, m, d] = isoDate.split('-');
+        return `${parseInt(d)} ${MESES_ES[parseInt(m) - 1]} ${y}`;
+      };
+      const diasStyle   = { font: { bold: true, name: 'Aptos Narrow', sz: 12, color: { rgb: 'FF1D4ED8' } }, alignment: { vertical: "center", horizontal: "center" } };
+      const periodoStyle = { font: { bold: true, name: 'Aptos Narrow', sz: 11, color: { rgb: 'FF166534' } }, alignment: { vertical: "center", horizontal: "center" } };
       wsData.push([
-        "",
-        { v: `Periodo: ${excelStartDate} al ${excelEndDate}`, t: "s", s: { font: { name: 'Aptos Narrow', sz: 12 }, alignment: { vertical: "center", horizontal: "center" } } },
+        { v: diasTexto.toUpperCase(), t: "s", s: diasStyle },
+        { v: `PERIODO: ${formatDMYES(excelStartDate)} AL ${formatDMYES(excelEndDate)}`, t: "s", s: periodoStyle },
         "", "", "", ""
       ]);
 
@@ -966,8 +988,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const montoStyle = { ...baseStyle, numFmt: '#,##0.00', alignment: { vertical: "center", horizontal: "right" } };
         const gestorStyle = { ...baseStyle, alignment: { vertical: "center", horizontal: "center" } };
 
+        const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        const logDate = new Date(log.date);
+        const diaSemana = DIAS_ES[logDate.getDay()];
+        const fechaFormateada = `${diaSemana} ${logDate.toLocaleString()}`;
+
         wsData.push([
-          { v: new Date(log.date).toLocaleString(), t: "s", s: fechaStyle },
+          { v: fechaFormateada, t: "s", s: fechaStyle },
           { v: log._clientName, t: "s", s: clienteStyle },
           { v: medioPago, t: "s", s: medioStyle },
           { v: isNoPay ? '-' : (log.amount || 0), t: isNoPay ? "s" : "n", s: isNoPay ? medioStyle : montoStyle },
@@ -1037,6 +1064,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       // Create Worksheet
       const ws = XLSX.utils.aoa_to_sheet(wsData);
+
 
       // Merge Cells Configuration
       if (!ws['!merges']) ws['!merges'] = [];

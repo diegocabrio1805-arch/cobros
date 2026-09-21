@@ -962,6 +962,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     setIsSharing(true);
 
     try {
+      const html2canvas = (await import('html2canvas')).default;
+
       // 1. Mostrar temporalmente para captura
       const container = document.getElementById('receipt-container-hidden-loans');
       if (container) {

@@ -1828,6 +1828,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     setIsSharing(true);
 
     try {
+      const html2canvas = (await import('html2canvas')).default;
+
       // 1. Mostrar temporalmente para captura
       const container = document.getElementById('receipt-container-hidden-clients');
       if (container) {
