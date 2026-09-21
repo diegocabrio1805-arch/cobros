@@ -111,14 +111,35 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
 
     // Estilos básicos para el encabezado
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    const monetaryColumns = new Set();
+    
     for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_col(C) + "1";
-        if (!ws[address]) continue;
-        ws[address].s = {
+        const headerAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[headerAddress]) continue;
+        
+        // Identificar columnas monetarias
+        if (["Crédito", "Import. Pagare", "Monto cobrado", "Saldo", "Val. Cuota"].includes(ws[headerAddress].v)) {
+            monetaryColumns.add(C);
+        }
+        
+        ws[headerAddress].s = {
             fill: { fgColor: { rgb: "10B981" } }, // Emerald 500
             font: { color: { rgb: "FFFFFF" }, bold: true },
             alignment: { horizontal: "center" }
         };
+    }
+
+    // Formatear filas de datos
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const address = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[address]) continue;
+            
+            // Aplicar separador de miles y 2 decimales a las columnas de dinero
+            if (monetaryColumns.has(C) && ws[address].t === 'n') {
+                ws[address].z = '#,##0.00';
+            }
+        }
     }
 
     XLSX.writeFile(wb, `CARTERA_CLIENTES_${new Date().toISOString().split('T')[0]}.xlsx`);
