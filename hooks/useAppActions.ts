@@ -421,8 +421,7 @@ export const useAppActions = (
 
 
 
-    const branchId = internalGetBranchId(state.currentUser);
-    
+
     // Sello Permanente: Verificar si el cobrador está bajo vigilancia en este momento exacto
     const isWatched = state.currentUser?.watchExpiresAt === getShiftDate(state.settings.country);
 
