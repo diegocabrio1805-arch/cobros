@@ -1,4 +1,4 @@
-﻿import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
+import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID } from '../utils/helpers';
@@ -105,6 +105,9 @@ export const useAppActions = (
     pushUser(userWithStamp);
 
     if (navigator.onLine) {
+      // FIX RACE CONDITION: Bypass Queue para la perilla y forzar a Supabase a actualizar instantáneamente
+      supabase.from('profiles').update({ watch_expires_at: updatedUser.watchExpiresAt || null }).eq('id', updatedUser.id).then().catch(() => {});
+      
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -934,4 +937,5 @@ export const useAppActions = (
     deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport
   };
 };
+
 
