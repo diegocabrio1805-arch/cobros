@@ -1793,7 +1793,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
-                        <td className={`px-5 py-3 uppercase font-black ${isCollectorWatched(log.recordedBy || '') ? "text-red-600" : "text-black"}`}>{log._clientName}</td>
+                        <td className={`px-5 py-3 uppercase font-black ${log.isWatched ? "text-red-600" : "text-black"}`}>{log._clientName}</td>
                         <td className="px-5 py-3 text-[10px] text-slate-500 font-bold whitespace-normal max-w-[150px] text-center">
                           {isNoPay && log.notes ? log.notes : '-'}
                         </td>

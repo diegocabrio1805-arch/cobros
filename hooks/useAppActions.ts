@@ -1,7 +1,7 @@
 import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
-import { calculateTotalPaidFromLogs, formatCurrency, generateUUID } from '../utils/helpers';
+import { calculateTotalPaidFromLogs, formatCurrency, generateUUID, getShiftDate } from '../utils/helpers';
 import { connectToPrinter } from '../services/bluetoothPrinterService';
 import React from 'react';
 export const useAppActions = (
@@ -420,6 +420,11 @@ export const useAppActions = (
 
 
 
+
+    const branchId = internalGetBranchId(state.currentUser);
+    
+    // Sello Permanente: Verificar si el cobrador está bajo vigilancia en este momento exacto
+    const isWatched = state.currentUser?.watchExpiresAt === getShiftDate(state.settings.country);
 
     const newLog: CollectionLog = {
       source: 'APP_MOBILE',
@@ -937,5 +942,6 @@ export const useAppActions = (
     deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport
   };
 };
+
 
 
