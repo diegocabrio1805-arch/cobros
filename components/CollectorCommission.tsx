@@ -1,5 +1,5 @@
-
-import React, { useState, useMemo, useRef } from 'react';
+﻿
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx-js-style';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
 import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
@@ -219,6 +219,91 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [excelEndDate, setExcelEndDate] = useState(countryTodayStr);
   // paymentTypeFilter: 'all' = mostrar todo | Set<string> = multi-selección activa
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | Set<string>>('all');
+  // --- MODO VIGILANCIA (Perilla por Cobrador) ---
+  const getCountryTZ = (country: string): string => {
+    const tz: Record<string, string> = {
+      PY: 'America/Asuncion', CO: 'America/Bogota', MX: 'America/Mexico_City',
+      AR: 'America/Argentina/Buenos_Aires', PE: 'America/Lima', CL: 'America/Santiago'
+    };
+    return tz[country?.toUpperCase()] || 'America/Asuncion';
+  };
+  const getLocalHour = (country: string): number => {
+    return parseInt(new Intl.DateTimeFormat('es', { hour: 'numeric', hour12: false, timeZone: getCountryTZ(country) }).format(new Date()), 10);
+  };
+  const getShiftDate = (country: string): string => {
+    const localHour = getLocalHour(country);
+    // Para obtener la fecha local correcta del pais
+    const tz = getCountryTZ(country);
+    const now = new Date();
+    // Si es antes de las 6am, consideramos que estamos en el turno del dia anterior
+    if (localHour < 6) {
+        now.setDate(now.getDate() - 1);
+    }
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  };
+
+  const [watchedCollectors, setWatchedCollectors] = React.useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('anexo_watchMode_collectors');
+      if (!saved) return {};
+      const parsed: Record<string, string> = JSON.parse(saved);
+      const valid: Record<string, string> = {};
+      const currentShift = getShiftDate(state.settings.country);
+      for (const [colId, activatedShift] of Object.entries(parsed)) {
+        if (activatedShift === currentShift) { valid[colId] = activatedShift as string; }
+      }
+      return valid;
+    } catch { return {}; }
+  });
+
+  useEffect(() => {
+    const checkAutoOff = () => {
+      setWatchedCollectors(prev => {
+        const valid: Record<string, string> = {};
+        let changed = false;
+        const currentShift = getShiftDate(state.settings.country);
+        for (const [colId, activatedShift] of Object.entries(prev)) {
+          if (activatedShift === currentShift) { valid[colId] = activatedShift as string; } else { changed = true; }
+        }
+        if (changed) { localStorage.setItem('anexo_watchMode_collectors', JSON.stringify(valid)); return valid; }
+        return prev;
+      });
+    };
+    checkAutoOff();
+    const interval = setInterval(checkAutoOff, 60000);
+    return () => clearInterval(interval);
+  }, [state.settings.country]);
+
+  const handleToggleWatchCollector = (collectorId: string) => {
+    setWatchedCollectors(prev => {
+      const isWatched = !!prev[collectorId];
+      const newState = { ...prev };
+      if (isWatched) { delete newState[collectorId]; } else { newState[collectorId] = getShiftDate(state.settings.country); }
+      localStorage.setItem('anexo_watchMode_collectors', JSON.stringify(newState));
+      return newState;
+    });
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const filterClickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const [likedLogs, setLikedLogs] = useState<Record<string, boolean>>(() => {
@@ -1507,24 +1592,59 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   {state.users.filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
                     <div 
                       key={u.id}
-                      className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 transition-colors"
-                      onClick={() => {
-                        let newRoutes = selectedHistoricalRoutes.filter(id => id !== 'all');
-                        if (newRoutes.includes(u.id)) {
-                          newRoutes = newRoutes.filter(id => id !== u.id);
-                          if (newRoutes.length === 0) newRoutes = ['all'];
-                        } else {
-                          newRoutes.push(u.id);
-                        }
-                        setSelectedHistoricalRoutes(newRoutes);
-                      }}
+                      className="px-4 py-3 hover:bg-slate-50 flex items-center justify-between gap-3 transition-colors"
                     >
-                      <div className={`w-4 h-4 rounded-md border ${(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'} flex items-center justify-center`}>
-                        {(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer flex-1"
+                        onClick={() => {
+                          let newRoutes = selectedHistoricalRoutes.filter(id => id !== 'all');
+                          if (newRoutes.includes(u.id)) {
+                            newRoutes = newRoutes.filter(id => id !== u.id);
+                            if (newRoutes.length === 0) newRoutes = ['all'];
+                          } else {
+                            newRoutes.push(u.id);
+                          }
+                          setSelectedHistoricalRoutes(newRoutes);
+                        }}
+                      >
+                        <div className={`w-4 h-4 rounded-[4px] border ${(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'} flex items-center justify-center`}>
+                          {(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest truncate">{u.name}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest truncate">{u.name}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleToggleWatchCollector(u.id); }}
+                        title={watchedCollectors[u.id] ? 'Desactivar vigilancia (se apaga 6:00 AM)' : 'Activar vigilancia: nombres en rojo'}
+                        className={`relative inline-flex w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none border shrink-0 ${
+                          watchedCollectors[u.id] ? 'bg-red-500 border-red-400' : 'bg-slate-200 border-slate-300'
+                        }`}
+                      >
+                        <span className={`absolute top-[1px] left-[1px] w-[12px] h-[12px] bg-white rounded-full shadow-md transition-transform duration-300 ${
+                          watchedCollectors[u.id] ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </button>
                     </div>
                   ))}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 </div>
               </>
             )}
@@ -1697,7 +1817,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
-                        <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
+                        <td className={`px-5 py-3 uppercase font-black ${log.isWatched ? "text-red-600" : "text-black"}`}>{log._clientName}</td>
                         <td className="px-5 py-3 text-[10px] text-slate-500 font-bold whitespace-normal max-w-[150px] text-center">
                           {isNoPay && log.notes ? log.notes : '-'}
                         </td>

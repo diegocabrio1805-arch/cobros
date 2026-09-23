@@ -2,11 +2,38 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem, IsolatedExpense } from '../types';
 import { StorageService } from '../utils/localforageStorage';
+import localforage from 'localforage';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 import { generateUUID } from '../utils/helpers';
 import { BackgroundTask } from '@capawesome/capacitor-background-task';
 
+
+
+// FIX PERF: Función helper para procesar arreglos masivos sin bloquear el Hilo Principal
+
+// FIX PERF: Wrapper asíncrono para leer colas desde IndexedDB
+const getQueueFromForage = async (key: string) => {
+    try {
+        const data = await localforage.getItem(key);
+        if (typeof data === 'string') return JSON.parse(data || '[]');
+        if (Array.isArray(data)) return data;
+        return [];
+    } catch (e) {
+        return [];
+    }
+};
+
+const asyncMapInChunks = async <T, R>(items: T[], chunkSize: number, mapper: (item: T) => R): Promise<R[]> => {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += chunkSize) {
+        const chunk = items.slice(i, i + chunkSize);
+        results.push(...chunk.map(mapper));
+        // Ceder el control al Event Loop (evita congelamiento de UI)
+        await new Promise(r => setTimeout(r, 0));
+    }
+    return results;
+};
 
 const isValidUuid = (id: string | undefined | null) => {
     if (!id) return false;
@@ -19,6 +46,8 @@ const withTimeout = (promise: any, timeoutMs: number = 30000): Promise<any> => {
         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_ERROR')), timeoutMs))
     ]);
 };
+
+let queueLock = Promise.resolve();
 
 export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?: boolean) => void) => {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -58,7 +87,36 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             }
         };
 
-        initNetwork();
+                // FIX PERF: Migración transparente de localStorage a localforage para evitar pérdida de cobros pendientes
+        const migrateQueues = async () => {
+            try {
+                const oldSyncStr = localStorage.getItem('syncQueue');
+                if (oldSyncStr) {
+                    const oldQ = JSON.parse(oldSyncStr);
+                    if (oldQ && oldQ.length > 0) {
+                        const currentQ = await getQueueFromForage('syncQueue');
+                        const mapIds = new Set(currentQ.map((i: any) => i._id));
+                        const uniqueOldQ = oldQ.filter((i: any) => !mapIds.has(i._id));
+                        if (uniqueOldQ.length > 0) {
+                            await localforage.setItem('syncQueue', [...currentQ, ...uniqueOldQ]);
+                        }
+                    }
+                    localStorage.removeItem('syncQueue');
+                }
+                const oldFailedStr = localStorage.getItem('failedSyncItems');
+                if (oldFailedStr) {
+                    const oldF = JSON.parse(oldFailedStr);
+                    if (oldF && oldF.length > 0) {
+                        const currentF = await getQueueFromForage('failedSyncItems');
+                        await localforage.setItem('failedSyncItems', [...currentF, ...oldF]);
+                    }
+                    localStorage.removeItem('failedSyncItems');
+                }
+            } catch (e) {
+                console.error('Migration failed:', e);
+            }
+        };
+        migrateQueues().then(() => initNetwork());
 
         // Fallback check periodically (every 60s instead of 5s) to save battery/data on mobile
         // Native window 'online' events already handle instant reconnections.
@@ -66,8 +124,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const online = await checkConnection();
             if (online !== isOnline) setIsOnline(online);
             if (online) {
-                const queueStr = localStorage.getItem('syncQueue');
-                if (queueStr && JSON.parse(queueStr || '[]').length > 0) {
+                const queue = await getQueueFromForage("syncQueue");
+                if (queue.length > 0) { // FIX PERF
                     processQueue();
                 }
             }
@@ -115,8 +173,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     setIsOnline(online);
 
                     if (online) {
-                        const queueStr = localStorage.getItem('syncQueue');
-                        const hasPending = queueStr && JSON.parse(queueStr || '[]').length > 0;
+                        const queue = await getQueueFromForage("syncQueue"); // FIX PERF
+                        const hasPending = queue.length > 0;
 
                         const lastSyncTime = localStorage.getItem('last_sync_timestamp_ms');
                         const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
@@ -431,7 +489,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             // Yield thread before heavy object mapping to avoid hanging the UI
             await new Promise(r => setTimeout(r, 50));
             
-            const clients = (clientsResult.data || []).map((c: any) => ({
+            const clients = await asyncMapInChunks(clientsResult.data || [], 500, (c: any) => ({
                 ...c, documentId: c.document_id, secondaryPhone: c.secondary_phone,
                 profilePic: c.profile_pic, housePic: c.house_pic, businessPic: c.business_pic,
                 documentPic: c.document_pic, domicilioLocation: c.domicilio_location,
@@ -443,7 +501,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             
             await new Promise(r => setTimeout(r, 20));
             
-            const loans = (loansResult.data || []).map((l: any) => ({
+            const loans = await asyncMapInChunks(loansResult.data || [], 500, (l: any) => ({
                 ...l, clientId: l.client_id, collectorId: l.collector_id, branchId: l.branch_id,
                 interestRate: l.interest_rate, totalInstallments: l.total_installments,
                 totalAmount: l.total_amount, installmentValue: l.installment_value,
@@ -455,7 +513,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             await new Promise(r => setTimeout(r, 20));
 
-            const payments = (paymentsResult.data || []).map((p: any) => ({
+            const payments = await asyncMapInChunks(paymentsResult.data || [], 500, (p: any) => ({
                 ...p, loanId: p.loan_id, clientId: p.client_id, branchId: p.branch_id,
                 installmentNumber: p.installment_number, isVirtual: p.is_virtual,
                 isRenewal: p.is_renewal, deletedAt: p.deleted_at
@@ -468,25 +526,26 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const logsById = new Map<string, any>();
             rawLogs.forEach((cl: any) => logsById.set(cl.id, cl));
             deletedPaymentLogsData.forEach((cl: any) => { if (cl?.id && !logsById.has(cl.id)) logsById.set(cl.id, cl); });
-            const collectionLogs = Array.from(logsById.values()).map((cl: any) => ({
+            const collectionLogs = await asyncMapInChunks(Array.from(logsById.values()), 500, (cl: any) => ({
                 ...cl, loanId: cl.loan_id, clientId: cl.client_id, branchId: cl.branch_id,
                 isVirtual: cl.is_virtual, isRenewal: cl.is_renewal, isOpening: cl.is_opening,
-                recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
+                recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at, isWatched: cl.is_watched
             })) as CollectionLog[];
 
             await new Promise(r => setTimeout(r, 20));
 
-            const expenses = (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[];
-            const isolatedExpenses = (isolatedExpensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id })) as IsolatedExpense[];
-            const users = (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config })) as unknown as User[];
+            const expenses = await asyncMapInChunks(expensesResult.data || [], 500, (e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[];
+            const isolatedExpenses = await asyncMapInChunks(isolatedExpensesResult.data || [], 500, (e: any) => ({ ...e, branchId: e.branch_id })) as IsolatedExpense[];
+              console.log('[DEBUG] Profiles raw from Supabase:', profilesResult.data?.map(p => ({id: p.id, watch: p.watch_expires_at})));
+            const users = await asyncMapInChunks(profilesResult.data || [], 50, (u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config, watchExpiresAt: u.watch_expires_at })) as unknown as User[];
             
             const branchSettings = (settingsResult.data || []).reduce((acc: any, s: any) => {
                 acc[s.id] = s.settings;
                 return acc;
             }, {} as Record<string, AppSettings>);
             
-            const deletedItems = (deletedResult.data || []).map((d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[];
-            const simulatedOrders = (simulatedOrdersResult.data || []).map((d: any) => ({ id: d.id, clientId: d.client_id, clientName: d.client_name, principal: d.principal, interestRate: d.interest_rate, installments: d.installments, totalAmount: d.total_amount, installmentValue: d.installment_value, frequency: d.frequency, simulationDate: d.simulation_date, table: d.table_data, collectorId: d.collector_id, branchId: d.branch_id, createdAt: d.created_at, updated_at: d.updated_at })) as any[];
+            const deletedItems = await asyncMapInChunks(deletedResult.data || [], 500, (d: any) => ({ id: d.id, tableName: d.table_name, recordId: d.record_id, branchId: d.branch_id, deletedAt: d.deleted_at })) as DeletedItem[];
+            const simulatedOrders = await asyncMapInChunks(simulatedOrdersResult.data || [], 500, (d: any) => ({ id: d.id, clientId: d.client_id, clientName: d.client_name, principal: d.principal, interestRate: d.interest_rate, installments: d.installments, totalAmount: d.total_amount, installmentValue: d.installment_value, frequency: d.frequency, simulationDate: d.simulation_date, table: d.table_data, collectorId: d.collector_id, branchId: d.branch_id, createdAt: d.created_at, updated_at: d.updated_at })) as any[];
 
             const result = {
                 clients,
@@ -506,12 +565,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (onDataUpdated) onDataUpdated(result, fullSync);
             return result;
         } catch (err: any) {
-            const isAbort = err.name === 'AbortError' || err.message?.includes('aborted');
+            const errString = String(err?.message || err?.error || err).toLowerCase();
+            const isAbort = err.name === 'AbortError' || errString.includes('abort');
             if (!isAbort) {
                 console.error('[Sync] Error en pullData:', err);
                 setSyncError(`Error Descarga: ${err.message || 'Error'}`);
             } else {
-                console.warn('[Sync] Descarga cancelada (Timeout o Aborto Manual)');
+                console.warn('[Sync] Descarga cancelada pacíficamente (Timeout de 120s o Aborto Manual)');
             }
             return null;
         } finally {
@@ -568,7 +628,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // FIX A02: igual que pullData — cobradores nativos no tienen Supabase session.
             // El sync de la cola no debe bloquearse por esto.
-            const queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+            const queue = await getQueueFromForage("syncQueue"); // FIX PERF
             setQueueLength(queue.length);
 
             if (queue.length === 0) {
@@ -592,7 +652,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'ADD_PROFILE': { items: [], table: 'profiles', isDelete: false, mapper: (d) => ({
                     id: d.id, name: d.name, username: d.username, password: d.password,
                     role: d.role, blocked: d.blocked, expiry_date: d.expiryDate || null,
-                    managed_by: d.managedBy || null, profile_pic: d.profilePic,
+                    managed_by: d.managedBy || null, profile_pic: d.profilePic, watch_expires_at: d.watchExpiresAt || null,
                     home_pic: d.homePic, home_location: d.homeLocation,
                     requires_location: d.requiresLocation, deleted_at: d.deletedAt || null,
                     pay_config: d.payConfig || null,
@@ -634,7 +694,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     // FIX: usar branchId (camelCase) que es como se guarda en memoria. d.branch_id era null siempre.
                     branch_id: d.branchId || d.branch_id || null,
                     recorded_by: d.recordedBy, amount: d.amount !== undefined && d.amount !== null ? d.amount : 0, type: d.type, date: d.date,
-                    location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
+                      location: d.location, notes: d.notes, is_virtual: d.isVirtual || false, is_watched: d.isWatched || false,
                     is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
                     deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
                 })},
@@ -721,19 +781,19 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             item.retryCount = (item.retryCount || 0) + 1;
                             
                             // update local storage so retry count persists
-                            const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                            const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
                                 currentQueue[indexToUpdate].retryCount = item.retryCount;
                                 currentQueue[indexToUpdate].lastError = String(err);
-                                localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                                await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                             }
                             
                             if (item.retryCount > 20) {
                                 processedIds.add(item._id);
-                                const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
-                                localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                                await localforage.setItem("failedSyncItems", failedItems.slice(-20)); // FIX PERF
                             }
                         }
                     }
@@ -771,19 +831,19 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             item.retryCount = (item.retryCount || 0) + 1;
                             
                             // Aumentamos persistencia del retry
-                            const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                            const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
                                 currentQueue[indexToUpdate].retryCount = item.retryCount;
                                 currentQueue[indexToUpdate].lastError = String(err);
-                                localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                                await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                             }
                             
                             if (item.retryCount > 20) {
                                 processedIds.add(item._id);
-                                const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
-                                localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));
+                                await localforage.setItem("failedSyncItems", failedItems.slice(-20)); // FIX PERF
                             }
                         }
                     }
@@ -822,12 +882,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     item.retryCount = (item.retryCount || 0) + 1;
                                     
                                     // update local storage so retry count persists
-                                    const currentQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+                                    const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                                     const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                                     if (indexToUpdate !== -1) {
                                         currentQueue[indexToUpdate].retryCount = item.retryCount;
                                         currentQueue[indexToUpdate].lastError = String(singleErr);
-                                        localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
+                                        await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                                     }
 
                                     const isFatalError = singleErr?.code === '23503' || String(singleErr).includes('23503') || String(singleErr).includes('409');
@@ -836,9 +896,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                         // o si es un error fatal de Foreign Key (registro huérfano).
                                         // Esto evita que la cola se quede en un bucle infinito (retry #13000+).
                                         processedIds.add(item._id);
-                                        const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                        const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                         failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
-                                        localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-50)));
+                                        await localforage.setItem("failedSyncItems", failedItems.slice(-50)); // FIX PERF
                                     }
                                 }
                             }
@@ -847,9 +907,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 }
             }
 
-            const freshQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+            const freshQueue = await getQueueFromForage("syncQueue"); // FIX PERF
             const remainingQueue = freshQueue.filter((q: any) => !processedIds.has(q._id));
-            localStorage.setItem('syncQueue', JSON.stringify(remainingQueue));
+            await localforage.setItem("syncQueue", remainingQueue); // FIX PERF
             setQueueLength(remainingQueue.length);
 
             if (remainingQueue.length > 0) {
@@ -883,63 +943,59 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         }
     }, [pullData]);
 
-    const addToQueue = useCallback((operation: string, data: any) => {
-        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+    const addToQueue = useCallback((operation: string, data: any): Promise<void> => { // FIX PERF + RACE COND
+        const p = queueLock.then(async () => {
+            let queue = await getQueueFromForage("syncQueue"); // FIX PERF
 
-        if (operation === 'UPDATE_SETTINGS') {
-            queue = queue.filter((item: any) => item.operation !== 'UPDATE_SETTINGS' || item.data.branchId !== data.branchId);
-        }
-
-        // DEDUPLICACIÓN ROBUSTA: Si ya hay un item en la cola con el mismo ID de registro, no duplicar
-        if (data && data.id) {
-            const isDuplicate = queue.some((item: any) => 
-                item.operation === operation && 
-                item.data.id === data.id
-            );
-            if (isDuplicate) {
-                console.log(`[Sync] Registro duplicado omitido en cola: ${operation} - ${data.id}`);
-                return;
+            if (operation === 'UPDATE_SETTINGS') {
+                queue = queue.filter((item: any) => item.operation !== 'UPDATE_SETTINGS' || item.data.branchId !== data.branchId);
             }
-        }
 
-        if (operation === 'ADD_LOG') {
-            const isDuplicate = queue.some((item: any) =>
-                item.operation === 'ADD_LOG' &&
-                item.data.loanId === data.loanId &&
-                item.data.amount === data.amount &&
-                item.data.type === data.type &&
-                (Date.now() - item.timestamp < 3000) // Ventana ampliada a 3s
-            );
-            if (isDuplicate) return;
-        }
+            if (data && data.id) {
+                const isDuplicate = queue.some((item: any) => item.operation === operation && item.data.id === data.id);
+                if (isDuplicate) return;
+            }
 
-        const _id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-        queue.push({ _id, operation, data, timestamp: Date.now(), retryCount: 0 });
-        localStorage.setItem('syncQueue', JSON.stringify(queue));
-        setQueueLength(queue.length);
+            if (operation === 'ADD_LOG') {
+                const isDuplicate = queue.some((item: any) =>
+                    item.operation === 'ADD_LOG' && item.data.loanId === data.loanId &&
+                    item.data.amount === data.amount && item.data.type === data.type &&
+                    (Date.now() - item.timestamp < 3000)
+                );
+                if (isDuplicate) return;
+            }
 
-        // Instant sync trigger
-        processQueue();
+            const _id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+            queue.push({ _id, operation, data, timestamp: Date.now(), retryCount: 0 });
+            await localforage.setItem("syncQueue", queue); // FIX PERF
+            setQueueLength(queue.length);
+
+            processQueue();
+        });
+        queueLock = p.catch(e => console.error('[Sync] Queue Lock Error:', e)) as Promise<void>;
+        return p;
     }, [processQueue]);
 
-    const addToQueueBulk = useCallback((items: { operation: string, data: any }[]) => {
-        if (items.length === 0) return;
-        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
-        
-        const now = Date.now();
-        const newItems = items.map(item => ({
-            _id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-            operation: item.operation,
-            data: item.data,
-            timestamp: now,
-            retryCount: 0
-        }));
+    const addToQueueBulk = useCallback((items: { operation: string, data: any }[]): Promise<void> => { // FIX PERF + RACE COND
+        if (items.length === 0) return Promise.resolve();
+        const p = queueLock.then(async () => {
+            let queue = await getQueueFromForage("syncQueue"); // FIX PERF
+            
+            const now = Date.now();
+            const newItems = items.map(item => ({
+                _id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+                operation: item.operation,
+                data: item.data,
+                timestamp: now,
+                retryCount: 0
+            }));
 
-        queue = [...queue, ...newItems];
-        localStorage.setItem('syncQueue', JSON.stringify(queue));
-        setQueueLength(queue.length);
-
-        // Do not trigger processQueue automatically here, let the caller decide when to trigger
+            queue = [...queue, ...newItems];
+            await localforage.setItem("syncQueue", queue); // FIX PERF
+            setQueueLength(queue.length);
+        });
+        queueLock = p.catch(e => console.error('[Sync] Queue Lock Bulk Error:', e)) as Promise<void>;
+        return p;
     }, []);
 
     const forceSync = useCallback(() => processQueue(true), [processQueue]);
@@ -975,7 +1031,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const deleteRemotePayment = useCallback(async (paymentId: string) => addToQueue('DELETE_PAYMENT', { id: paymentId }), [addToQueue]);
     const deleteRemoteLoan = useCallback(async (loanId: string) => addToQueue('DELETE_LOAN', { id: loanId }), [addToQueue]);
     const deleteRemoteClient = useCallback(async (clientId: string) => addToQueue('DELETE_CLIENT', { id: clientId }), [addToQueue]);
-    const clearQueue = useCallback(() => { localStorage.removeItem('syncQueue'); setSyncError(null); setIsSyncing(false); }, []);
+    const clearQueue = useCallback(async () => { await localforage.removeItem("syncQueue"); /* FIX PERF */ setSyncError(null); setIsSyncing(false); }, []);
 
     return {
         isSyncing, isFullSyncing, syncError, showSuccess, successMessage, setSuccessMessage, isOnline,

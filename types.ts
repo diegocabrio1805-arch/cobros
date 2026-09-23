@@ -1,4 +1,4 @@
-
+﻿
 export enum Role {
   ADMIN = 'Administrador',
   COLLECTOR = 'Cobrador',
@@ -127,6 +127,7 @@ export interface User {
   homeLocation?: { lat: number; lng: number }; // Ubicación GPS de la casa
   requiresLocation?: boolean; // Si está activado, obliga a tener GPS encendido
   deletedAt?: string; // Soft delete timestamp para ocular gerentes eliminados
+    watchExpiresAt?: string; // Fecha y hora (ISO) hasta donde est vigilado este usuario
   payConfig?: PayConfig; // Configuración de sueldo o comisión
 }
 
@@ -278,6 +279,7 @@ export interface CollectionLog {
   collectorId?: string; // ID del cobrador (puede ser distinto de recordedBy)
   receiptNumber?: string;
   notes?: string; // Nota opcional para el motivo de No Pago
+    isWatched?: boolean; // Marca permanente si el registro se hizo bajo vigilancia
   companySnapshot?: AppSettings; // Snapshot inmutable de las opciones de la empresa en el momento del recibo
   source?: 'APP_MOBILE' | 'EXCEL_MIGRATION' | 'MANUAL_ADMIN';
   is_migration?: boolean;

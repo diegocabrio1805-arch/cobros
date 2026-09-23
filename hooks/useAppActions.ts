@@ -1,4 +1,4 @@
-import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
+﻿import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID } from '../utils/helpers';
@@ -411,15 +411,42 @@ export const useAppActions = (
   };
 
   const addCollectionAttempt = async (log: CollectionLog, skipSync: boolean = false) => {
+
     const branchId = internalGetBranchId(state.currentUser);
+    
+    let isWatched = false;
+    try {
+      const savedWatch = localStorage.getItem('anexo_watchMode_collectors');
+      if (savedWatch) {
+        const parsedWatch = JSON.parse(savedWatch);
+        if (parsedWatch[collectorId] === getShiftDate(state.settings.country)) {
+          isWatched = true;
+        }
+      }
+    } catch (e) {}
+
+
+
     const newLog: CollectionLog = {
       source: 'APP_MOBILE',
       is_migration: false,
       ...log,
       branchId,
       recordedBy: state.currentUser?.id,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      isWatched
     };
+
+
+
+
+
+
+
+
+
+
+
 
     // NO llamar pushLog aqui todavía - se llama abajo después del setState para garantizar
     // que el estado local esté actualizado antes de intentar sincronizar

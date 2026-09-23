@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+﻿import { v4 as uuidv4 } from 'uuid';
 import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency, LoanStatus, CollectionLogType, PaymentStatus } from '../types';
 
 export const generateUUID = (): string => {
@@ -1360,4 +1360,35 @@ export const parseUniversalCoordinates = (input: string | null | undefined): { l
     }
 
     return null;
+};
+
+export const getCountryTZ = (country: string): string => {
+  const tz: Record<string, string> = {
+    PY: 'America/Asuncion', CO: 'America/Bogota', MX: 'America/Mexico_City',
+    AR: 'America/Argentina/Buenos_Aires', PE: 'America/Lima', CL: 'America/Santiago',
+    VE: 'America/Caracas', EC: 'America/Guayaquil', BO: 'America/La_Paz',
+    UY: 'America/Montevideo', BR: 'America/Sao_Paulo', DO: 'America/Santo_Domingo',
+    GT: 'America/Guatemala', HN: 'America/Tegucigalpa', SV: 'America/El_Salvador',
+    NI: 'America/Managua', CR: 'America/Costa_Rica', PA: 'America/Panama',
+    CU: 'America/Havana', PR: 'America/Puerto_Rico',
+  };
+  return tz[country?.toUpperCase()] || 'America/Asuncion';
+};
+
+export const getLocalHour = (country: string): number => {
+  return parseInt(new Intl.DateTimeFormat('es', { hour: 'numeric', hour12: false, timeZone: getCountryTZ(country) }).format(new Date()), 10);
+};
+
+export const getShiftDate = (country: string): string => {
+  const localHour = getLocalHour(country);
+  const tz = getCountryTZ(country);
+  const now = new Date();
+  if (localHour < 6) {
+      now.setDate(now.getDate() - 1);
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
 };

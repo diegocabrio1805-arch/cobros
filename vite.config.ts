@@ -82,7 +82,7 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'es2015',
-      modulePreload: { polyfill: true },
+      modulePreload: false,
       minify: mode === 'production' ? 'terser' : false,
       sourcemap: mode !== 'production',
       cssCodeSplit: true,

@@ -1,8 +1,21 @@
-import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
 import { useSync } from './useSync';
 import { supabase } from '../utils/supabaseClient';
 import { StorageService } from '../utils/localforageStorage';
+import localforage from 'localforage';
+
+const getQueueFromForage = async (key: string) => {
+    try {
+        const data = await localforage.getItem(key);
+        if (typeof data === 'string') return JSON.parse(data || '[]');
+        if (Array.isArray(data)) return data;
+        return [];
+    } catch (e) {
+        return [];
+    }
+};
+
 import { Preferences } from '@capacitor/preferences';
 import { isPrintingNow, connectToPrinter } from '../services/bluetoothPrinterService';
 import { App as CapApp } from '@capacitor/app';
@@ -106,8 +119,8 @@ export const useAppSyncEngine = (
     });
     
     (async (prev) => {
-      const queueStr = localStorage.getItem('syncQueue');
-      const queue = queueStr ? JSON.parse(queueStr) : [];
+      
+      const queue = await getQueueFromForage('syncQueue');
       const pendingDeleteIds = new Set<string>();
       const pendingAddIds = new Set<string>();
 

@@ -119,46 +119,61 @@ const WeatherWidget: React.FC = () => {
       } catch(e) {}
     }
 
-    if (!navigator.geolocation) {
-      setErrorMsg('Geolocalización no soportada en este navegador');
-      setLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        // PARCHE A: AbortController con 5s para reverse geocoding offline
-        const geoController = new AbortController();
-        const geoTimeoutId = setTimeout(() => geoController.abort(), 5000);
-        try {
-          const locRes = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`,
-            { signal: geoController.signal }
-          );
-          const locData = await locRes.json();
-          const name = locData.locality || locData.city || locData.principalSubdivision || 'Mi Ubicación';
-          loadWeather(lat, lon, name);
-        } catch (e: any) {
-          if (e.name === 'AbortError') {
-            // Sin red pero sí hay coords GPS → cargar clima igualmente con nombre genérico
-            loadWeather(lat, lon, 'Mi Ubicación');
-          } else {
-            setErrorMsg('Error al obtener nombre de ubicación');
-            setLoading(false);
-          }
-        } finally {
-          clearTimeout(geoTimeoutId);
-        }
-      },
-      (err) => {
-        console.error(err);
-        setErrorMsg('ESCRIBIR ubicación o buscar ciudad manualmente');
+    const checkAndGetLocation = async () => {
+      if (!navigator.geolocation) {
+        setErrorMsg('Geolocalización no soportada en este navegador');
         setLoading(false);
-      },
-      { timeout: 10000 }
-    );
+        return;
+      }
+
+      try {
+        const result = await navigator.permissions.query({ name: 'geolocation' });
+        if (result.state === 'denied') {
+          setErrorMsg('ESCRIBIR ubicación o buscar ciudad manualmente');
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // Ignorar si navigator.permissions no está soportado en este navegador viejo
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          // PARCHE A: AbortController con 5s para reverse geocoding offline
+          const geoController = new AbortController();
+          const geoTimeoutId = setTimeout(() => geoController.abort(), 5000);
+          try {
+            const locRes = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`,
+              { signal: geoController.signal }
+            );
+            const locData = await locRes.json();
+            const name = locData.locality || locData.city || locData.principalSubdivision || 'Mi Ubicación';
+            loadWeather(lat, lon, name);
+          } catch (e: any) {
+            if (e.name === 'AbortError') {
+              // Sin red pero sí hay coords GPS → cargar clima igualmente con nombre genérico
+              loadWeather(lat, lon, 'Mi Ubicación');
+            } else {
+              setErrorMsg('Error al obtener nombre de ubicación');
+              setLoading(false);
+            }
+          } finally {
+            clearTimeout(geoTimeoutId);
+          }
+        },
+        (err) => {
+          // Eliminado console.error para no ensuciar consola si se bloquea el GPS
+          setErrorMsg('ESCRIBIR ubicación o buscar ciudad manualmente');
+          setLoading(false);
+        },
+        { timeout: 10000 }
+      );
+    };
+
+    checkAndGetLocation();
   }, []);
 
   if (loading) {
