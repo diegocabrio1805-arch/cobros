@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx-js-style';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
@@ -246,46 +246,22 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     return `${year}-${month}-${day}`;
   };
 
-  const [watchedCollectors, setWatchedCollectors] = React.useState<Record<string, string>>(() => {
-    try {
-      const saved = localStorage.getItem('anexo_watchMode_collectors');
-      if (!saved) return {};
-      const parsed: Record<string, string> = JSON.parse(saved);
-      const valid: Record<string, string> = {};
-      const currentShift = getShiftDate(state.settings.country);
-      for (const [colId, activatedShift] of Object.entries(parsed)) {
-        if (activatedShift === currentShift) { valid[colId] = activatedShift as string; }
-      }
-      return valid;
-    } catch { return {}; }
-  });
-
-  useEffect(() => {
-    const checkAutoOff = () => {
-      setWatchedCollectors(prev => {
-        const valid: Record<string, string> = {};
-        let changed = false;
-        const currentShift = getShiftDate(state.settings.country);
-        for (const [colId, activatedShift] of Object.entries(prev)) {
-          if (activatedShift === currentShift) { valid[colId] = activatedShift as string; } else { changed = true; }
-        }
-        if (changed) { localStorage.setItem('anexo_watchMode_collectors', JSON.stringify(valid)); return valid; }
-        return prev;
-      });
-    };
-    checkAutoOff();
-    const interval = setInterval(checkAutoOff, 60000);
-    return () => clearInterval(interval);
-  }, [state.settings.country]);
+  const isCollectorWatched = (userId: string) => {
+    const user = state.users.find(u => u.id === userId);
+    return user?.watchExpiresAt === getShiftDate(state.settings.country);
+  };
 
   const handleToggleWatchCollector = (collectorId: string) => {
-    setWatchedCollectors(prev => {
-      const isWatched = !!prev[collectorId];
-      const newState = { ...prev };
-      if (isWatched) { delete newState[collectorId]; } else { newState[collectorId] = getShiftDate(state.settings.country); }
-      localStorage.setItem('anexo_watchMode_collectors', JSON.stringify(newState));
-      return newState;
-    });
+    const user = state.users.find(u => u.id === collectorId);
+    if (!user) return;
+    
+    const isWatched = isCollectorWatched(collectorId);
+    if (updateUser) {
+      updateUser({ 
+        ...user, 
+        watchExpiresAt: isWatched ? undefined : getShiftDate(state.settings.country) 
+      });
+    }
   };
 
 
@@ -1614,13 +1590,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleToggleWatchCollector(u.id); }}
-                        title={watchedCollectors[u.id] ? 'Desactivar vigilancia (se apaga 6:00 AM)' : 'Activar vigilancia: nombres en rojo'}
+                        title={isCollectorWatched(u.id) ? 'Desactivar vigilancia (se apaga 6:00 AM)' : 'Activar vigilancia: nombres en rojo'}
                         className={`relative inline-flex w-8 h-4 rounded-full transition-colors duration-300 focus:outline-none border shrink-0 ${
-                          watchedCollectors[u.id] ? 'bg-red-500 border-red-400' : 'bg-slate-200 border-slate-300'
+                          isCollectorWatched(u.id) ? 'bg-red-500 border-red-400' : 'bg-slate-200 border-slate-300'
                         }`}
                       >
                         <span className={`absolute top-[1px] left-[1px] w-[12px] h-[12px] bg-white rounded-full shadow-md transition-transform duration-300 ${
-                          watchedCollectors[u.id] ? 'translate-x-4' : 'translate-x-0'
+                          isCollectorWatched(u.id) ? 'translate-x-4' : 'translate-x-0'
                         }`} />
                       </button>
                     </div>
@@ -1817,7 +1793,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
-                        <td className={`px-5 py-3 uppercase font-black ${log.isWatched ? "text-red-600" : "text-black"}`}>{log._clientName}</td>
+                        <td className={`px-5 py-3 uppercase font-black ${isCollectorWatched(log.recordedBy || '') ? "text-red-600" : "text-black"}`}>{log._clientName}</td>
                         <td className="px-5 py-3 text-[10px] text-slate-500 font-bold whitespace-normal max-w-[150px] text-center">
                           {isNoPay && log.notes ? log.notes : '-'}
                         </td>
@@ -2483,3 +2459,4 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 };
 
 export default CollectorCommission;
+

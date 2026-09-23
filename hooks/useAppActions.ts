@@ -414,16 +414,7 @@ export const useAppActions = (
 
     const branchId = internalGetBranchId(state.currentUser);
     
-    let isWatched = false;
-    try {
-      const savedWatch = localStorage.getItem('anexo_watchMode_collectors');
-      if (savedWatch) {
-        const parsedWatch = JSON.parse(savedWatch);
-        if (parsedWatch[collectorId] === getShiftDate(state.settings.country)) {
-          isWatched = true;
-        }
-      }
-    } catch (e) {}
+
 
 
 
@@ -943,3 +934,4 @@ export const useAppActions = (
     deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport
   };
 };
+
