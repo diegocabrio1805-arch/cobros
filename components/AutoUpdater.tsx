@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const AutoUpdater: React.FC = () => {
@@ -55,3 +55,4 @@ const AutoUpdater: React.FC = () => {
 };
 
 export default AutoUpdater;
+

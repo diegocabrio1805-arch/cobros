@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client, Loan, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -1151,3 +1151,5 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 };
 
 export default CollectionRoute;
+
+
