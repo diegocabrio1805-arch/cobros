@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem, IsolatedExpense } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -757,11 +757,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         try {
                             const { data: { session: currentSession } } = await supabase.auth.getSession();
                             if (currentSession) {
-                                const bId = (currentSession.user as any).user_metadata?.branchId || currentSession.user.id;
-                                await withTimeout(supabase.from('deleted_items').insert({
-                                    table_name: table, record_id: item.data.id, branch_id: bId,
-                                    deleted_at: new Date().toISOString()
-                                }), 15000).catch(e => console.warn('Ignored deleted_items insert error:', e));
+                                // AUDIT FIX: Se eliminó la inserción manual a 'deleted_items' aquí.
+                                // Ahora se delega 100% al Trigger SQL en Postgres (Zero-Trust).
                             }
                             
                             // Auto-heal para DELETE: Si el ID no es un UUID válido, nunca pudo haber existido en Supabase.
@@ -1040,3 +1037,5 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
+

@@ -1,4 +1,4 @@
-import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
+﻿import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID, getShiftDate } from '../utils/helpers';
@@ -941,6 +941,7 @@ export const useAppActions = (
     deleteRemoteClientAction, renewLoan, checkAndPurgeExpiredCollectors, undoLastBulkImport
   };
 };
+
 
 
 
