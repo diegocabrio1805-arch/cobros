@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem, IsolatedExpense } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -1057,6 +1057,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
+
 
 
 
