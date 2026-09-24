@@ -373,7 +373,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 return { data: allData, error: null };
             };
 
-            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance, raw_data').order('updated_at', { ascending: true });
+            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance').order('updated_at', { ascending: true });
             let loansQuery = supabase.from('loans').select('*').order('updated_at', { ascending: true });
             let paymentsQuery = supabase.from('payments').select('*').order('updated_at', { ascending: true });
             let logsQuery = supabase.from('collection_logs').select('*').order('updated_at', { ascending: true });
@@ -1037,6 +1037,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
 
 
 
