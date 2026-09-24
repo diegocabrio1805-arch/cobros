@@ -446,7 +446,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const dailyLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
         const logDate = new Date(log.date);
         const isSameDay = logDate.toDateString() === currentDay.toDateString();
-        const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+        const logCollectorId = (log as any).recordedBy || (log as any).recorded_by || log.collectorId;
         const matchesUser = targetUserIds.includes('all') ? true : targetUserIds.includes(logCollectorId);
         return isSameDay && matchesUser && !log.isOpening;
       });
@@ -469,7 +469,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     }
 
     const logsHoy = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
-      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      const logCollectorId = (log as any).recordedBy || (log as any).recorded_by || log.collectorId;
       const matchesUser = targetUserIds.includes('all') ? true : targetUserIds.includes(logCollectorId);
       return matchesUser && new Date(log.date).toDateString() === new Date().toDateString() && !log.isOpening;
     });
@@ -512,7 +512,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       if (log.isOpening || log.deletedAt) return false;
       const logDate = new Date(log.date);
       if (logDate < startOfLimitWeek || logDate > endRange) return false;
-      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      const logCollectorId = (log as any).recordedBy || (log as any).recorded_by || log.collectorId;
       return logCollectorId === showCollectorHistoryId;
     });
 
@@ -741,7 +741,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       // 3. Range & User Filters
       const d = new Date(log.date);
       if (!(d >= start && d <= end)) return false;
-      const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
+      const logCollectorId = (log as any).recordedBy || (log as any).recorded_by || log.collectorId;
       if (!selectedHistoricalRoutes.includes('all') && !selectedHistoricalRoutes.includes(logCollectorId)) return false;
 
       // 4. Type Filters (multi-selección)
