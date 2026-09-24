@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem, IsolatedExpense } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -454,20 +454,40 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (fullSync) await new Promise(r => setTimeout(r, 200));
             
             // LOTE 3: Registros Transaccionales (Pagos y Logs)
-            const [paymentsResult, logsResult] = await Promise.all([
-                fetchAll(paymentsQuery.abortSignal(controller.signal)),
-                fetchAll(logsQuery.abortSignal(controller.signal))
-            ]);
+            let paymentsResult: any[] = [];
+            let logsResult: any[] = [];
+            try {
+                const [pRes, lRes] = await Promise.all([
+                    fetchAll(paymentsQuery.abortSignal(controller.signal)),
+                    fetchAll(logsQuery.abortSignal(controller.signal))
+                ]);
+                paymentsResult = pRes;
+                logsResult = lRes;
+            } catch (err) {
+                console.warn('[Sync] Fallo no crítico en Lote 3 por Timeout de Supabase. Ignorando.', err);
+            }
 
             if (fullSync) await new Promise(r => setTimeout(r, 150));
 
             // LOTE 4: Gastos y Eliminados
-            const [expensesResult, isolatedExpensesResult, deletedResult, simulatedOrdersResult] = await Promise.all([
-                fetchAll(expensesQuery.abortSignal(controller.signal)),
-                fetchAll(isolatedExpensesQuery.abortSignal(controller.signal)),
-                fetchAll(deletedItemsQuery.abortSignal(controller.signal)),
-                fetchAll(simulatedOrdersQuery.abortSignal(controller.signal))
-            ]);
+            let expensesResult: any[] = [];
+            let isolatedExpensesResult: any[] = [];
+            let deletedResult: any[] = [];
+            let simulatedOrdersResult: any[] = [];
+            try {
+                const [eRes, iRes, dRes, sRes] = await Promise.all([
+                    fetchAll(expensesQuery.abortSignal(controller.signal)),
+                    fetchAll(isolatedExpensesQuery.abortSignal(controller.signal)),
+                    fetchAll(deletedItemsQuery.abortSignal(controller.signal)),
+                    fetchAll(simulatedOrdersQuery.abortSignal(controller.signal))
+                ]);
+                expensesResult = eRes;
+                isolatedExpensesResult = iRes;
+                deletedResult = dRes;
+                simulatedOrdersResult = sRes;
+            } catch (err) {
+                console.warn('[Sync] Fallo no crítico en Lote 4 por Timeout de Supabase. Ignorando.', err);
+            }
 
             // AUDIT FIX: Query de PAGO_ELIMINADO aislada con try-catch propio.
             // Si falla (RLS, timeout, red), retorna array vacío sin crashear el sync.
@@ -1037,6 +1057,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
 
 
 

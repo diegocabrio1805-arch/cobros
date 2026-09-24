@@ -142,7 +142,8 @@ const App: React.FC = () => {
     
     // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
     // isSecondaryLoading protege este bloque durante la Fase 2 del arranque (evita Full Sync falso)
-    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
+    const visibleCount = state.clients.filter(c => c.isActive !== false && !c.deletedAt).length;
+      if (state.currentUser && visibleCount === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
       hasAttemptedInitialSyncRef.current = true;
       console.log("[App] No data found. Triggering initial full sync...");
       const timer = setTimeout(() => {
@@ -518,5 +519,6 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
