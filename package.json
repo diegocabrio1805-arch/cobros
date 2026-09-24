@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "anexo-cobro",
   "private": true,
-  "version": "6.9.8",
+  "version": "6.9.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -64,3 +64,4 @@
     "vite-plugin-pwa": "^0.21.1"
   }
 }
+

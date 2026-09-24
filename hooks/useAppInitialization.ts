@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { AppState, User, Role, CollectionLogType, CollectionLog } from '../types';
 import { StorageService } from '../utils/localforageStorage';
 import { resolveSettings } from '../utils/settingsHierarchy';
 
-export const CURRENT_VERSION_ID = '6.9.8-STABLE';
+export const CURRENT_VERSION_ID = '6.9.9-STABLE';
 export const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 export const useAppInitialization = () => {
@@ -283,3 +283,4 @@ export const useAppInitialization = () => {
     resolvedSettings
   };
 };
+
