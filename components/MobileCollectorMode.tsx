@@ -83,7 +83,15 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
     const s = searchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     const result = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden || c.deletedAt) return false;
-      // YA NO FILTRAMOS POR PRÉSTAMO ACTIVO PARA MOSTRAR TODA LA CARTERA
+      
+      // FIX: Filtrar solo préstamos activos o en mora (Ocultar cancelados de la Ruta)
+      const loan = activeClientsMap[c.id];
+      if (!loan || (loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT)) return false;
+      
+      // FIX: Asegurar que el saldo local sea mayor a 0 para seguir apareciendo en la Ruta
+      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+      const balance = Math.max(0, loan.totalAmount - totalPaid);
+      if (balance <= 0.01) return false;
 
       if (s) {
         const nameNorm = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -94,7 +102,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
     }).sort((a,b) => a.name.localeCompare(b.name));
     
     return result;
-  }, [state.clients, searchTerm]);
+  }, [state.clients, searchTerm, activeClientsMap, state.collectionLogs]);
 
   // Reset pagination when search changes
   useEffect(() => {
@@ -526,8 +534,9 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
           {paginatedClients.map(client => {
             const loan = activeClientsMap[client.id];
             
-            // CORRECCIÓN DE SALDO: Usar el balance directo del servidor para máxima precisión
-            const balance = loan ? (loan.balance !== undefined ? loan.balance : Math.max(0, loan.totalAmount - (loan.totalPaid || 0))) : 0;
+            // FIX: Calcular saldo localmente basándose en los pagos reales del teléfono (Igual que en Cartera)
+            const totalPaidForLoan = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs) : 0;
+            const balance = loan ? Math.max(0, loan.totalAmount - totalPaidForLoan) : 0;
             
             const isSelected = selectedClient === client.id;
 

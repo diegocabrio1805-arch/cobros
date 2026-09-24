@@ -210,6 +210,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   const [selectedHistoricalRoutes, setSelectedHistoricalRoutes] = useState<string[]>(isPowerUser ? ['all'] : [currentUserId || '']);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // FIX: Asegurar que la ruta seleccionada se actualice si currentUserId llega con retraso
+  useEffect(() => {
+    if (!isPowerUser && currentUserId && selectedHistoricalRoutes.length === 1 && selectedHistoricalRoutes[0] === '') {
+      setSelectedHistoricalRoutes([currentUserId]);
+    }
+  }, [currentUserId, isPowerUser, selectedHistoricalRoutes]);
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
   const [showBracketModal, setShowBracketModal] = useState(false);
 
