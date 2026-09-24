@@ -367,7 +367,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         }
                      }
                     // Yielding the main thread to allow UI updates (Android paint)
-                    await new Promise(r => setTimeout(r, 60)); 
+                    await new Promise(r => setTimeout(r, 10)); 
                     if (page > 300) break; // Límite de seguridad ampliado
                 }
                 return { data: allData, error: null };
@@ -445,7 +445,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             ]);
             
             // Pequeña pausa en FullSync para liberar el hilo principal del celular
-            if (fullSync) await new Promise(r => setTimeout(r, 200));
+            if (fullSync) await new Promise(r => setTimeout(r, 50));
             
             // LOTE 2: Tablas Pesadas (Clientes y Préstamos)
             const [clientsResult, loansResult] = await Promise.all([
@@ -453,7 +453,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 fetchAll(loansQuery.abortSignal(controller.signal))
             ]);
             
-            if (fullSync) await new Promise(r => setTimeout(r, 200));
+            if (fullSync) await new Promise(r => setTimeout(r, 50));
             
             // LOTE 3: Registros Transaccionales (Pagos y Logs)
             let paymentsResult: any[] = [];
@@ -469,7 +469,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 console.warn('[Sync] Fallo no crítico en Lote 3 por Timeout de Supabase. Ignorando.', err);
             }
 
-            if (fullSync) await new Promise(r => setTimeout(r, 150));
+            if (fullSync) await new Promise(r => setTimeout(r, 50));
 
             // LOTE 4: Gastos y Eliminados
             let expensesResult: any[] = [];
@@ -1060,6 +1060,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
 
 
 
