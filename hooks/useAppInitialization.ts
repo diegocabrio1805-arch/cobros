@@ -122,7 +122,20 @@ export const useAppInitialization = () => {
           ]);
         };
 
-        // 2. LEER STORAGE (con timeout de seguridad)
+        // 1.5. FASE B: INYECCIÓN DE TENANT (Multi-Tenant Offline Cache)
+        let tenantId = '';
+        try {
+          const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+          if (value) {
+            const parsedNative = JSON.parse(value);
+            if (parsedNative && parsedNative.id) {
+              tenantId = parsedNative.id;
+              StorageService.setTenantId(tenantId);
+            }
+          }
+        } catch(e) {}
+
+        // 2. LEER STORAGE (con timeout de seguridad) - Ahora leerá automáticamente con prefijo si hay un tenant
         let rawData: any = await withTimeout(
           StorageService.getItem<AppState>('prestamaster_v2'),
           2500,

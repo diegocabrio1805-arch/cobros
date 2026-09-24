@@ -1,8 +1,9 @@
-﻿import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
+import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID, getShiftDate } from '../utils/helpers';
 import { connectToPrinter } from '../services/bluetoothPrinterService';
+import { StorageService } from '../utils/localforageStorage';
 import React from 'react';
 export const useAppActions = (
   state: AppState,
@@ -16,6 +17,9 @@ export const useAppActions = (
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
     const normalizedUser = { ...user, role: normalizedRole };
     
+    // FASE B: Setear el Tenant en el Storage INMEDIATAMENTE
+    StorageService.setTenantId(normalizedUser.id);
+
     // GUARDAR PREFERENCES INMEDIATAMENTE PARA EVITAR QUE INITIAL_SESSION LO KICKEE
     // Esto previene que en modo local (React Strict Mode) se cierre la sesión instantáneamente
     Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(normalizedUser) }).catch(console.error);
@@ -23,6 +27,11 @@ export const useAppActions = (
     setState(prev => ({ ...prev, currentUser: normalizedUser }));
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
     
+    // FASE D: Limpiar basuras de forma asíncrona no bloqueante
+    setTimeout(() => {
+      StorageService.cleanupOldTenants([normalizedUser.id]);
+    }, 5000);
+
     setTimeout(() => {
       pullData(false).then((newData: any) => {
         if (newData) handleRealtimeData(newData);
@@ -50,21 +59,11 @@ export const useAppActions = (
       console.warn("[AppSec] Error validando syncQueue durante logout", e);
     }
 
-    // A04 OWASP: Deep Purge - Destruir cualquier rastro del historial y credenciales offline
-    setState((prev: AppState) => ({ ...prev, currentUser: null }));
+    // A04 OWASP: Logout Limpio (Multi-Tenant Offline Cache)
+    setState((prev: AppState) => ({ ...prev, currentUser: null, clients: [], loans: [], payments: [], expenses: [], isolatedExpenses: [], collectionLogs: [] }));
     try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
+    StorageService.setTenantId(''); // Limpiar el tenant local en memoria RAM
     
-    try {
-      const savedPrinter = localStorage.getItem('saved_printer_address');
-      localStorage.clear(); // Limpia caché local
-      if (savedPrinter) localStorage.setItem('saved_printer_address', savedPrinter);
-      
-      const localforage = (await import('localforage')).default;
-      await localforage.clear(); // Destruye base de datos offline (IndexedDB)
-    } catch(e) {
-      console.warn("[AppSec] Error durante purga profunda de sesión", e);
-    }
-
     if (navigator.onLine) {
       try { await supabase.auth.signOut(); } catch(e){}
     }
