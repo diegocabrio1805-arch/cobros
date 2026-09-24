@@ -44,9 +44,30 @@ export const useAppActions = (
 
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
     
-    // FASE D: Limpiar basuras de forma asíncrona no bloqueante
+    // FASE D: Limpiar basuras de forma asíncrona no bloqueante (Conservando a los últimos 5)
     setTimeout(() => {
-      StorageService.cleanupOldTenants([normalizedUser.id]);
+      try {
+        let recentTenants: string[] = [];
+        const savedTenants = localStorage.getItem('recent_tenants');
+        if (savedTenants) {
+          recentTenants = JSON.parse(savedTenants);
+        }
+        
+        // Evitar duplicados y mover al usuario actual al frente
+        recentTenants = recentTenants.filter(id => id !== normalizedUser.id);
+        recentTenants.unshift(normalizedUser.id);
+        
+        // Conservar solo los 5 más recientes
+        if (recentTenants.length > 5) {
+          recentTenants = recentTenants.slice(0, 5);
+        }
+        
+        localStorage.setItem('recent_tenants', JSON.stringify(recentTenants));
+        StorageService.cleanupOldTenants(recentTenants);
+      } catch (e) {
+        console.warn("Error actualizando recent_tenants", e);
+        StorageService.cleanupOldTenants([normalizedUser.id]);
+      }
     }, 5000);
 
     setTimeout(() => {
