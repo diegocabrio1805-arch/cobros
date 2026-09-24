@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { supabase } from './utils/supabaseClient';
@@ -150,7 +150,7 @@ const App: React.FC = () => {
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [handleForceSync, state.currentUser?.id, state.clients.length, isSyncing, isFullSyncing, isInitializing]);
+  }, [handleForceSync, state.currentUser?.id, state.clients.length, isSyncing, isFullSyncing, isInitializing, isSecondaryLoading]);
 
   // BACKGROUND CHUNK PRE-LOADING (Task 2)
   // Precarga los chunks más pesados en segundo plano para que el cambio de pestaña sea instantáneo
@@ -518,3 +518,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
