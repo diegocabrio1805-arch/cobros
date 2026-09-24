@@ -13,7 +13,7 @@ export const useAppActions = (
 ) => {
   const { pullData, handleRealtimeData, pushUser, pushSettings, handleForceSync, pushClient, pushLoan, deleteRemoteLoan, pushLog, pushPayment, pushBulk, deleteRemoteLog, deleteRemotePayment, deleteRemoteClient, addToQueue, addToQueueBulk, pushRenewal, immediateSave } = sync;
 
-  const handleLogin = (user: User) => {
+  const handleLogin = async (user: User) => {
     const normalizedRole = (user.role as string).toLowerCase() === 'admin' ? Role.ADMIN : user.role;
     const normalizedUser = { ...user, role: normalizedRole };
     
@@ -24,7 +24,24 @@ export const useAppActions = (
     // Esto previene que en modo local (React Strict Mode) se cierre la sesión instantáneamente
     Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(normalizedUser) }).catch(console.error);
 
-    setState(prev => ({ ...prev, currentUser: normalizedUser }));
+    // FASE E: Cargar la caché local del usuario ANTES de mostrar la pantalla vacía
+    const localData = await StorageService.getItem<AppState>('prestamaster_v2');
+    if (localData) {
+        setState(prev => ({
+            ...prev,
+            currentUser: normalizedUser,
+            clients: localData.clients || [],
+            loans: localData.loans || [],
+            payments: localData.payments || [],
+            expenses: localData.expenses || [],
+            isolatedExpenses: localData.isolatedExpenses || [],
+            collectionLogs: localData.collectionLogs || [],
+            simulatedOrders: localData.simulatedOrders || []
+        }));
+    } else {
+        setState(prev => ({ ...prev, currentUser: normalizedUser }));
+    }
+
     setActiveTab(normalizedRole === Role.COLLECTOR ? 'route' : 'dashboard');
     
     // FASE D: Limpiar basuras de forma asíncrona no bloqueante
@@ -47,9 +64,14 @@ export const useAppActions = (
   const handleLogout = async () => {
     // A04 OWASP: Logout Shield - Prevenir fuga de datos y pérdida de dinero
     try {
-      const syncQueueData = localStorage.getItem('syncQueue');
+      const localforage = (await import('localforage')).default;
+      let syncQueueData = await localforage.getItem<string>('syncQueue'); // FIX: Leer de localforage, no de localStorage
+      if (!syncQueueData) {
+         // Fallback por si acaso quedó algo en localStorage
+         syncQueueData = localStorage.getItem('syncQueue');
+      }
       if (syncQueueData) {
-        const queue = JSON.parse(syncQueueData);
+        const queue = typeof syncQueueData === 'string' ? JSON.parse(syncQueueData) : syncQueueData;
         if (Array.isArray(queue) && queue.length > 0) {
           alert("🛑 ALERTA DE SEGURIDAD 🛑\n\nNo puedes cerrar sesión. Tienes cobros o pedidos sin subir al servidor. Conéctate a internet y espera a que sincronice primero para evitar pérdida de dinero.");
           return; // Aborta el logout
@@ -60,7 +82,18 @@ export const useAppActions = (
     }
 
     // A04 OWASP: Logout Limpio (Multi-Tenant Offline Cache)
-    setState((prev: AppState) => ({ ...prev, currentUser: null, clients: [], loans: [], payments: [], expenses: [], isolatedExpenses: [], collectionLogs: [] }));
+    setState((prev: AppState) => ({ 
+      ...prev, 
+      currentUser: null, 
+      clients: [], 
+      loans: [], 
+      payments: [], 
+      expenses: [], 
+      isolatedExpenses: [], 
+      collectionLogs: [],
+      simulatedOrders: [], // AÑADIDO
+      branchSettings: {} // AÑADIDO
+    }));
     try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
     StorageService.setTenantId(''); // Limpiar el tenant local en memoria RAM
     
