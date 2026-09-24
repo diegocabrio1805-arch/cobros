@@ -224,9 +224,9 @@ export const useAppSyncEngine = (
 
   useEffect(() => {
     (window as any)._triggerDeepBackfill = () => {
-      runDeepBackfill(sync.supabase, (data) => handleDataUpdated(data, false));
+      runDeepBackfill(sync.supabase, (data) => handleRealtimeData(data, false));
     };
-  }, [sync.supabase, handleDataUpdated]);
+  }, [sync.supabase, handleRealtimeData]);
   
   const handleForceSync = useCallback(async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
     if (!silent) setSuccessMessage(message);
@@ -648,6 +648,7 @@ c.isActive !== false;
     immediateSave
   };
 };
+
 
 
 
