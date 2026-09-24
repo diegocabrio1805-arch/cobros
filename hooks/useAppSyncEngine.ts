@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
 import { useSync } from './useSync';
+import { runDeepBackfill } from '../utils/deepBackfill';
 import { supabase } from '../utils/supabaseClient';
 import { StorageService } from '../utils/localforageStorage';
 import localforage from 'localforage';
@@ -220,6 +221,12 @@ export const useAppSyncEngine = (
   };
 
   const { setSuccessMessage, forceFullSync, processQueue, pullData } = sync;
+
+  useEffect(() => {
+    (window as any)._triggerDeepBackfill = () => {
+      runDeepBackfill(sync.supabase, (data) => handleDataUpdated(data, false));
+    };
+  }, [sync.supabase, handleDataUpdated]);
   
   const handleForceSync = useCallback(async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
     if (!silent) setSuccessMessage(message);
@@ -641,4 +648,6 @@ c.isActive !== false;
     immediateSave
   };
 };
+
+
 

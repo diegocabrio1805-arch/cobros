@@ -424,6 +424,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // Solo cargar lo de los últimos 7 días para evitar colapsos por exceso de datos
                 const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', sevenDaysAgo);
+
+                // FASE 1: Limitar pagos a 60 días para la carga rápida inicial
+                const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+                paymentsQuery = paymentsQuery.gte('updated_at', sixtyDaysAgo);
+                logsQuery = logsQuery.gte('updated_at', sixtyDaysAgo);
             }
 
             // PARALLEL FETCH HYBRID: Agrupado por lotes para no ahogar el procesador en gama baja ni la red 3G
@@ -583,6 +588,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             // Yield thread before heavy React re-render
             await new Promise(r => setTimeout(r, 50));
             if (onDataUpdated) onDataUpdated(result, fullSync);
+            
+            // FASE 2: Descarga de historial profundo silencioso
+            if (fullSync) {
+                setTimeout(() => {
+                    if ((window as any)._triggerDeepBackfill) (window as any)._triggerDeepBackfill();
+                }, 15000); // 15s después de liberar UI
+            }
+            
             return result;
         } catch (err: any) {
             const errString = String(err?.message || err?.error || err).toLowerCase();
@@ -1057,6 +1070,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         deleteRemoteClient, fetchClientPhotos, supabase, queueLength, addToQueue, addToQueueBulk, lastErrors, setLastErrors
     };
 };
+
 
 
 
