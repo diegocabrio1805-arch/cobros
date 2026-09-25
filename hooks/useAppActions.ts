@@ -103,6 +103,9 @@ export const useAppActions = (
     }
 
     // A04 OWASP: Logout Limpio (Multi-Tenant Offline Cache)
+    if (sync?.cancelPendingSave) {
+      sync.cancelPendingSave();
+    }
     setState((prev: AppState) => ({ 
       ...prev, 
       currentUser: null, 

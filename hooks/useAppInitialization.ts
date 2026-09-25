@@ -239,7 +239,11 @@ export const useAppInitialization = () => {
             const parsedClients = Array.isArray(rawData?.clients) ? rawData.clients : [];
             if (parsedClients.length === 0) {
               console.log('[Auto-Curación] IDB cargado pero sin clientes. Borrando timestamps de sync para Full Sync.');
-              const syncKeys = ['last_sync_timestamp_ms', 'last_sync_timestamp_v8'];
+              const syncKeys = [
+                'last_sync_timestamp_ms', 'last_sync_timestamp_v8',
+                StorageService.getSyncKey('last_sync_timestamp_ms'),
+                StorageService.getSyncKey('last_sync_timestamp_v8')
+              ];
               syncKeys.forEach(k => localStorage.removeItem(k));
             }
 

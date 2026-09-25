@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus, SimulatedOrder } from '../types';
 import { useSync } from './useSync';
 import { supabase } from '../utils/supabaseClient';
@@ -238,16 +238,26 @@ export const useAppSyncEngine = (
 
   const saveTimeoutRef = useRef<any>(null);
 
+  const cancelPendingSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (isInitializing) return;
     
     // DEBOUNCE: Agrupar múltiples actualizaciones rápidas en un solo guardado
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     
+    // CRITICAL MULTI-TENANT GUARD: Nunca guardar estado local si el usuario es null (ej. logout en proceso)
+    if (!state.currentUser) return;
+
     saveTimeoutRef.current = setTimeout(() => {
       try {
-        StorageService.setItem('prestamaster_v2', state);
         if (state.currentUser) {
+          StorageService.setItem('prestamaster_v2', state);
           Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
         }
       } catch (e) {
@@ -385,13 +395,16 @@ export const useAppSyncEngine = (
     const healthCheckInterval = setInterval(() => {
         // Si no hubo sync reciente, descargar datos frescos para compensar posibles
         // caídas de la conexión Realtime
-        const lastSyncMs = parseInt(localStorage.getItem('last_sync_timestamp_ms') || '0', 10);
+        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
+        const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
+        const lastSyncMs = parseInt(localStorage.getItem(syncKeyMs) || '0', 10);
         const msSinceLastSync = Date.now() - lastSyncMs;
 
         // DEEP-SYNC AUTOMÁTICO: Cada hora, borrar timestamps para forzar
         // una revisión amplia (como la Opción 4, pero silenciosa y sin borrar nada).
         // Cubre el caso donde un pago quedó justo fuera del margen de delta-sync.
-        const lastDeepSyncMs = parseInt(localStorage.getItem('last_deep_sync_ms') || '0', 10);
+        const deepSyncKey = StorageService.getSyncKey('last_deep_sync_ms');
+        const lastDeepSyncMs = parseInt(localStorage.getItem(deepSyncKey) || '0', 10);
         const msSinceDeepSync = Date.now() - lastDeepSyncMs;
         const shouldDeepSync = msSinceDeepSync > 3600000; // cada 1 hora
 
@@ -401,11 +414,11 @@ export const useAppSyncEngine = (
         if ((shouldDeepSync || isTenthCycle) && !sync.isSyncing && sync.isOnline) {
             console.log('[AutoRepair] Ejecutando deep-sync silencioso. Ciclo:', syncCycleCount);
             const keys = [
-                'last_sync_timestamp_ms',
-                'last_sync_timestamp_v8',
+                syncKeyMs,
+                syncKeyV8,
             ];
             keys.forEach(k => localStorage.removeItem(k));
-            localStorage.setItem('last_deep_sync_ms', Date.now().toString());
+            localStorage.setItem(deepSyncKey, Date.now().toString());
             sync.pullData(false);
             return;
         }
@@ -640,7 +653,8 @@ c.isActive !== false;
     pushRenewal: sync.pushRenewal,
     filteredState,
     getBranchId,
-    immediateSave
+    immediateSave,
+    cancelPendingSave
   };
 };
 

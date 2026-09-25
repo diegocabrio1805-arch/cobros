@@ -18,9 +18,13 @@ export const StorageService = {
 
     _getPrefixedKey(key: string): string {
         // Ignoramos el prefijo para la syncQueue y offline_session para evitar que se pierdan datos si el usuario no tiene prefix seteado aún
-        if (key === 'syncQueue' || key === 'NATIVE_CURRENT_USER') {
+        if (key === 'syncQueue' || key === 'failedSyncItems' || key === 'NATIVE_CURRENT_USER') {
             return key; 
         }
+        return `${currentPrefix}${key}`;
+    },
+
+    getSyncKey(key: string): string {
         return `${currentPrefix}${key}`;
     },
 
@@ -65,9 +69,9 @@ export const StorageService = {
             const keys = await localforage.keys();
             for (const k of keys) {
                 // Si la llave no es syncQueue y tiene un prefijo que no está en la lista de activos
-                if (k !== 'syncQueue' && k !== 'NATIVE_CURRENT_USER') {
+                if (k !== 'syncQueue' && k !== 'failedSyncItems' && k !== 'NATIVE_CURRENT_USER') {
                     const prefixMatch = k.split('_')[0];
-                    if (prefixMatch && prefixMatch.length > 10 && !activeTenantIds.includes(prefixMatch)) {
+                    if (prefixMatch && prefixMatch.length >= 32 && !activeTenantIds.includes(prefixMatch)) {
                         await localforage.removeItem(k);
                     }
                 }

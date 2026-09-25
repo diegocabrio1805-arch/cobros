@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { supabase } from './utils/supabaseClient';
@@ -134,6 +134,7 @@ const App: React.FC = () => {
 
 
   const hasAttemptedInitialSyncRef = useRef(false);
+  const lastSyncedUserIdRef = useRef<string | null>(null);
 
   // GLOBAL EXPOSURE: For legacy handleSync alias support
   useEffect(() => {
@@ -142,6 +143,11 @@ const App: React.FC = () => {
     
     // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
     // isSecondaryLoading protege este bloque durante la Fase 2 del arranque (evita Full Sync falso)
+    if (state.currentUser?.id !== lastSyncedUserIdRef.current) {
+      lastSyncedUserIdRef.current = state.currentUser?.id || null;
+      hasAttemptedInitialSyncRef.current = false;
+    }
+
     const visibleCount = state.clients.filter(c => c.isActive !== false && !c.deletedAt).length;
       if (state.currentUser && visibleCount === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
       hasAttemptedInitialSyncRef.current = true;
