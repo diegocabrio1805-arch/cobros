@@ -5,6 +5,7 @@ import { StorageService } from '../utils/localforageStorage';
 import localforage from 'localforage';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
+import { Preferences } from '@capacitor/preferences';
 import { generateUUID } from '../utils/helpers';
 import { BackgroundTask } from '@capawesome/capacitor-background-task';
 
@@ -395,12 +396,25 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 return { data: allData, error: null };
             };
 
-            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance').order('updated_at', { ascending: true });
-            let loansQuery = supabase.from('loans').select('*').order('updated_at', { ascending: true });
-            let paymentsQuery = supabase.from('payments').select('*').order('updated_at', { ascending: true });
-            let logsQuery = supabase.from('collection_logs').select('*').order('updated_at', { ascending: true });
+            const currentUserStr = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+            let currentUser: any = null;
+            if (currentUserStr.value) {
+                currentUser = JSON.parse(currentUserStr.value);
+            }
+
+            let clientsQuery: any = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance').order('updated_at', { ascending: true });
+            let loansQuery: any = supabase.from('loans').select('*').order('updated_at', { ascending: true });
+            let paymentsQuery: any = supabase.from('payments').select('*').order('updated_at', { ascending: true });
+            let logsQuery: any = supabase.from('collection_logs').select('*').order('updated_at', { ascending: true });
             let profilesQuery = supabase.from('profiles').select('*').order('updated_at', { ascending: true });
             let settingsQuery = supabase.from('branch_settings').select('*').order('updated_at', { ascending: true });
+
+            if (currentUser && currentUser.role === 'Cobrador') {
+                clientsQuery = supabase.rpc('get_collector_clients', { p_collector_id: currentUser.id }).select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance').order('updated_at', { ascending: true });
+                loansQuery = supabase.rpc('get_collector_loans', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
+                paymentsQuery = supabase.rpc('get_collector_payments', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
+                logsQuery = supabase.rpc('get_collector_logs', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
+            }
             let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
             let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
