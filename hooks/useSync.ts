@@ -466,8 +466,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let settingsResult: any = { data: [] };
             let profilesResult: any = { data: [] };
             try {
-                settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal), 'settings');
-                profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal), 'profiles');
+                const [sRes, pRes] = await Promise.all([
+                    fetchAll(settingsQuery.abortSignal(controller.signal), 'settings'),
+                    fetchAll(profilesQuery.abortSignal(controller.signal), 'profiles')
+                ]);
+                settingsResult = sRes;
+                profilesResult = pRes;
             } catch (err) {
                 console.error('[Sync] Lote 1 falló:', err);
                 throw err;
@@ -479,8 +483,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let clientsResult: any = { data: [] };
             let loansResult: any = { data: [] };
             try {
-                clientsResult = await fetchAll(clientsQuery.abortSignal(controller.signal), 'clients');
-                loansResult = await fetchAll(loansQuery.abortSignal(controller.signal), 'loans');
+                const [cRes, lRes] = await Promise.all([
+                    fetchAll(clientsQuery.abortSignal(controller.signal), 'clients'),
+                    fetchAll(loansQuery.abortSignal(controller.signal), 'loans')
+                ]);
+                clientsResult = cRes;
+                loansResult = lRes;
             } catch (err) {
                 console.error('[Sync] Lote 2 falló:', err);
                 throw err;
@@ -488,16 +496,19 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             
             if (fullSync) await new Promise(r => setTimeout(r, 50));
             
-            // LOTE 3: Registros Transaccionales (Pagos y Logs)
+            // LOTE 3: Registros Transaccionales (Pagos y Logs) - Parallel but slightly chunked
             let paymentsResult: any = { data: [], error: null };
             let logsResult: any = { data: [], error: null };
             try {
-                paymentsResult = await fetchAll(paymentsQuery.abortSignal(controller.signal), 'payments');
-                if (fullSync) await new Promise(r => setTimeout(r, 50));
-                logsResult = await fetchAll(logsQuery.abortSignal(controller.signal), 'logs');
+                const [payRes, logRes] = await Promise.all([
+                    fetchAll(paymentsQuery.abortSignal(controller.signal), 'payments'),
+                    fetchAll(logsQuery.abortSignal(controller.signal), 'logs')
+                ]);
+                paymentsResult = payRes;
+                logsResult = logRes;
             } catch (err) {
                 console.error('[Sync] Lote 3 falló:', err);
-                syncHasCriticalErrors = true; // Marcar como fallido para NO actualizar timestamp
+                syncHasCriticalErrors = true; 
                 if (fullSync) throw err;
             }
 
@@ -509,10 +520,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let deletedResult: any = { data: [], error: null };
             let simulatedOrdersResult: any = { data: [], error: null };
             try {
-                expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal), 'expenses');
-                isolatedExpensesResult = await fetchAll(isolatedExpensesQuery.abortSignal(controller.signal), 'isolated_expenses');
-                deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal), 'deleted_items');
-                simulatedOrdersResult = await fetchAll(simulatedOrdersQuery.abortSignal(controller.signal), 'simulated_orders');
+                const [eRes, ieRes, dRes, soRes] = await Promise.all([
+                    fetchAll(expensesQuery.abortSignal(controller.signal), 'expenses'),
+                    fetchAll(isolatedExpensesQuery.abortSignal(controller.signal), 'isolated_expenses'),
+                    fetchAll(deletedItemsQuery.abortSignal(controller.signal), 'deleted_items'),
+                    fetchAll(simulatedOrdersQuery.abortSignal(controller.signal), 'simulated_orders')
+                ]);
+                expensesResult = eRes;
+                isolatedExpensesResult = ieRes;
+                deletedResult = dRes;
+                simulatedOrdersResult = soRes;
             } catch (err) {
                 console.error('[Sync] Lote 4 falló:', err);
                 syncHasCriticalErrors = true; // Marcar como fallido para NO actualizar timestamp
