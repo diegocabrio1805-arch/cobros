@@ -2,9 +2,9 @@ name: Build Android APK + AAB (Google Play)
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, fix/multi-tenant-sync ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, fix/multi-tenant-sync ]
   workflow_dispatch:
 
 permissions:
