@@ -490,16 +490,25 @@ export const useAppSyncEngine = (
       }
     });
 
+    // Pre-calcular mapas para evitar O(n^2) en el filtro de clientes
+    const loansArray = Array.isArray(state.loans) ? state.loans : [];
+    const activeLoansMap = new Map();
+    const firstLoanMap = new Map();
+    
+    loansArray.forEach(l => {
+      const cId = l.clientId || (l as any).client_id;
+      if (!firstLoanMap.has(cId)) firstLoanMap.set(cId, l);
+      if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
+        activeLoansMap.set(cId, l);
+      }
+    });
+
     let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => {
-          const loans = Array.isArray(state.loans) ? state.loans : [];
-          const activeLoan = loans.find(l => 
-            ((l.clientId || (l as any).client_id) === c.id) && 
-            (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
-          );
+          const activeLoan = activeLoansMap.get(c.id);
           let collectorId = activeLoan ? (activeLoan.collectorId || (activeLoan as any).collector_id) : undefined;
           
           if (!collectorId) {
-             const anyLoan = loans.find(l => (l.clientId || (l as any).client_id) === c.id);
+             const anyLoan = firstLoanMap.get(c.id);
              if (anyLoan) {
                  collectorId = anyLoan.collectorId || (anyLoan as any).collector_id;
              }
