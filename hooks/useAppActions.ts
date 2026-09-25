@@ -26,6 +26,10 @@ export const useAppActions = (
 
     // FASE E: Cargar la caché local del usuario ANTES de mostrar la pantalla vacía
     const localData = await StorageService.getItem<AppState>('prestamaster_v2');
+    
+    // Determinar si la caché local tiene datos útiles (para decidir si forzamos Full Sync)
+    const hasLocalCache = localData && Array.isArray(localData.clients) && localData.clients.length > 0;
+
     if (localData) {
         setState(prev => ({
             ...prev,
@@ -71,7 +75,10 @@ export const useAppActions = (
     }, 5000);
 
     setTimeout(() => {
-      pullData(false).then((newData: any) => {
+      // SEGURIDAD: Si no hay caché local útil, forzar Full Sync explícitamente ignorando cualquier timestamp
+      const shouldFullSync = !hasLocalCache;
+      
+      pullData(shouldFullSync).then((newData: any) => {
         if (newData) handleRealtimeData(newData);
       });
     }, 500);

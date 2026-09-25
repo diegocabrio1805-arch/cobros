@@ -5,7 +5,12 @@ localforage.config({
     storeName: 'prestamaster_data',
     description: 'Datos offline de la aplicación incluyendo base64 de imagenes'
 });
+
+// Aislamiento Multi-Usuario
 let currentPrefix = '';
+
+// Claves que JAMÁS llevarán prefijo (son compartidas por todos los usuarios del dispositivo)
+const GLOBAL_KEYS = ['syncQueue', 'failedSyncItems', 'NATIVE_CURRENT_USER'];
 
 export const StorageService = {
     setTenantId(userId: string) {
@@ -17,14 +22,16 @@ export const StorageService = {
     },
 
     _getPrefixedKey(key: string): string {
-        // Ignoramos el prefijo para la syncQueue y offline_session para evitar que se pierdan datos si el usuario no tiene prefix seteado aún
-        if (key === 'syncQueue' || key === 'failedSyncItems' || key === 'NATIVE_CURRENT_USER') {
+        if (GLOBAL_KEYS.includes(key)) {
             return key; 
         }
         return `${currentPrefix}${key}`;
     },
 
     getSyncKey(key: string): string {
+        if (currentPrefix === '') {
+            console.warn(`[StorageService] Alerta: getSyncKey llamado para ${key} con tenant vacío.`);
+        }
         return `${currentPrefix}${key}`;
     },
 
@@ -44,6 +51,12 @@ export const StorageService = {
 
     async setItem(key: string, value: any): Promise<void> {
         try {
+            // BLOQUEO ESTRÍCTO DE ESCRITURAS SIN TENANT
+            if (currentPrefix === '' && !GLOBAL_KEYS.includes(key)) {
+                console.error(`[StorageService] 🛑 BLOQUEO DE SEGURIDAD: Intento de guardar '${key}' sin un tenantId activo. Operación abortada para evitar contaminación global.`);
+                return; // Cortocircuito absoluto
+            }
+
             const finalKey = this._getPrefixedKey(key);
             await localforage.setItem(finalKey, value);
         } catch (e) {
@@ -63,18 +76,35 @@ export const StorageService = {
         }
     },
 
-    // Fase D: Limpieza de basuras. Borra selectivamente llaves de usuarios viejos.
+    // Garbage Collector Blindado
     async cleanupOldTenants(activeTenantIds: string[]): Promise<void> {
         try {
             const keys = await localforage.keys();
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
             for (const k of keys) {
-                // Si la llave no es syncQueue y tiene un prefijo que no está en la lista de activos
-                if (k !== 'syncQueue' && k !== 'failedSyncItems' && k !== 'NATIVE_CURRENT_USER') {
-                    const prefixMatch = k.split('_')[0];
-                    if (prefixMatch && prefixMatch.length >= 32 && !activeTenantIds.includes(prefixMatch)) {
-                        await localforage.removeItem(k);
+                // 1. Ignorar explícitamente las claves globales
+                if (GLOBAL_KEYS.includes(k)) continue;
+
+                // 2. Extraer prefijo
+                const parts = k.split('_');
+                const possiblePrefix = parts[0];
+
+                // 3. Evaluar si es una clave huérfana de un usuario (debe coincidir con formato UUID exacto)
+                if (possiblePrefix && uuidRegex.test(possiblePrefix)) {
+                    // Si el UUID no está en la lista de activos, eliminar la caché de ESE usuario
+                    if (!activeTenantIds.includes(possiblePrefix)) {
+                        // SEGURIDAD: Solo borrar claves de inquilino conocidas, ignorar futuras
+                        const suffix = parts.slice(1).join('_');
+                        const knownSuffixes = ['prestamaster_v2', 'last_sync_timestamp_v8', 'last_sync_timestamp_ms'];
+                        
+                        if (knownSuffixes.includes(suffix)) {
+                            console.log(`[StorageService GC] Eliminando caché antigua del tenant inactivo: ${k}`);
+                            await localforage.removeItem(k);
+                        }
                     }
                 }
+                // Si la clave no tiene prefijo UUID válido (ej. viejos 'prestamaster_v2'), se IGNORA INTACTA.
             }
         } catch (e) {
             console.warn("Error durante garbage collection de localforage:", e);

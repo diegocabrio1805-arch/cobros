@@ -509,9 +509,8 @@ export const useAppSyncEngine = (
             return false;
           }
           
-          return isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, collectorId) && 
-c.isActive !== false;
-      });
+          return isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, collectorId);
+      }).map(c => c.isActive === false ? { ...c, isHidden: true } : c);
     const activeClientIds = new Set(clients.filter(c => !c.deletedAt).map(c => c.id));
 
     let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>

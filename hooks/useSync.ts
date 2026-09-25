@@ -335,8 +335,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             const lastSyncTime = localStorage.getItem(syncKeyV8);
             const PAGE_SIZE = 1000; // AUMENTADO a 1000 para minimizar latencia de red en zonas de baja cobertura
 
-            const fetchAll = async (query: any) => {
+            const fetchAll = async (query: any, tableName: string = 'unknown') => {
                 let allData: any[] = [];
+                const seenIds = new Set<string>(); // Evitar duplicados si hay inserciones concurrentes
                 let page = 0;
                 let hasMore = true;
 
@@ -350,28 +351,46 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             if (error) throw error;
 
                             if (data && data.length > 0) {
-                                allData = allData.concat(data);
-                                if (data.length < PAGE_SIZE) hasMore = false;
-                                else page++;
+                                let newItemsCount = 0;
+                                for (const item of data) {
+                                    if (item.id && !seenIds.has(item.id)) {
+                                        seenIds.add(item.id);
+                                        allData.push(item);
+                                        newItemsCount++;
+                                    } else if (!item.id) {
+                                        allData.push(item); // Fallback para tablas sin ID
+                                    }
+                                }
+                                
+                                if (data.length < PAGE_SIZE) {
+                                    hasMore = false; // Última página
+                                } else {
+                                    page++;
+                                }
                             } else {
-                                hasMore = false;
+                                hasMore = false; // Página vacía
                             }
                             success = true;
                         } catch (err: any) {
-                            // Si fue cancelado a propósito, salir inmediatamente sin error
                             if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                                hasMore = false;
-                                return { data: allData, error: null };
+                                console.warn(`[Sync] fetchAll (${tableName}) abortado pacíficamente.`);
+                                throw err; // Propagar aborto para cancelar el sync general
                             }
 
                             attempts++;
-                            if (attempts >= 3) throw err;
+                            console.warn(`[Sync] fetchAll (${tableName}) error en página ${page}, intento ${attempts}/3:`, err);
+                            if (attempts >= 3) {
+                                console.error(`[Sync] fetchAll (${tableName}) falló definitivamente tras 3 intentos.`);
+                                throw err; // Propagar error para invalidar el timestamp
+                            }
                             await new Promise(r => setTimeout(r, 1000 * attempts));
                         }
                      }
-                    // Yielding the main thread to allow UI updates (Android paint)
                     await new Promise(r => setTimeout(r, 10)); 
-                    if (page > 300) break; // Límite de seguridad ampliado
+                    if (page > 300) {
+                        console.warn(`[Sync] Límite de seguridad de 300 páginas alcanzado para ${tableName}.`);
+                        break; 
+                    }
                 }
                 return { data: allData, error: null };
             };
@@ -441,29 +460,45 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             console.log(`[Sync] Starting ${fullSync ? 'Full' : 'Incremental'} data fetch (Hybrid Batched Mode)...`);
             
+            let syncHasCriticalErrors = false;
+
             // LOTE 1: Datos Base y Configuración (Rápido)
-            const settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal));
-            const profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal));
+            let settingsResult: any = { data: [] };
+            let profilesResult: any = { data: [] };
+            try {
+                settingsResult = await fetchAll(settingsQuery.abortSignal(controller.signal), 'settings');
+                profilesResult = await fetchAll(profilesQuery.abortSignal(controller.signal), 'profiles');
+            } catch (err) {
+                console.error('[Sync] Lote 1 falló:', err);
+                throw err;
+            }
             
-            // Pequeña pausa en FullSync para liberar el hilo principal del celular
             if (fullSync) await new Promise(r => setTimeout(r, 50));
             
             // LOTE 2: Tablas Pesadas (Clientes y Préstamos)
-            const clientsResult = await fetchAll(clientsQuery.abortSignal(controller.signal));
-            const loansResult = await fetchAll(loansQuery.abortSignal(controller.signal));
+            let clientsResult: any = { data: [] };
+            let loansResult: any = { data: [] };
+            try {
+                clientsResult = await fetchAll(clientsQuery.abortSignal(controller.signal), 'clients');
+                loansResult = await fetchAll(loansQuery.abortSignal(controller.signal), 'loans');
+            } catch (err) {
+                console.error('[Sync] Lote 2 falló:', err);
+                throw err;
+            }
             
             if (fullSync) await new Promise(r => setTimeout(r, 50));
             
-            // LOTE 3: Registros Transaccionales (Pagos y Logs) - SEQUENTIAL to avoid mobile network overload
+            // LOTE 3: Registros Transaccionales (Pagos y Logs)
             let paymentsResult: any = { data: [], error: null };
             let logsResult: any = { data: [], error: null };
             try {
-                paymentsResult = await fetchAll(paymentsQuery.abortSignal(controller.signal));
+                paymentsResult = await fetchAll(paymentsQuery.abortSignal(controller.signal), 'payments');
                 if (fullSync) await new Promise(r => setTimeout(r, 50));
-                logsResult = await fetchAll(logsQuery.abortSignal(controller.signal));
+                logsResult = await fetchAll(logsQuery.abortSignal(controller.signal), 'logs');
             } catch (err) {
-                console.warn('[Sync] Fallo en Lote 3 por Timeout de Supabase.', err);
-                if (fullSync) throw err; // No ignorar en fullSync para evitar falsos datos $0
+                console.error('[Sync] Lote 3 falló:', err);
+                syncHasCriticalErrors = true; // Marcar como fallido para NO actualizar timestamp
+                if (fullSync) throw err;
             }
 
             if (fullSync) await new Promise(r => setTimeout(r, 50));
@@ -474,31 +509,37 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let deletedResult: any = { data: [], error: null };
             let simulatedOrdersResult: any = { data: [], error: null };
             try {
-                expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal));
-                isolatedExpensesResult = await fetchAll(isolatedExpensesQuery.abortSignal(controller.signal));
-                deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal));
-                simulatedOrdersResult = await fetchAll(simulatedOrdersQuery.abortSignal(controller.signal));
+                expensesResult = await fetchAll(expensesQuery.abortSignal(controller.signal), 'expenses');
+                isolatedExpensesResult = await fetchAll(isolatedExpensesQuery.abortSignal(controller.signal), 'isolated_expenses');
+                deletedResult = await fetchAll(deletedItemsQuery.abortSignal(controller.signal), 'deleted_items');
+                simulatedOrdersResult = await fetchAll(simulatedOrdersQuery.abortSignal(controller.signal), 'simulated_orders');
             } catch (err) {
-                console.warn('[Sync] Fallo en Lote 4 por Timeout de Supabase.', err);
+                console.error('[Sync] Lote 4 falló:', err);
+                syncHasCriticalErrors = true; // Marcar como fallido para NO actualizar timestamp
                 if (fullSync) throw err;
             }
 
             // AUDIT FIX: Query de PAGO_ELIMINADO aislada con try-catch propio.
-            // Si falla (RLS, timeout, red), retorna array vacío sin crashear el sync.
             let deletedPaymentLogsData: any[] = [];
             try {
-                const dpRes = await withTimeout(fetchAll(deletedPaymentLogsQuery), 8000);
+                const dpRes = await withTimeout(fetchAll(deletedPaymentLogsQuery, 'deleted_payments'), 8000);
                 deletedPaymentLogsData = dpRes?.data || [];
             } catch (e) {
                 console.warn('[Sync] deletedPaymentLogs query failed (non-critical, skipping):', e);
             }
 
-            console.log('[Sync] Data fetch complete.');
+            console.log('[Sync] Data fetch complete. Errors:', syncHasCriticalErrors);
 
             if (syncTimeoutId) clearTimeout(syncTimeoutId);
 
-            localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_ms'), new Date().getTime().toString());
-            localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v8'), new Date().toISOString());
+            // SOLO GUARDAR TIMESTAMP SI LA DESCARGA FUE 100% PERFECTA
+            if (!syncHasCriticalErrors) {
+                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_ms'), new Date().getTime().toString());
+                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v8'), new Date().toISOString());
+                console.log('[Sync] Timestamps de sincronización actualizados con éxito.');
+            } else {
+                console.warn('[Sync] Omitiendo actualización de timestamps debido a errores parciales. Se reintentarán en el próximo incremental.');
+            }
 
             // Yield thread before heavy object mapping to avoid hanging the UI
             await new Promise(r => setTimeout(r, 50));
