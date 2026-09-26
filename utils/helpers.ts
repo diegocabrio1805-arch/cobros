@@ -120,7 +120,7 @@ const COUNTRY_CURRENCY: Record<string, string> = {
   'CA': '$',      // Canadá - Dólar Canadiense
   'CL': '$',      // Chile - Peso Chileno
   'CO': '$',      // Colombia - Peso Colombiano
-  'CR': '₡',      // Costa Rica - Colón
+  'CR': '₡',      // Costa Rica - Colón ✓
   'CU': '$',      // Cuba - Peso Cubano
   'DM': '$',      // Dominica - Dólar del Caribe Oriental
   'EC': '$',      // Ecuador - Dólar
@@ -135,7 +135,7 @@ const COUNTRY_CURRENCY: Record<string, string> = {
   'MX': '$',      // México - Peso Mexicano
   'NI': 'C$',     // Nicaragua - Córdoba
   'PA': '$',      // Panamá - Balboa/Dólar
-  'PY': 'Gs.',    // Paraguay - Guaraní ★
+  'PY': '₲',      // Paraguay - Guaraní ★ (símbolo oficial Unicode)
   'PE': 'S/',     // Perú - Sol
   'DO': '$',      // Rep. Dominicana - Peso Dominicano
   'KN': '$',      // San Cristóbal y Nieves - Dólar del Caribe Oriental
@@ -149,7 +149,7 @@ const COUNTRY_CURRENCY: Record<string, string> = {
 
 /**
  * Retorna el símbolo de moneda del país.
- * Ej: 'PY' → 'Gs.', 'CO' → '$', 'BR' → 'R$'
+ * Ej: 'PY' → '₲', 'CO' → '$', 'BR' → 'R$', 'CR' → '₡'
  */
 export const getCurrencyForCountry = (countryCode: string): string => {
   return COUNTRY_CURRENCY[countryCode] || '$';
