@@ -108,52 +108,65 @@ export const getCountryPhonePrefix = (countryCode: string): string => {
   return COUNTRY_PHONE_PREFIXES[countryCode] || '595';
 };
 
-// Moneda por país: símbolo que se muestra en toda la app
+// Moneda por país: símbolo oficial que se muestra en toda la app.
+// Cubre los 36 países configurados en el sistema (types.ts CountryCode + ES).
 const COUNTRY_CURRENCY: Record<string, string> = {
-  'AG': '$',      // Antigua y Barbuda - Dólar del Caribe Oriental
-  'AR': '$',      // Argentina - Peso Argentino
-  'BS': '$',      // Bahamas - Dólar Bahameño
-  'BB': '$',      // Barbados - Dólar de Barbados
-  'BZ': '$',      // Belice - Dólar de Belice
-  'BO': 'Bs.',    // Bolivia - Boliviano
-  'BR': 'R$',     // Brasil - Real
-  'CA': '$',      // Canadá - Dólar Canadiense
-  'CL': '$',      // Chile - Peso Chileno
-  'CO': '$',      // Colombia - Peso Colombiano
-  'CR': '₡',      // Costa Rica - Colón ✓
-  'CU': '$',      // Cuba - Peso Cubano
-  'DM': '$',      // Dominica - Dólar del Caribe Oriental
-  'EC': '$',      // Ecuador - Dólar
-  'SV': '$',      // El Salvador - Dólar
-  'US': '$',      // Estados Unidos - Dólar
-  'GD': '$',      // Granada - Dólar del Caribe Oriental
-  'GT': 'Q',      // Guatemala - Quetzal
-  'GY': '$',      // Guyana - Dólar Guyanés
-  'HT': 'G',      // Haití - Gourde
-  'HN': 'L',      // Honduras - Lempira
-  'JM': '$',      // Jamaica - Dólar Jamaicano
-  'MX': '$',      // México - Peso Mexicano
-  'NI': 'C$',     // Nicaragua - Córdoba
-  'PA': '$',      // Panamá - Balboa/Dólar
-  'PY': '₲',      // Paraguay - Guaraní ★ (símbolo oficial Unicode)
-  'PE': 'S/',     // Perú - Sol
-  'DO': '$',      // Rep. Dominicana - Peso Dominicano
-  'KN': '$',      // San Cristóbal y Nieves - Dólar del Caribe Oriental
-  'VC': '$',      // San Vicente y Granadinas - Dólar del Caribe Oriental
-  'LC': '$',      // Santa Lucía - Dólar del Caribe Oriental
-  'SR': '$',      // Surinam - Dólar de Surinam
-  'TT': '$',      // Trinidad y Tobago - Dólar de Trinidad
-  'UY': '$',      // Uruguay - Peso Uruguayo
-  'VE': 'Bs.',    // Venezuela - Bolívar
+  // ── SUDAMÉRICA ──────────────────────────────────────────────────────────
+  'AR': '$',      // Argentina      - Peso Argentino
+  'BO': 'Bs.',    // Bolivia        - Boliviano
+  'BR': 'R$',     // Brasil         - Real Brasileño
+  'CL': '$',      // Chile          - Peso Chileno
+  'CO': '$',      // Colombia       - Peso Colombiano
+  'EC': '$',      // Ecuador        - Dólar (dolarizado)
+  'GY': 'G$',     // Guyana         - Dólar de Guyana
+  'PY': '₲',      // Paraguay       - Guaraní ★ (Unicode U+20B2)
+  'PE': 'S/',     // Perú           - Sol Peruano
+  'SR': '$',      // Surinam        - Dólar de Surinam
+  'UY': '$',      // Uruguay        - Peso Uruguayo
+  'VE': 'Bs.',    // Venezuela      - Bolívar Venezolano
+
+  // ── CENTROAMÉRICA ────────────────────────────────────────────────────────
+  'BZ': '$',      // Belice         - Dólar de Belice
+  'CR': '₡',      // Costa Rica     - Colón Costarricense (Unicode U+20A1)
+  'SV': '$',      // El Salvador    - Dólar (dolarizado)
+  'GT': 'Q',      // Guatemala      - Quetzal
+  'HN': 'L',      // Honduras       - Lempira
+  'NI': 'C$',     // Nicaragua      - Córdoba Nicaragüense
+  'PA': '$',      // Panamá         - Balboa / Dólar (dolarizado)
+  'MX': '$',      // México         - Peso Mexicano
+
+  // ── CARIBE ───────────────────────────────────────────────────────────────
+  'AG': '$',      // Antigua y Barbuda    - Dólar del Caribe Oriental
+  'BS': '$',      // Bahamas              - Dólar Bahameño
+  'BB': '$',      // Barbados             - Dólar de Barbados
+  'CU': '$',      // Cuba                 - Peso Cubano
+  'DM': '$',      // Dominica             - Dólar del Caribe Oriental
+  'GD': '$',      // Granada              - Dólar del Caribe Oriental
+  'HT': 'G',      // Haití                - Gourde Haitiano
+  'JM': 'J$',     // Jamaica              - Dólar Jamaicano
+  'KN': '$',      // San Cristóbal y N.   - Dólar del Caribe Oriental
+  'LC': '$',      // Santa Lucía          - Dólar del Caribe Oriental
+  'DO': 'RD$',    // Rep. Dominicana      - Peso Dominicano
+  'TT': 'TT$',    // Trinidad y Tobago    - Dólar de Trinidad
+  'VC': '$',      // San Vicente y Gran.  - Dólar del Caribe Oriental
+
+  // ── NORTEAMÉRICA ─────────────────────────────────────────────────────────
+  'CA': '$',      // Canadá         - Dólar Canadiense
+  'US': '$',      // Estados Unidos - Dólar Estadounidense
+
+  // ── EUROPA ───────────────────────────────────────────────────────────────
+  'ES': '€',      // España         - Euro (Unicode U+20AC)
 };
 
 /**
- * Retorna el símbolo de moneda del país.
- * Ej: 'PY' → '₲', 'CO' → '$', 'BR' → 'R$', 'CR' → '₡'
+ * Retorna el símbolo de moneda oficial del país.
+ * Ejemplos: 'PY' → '₲', 'CO' → '$', 'BR' → 'R$', 'CR' → '₡', 'ES' → '€'
+ * Si el país no está en el mapa, retorna '$' como fallback.
  */
 export const getCurrencyForCountry = (countryCode: string): string => {
   return COUNTRY_CURRENCY[countryCode] || '$';
 };
+
 
 /**
  * Normaliza un número de teléfono al formato internacional completo (sin '+').
