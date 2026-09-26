@@ -1198,7 +1198,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
       if (exactRemainder > 0 && Math.floor(progress) < data.totalInstallments) {
         const pendingAmount = data.installmentValue - exactRemainder;
         const nextInstallmentNum = Math.floor(progress) + 1;
-        return `\n${t.receipt?.pending || 'PENDIENTE'} ${currencySymbol}${pendingAmount.toLocaleString('es-CO').replace(/,/g, '.')}  /  ${nextInstallmentNum}`;
+        return `\n${t.receipt?.pending || 'PENDIENTE'} ${currencySymbol}${pendingAmount.toLocaleString('es-CO')}  /  ${nextInstallmentNum}`;
       }
     }
     return '';
@@ -1221,8 +1221,8 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   }
 
   // Formatting for the new "MONTO, CUOTA, PLAZO" block
-  const montoStr = data.principal ? data.principal.toLocaleString('es-CO').replace(/,/g, '.') : '---';
-  const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString('es-CO').replace(/,/g, '.') : '---';
+  const montoStr = data.principal ? data.principal.toLocaleString('es-CO') : '---';
+  const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString('es-CO') : '---';
   const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
 
   const bankBlock = (bankVal && bankVal !== '---')
@@ -1242,9 +1242,9 @@ ${t.receipt?.amount || 'MONTO'}: ${montoStr}
 ${t.receipt?.installment || 'CUOTA'}: ${cuotaStr}
 ${t.receipt?.term || 'PLAZO'}: ${plazoStr}
 ===============================
-${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO').replace(/,/g, '.')}
-${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO').replace(/,/g, '.')}
-${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO').replace(/,/g, '.')}
+${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
+${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
+${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
 ${t.receipt?.paidInstallments || 'CUOTAS PAGADAS'}: ${displayedPaidInstallments}
 ${t.receipt?.totalInstallments || 'CUOTAS TOTALES'}: ${data.totalInstallments}${pendingInstallmentText()}

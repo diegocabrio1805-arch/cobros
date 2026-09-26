@@ -521,7 +521,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                 pdf.text(`${doc.dueDate || doc.date || ''}`, 65, 55);
 
                 pdf.setFont('helvetica', 'bold');
-                const formattedAmount = doc.amount?.toLocaleString('es-PY', { minimumFractionDigits: doc.currencySymbol === 'Gs.' ? 0 : 2 }).replace(/,/g, '.') || '0';
+                const formattedAmount = doc.amount?.toLocaleString('es-PY', { minimumFractionDigits: doc.currencySymbol === 'Gs.' ? 0 : 2 }) || '0';
                 pdf.text(`${doc.currencySymbol}  ${formattedAmount}.-`, 20, 68);
 
                 let bodyText = doc.legalText || DEFAULT_PAGARE_TEXT;
