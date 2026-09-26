@@ -1131,6 +1131,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   };
 
   const currencySymbol = settings.currencySymbol || '$';
+  const locale = settings.numberFormat === 'comma' ? 'en-US' : 'es-CO';
 
   // FIX: Force fallback to settings if manual overrides are empty strings or spaces
   const rawManualName = (data.companyNameManual || '').trim();
@@ -1198,7 +1199,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
       if (exactRemainder > 0 && Math.floor(progress) < data.totalInstallments) {
         const pendingAmount = data.installmentValue - exactRemainder;
         const nextInstallmentNum = Math.floor(progress) + 1;
-        return `\n${t.receipt?.pending || 'PENDIENTE'} ${currencySymbol}${pendingAmount.toLocaleString('es-CO')}  /  ${nextInstallmentNum}`;
+        return `\n${t.receipt?.pending || 'PENDIENTE'} ${currencySymbol}${pendingAmount.toLocaleString(locale)}  /  ${nextInstallmentNum}`;
       }
     }
     return '';
@@ -1221,8 +1222,8 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   }
 
   // Formatting for the new "MONTO, CUOTA, PLAZO" block
-  const montoStr = data.principal ? data.principal.toLocaleString('es-CO') : '---';
-  const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString('es-CO') : '---';
+  const montoStr = data.principal ? data.principal.toLocaleString(locale) : '---';
+  const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString(locale) : '---';
   const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
 
   const bankBlock = (bankVal && bankVal !== '---')
@@ -1242,9 +1243,9 @@ ${t.receipt?.amount || 'MONTO'}: ${montoStr}
 ${t.receipt?.installment || 'CUOTA'}: ${cuotaStr}
 ${t.receipt?.term || 'PLAZO'}: ${plazoStr}
 ===============================
-${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO')}
-${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO')}
-${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString(locale)}
+${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString(locale)}
+${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString(locale)}
 ===============================
 ${t.receipt?.paidInstallments || 'CUOTAS PAGADAS'}: ${displayedPaidInstallments}
 ${t.receipt?.totalInstallments || 'CUOTAS TOTALES'}: ${data.totalInstallments}${pendingInstallmentText()}
