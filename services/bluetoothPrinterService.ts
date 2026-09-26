@@ -325,7 +325,17 @@ export const printText = async (rawText: string, retryCount = 0): Promise<boolea
         if (chunk === '<GS2>') return bs ? bs.write(CMD_SIZE_MEDIUM) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x01]));
         if (chunk === '<GS0>') return bs ? bs.write(CMD_SIZE_NORMAL) : printerCharacteristic.writeValue(new Uint8Array([0x1D, 0x21, 0x00]));
 
-        const cleanText = chunk.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        // Filtro para impresoras térmicas:
+        // Las impresoras térmicas ESC/POS económicas no soportan Unicode y usan páginas de código limitadas.
+        // Reemplazamos los símbolos de moneda Unicode por texto plano que la impresora pueda imprimir,
+        // evitando que imprima caracteres basura como un '²' al recibir bytes UTF-8 no soportados.
+        const safeText = chunk
+            .replace(/₲/g, 'Gs.') // Guaraní
+            .replace(/₡/g, 'C.')  // Colón
+            .replace(/€/g, 'EUR') // Euro
+            .replace(/£/g, 'GBP'); // Libra
+
+        const cleanText = safeText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (isNativeConnection && bs) {
             // Optimización: Enviar chunks más grandes con menos delay
             for (let i = 0; i < cleanText.length; i += CHUNK_SIZE) {
