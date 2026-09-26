@@ -1,4 +1,4 @@
-﻿import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency, LoanStatus, CollectionLogType, PaymentStatus } from '../types';
 
 export const generateUUID = (): string => {
@@ -106,6 +106,53 @@ const COUNTRY_PHONE_PREFIXES: Record<string, string> = {
  */
 export const getCountryPhonePrefix = (countryCode: string): string => {
   return COUNTRY_PHONE_PREFIXES[countryCode] || '595';
+};
+
+// Moneda por país: símbolo que se muestra en toda la app
+const COUNTRY_CURRENCY: Record<string, string> = {
+  'AG': '$',      // Antigua y Barbuda - Dólar del Caribe Oriental
+  'AR': '$',      // Argentina - Peso Argentino
+  'BS': '$',      // Bahamas - Dólar Bahameño
+  'BB': '$',      // Barbados - Dólar de Barbados
+  'BZ': '$',      // Belice - Dólar de Belice
+  'BO': 'Bs.',    // Bolivia - Boliviano
+  'BR': 'R$',     // Brasil - Real
+  'CA': '$',      // Canadá - Dólar Canadiense
+  'CL': '$',      // Chile - Peso Chileno
+  'CO': '$',      // Colombia - Peso Colombiano
+  'CR': '₡',      // Costa Rica - Colón
+  'CU': '$',      // Cuba - Peso Cubano
+  'DM': '$',      // Dominica - Dólar del Caribe Oriental
+  'EC': '$',      // Ecuador - Dólar
+  'SV': '$',      // El Salvador - Dólar
+  'US': '$',      // Estados Unidos - Dólar
+  'GD': '$',      // Granada - Dólar del Caribe Oriental
+  'GT': 'Q',      // Guatemala - Quetzal
+  'GY': '$',      // Guyana - Dólar Guyanés
+  'HT': 'G',      // Haití - Gourde
+  'HN': 'L',      // Honduras - Lempira
+  'JM': '$',      // Jamaica - Dólar Jamaicano
+  'MX': '$',      // México - Peso Mexicano
+  'NI': 'C$',     // Nicaragua - Córdoba
+  'PA': '$',      // Panamá - Balboa/Dólar
+  'PY': 'Gs.',    // Paraguay - Guaraní ★
+  'PE': 'S/',     // Perú - Sol
+  'DO': '$',      // Rep. Dominicana - Peso Dominicano
+  'KN': '$',      // San Cristóbal y Nieves - Dólar del Caribe Oriental
+  'VC': '$',      // San Vicente y Granadinas - Dólar del Caribe Oriental
+  'LC': '$',      // Santa Lucía - Dólar del Caribe Oriental
+  'SR': '$',      // Surinam - Dólar de Surinam
+  'TT': '$',      // Trinidad y Tobago - Dólar de Trinidad
+  'UY': '$',      // Uruguay - Peso Uruguayo
+  'VE': 'Bs.',    // Venezuela - Bolívar
+};
+
+/**
+ * Retorna el símbolo de moneda del país.
+ * Ej: 'PY' → 'Gs.', 'CO' → '$', 'BR' → 'R$'
+ */
+export const getCurrencyForCountry = (countryCode: string): string => {
+  return COUNTRY_CURRENCY[countryCode] || '$';
 };
 
 /**

@@ -1253,6 +1253,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const client: Client = {
         ...clientData,
+        // NORMALIZACIÓN AUTOMÁTICA DE TELÉFONO:
+        // Si el usuario ingresó 0981784120 o 981784120, se guarda como 595981784120
+        // Si ya tenía +595981784120 o 595981784120 se mantiene igual.
+        phone: clientData.phone
+          ? normalizePhone(clientData.phone, state.settings.country)
+          : '',
+        secondaryPhone: clientData.secondaryPhone
+          ? normalizePhone(clientData.secondaryPhone, state.settings.country)
+          : '',
         id: clientId,
         addedBy: clientAddedBy,
         branchId: calculatedBranchId,
@@ -1513,6 +1522,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           clientToSave = { ...editClientFormData, addedBy: newCollectorId };
         }
       }
+
+      // NORMALIZACIÓN AUTOMÁTICA DE TELÉFONO al editar:
+      // Si el cobrador cargó 0981784120, se guarda como 595981784120
+      clientToSave = {
+        ...clientToSave,
+        phone: clientToSave.phone
+          ? normalizePhone(clientToSave.phone, state.settings.country)
+          : '',
+        secondaryPhone: clientToSave.secondaryPhone
+          ? normalizePhone(clientToSave.secondaryPhone, state.settings.country)
+          : '',
+      };
 
       updateClient(clientToSave);
       if (editLoanFormData && updateLoan) {

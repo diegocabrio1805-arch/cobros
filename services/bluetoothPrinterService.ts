@@ -1,12 +1,15 @@
 // bluetoothPrinterService.ts
 // Servicio Híbrido Optimizado: Soporta Plugin Nativo (Cordova/Capacitor) y Web Bluetooth API
-// Optimizaciones para gama baja: Chunking, Retries y Timeouts extendidos.
+// v2 - Conexión estable multi-sesión: funciona correctamente aunque un cobrador
+//      inicie sesión en dos usuarios distintos desde el mismo celular.
 
 let connectedDevice: any = null;
 let printerCharacteristic: any = null;
 let isNativeConnection = false;
 let isCurrentlyPrinting = false;
 let connectionKeeperInterval: any = null; // Interval ID for keep-alive
+// Listener de estado de la app (Capacitor) — guardamos referencia para poder removerla al reiniciar
+let appStateListenerHandle: any = null;
 
 // Cola de tickets pendientes: Si la impresora estaba apagada, se imprimen al reconectar
 const pendingPrintQueue: { text: string; timestamp: number }[] = [];
@@ -389,7 +392,13 @@ export const forceReconnect = async (): Promise<boolean> => {
 };
 
 export const startConnectionKeeper = () => {
-    if (connectionKeeperInterval) return;
+    // FIX MULTI-SESIÓN: Si hay un keeper previo corriendo (de otra sesión en
+    // el mismo celular), detenerlo primero para evitar intervalos duplicados
+    // y limpiar el estado de la sesión anterior.
+    if (connectionKeeperInterval) {
+        console.log("[Bluetooth Keeper] Restarting keeper (new session detected).");
+        stopConnectionKeeper();
+    }
 
     const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
     if (!savedAddress) {
@@ -398,8 +407,9 @@ export const startConnectionKeeper = () => {
     }
 
     console.log("[Bluetooth Keeper] Starting background connection keeper...");
-    
-    // Configurar listener de Capacitor para reconectar INMEDIATAMENTE al volver a la app
+
+    // Configurar listener de Capacitor para reconectar INMEDIATAMENTE al volver a la app.
+    // FIX: guardamos el handle para poder removerlo al detener el keeper.
     try {
         const { App: CapApp } = require('@capacitor/app');
         CapApp.addListener('appStateChange', async (state: any) => {
@@ -411,13 +421,11 @@ export const startConnectionKeeper = () => {
                         const connected = await isPrinterConnected();
                         if (!connected) {
                             const reconnected = await connectToPrinter(currentSavedAddress, false, true);
-                            // Si reconectó y hay tickets pendientes, imprimirlos
                             if (reconnected && pendingPrintQueue.length > 0) {
                                 console.log('[Bluetooth Keeper] App reactiva + impresora reconectada. Imprimiendo tickets pendientes...');
                                 setTimeout(drainPrintQueue, 1500);
                             }
                         } else if (pendingPrintQueue.length > 0) {
-                            // Impresora ya estaba conectada, imprimir directamente
                             console.log('[Bluetooth Keeper] App reactiva. Impresora disponible. Procesando cola...');
                             setTimeout(drainPrintQueue, 500);
                         }
@@ -426,43 +434,43 @@ export const startConnectionKeeper = () => {
                     }
                 }
             }
-        });
+        }).then((handle: any) => {
+            appStateListenerHandle = handle;
+        }).catch(() => { /* silencioso si la promesa no existe */ });
     } catch (e) {
-        console.log("Capacitor App module not available for BT keeper");
+        console.log("[Bluetooth Keeper] Capacitor App module not available.");
     }
 
     connectionKeeperInterval = setInterval(async () => {
         if (isCurrentlyPrinting) return;
 
-        const savedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
-        if (!savedAddress) return;
+        const currentSavedAddress = localStorage.getItem(PRINTER_STORAGE_KEY);
+        if (!currentSavedAddress) return;
 
         try {
             const connected = await isPrinterConnected();
             if (!connected) {
                 console.log("[Bluetooth Keeper] Lost connection. Attempting silent reconnect...");
-                const wasReconnected = await connectToPrinter(savedAddress, false, true);
-                // Si logró reconectar, procesar tickets pendientes
+                const wasReconnected = await connectToPrinter(currentSavedAddress, false, true);
                 if (wasReconnected && pendingPrintQueue.length > 0) {
                     console.log('[Bluetooth Keeper] Reconectado. Procesando cola de tickets pendientes...');
-                    setTimeout(drainPrintQueue, 1000); // Esperar 1s para que la impresora esté lista
+                    setTimeout(drainPrintQueue, 1000);
                 }
             } else {
-                // Primero procesar cola pendiente si hay tickets
                 if (pendingPrintQueue.length > 0 && !isCurrentlyPrinting) {
                     console.log('[Bluetooth Keeper] Impresora activa. Procesando tickets pendientes...');
                     drainPrintQueue();
                 } else {
-                    // Ping activo (DLE EOT 1 - Real-time status) para evitar que la impresora entre en auto-sleep.
-                    // Es un comando invisible que NO avanza el papel.
+                    // Ping activo (DLE EOT 1 - Real-time status) para evitar auto-sleep.
+                    // Comando invisible que NO avanza el papel.
                     const bs = getBluetoothSerial();
                     if (isNativeConnection && bs) {
                         const pingCmd = '\x10\x04\x01';
-                        bs.write(pingCmd, 
-                            () => { /* Ping OK, hardware despierto */ }, 
+                        bs.write(pingCmd,
+                            () => { /* Ping OK */ },
                             () => {
                                 console.log("[Bluetooth Keeper] Ping failed, socket dead. Reconnecting...");
-                                connectToPrinter(savedAddress, true, true);
+                                connectToPrinter(currentSavedAddress, true, true);
                             }
                         );
                     }
@@ -480,4 +488,15 @@ export const stopConnectionKeeper = () => {
         connectionKeeperInterval = null;
         console.log("[Bluetooth Keeper] Stopped.");
     }
+    // Remover el listener de estado de la app si existe (FIX: evita listeners huérfanos)
+    if (appStateListenerHandle) {
+        try { appStateListenerHandle.remove(); } catch (_e) { /* silencioso */ }
+        appStateListenerHandle = null;
+    }
+    // FIX MULTI-SESIÓN: Resetear estado de conexión en memoria para que la
+    // próxima sesión arranque desde cero, sin heredar el estado del cobrador anterior.
+    connectedDevice = null;
+    printerCharacteristic = null;
+    isNativeConnection = false;
+    isCurrentlyPrinting = false;
 };

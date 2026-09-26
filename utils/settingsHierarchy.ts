@@ -44,6 +44,10 @@ export const resolveSettings = (
             companyIdentifier: isValid(branchSettings.companyIdentifier) ? branchSettings.companyIdentifier : (isValid(adminSettings.companyIdentifier) ? adminSettings.companyIdentifier : settings.companyIdentifier),
             companyName: isValid(branchSettings.companyName) ? branchSettings.companyName : (isValid(adminSettings.companyName) ? adminSettings.companyName : settings.companyName),
             companyAlias: isValid(branchSettings.companyAlias) ? branchSettings.companyAlias : (isValid(adminSettings.companyAlias) ? adminSettings.companyAlias : settings.companyAlias),
+            // MONEDA Y PAÍS: el cobrador/gerente SIEMPRE hereda la moneda y país del Admin.
+            // Esto garantiza que si el Admin configuró Paraguay → Gs., todos sus cobradores también usen Gs.
+            currencySymbol: isValid(branchSettings.currencySymbol) ? branchSettings.currencySymbol : (isValid(adminSettings.currencySymbol) ? adminSettings.currencySymbol : settings.currencySymbol),
+            country: branchSettings.country || adminSettings.country || settings.country,
         };
     }
 

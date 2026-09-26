@@ -7,7 +7,7 @@ import { formatCurrency, formatLocalDate } from './utils/helpers';
 import { useAppInitialization, CURRENT_VERSION_ID } from './hooks/useAppInitialization';
 import { useAppSyncEngine } from './hooks/useAppSyncEngine';
 import { useAppActions } from './hooks/useAppActions';
-import { startConnectionKeeper } from './services/bluetoothPrinterService';
+
 import { useGPSWarmer } from './hooks/useGPSWarmer';
 import { useLiveTracker } from './hooks/useLiveTracker';
 

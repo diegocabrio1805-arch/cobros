@@ -2,7 +2,7 @@ import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, Collect
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID, getShiftDate } from '../utils/helpers';
-import { connectToPrinter } from '../services/bluetoothPrinterService';
+import { connectToPrinter, startConnectionKeeper, stopConnectionKeeper } from '../services/bluetoothPrinterService';
 import { StorageService } from '../utils/localforageStorage';
 import React from 'react';
 export const useAppActions = (
@@ -83,9 +83,11 @@ export const useAppActions = (
       });
     }, 500);
 
-    // Intentamos conectar a la impresora después de un breve delay para evitar solapamiento con permisos de GPS
+    // Intentamos conectar a la impresora y arrancar el keeper después de un breve delay
+    // para evitar solapamiento con permisos de GPS
     setTimeout(() => {
       connectToPrinter(undefined).catch(() => { });
+      startConnectionKeeper();
     }, 2000);
   };
 
@@ -109,6 +111,9 @@ export const useAppActions = (
       console.warn("[AppSec] Error validando syncQueue durante logout", e);
     }
 
+    // Detener el keeper de Bluetooth (FIX multi-sesión: limpia estado para el próximo usuario)
+    stopConnectionKeeper();
+
     // A04 OWASP: Logout Limpio (Multi-Tenant Offline Cache)
     if (sync?.cancelPendingSave) {
       sync.cancelPendingSave();
@@ -129,7 +134,7 @@ export const useAppActions = (
     StorageService.setTenantId(''); // Limpiar el tenant local en memoria RAM
     
     if (navigator.onLine) {
-      try { await supabase.auth.signOut(); } catch(e){}
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch(e){}
     }
   };
 

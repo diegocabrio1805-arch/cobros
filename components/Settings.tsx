@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, AppSettings, Language, CountryCode, Role } from '../types';
 import { getTranslation } from '../utils/translations';
+import { getCurrencyForCountry } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
 interface SettingsProps {
@@ -194,7 +195,11 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
   };
 
   const handleCountryChange = (ctry: CountryCode) => {
-    updateSettings({ ...state.settings, country: ctry });
+    // AUTO-MONEDA: Al cambiar el país, asignar automáticamente el símbolo de moneda
+    // correcto (PY → Gs., CO → $, BR → R$, etc.). Si el usuario ya había configurado
+    // manualmente una moneda diferente, se la sobreescribimos con la del país elegido.
+    const autoSymbol = getCurrencyForCountry(ctry);
+    updateSettings({ ...state.settings, country: ctry, currencySymbol: autoSymbol });
   };
 
   const handleFormatChange = (fmt: 'dot' | 'comma') => {
