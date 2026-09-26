@@ -1,4 +1,5 @@
 import { User, AppSettings, Role } from '../types';
+import { getCurrencyForCountry } from './helpers';
 
 export const resolveSettings = (
     currentUser: User | null,
@@ -45,11 +46,27 @@ export const resolveSettings = (
             companyName: isValid(branchSettings.companyName) ? branchSettings.companyName : (isValid(adminSettings.companyName) ? adminSettings.companyName : settings.companyName),
             companyAlias: isValid(branchSettings.companyAlias) ? branchSettings.companyAlias : (isValid(adminSettings.companyAlias) ? adminSettings.companyAlias : settings.companyAlias),
             // MONEDA Y PAÍS: el cobrador/gerente SIEMPRE hereda la moneda y país del Admin.
-            // Esto garantiza que si el Admin configuró Paraguay → Gs., todos sus cobradores también usen Gs.
             currencySymbol: isValid(branchSettings.currencySymbol) ? branchSettings.currencySymbol : (isValid(adminSettings.currencySymbol) ? adminSettings.currencySymbol : settings.currencySymbol),
             country: branchSettings.country || adminSettings.country || settings.country,
         };
     }
+
+    // ── AUTO-MONEDA POR PAÍS ────────────────────────────────────────────────
+    // SIEMPRE derivar el símbolo de moneda correcto desde el país configurado.
+    // Esto soluciona el caso donde el DB todavía tiene '$' del valor anterior:
+    // Paraguay → ₲, Brasil → R$, España → €, Costa Rica → ₡, etc.
+    // Solo se sobreescribe si el símbolo guardado es genérico ('$') Y el país
+    // tiene un símbolo específico diferente. Así Colombia, Argentina, México
+    // (que legítimamente usan '$') no se ven afectados.
+    const correctSymbol = getCurrencyForCountry(settings.country);
+    if (correctSymbol !== '$') {
+        // El país tiene símbolo propio (no $): forzarlo siempre
+        settings.currencySymbol = correctSymbol;
+    } else if (!settings.currencySymbol) {
+        // El país usa '$' y no hay símbolo guardado: asignar '$'
+        settings.currencySymbol = '$';
+    }
+    // Si el país usa '$' y el usuario guardó '$', se mantiene sin cambios.
 
     return settings;
 };
