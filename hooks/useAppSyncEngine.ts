@@ -400,9 +400,10 @@ export const useAppSyncEngine = (
         const lastSyncMs = parseInt(localStorage.getItem(syncKeyMs) || '0', 10);
         const msSinceLastSync = Date.now() - lastSyncMs;
 
-        // DEEP-SYNC AUTOMÁTICO: Cada hora, borrar timestamps para forzar
-        // una revisión amplia (como la Opción 4, pero silenciosa y sin borrar nada).
-        // Cubre el caso donde un pago quedó justo fuera del margen de delta-sync.
+        // DEEP-SYNC AUTOMÁTICO: Cada hora, hacer un pull incremental con margen ampliado de 1 hora.
+        // FIX SYNC LENTO: NO borrar los timestamps — si los borramos, el próximo login descarga
+        // TODO el historial desde cero aunque ya esté en IndexedDB local.
+        // En su lugar, retrasamos el timestamp 1 hora para cubrir pagos que quedaron fuera del delta normal.
         const deepSyncKey = StorageService.getSyncKey('last_deep_sync_ms');
         const lastDeepSyncMs = parseInt(localStorage.getItem(deepSyncKey) || '0', 10);
         const msSinceDeepSync = Date.now() - lastDeepSyncMs;
@@ -412,12 +413,18 @@ export const useAppSyncEngine = (
         const isTenthCycle = syncCycleCount % 10 === 0;
 
         if ((shouldDeepSync || isTenthCycle) && !sync.isSyncing && sync.isOnline) {
-            console.log('[AutoRepair] Ejecutando deep-sync silencioso. Ciclo:', syncCycleCount);
-            const keys = [
-                syncKeyMs,
-                syncKeyV8,
-            ];
-            keys.forEach(k => localStorage.removeItem(k));
+            console.log('[AutoRepair] Ejecutando deep-sync silencioso (incremental ampliado). Ciclo:', syncCycleCount);
+            // Retroceder el timestamp 1 hora para ampliar el margen de búsqueda
+            // sin tirar todo el historial al piso
+            const currentSyncMs = parseInt(localStorage.getItem(syncKeyMs) || '0', 10);
+            if (currentSyncMs > 0) {
+                const oneHourBack = currentSyncMs - 3600000;
+                localStorage.setItem(syncKeyMs, oneHourBack.toString());
+                const oneHourBackISO = new Date(oneHourBack).toISOString();
+                localStorage.setItem(syncKeyV8, oneHourBackISO);
+                console.log('[AutoRepair] Timestamp retrocedido 1h para deep-sync incremental:', oneHourBackISO);
+            }
+            // Si no hay timestamp previo, hacer pull normal sin borrar nada
             localStorage.setItem(deepSyncKey, Date.now().toString());
             sync.pullData(false);
             return;

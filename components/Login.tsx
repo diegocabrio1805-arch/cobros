@@ -158,7 +158,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
         if (profileData) {
           if (profileData.blocked) {
             setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
-            await supabase.auth.signOut();
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch(e){}
             return;
           }
           // Map snake_case DB fields to camelCase frontend fields

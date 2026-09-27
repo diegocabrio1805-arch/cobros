@@ -334,7 +334,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             // como errores HTTP (401/403) desde las queries de Supabase y son capturados abajo.
             const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
             const lastSyncTime = localStorage.getItem(syncKeyV8);
-            const PAGE_SIZE = 1000; // AUMENTADO a 1000 para minimizar latencia de red en zonas de baja cobertura
+            const PAGE_SIZE = 500; // REDUCIDO a 500 para evitar timeout 57014 de PostgreSQL en tablas pesadas (payments)
 
             const fetchAll = async (query: any, tableName: string = 'unknown') => {
                 let allData: any[] = [];
@@ -461,7 +461,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', sevenDaysAgo);
 
-                
+                // FIX TIMEOUT 57014: En fullSync, limitar payments a los últimos 365 días.
+                // La tabla payments crece indefinidamente y sin filtro genera timeouts en la página 26+.
+                // Todo el historial de pagos ya está guardado localmente de sincronizaciones anteriores.
+                const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+                paymentsQuery = paymentsQuery.gt('updated_at', oneYearAgo);
             }
 
             // PARALLEL FETCH HYBRID: Agrupado por lotes para no ahogar el procesador en gama baja ni la red 3G
