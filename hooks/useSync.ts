@@ -262,10 +262,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         }, 45000);
 
                         // FIX CELULAR: Al reconectar Realtime (típico en Android donde el OS mata el WebSocket),
-                        // SIEMPRE hacer pull incremental para traer los pagos que se perdieron durante la desconexión.
-                        // Sin este fix, el bloqueo de 2 minutos impedía que el Admin vea los pagos del cobrador
-                        // hasta que se reiniciara sesión.
-                        if (!isSyncing) {
+                        // hacer pull incremental para traer los pagos perdidos durante la desconexión.
+                        // BALANCE FLUIDEZ: mínimo 30s entre pulls por reconexion para no spamear el hilo
+                        // principal con muchos asyncMapInChunks seguidos (causaba "trabado" en la UI).
+                        const lastRtPull = (window as any)._lastRealtimePullMs || 0;
+                        const msSinceRtPull = Date.now() - lastRtPull;
+                        if (!isSyncing && msSinceRtPull > 30000) {
+                            (window as any)._lastRealtimePullMs = Date.now();
                             pullData(false).then(newData => {
                                 if (isMounted && newData && onDataUpdated) onDataUpdated(newData);
                             });
@@ -282,15 +285,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 });
         };
 
-        // FIX CELULAR: Reducido de 120s a 45s para detectar más rápido cuando Android
-        // mata la conexión WebSocket y reconectar antes de que el usuario note el retraso.
+        // BALANCE FLUIDEZ/VELOCIDAD: 60s detecta caídas de WebSocket rápido
+        // sin generar polls tan frecuentes que traben la UI en gama baja.
         const healthCheckInterval = setInterval(() => {
             const status = (window as any)._lastRealtimeStatus;
             if (status !== 'SUBSCRIBED') {
                 console.log('[Realtime] Reconectando WebSocket (status:', status, ')');
                 subscribeToRealtime();
             }
-        }, 45000);
+        }, 60000);
 
         subscribeToRealtime();
 
