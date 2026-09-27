@@ -261,11 +261,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             }
                         }, 45000);
 
-                        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
-                        const lastSyncTime = localStorage.getItem(syncKeyMs);
-                        // No disparar pull automático si ya estamos sincronizando o si sincronizamos hace menos de 2 minutos
-                        const shouldPull = !isSyncing && (!lastSyncTime || (Date.now() - parseInt(lastSyncTime)) > 120000);
-                        if (shouldPull) {
+                        // FIX CELULAR: Al reconectar Realtime (típico en Android donde el OS mata el WebSocket),
+                        // SIEMPRE hacer pull incremental para traer los pagos que se perdieron durante la desconexión.
+                        // Sin este fix, el bloqueo de 2 minutos impedía que el Admin vea los pagos del cobrador
+                        // hasta que se reiniciara sesión.
+                        if (!isSyncing) {
                             pullData(false).then(newData => {
                                 if (isMounted && newData && onDataUpdated) onDataUpdated(newData);
                             });
@@ -282,12 +282,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 });
         };
 
+        // FIX CELULAR: Reducido de 120s a 45s para detectar más rápido cuando Android
+        // mata la conexión WebSocket y reconectar antes de que el usuario note el retraso.
         const healthCheckInterval = setInterval(() => {
             const status = (window as any)._lastRealtimeStatus;
             if (status !== 'SUBSCRIBED') {
+                console.log('[Realtime] Reconectando WebSocket (status:', status, ')');
                 subscribeToRealtime();
             }
-        }, 120000);
+        }, 45000);
 
         subscribeToRealtime();
 
