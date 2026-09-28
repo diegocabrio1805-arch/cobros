@@ -676,6 +676,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             isProcessingRef.current = false;
             setIsSyncing(false);
             if (fullSync) setIsFullSyncing(false);
+            // FIX BOTÓN MANUAL: Si processQueue intentó correr mientras este pull tenía el lock,
+            // pendingRunRef quedó en true pero nadie lo ejecutó. Lo ejecutamos ahora.
+            if (pendingRunRef.current) {
+                pendingRunRef.current = false;
+                const { force, fullSync: pFullSync, skipPull } = pendingParamsRef.current;
+                pendingParamsRef.current = { force: false, fullSync: false, skipPull: true };
+                setTimeout(() => processQueue(force, pFullSync, skipPull), 200);
+            }
         }
     }, [onDataUpdated]);
 
