@@ -15,6 +15,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
+const CACHE_VERSION = 'v1_sync_fix_27sept_final';
+if (localStorage.getItem('force_cache_clear') !== CACHE_VERSION) {
+  try {
+    indexedDB.deleteDatabase('anexo_cobros_db');
+    indexedDB.deleteDatabase('localforage');
+  } catch(e) {}
+  localStorage.clear();
+  localStorage.setItem('force_cache_clear', CACHE_VERSION);
+  window.location.reload();
+}
+
 interface EBProps { children: React.ReactNode }
 interface EBState { hasError: boolean; error: any }
 
