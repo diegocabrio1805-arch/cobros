@@ -420,11 +420,26 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 loansQuery = supabase.rpc('get_collector_loans', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 paymentsQuery = supabase.rpc('get_collector_payments', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 logsQuery = supabase.rpc('get_collector_logs', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
+            } else if (currentUser && currentUser.role === 'Gerente') {
+                clientsQuery = clientsQuery.eq('branch_id', currentUser.id);
+                loansQuery = loansQuery.eq('branch_id', currentUser.id);
+                paymentsQuery = paymentsQuery.eq('branch_id', currentUser.id);
+                logsQuery = logsQuery.eq('branch_id', currentUser.id);
+                profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
+                // Nota: settingsQuery descarga todos los settings para que la jerarquía funcione si es necesario, 
+                // o se aislará en settingsHierarchy.ts localmente.
             }
+
             let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
             let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
             let simulatedOrdersQuery = supabase.from('simulated_orders').select('*').order('updated_at', { ascending: true });
+
+            if (currentUser && currentUser.role === 'Gerente') {
+                expensesQuery = expensesQuery.eq('branch_id', currentUser.id);
+                isolatedExpensesQuery = isolatedExpensesQuery.eq('branch_id', currentUser.id);
+                simulatedOrdersQuery = simulatedOrdersQuery.eq('branch_id', currentUser.id);
+            }
             // AUDIT FIX: Query separada para logs PAGO_ELIMINADO - siempre descarga los últimos 90 días
             // sin importar el timestamp de la última sincronización incremental.
             const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -467,11 +482,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', sevenDaysAgo);
 
-                // FIX TIMEOUT 57014: En fullSync, limitar payments a los últimos 365 días.
-                // La tabla payments crece indefinidamente y sin filtro genera timeouts en la página 26+.
-                // Todo el historial de pagos ya está guardado localmente de sincronizaciones anteriores.
+                // FIX TIMEOUT 57014: En fullSync, limitar payments y logs a los últimos 365 días.
+                // Estas tablas crecen indefinidamente y sin filtro generan timeouts en PostgreSQL.
                 const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
                 paymentsQuery = paymentsQuery.gt('updated_at', oneYearAgo);
+                logsQuery = logsQuery.gt('updated_at', oneYearAgo);
             }
 
             // PARALLEL FETCH HYBRID: Agrupado por lotes para no ahogar el procesador en gama baja ni la red 3G

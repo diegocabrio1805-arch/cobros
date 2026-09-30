@@ -28,23 +28,38 @@ export const resolveSettings = (
         settings.defaultFuel = 0;
         settings.autoIsolatedFuelProjection = false;
         delete settings.isolatedProjectionAmount;
+        
+        // Prevenir que las sucursales hereden los datos de la empresa del admin maestro
+        settings.companyName = '';
+        settings.companyAlias = '';
+        settings.companyIdentifier = '';
+        settings.contactPhone = '';
+        settings.shareLabel = '';
+        settings.shareValue = '';
     }
 
     const branchSettings = allSettings[managerOrSelfId];
     const isValid = (val: any) => val && val !== '---' && val !== 'undefined' && String(val).trim() !== '';
 
     if (branchSettings) {
+        // Si no es el admin maestro, NO hacemos fallback a adminSettings para datos de empresa
+        const getCompanyField = (field: keyof AppSettings): any => {
+            if (isValid(branchSettings[field])) return branchSettings[field];
+            if (managerOrSelfId === SYSTEM_ADMIN_ID && isValid(adminSettings[field])) return adminSettings[field];
+            return settings[field];
+        };
+
         settings = {
             ...settings,
             ...branchSettings,
             // CRITICAL: Ensure company fields don't inherit "---" or placeholders
-            shareValue: isValid(branchSettings.shareValue) ? branchSettings.shareValue : (isValid(adminSettings.shareValue) ? adminSettings.shareValue : settings.shareValue),
-            shareLabel: isValid(branchSettings.shareLabel) ? branchSettings.shareLabel : (isValid(adminSettings.shareLabel) ? adminSettings.shareLabel : settings.shareLabel),
-            contactPhone: isValid(branchSettings.contactPhone) ? branchSettings.contactPhone : (isValid(adminSettings.contactPhone) ? adminSettings.contactPhone : settings.contactPhone),
+            shareValue: getCompanyField('shareValue'),
+            shareLabel: getCompanyField('shareLabel'),
+            contactPhone: getCompanyField('contactPhone'),
             technicalSupportPhone: isValid(adminSettings.technicalSupportPhone) ? adminSettings.technicalSupportPhone : settings.technicalSupportPhone,
-            companyIdentifier: isValid(branchSettings.companyIdentifier) ? branchSettings.companyIdentifier : (isValid(adminSettings.companyIdentifier) ? adminSettings.companyIdentifier : settings.companyIdentifier),
-            companyName: isValid(branchSettings.companyName) ? branchSettings.companyName : (isValid(adminSettings.companyName) ? adminSettings.companyName : settings.companyName),
-            companyAlias: isValid(branchSettings.companyAlias) ? branchSettings.companyAlias : (isValid(adminSettings.companyAlias) ? adminSettings.companyAlias : settings.companyAlias),
+            companyIdentifier: getCompanyField('companyIdentifier'),
+            companyName: getCompanyField('companyName'),
+            companyAlias: getCompanyField('companyAlias'),
             // MONEDA Y PAÍS: el cobrador/gerente SIEMPRE hereda la moneda y país del Admin.
             currencySymbol: isValid(branchSettings.currencySymbol) ? branchSettings.currencySymbol : (isValid(adminSettings.currencySymbol) ? adminSettings.currencySymbol : settings.currencySymbol),
             country: branchSettings.country || adminSettings.country || settings.country,
