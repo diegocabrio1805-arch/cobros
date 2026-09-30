@@ -141,8 +141,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
          if (state.currentUser?.role === Role.COLLECTOR) {
             return u.id === state.currentUser?.id;
          }
-         const mId = (u.managedBy || (u as any).managed_by);
-         return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
+         return true; // Administrador o Gerente ve a todos
       });
    }, [state.users, state.currentUser]);
 

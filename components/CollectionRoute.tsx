@@ -131,7 +131,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   };
 
   const handleDeleteClient = (client: Client) => {
-    if (deleteClient && confirm(`¿ESTÁ SEGURO DE ELIMINAR A ${client.name.toUpperCase()}?\n\nESTA ACCIÓN BORRARÁ TODO SU HISTORIAL DE CRÉDITOS Y PAGOS.\nNO SE PUEDE DESHACER.`)) {
+    if (deleteClient && confirm(`¿ESTÁ SEGURO DE ELIMINAR A ${client.name.toUpperCase()}?state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER || u.id.toLowerCase() === currentUserId?.toLowerCase()n\nESTA ACCIÓN BORRARÁ TODO SU HISTORIAL DE CRÉDITOS Y PAGOS.\nNO SE PUEDE DESHACER.`)) {
       deleteClient(client.id);
     }
   };
