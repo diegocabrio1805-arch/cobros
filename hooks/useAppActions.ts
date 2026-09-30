@@ -131,6 +131,16 @@ export const useAppActions = (
       branchSettings: {} // AÑADIDO
     }));
     try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
+    
+    // AÑADIDO POR AUDITORÍA: Destruir caché local y timestamps para forzar Full Sync al reingresar
+    try {
+      const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
+      const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
+      localStorage.removeItem(syncKeyMs);
+      localStorage.removeItem(syncKeyV8);
+      await StorageService.removeItem('prestamaster_v2');
+    } catch(e) {}
+
     StorageService.setTenantId(''); // Limpiar el tenant local en memoria RAM
     
     if (navigator.onLine) {
