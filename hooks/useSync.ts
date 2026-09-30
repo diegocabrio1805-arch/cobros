@@ -421,10 +421,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 paymentsQuery = supabase.rpc('get_collector_payments', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 logsQuery = supabase.rpc('get_collector_logs', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
             } else if (currentUser && currentUser.role === 'Gerente') {
-                clientsQuery = clientsQuery.eq('branch_id', currentUser.id);
-                loansQuery = loansQuery.eq('branch_id', currentUser.id);
-                paymentsQuery = paymentsQuery.eq('branch_id', currentUser.id);
-                logsQuery = logsQuery.eq('branch_id', currentUser.id);
                 profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
                 // Nota: settingsQuery descarga todos los settings para que la jerarquía funcione si es necesario, 
                 // o se aislará en settingsHierarchy.ts localmente.
@@ -435,11 +431,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
             let simulatedOrdersQuery = supabase.from('simulated_orders').select('*').order('updated_at', { ascending: true });
 
-            if (currentUser && currentUser.role === 'Gerente') {
-                expensesQuery = expensesQuery.eq('branch_id', currentUser.id);
-                isolatedExpensesQuery = isolatedExpensesQuery.eq('branch_id', currentUser.id);
-                simulatedOrdersQuery = simulatedOrdersQuery.eq('branch_id', currentUser.id);
-            }
+
             // AUDIT FIX: Query separada para logs PAGO_ELIMINADO - siempre descarga los últimos 90 días
             // sin importar el timestamp de la última sincronización incremental.
             const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
