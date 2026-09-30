@@ -510,8 +510,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                             totalPaidMoney = Math.round(cobradoRaw);
                             if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
                             
-                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel y NO es 0, tomar el valor exacto
-                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance) && rawExplicitBalance !== 0) {
+                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto (incluso si es 0)
+                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
                                 balance = rawExplicitBalance;
                                 if (balance > 0 && totalAmount < balance + totalPaidMoney) {
                                     totalAmount = balance + totalPaidMoney;
@@ -555,17 +555,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                                 }
                             }
 
-                            // SECUNDARIO: MONTO < TOT×V.CUOTA en más de 5%
-                            if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) {
-                                const calculatedMaxTotal = totalInst * instValue;
-                                if (totalAmount < calculatedMaxTotal * 0.95) {
-                                    const montoCobrado = totalAmount;
-                                    totalAmount = calculatedMaxTotal;
-                                    totalPaidMoney = montoCobrado;
-                                    paidInst = Math.floor(montoCobrado / instValue);
-                                    console.log(`[FORENSIC] MONTO=cobrado (backup <95%): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
-                                }
-                            }
+                            // SECUNDARIO: (ELIMINADO POR AUDITORÍA QA - ESTO SOBRESCRIBÍA DATOS VÁLIDOS)
+                            // if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) { ... }
 
                             if (totalInst === 0) totalInst = paidInst + pendInst;
 
@@ -612,15 +603,8 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                             instValue = Math.round(totalAmount / totalInst);
                         }
                         
-                        // Si el saldo es 0 pero totalAmount es positivo y no hay cobrado explícito igual al total
-                        if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) {
-                            // Heurística de emergencia: si el saldo falló en detectarse pero hay cuotas pendientes
-                            if (pendInst > 0 && instValue > 0) {
-                                balance = pendInst * instValue;
-                            } else if (totalInst > paidInst && instValue > 0) {
-                                balance = (totalInst - paidInst) * instValue;
-                            }
-                        }
+                        // Heurística de emergencia (ELIMINADA POR AUDITORÍA QA - DESTRUÍA EL SALDO DE 0 LEGÍTIMO)
+                        // if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) { ... }
                         
                         // SEGURIDAD CRÍTICA: Si el cliente AÚN DEBE DINERO, es imposible que haya pagado el 100% de las cuotas.
                         if (balance > 0 && totalInst <= paidInst) {
@@ -677,8 +661,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         createdAt: new Date().toISOString()
                     });
 
-                    const loanInitialPaid = Math.round(totalPaidMoney || Math.max(0, totalAmount - balance));
-
+                    // FIX: Comprobación estricta de tipo number (respeta el 0 puro).
+                    // Esto evita la "Trampa del Falsy" donde un 0 (generado por un guion) activaba el OR (||) y creaba un pago fantasma.
+                    const loanInitialPaid = Math.round(typeof totalPaidMoney === 'number' && !isNaN(totalPaidMoney) ? totalPaidMoney : Math.max(0, totalAmount - balance));
 
                     // CALCULAR TASA DE INTERÉS VIRTUAL PARA QUE LA TABLA COINCIDA CON EL MONTO TOTAL
                     const virtualInterestRate = principal > 0 ? ((totalAmount / principal) - 1) * 100 : 0;
