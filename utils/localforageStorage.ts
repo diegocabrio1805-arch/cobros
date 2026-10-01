@@ -96,7 +96,7 @@ export const StorageService = {
                     if (!activeTenantIds.includes(possiblePrefix)) {
                         // SEGURIDAD: Solo borrar claves de inquilino conocidas, ignorar futuras
                         const suffix = parts.slice(1).join('_');
-                        const knownSuffixes = ['prestamaster_v2', 'last_sync_timestamp_v8', 'last_sync_timestamp_ms'];
+                        const knownSuffixes = ['prestamaster_v3', 'last_sync_timestamp_v8', 'last_sync_timestamp_v9'];
                         
                         if (knownSuffixes.includes(suffix)) {
                             console.log(`[StorageService GC] Eliminando caché antigua del tenant inactivo: ${k}`);
@@ -104,7 +104,7 @@ export const StorageService = {
                         }
                     }
                 }
-                // Si la clave no tiene prefijo UUID válido (ej. viejos 'prestamaster_v2'), se IGNORA INTACTA.
+                // Si la clave no tiene prefijo UUID válido (ej. viejos 'prestamaster_v3'), se IGNORA INTACTA.
             }
         } catch (e) {
             console.warn("Error durante garbage collection de localforage:", e);

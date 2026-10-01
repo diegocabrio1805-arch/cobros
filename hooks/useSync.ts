@@ -177,7 +177,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const queue = await getQueueFromForage("syncQueue"); // FIX PERF
                         const hasPending = queue.length > 0;
 
-                        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
+                        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
                         const lastSyncTime = localStorage.getItem(syncKeyMs);
                         const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
 
@@ -584,7 +584,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // SOLO GUARDAR TIMESTAMP SI LA DESCARGA FUE 100% PERFECTA
             if (!syncHasCriticalErrors) {
-                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_ms'), new Date().getTime().toString());
+                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v9'), new Date().getTime().toString());
                 localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v8'), new Date().toISOString());
                 console.log('[Sync] Timestamps de sincronización actualizados con éxito.');
             } else {

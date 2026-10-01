@@ -25,7 +25,7 @@ export const useAppActions = (
     Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(normalizedUser) }).catch(console.error);
 
     // FASE E: Cargar la caché local del usuario ANTES de mostrar la pantalla vacía
-    const localData = await StorageService.getItem<AppState>('prestamaster_v2');
+    const localData = await StorageService.getItem<AppState>('prestamaster_v3');
     
     // Determinar si la caché local tiene datos útiles (para decidir si forzamos Full Sync)
     const hasLocalCache = localData && Array.isArray(localData.clients) && localData.clients.length > 0;
@@ -134,11 +134,11 @@ export const useAppActions = (
     
     // AÑADIDO POR AUDITORÍA: Destruir caché local y timestamps para forzar Full Sync al reingresar
     try {
-      const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
+      const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
       const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
       localStorage.removeItem(syncKeyMs);
       localStorage.removeItem(syncKeyV8);
-      await StorageService.removeItem('prestamaster_v2');
+      await StorageService.removeItem('prestamaster_v3');
     } catch(e) {}
 
     StorageService.setTenantId(''); // Limpiar el tenant local en memoria RAM

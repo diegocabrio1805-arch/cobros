@@ -90,9 +90,9 @@ export const useAppInitialization = () => {
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
           console.log(`[App] Version updated: ${lastAppVersion} -> ${CURRENT_VERSION_ID}. Purging cache...`);
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
-          await StorageService.removeItem('prestamaster_v2');
+          await StorageService.removeItem('prestamaster_v3');
           const syncKeys = [
-            'lastSyncTime', 'lastAppSync_timestamp', 'last_sync_timestamp_ms',
+            'lastSyncTime', 'lastAppSync_timestamp', 'last_sync_timestamp_v9',
             'last_sync_timestamp_v8', 'last_sync_timestamp_v7', 'last_sync_timestamp_v6',
             'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'syncQueue',
             'last_emergency_sync_key'
@@ -137,13 +137,13 @@ export const useAppInitialization = () => {
 
         // 2. LEER STORAGE (con timeout de seguridad) - Ahora leerá automáticamente con prefijo si hay un tenant
         let rawData: any = await withTimeout(
-          StorageService.getItem<AppState>('prestamaster_v2'),
+          StorageService.getItem<AppState>('prestamaster_v3'),
           2500,
           null
         );
 
         if (!rawData) {
-          const lsData = localStorage.getItem('prestamaster_v2');
+          const lsData = localStorage.getItem('prestamaster_v3');
           if (lsData) {
             try { rawData = JSON.parse(lsData); } catch(e) {}
           }
@@ -160,7 +160,7 @@ export const useAppInitialization = () => {
             try {
               const user = JSON.parse(nativePref.value);
               console.log('[Auto-Curación] Iniciando sesión sin datos en IDB (Rescatado). Borrando timestamps.');
-              const syncKeys = ['last_sync_timestamp_ms', 'last_sync_timestamp_v8'];
+              const syncKeys = ['last_sync_timestamp_v9', 'last_sync_timestamp_v8'];
               syncKeys.forEach(k => localStorage.removeItem(k));
               setState({ ...defaultInitialState, currentUser: user });
               setIsInitializing(false);
@@ -240,8 +240,8 @@ export const useAppInitialization = () => {
             if (parsedClients.length === 0) {
               console.log('[Auto-Curación] IDB cargado pero sin clientes. Borrando timestamps de sync para Full Sync.');
               const syncKeys = [
-                'last_sync_timestamp_ms', 'last_sync_timestamp_v8',
-                StorageService.getSyncKey('last_sync_timestamp_ms'),
+                'last_sync_timestamp_v9', 'last_sync_timestamp_v8',
+                StorageService.getSyncKey('last_sync_timestamp_v9'),
                 StorageService.getSyncKey('last_sync_timestamp_v8')
               ];
               syncKeys.forEach(k => localStorage.removeItem(k));

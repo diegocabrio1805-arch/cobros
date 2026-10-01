@@ -48,7 +48,7 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
   const branchSettings = currentBranchId && state.branchSettings ? state.branchSettings[currentBranchId] : undefined;
   
   // Leemos desde localStorage como backup de emergencia
-  const backupStateStr = localStorage.getItem('prestamaster_v2');
+  const backupStateStr = localStorage.getItem('prestamaster_v3');
   let backupAmount: number | undefined = undefined;
   let backupAuto: boolean | undefined = undefined;
   if (backupStateStr) {

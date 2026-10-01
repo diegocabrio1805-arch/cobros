@@ -29,7 +29,7 @@ export const useAppSyncEngine = (
   // Función para guardar el estado inmediatamente en IndexedDB (Crítico para robustez offline)
   const immediateSave = useCallback(async (stateToSave: AppState) => {
     try {
-      await StorageService.setItem('prestamaster_v2', stateToSave);
+      await StorageService.setItem('prestamaster_v3', stateToSave);
       if (stateToSave.currentUser) {
         await Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(stateToSave.currentUser) });
       }
@@ -212,7 +212,7 @@ export const useAppSyncEngine = (
 
   const handleDeepReset = () => {
     if (confirm("¿Estás seguro? Esto borrará todos los datos locales y forzará una descarga total.")) {
-      StorageService.removeItem('prestamaster_v2').then(() => {
+      StorageService.removeItem('prestamaster_v3').then(() => {
         localStorage.clear();
         window.location.reload();
       });
@@ -257,7 +257,7 @@ export const useAppSyncEngine = (
     saveTimeoutRef.current = setTimeout(() => {
       try {
         if (state.currentUser) {
-          StorageService.setItem('prestamaster_v2', state);
+          StorageService.setItem('prestamaster_v3', state);
           Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(state.currentUser) });
         }
       } catch (e) {
@@ -338,7 +338,7 @@ export const useAppSyncEngine = (
         const keysToRemove = [
           'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'local_changes_queue',
           'emergency_sync_v638_UPDATE_FINAL', 'emergency_sync_v639_UPDATE_FINAL',
-          'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_ms',
+          'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_v9',
           'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
           'last_sync_timestamp_v8', 'last_sync_timestamp_v630'
         ];
@@ -395,7 +395,7 @@ export const useAppSyncEngine = (
     const healthCheckInterval = setInterval(() => {
         // Si no hubo sync reciente, descargar datos frescos para compensar posibles
         // caídas de la conexión Realtime
-        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_ms');
+        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
         const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
         const lastSyncMs = parseInt(localStorage.getItem(syncKeyMs) || '0', 10);
         const msSinceLastSync = Date.now() - lastSyncMs;
