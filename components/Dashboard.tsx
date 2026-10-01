@@ -161,7 +161,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
         return u.id === state.currentUser.id;
       }
       // Admin/Manager sees only their direct reports
-      return true; // Administrador o Gerente ve a todos
+      const mId = (u.managedBy || (u as any).managed_by);
+      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
     });
   }, [state.users, state.currentUser]);
 

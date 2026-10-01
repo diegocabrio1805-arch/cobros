@@ -23,7 +23,8 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
       if (state.currentUser?.role === Role.COLLECTOR) {
         return u.id === state.currentUser?.id;
       }
-      return true; // Administrador o Gerente ve a todos
+      const mId = (u.managedBy || (u as any).managed_by);
+      return mId?.toLowerCase() === state.currentUser?.id?.toLowerCase();
     });
   }, [state.users, state.currentUser]);
 
