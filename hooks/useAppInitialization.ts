@@ -160,7 +160,11 @@ export const useAppInitialization = () => {
             try {
               const user = JSON.parse(nativePref.value);
               console.log('[Auto-Curación] Iniciando sesión sin datos en IDB (Rescatado). Borrando timestamps.');
-              const syncKeys = ['last_sync_timestamp_v9', 'last_sync_timestamp_v8'];
+              const syncKeys = [
+                StorageService.getSyncKey('last_sync_timestamp_v9'), 
+                StorageService.getSyncKey('last_sync_timestamp_v8'),
+                'last_sync_timestamp_v9', 'last_sync_timestamp_v8'
+              ];
               syncKeys.forEach(k => localStorage.removeItem(k));
               setState({ ...defaultInitialState, currentUser: user });
               setIsInitializing(false);

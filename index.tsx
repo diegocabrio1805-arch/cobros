@@ -1,4 +1,32 @@
 
+// --- CACHE BUSTER DEFINITIVO ---
+if (window.location.search.includes('reload=')) {
+  console.log("🔥 [CACHE BUSTER] Reload parameter detected. Initiating Emergency Wipe...");
+  
+  // 1. Limpiar localStorage completo
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // 2. Destruir IndexedDB completo
+  if (window.indexedDB && window.indexedDB.databases) {
+      window.indexedDB.databases().then(dbs => {
+          dbs.forEach(db => { if (db.name) window.indexedDB.deleteDatabase(db.name); });
+      }).catch(e => console.error(e));
+  }
+  
+  // 3. Desregistrar TODOS los Service Workers
+  if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+              registration.unregister();
+          }
+      });
+  }
+  
+  // 4. Redirección limpia para forzar descarga desde el servidor (sin parámetros)
+  window.location.replace(window.location.pathname);
+}
+
 // --- CRITICAL ERROR TRAP ---
 window.addEventListener('error', (e) => {
   const root = document.getElementById('root');

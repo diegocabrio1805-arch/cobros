@@ -187,12 +187,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         isProcessingRef.current = false;
                         setIsSyncing(false);
 
+                        const localData = await StorageService.getItem<AppState>('prestamaster_v3');
+                        const hasClients = localData && Array.isArray(localData.clients) && localData.clients.length > 0;
+
                         if (hasPending) {
                             console.log('App resumed: Uploading pending items...');
                             processQueue(false);
-                        } else if (timeSinceLastSync > 120000) {
-                            console.log('App resumed: Syncing (Stale data > 2min)');
+                        } else if (timeSinceLastSync > 120000 || !hasClients) {
+                            console.log('App resumed: Syncing (Stale data > 2min OR Empty Cache)');
                             processQueue(true);
+                        } else {
+                            processQueue(false);
                         }
                     }
                 }
