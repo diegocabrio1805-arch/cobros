@@ -206,14 +206,34 @@ export const connectToPrinter = async (addressOrId?: string, forceReconnect = fa
     if (!('bluetooth' in navigator)) return false;
 
     try {
+        const optionalServices = [
+            '000018f0-0000-1000-8000-00805f9b34fb',
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+        ];
         // @ts-ignore
         const device = await navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+            optionalServices: optionalServices
         });
         const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-        const characteristics = await service.getCharacteristics();
+        
+        let service;
+        let characteristics = [];
+        for (const uuid of optionalServices) {
+            try {
+                service = await server.getPrimaryService(uuid);
+                characteristics = await service.getCharacteristics();
+                if (characteristics.length > 0) break;
+            } catch (e) {
+                // Ignore and try next service
+            }
+        }
+        
+        if (characteristics.length === 0) {
+            return false;
+        }
+
         printerCharacteristic = characteristics[0];
         connectedDevice = device;
         isNativeConnection = false;
