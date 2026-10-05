@@ -564,13 +564,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             const { data, error } = await q.abortSignal(controller.signal);
                             if (error) throw error;
                             attempts = 0;
-                            // WATCHDOG POR INACTIVIDAD: cada página recibida renueva el límite. Solo se aborta
-                            // si la red se cuelga 120s sin progreso (no por el volumen total de datos).
-                            if (syncTimeoutId) clearTimeout(syncTimeoutId);
-                            syncTimeoutId = setTimeout(() => {
-                                try { controller.abort(); } catch (e) { }
-                                console.warn('[Sync] Sin progreso por 120s. Abortando descarga.');
-                            }, 120000);
                             if (!data || data.length === 0) break;
                             for (const item of data) allData.push(item);
                             lastId = data[data.length - 1].id;
@@ -732,8 +725,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 setSyncError(`Error Descarga: ${err.message || 'Error'}`);
             } else {
                 console.warn('[Sync] Descarga cancelada pacíficamente (Timeout de 120s o Aborto Manual)');
-                // Una descarga completa abortada deja pagos/recaudo incompletos: avisar en vez de fallar en silencio.
-                if (fullSync) setSyncError('Descarga incompleta (sin respuesta del servidor). Se reintentará.');
             }
             return null;
         } finally {
