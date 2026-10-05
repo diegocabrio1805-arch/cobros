@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client, Loan, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -540,8 +540,11 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           printText(receiptText).catch(e => console.error("Auto print failed:", e));
         });
         
-        // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
-        openWhatsApp(client.phone, 'registro', state.settings.country);
+        // WhatsApp optimizado: Retrasamos 1.5s para permitir que la impresora Bluetooth termine
+        // de transmitir su buffer antes de que la app pase a segundo plano.
+        setTimeout(() => {
+          openWhatsApp(client.phone, 'registro', state.settings.country);
+        }, 1500);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         const remainingBalance = Math.max(0, loan.totalAmount - totalPaid);

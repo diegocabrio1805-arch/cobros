@@ -181,11 +181,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const lastSyncTime = localStorage.getItem(syncKeyMs);
                         const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
 
-                        // SAFETY CATCH: If Android put the app to sleep while syncing, 
-                        // the previous operation was killed by the OS. We must manually 
-                        // reset the lock so the queue can process again.
-                        isProcessingRef.current = false;
-                        setIsSyncing(false);
+                        // SAFETY CATCH REMOVED: Forcefully resetting the lock while a sync is 
+                        // genuinely running in the background causes concurrent syncs 
+                        // and Out-Of-Memory (OOM) crashes on resume.
+                        // isProcessingRef.current = false;
+                        // setIsSyncing(false);
 
                         const localData = await StorageService.getItem<AppState>('prestamaster_v3');
                         const hasClients = localData && Array.isArray(localData.clients) && localData.clients.length > 0;

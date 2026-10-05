@@ -51,6 +51,12 @@ BEGIN
     DELETE FROM public.profiles
     WHERE managed_by::text = p_manager_id OR id::text = p_manager_id;
 
+    -- 6.1 Eliminar registros de auditoría que referencian a estos usuarios
+    -- (FK audit_logs_changed_by_fkey -> error 23503)
+    DELETE FROM public.audit_logs
+    WHERE changed_by::text = p_manager_id
+       OR (collector_ids IS NOT NULL AND changed_by::text = ANY(collector_ids));
+
     -- 7. Finalmente, eliminar de auth.users al gerente y a los cobradores
     DELETE FROM auth.users
     WHERE id::text = p_manager_id OR (collector_ids IS NOT NULL AND id::text = ANY(collector_ids));
