@@ -538,10 +538,52 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let paymentsResult: any = { data: [], error: null };
             let logsResult: any = { data: [], error: null };
             try {
-                const [payRes, logRes] = await Promise.all([
-                    fetchAll(paymentsQuery.abortSignal(controller.signal), 'payments'),
-                    fetchAll(logsQuery.abortSignal(controller.signal), 'logs')
-                ]);
+                // FIX TIMEOUT 57014 (keyset): OFFSET + ORDER BY updated_at se degrada con cada página
+                // y revienta con ~9000+ filas. Paginamos por clave primaria (id), costo constante por página.
+                const isCollectorRole = currentUser && currentUser.role === 'Cobrador';
+                const isManagerRole = currentUser && currentUser.role === 'Gerente';
+                const oneYearAgoKs = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+                const buildKeysetQuery = (table: 'payments' | 'collection_logs', rpcName: string) => () => {
+                    let q: any = isCollectorRole
+                        ? supabase.rpc(rpcName, { p_collector_id: currentUser.id }).select('*')
+                        : supabase.from(table).select('*');
+                    if (isManagerRole) q = q.eq('branch_id', currentUser.id);
+                    if (adjustedSyncTime && !fullSync) q = q.gt('updated_at', adjustedSyncTime);
+                    else q = q.gt('updated_at', oneYearAgoKs);
+                    return q;
+                };
+                const fetchKeyset = async (factory: () => any, tableName: string) => {
+                    const allData: any[] = [];
+                    let lastId: string | null = null;
+                    let size = 1000;
+                    let attempts = 0;
+                    while (true) {
+                        try {
+                            let q = factory().order('id', { ascending: true }).limit(size);
+                            if (lastId) q = q.gt('id', lastId);
+                            const { data, error } = await q.abortSignal(controller.signal);
+                            if (error) throw error;
+                            attempts = 0;
+                            if (!data || data.length === 0) break;
+                            for (const item of data) allData.push(item);
+                            lastId = data[data.length - 1].id;
+                            if (data.length < size) break;
+                        } catch (err: any) {
+                            if (err.name === 'AbortError' || err.message?.includes('aborted')) throw err;
+                            attempts++;
+                            if (attempts >= 5) {
+                                console.error(`[Sync] keyset (${tableName}) falló definitivamente:`, err);
+                                throw err;
+                            }
+                            size = Math.max(100, Math.floor(size / 2));
+                            console.warn(`[Sync] keyset (${tableName}) error, reintento ${attempts}/5 con página=${size}:`, err);
+                            await new Promise(r => setTimeout(r, 500 * attempts));
+                        }
+                    }
+                    return { data: allData, error: null };
+                };
+                const payRes = await fetchKeyset(buildKeysetQuery('payments', 'get_collector_payments'), 'payments');
+                const logRes = await fetchKeyset(buildKeysetQuery('collection_logs', 'get_collector_logs'), 'logs');
                 paymentsResult = payRes;
                 logsResult = logRes;
             } catch (err) {
