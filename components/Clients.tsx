@@ -755,9 +755,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const getClientMetrics = (client: Client) => {
     if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false, totalInstallments: 0, paidInstallments: 0 };
-    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-    const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const activeLoan = sortedLoans[0];
+    const allClientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id);
+    const sortedLoans = allClientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    // Buscar prstamo activo, si no hay, usar el ltimo (Pagado, etc.)
+    let activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
+    if (!activeLoan && sortedLoans.length > 0) {
+       activeLoan = sortedLoans[0];
+    }
+    
+    const clientLoans = allClientLoans.filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
     const hasMultipleLoans = clientLoans.length > 1;
 
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
@@ -769,10 +776,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       balance = Math.max(0, activeLoan.totalAmount - totalPaid);
 
       const totalCreditAmount = activeLoan.totalAmount;
-      isFullyPaid = balance <= 0.01;
+      isFullyPaid = balance <= 0.01 || activeLoan.status === LoanStatus.PAID;
 
       if (isFullyPaid) {
-         return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: true, maxDaysOverdue: 0, totalCreditAmount: 0, totalInstallments: 0, paidInstallments: 0 };
+         return { balance: 0, installmentsStr: `${activeLoan.totalInstallments}/${activeLoan.totalInstallments} cuotas`, cuotasPendientes: 0, daysOverdue: 0, activeLoan: activeLoan, totalPaid: activeLoan.totalAmount, lastExpiryDate: '', createdAt: activeLoan.createdAt, isFullyPaid: true, maxDaysOverdue: 0, totalCreditAmount: activeLoan.totalAmount, totalInstallments: activeLoan.totalInstallments, paidInstallments: activeLoan.totalInstallments };
       }
 
       // Progreso Cuotas (del principal/reciente)
