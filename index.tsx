@@ -5,6 +5,8 @@ if (window.location.search.includes('reload=')) {
   
   // 1. Limpiar localStorage completo
   localStorage.clear();
+  localStorage.setItem('db_clear_v5_pedidos', 'true');
+  localStorage.setItem('db_clear_v4', 'true');
   sessionStorage.clear();
   
   // 2. Destruir IndexedDB completo
@@ -86,6 +88,8 @@ class ErrorBoundary extends React.Component<EBProps, EBState> {
           <button
             onClick={() => {
               localStorage.clear();
+              localStorage.setItem('db_clear_v5_pedidos', 'true');
+              localStorage.setItem('db_clear_v4', 'true');
               sessionStorage.clear();
               window.location.reload();
             }}
