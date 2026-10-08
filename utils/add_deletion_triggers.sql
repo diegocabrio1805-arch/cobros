@@ -16,6 +16,7 @@ BEGIN
       WHEN TG_TABLE_NAME = 'payments' THEN OLD.branch_id
       WHEN TG_TABLE_NAME = 'collection_logs' THEN OLD.branch_id
       WHEN TG_TABLE_NAME = 'expenses' THEN OLD.branch_id
+      WHEN TG_TABLE_NAME = 'simulated_orders' THEN OLD.branch_id
       ELSE NULL
     END,
     NOW()
@@ -56,3 +57,8 @@ ALTER TABLE public.deleted_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable read access for all authenticated users" ON public.deleted_items;
 CREATE POLICY "Enable read access for all authenticated users" ON public.deleted_items
 FOR SELECT TO authenticated USING (true);
+
+DROP TRIGGER IF EXISTS tr_simulated_orders_deletion ON public.simulated_orders;
+CREATE TRIGGER tr_simulated_orders_deletion
+AFTER DELETE ON public.simulated_orders
+FOR EACH ROW EXECUTE FUNCTION public.on_record_deleted();

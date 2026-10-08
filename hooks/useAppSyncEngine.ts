@@ -338,9 +338,9 @@ export const useAppSyncEngine = (
         const keysToRemove = [
           'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'local_changes_queue',
           'emergency_sync_v638_UPDATE_FINAL', 'emergency_sync_v639_UPDATE_FINAL',
-          'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_v9',
+          'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_v10',
           'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
-          'last_sync_timestamp_v8', 'last_sync_timestamp_v630'
+          'last_sync_timestamp_v8_2', 'last_sync_timestamp_v630'
         ];
         
         keysToRemove.forEach(k => localStorage.removeItem(k));
@@ -395,8 +395,8 @@ export const useAppSyncEngine = (
     const healthCheckInterval = setInterval(() => {
         // Si no hubo sync reciente, descargar datos frescos para compensar posibles
         // caídas de la conexión Realtime
-        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
-        const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
+        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v10');
+        const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8_2');
         const lastSyncMs = parseInt(localStorage.getItem(syncKeyMs) || '0', 10);
         const msSinceLastSync = Date.now() - lastSyncMs;
 

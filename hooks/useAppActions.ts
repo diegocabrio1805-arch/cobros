@@ -134,8 +134,8 @@ export const useAppActions = (
     
     // AÑADIDO POR AUDITORÍA: Destruir caché local y timestamps para forzar Full Sync al reingresar
     try {
-      const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
-      const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
+      const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v10');
+      const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8_2');
       localStorage.removeItem(syncKeyMs);
       localStorage.removeItem(syncKeyV8);
       await StorageService.removeItem('prestamaster_v3');

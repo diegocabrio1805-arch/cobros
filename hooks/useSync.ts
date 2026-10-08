@@ -177,7 +177,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const queue = await getQueueFromForage("syncQueue"); // FIX PERF
                         const hasPending = queue.length > 0;
 
-                        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v9');
+                        const syncKeyMs = StorageService.getSyncKey('last_sync_timestamp_v10');
                         const lastSyncTime = localStorage.getItem(syncKeyMs);
                         const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
 
@@ -343,7 +343,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             // FIX A02: Los cobradores nativos no tienen sesión de Supabase Auth (usan profiles).
             // Omitir el check de getSession() aquí — los errores reales de auth llegan
             // como errores HTTP (401/403) desde las queries de Supabase y son capturados abajo.
-            const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8');
+            const syncKeyV8 = StorageService.getSyncKey('last_sync_timestamp_v8_2');
             const lastSyncTime = localStorage.getItem(syncKeyV8);
             const PAGE_SIZE = 500; // REDUCIDO a 500 para evitar timeout 57014 de PostgreSQL en tablas pesadas (payments)
 
@@ -631,8 +631,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             // SOLO GUARDAR TIMESTAMP SI LA DESCARGA FUE 100% PERFECTA
             if (!syncHasCriticalErrors) {
-                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v9'), new Date().getTime().toString());
-                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v8'), new Date().toISOString());
+                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v10'), new Date().getTime().toString());
+                localStorage.setItem(StorageService.getSyncKey('last_sync_timestamp_v8_2'), new Date().toISOString());
                 console.log('[Sync] Timestamps de sincronización actualizados con éxito.');
             } else {
                 console.warn('[Sync] Omitiendo actualización de timestamps debido a errores parciales. Se reintentarán en el próximo incremental.');

@@ -92,8 +92,8 @@ export const useAppInitialization = () => {
           localStorage.setItem('LAST_APP_VERSION_ID', CURRENT_VERSION_ID);
           await StorageService.removeItem('prestamaster_v3');
           const syncKeys = [
-            'lastSyncTime', 'lastAppSync_timestamp', 'last_sync_timestamp_v9',
-            'last_sync_timestamp_v8', 'last_sync_timestamp_v7', 'last_sync_timestamp_v6',
+            'lastSyncTime', 'lastAppSync_timestamp', 'last_sync_timestamp_v10',
+            'last_sync_timestamp_v8_2', 'last_sync_timestamp_v7', 'last_sync_timestamp_v6',
             'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'syncQueue',
             'last_emergency_sync_key'
           ];
@@ -161,9 +161,9 @@ export const useAppInitialization = () => {
               const user = JSON.parse(nativePref.value);
               console.log('[Auto-Curación] Iniciando sesión sin datos en IDB (Rescatado). Borrando timestamps.');
               const syncKeys = [
-                StorageService.getSyncKey('last_sync_timestamp_v9'), 
-                StorageService.getSyncKey('last_sync_timestamp_v8'),
-                'last_sync_timestamp_v9', 'last_sync_timestamp_v8'
+                StorageService.getSyncKey('last_sync_timestamp_v10'), 
+                StorageService.getSyncKey('last_sync_timestamp_v8_2'),
+                'last_sync_timestamp_v10', 'last_sync_timestamp_v8_2'
               ];
               syncKeys.forEach(k => localStorage.removeItem(k));
               setState({ ...defaultInitialState, currentUser: user });
@@ -244,9 +244,9 @@ export const useAppInitialization = () => {
             if (parsedClients.length === 0) {
               console.log('[Auto-Curación] IDB cargado pero sin clientes. Borrando timestamps de sync para Full Sync.');
               const syncKeys = [
-                'last_sync_timestamp_v9', 'last_sync_timestamp_v8',
-                StorageService.getSyncKey('last_sync_timestamp_v9'),
-                StorageService.getSyncKey('last_sync_timestamp_v8')
+                'last_sync_timestamp_v10', 'last_sync_timestamp_v8_2',
+                StorageService.getSyncKey('last_sync_timestamp_v10'),
+                StorageService.getSyncKey('last_sync_timestamp_v8_2')
               ];
               syncKeys.forEach(k => localStorage.removeItem(k));
             }
