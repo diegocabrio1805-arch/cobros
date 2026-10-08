@@ -662,7 +662,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
         // WhatsApp
         if (client) {
-          const phone = client.phone.replace(/\D/g, '');
+          const phone = (client.phone || '').replace(/\D/g, '');
           window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("registro")}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
@@ -691,7 +691,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         }
         
         setTimeout(() => {
-          const phone = client.phone.replace(/\D/g, '');
+          const phone = (client.phone || '').replace(/\D/g, '');
           window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
         resetUI();
@@ -784,7 +784,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     // WhatsApp - REMOVED automatic "ticket" word opening to satisfy "only print" request
     /*
     if (client) {
-      const phone = client.phone.replace(/\D/g, '');
+      const phone = (client.phone || '').replace(/\D/g, '');
       window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent('registro')}`, '_blank');
     }
     */
@@ -946,7 +946,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
           receipt.includes(c.name.toUpperCase().substring(0, 10))
         );
-        const phone = client?.phone.replace(/\D/g, '') || '';
+        const phone = (client?.phone || '').replace(/\D/g, '') || '';
         window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`, '_blank');
       }
     } catch (err) {
@@ -1997,7 +1997,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   // WhatsApp Automático
                   const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
                   if (client) {
-                    const phone = client.phone.replace(/\D/g, '');
+                    const phone = (client.phone || '').replace(/\D/g, '');
                     window.open(`https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`, '_blank');
                   }
                 }}

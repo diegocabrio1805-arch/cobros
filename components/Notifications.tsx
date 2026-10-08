@@ -46,7 +46,7 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
 
   const sendOverdueSupport = (alert: any) => {
     const { client, loan, installment, daysDiff } = alert;
-    const cleanPhone = client.phone.replace(/\D/g, '');
+    const cleanPhone = (client.phone || '').replace(/\D/g, '');
     const phoneWithCode = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
 
     const installments = Array.isArray(loan.installments) ? loan.installments : [];

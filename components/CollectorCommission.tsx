@@ -1186,7 +1186,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isMobileShareSupported = isMobile && Boolean(navigator.share && navigator.canShare);
-    const phone = client.phone.replace(/\D/g, '');
+    const phone = (client.phone || '').replace(/\D/g, '');
     const waText = encodeURIComponent(`registro`);
 
     // 1. Abrimos WhatsApp inmediatamente para evitar el bloqueo de ventanas emergentes (Popup Blocker)

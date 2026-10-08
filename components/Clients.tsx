@@ -1381,7 +1381,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const fileName = `Resumen_${client.name.replace(/\s+/g, '_')}_${new Date().getTime()}.jpg`;
 
       // PASO 1: Primero se abre WhatsApp con el texto "Tarjeta"
-      const phone = client.phone.replace(/\D/g, '');
+      const phone = (client.phone || '').replace(/\D/g, '');
       if (phone) {
          const companyName = state.settings.companyName || 'ANEXO COBRANZA';
          const message = encodeURIComponent(`Tarjeta Digital de Control de Pago\n${companyName}`);
@@ -1797,7 +1797,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           document.body.removeChild(link);
 
           // Fallback WhatsApp Web link
-          const phone = clientInLegajo.phone.replace(/\D/g, '');
+          const phone = (clientInLegajo.phone || '').replace(/\D/g, '');
           window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Hola, le comparto su estado de cuenta en PDF.`)}`, '_blank');
         }
       } else {
@@ -1964,7 +1964,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         document.body.removeChild(link);
 
         // WhatsApp fallback (usando el texto limpio)
-        const phone = clientInLegajo.phone.replace(/\D/g, '');
+        const phone = (clientInLegajo.phone || '').replace(/\D/g, '');
         const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
         const wpUrl = `https://wa.me/${normalizePhone(phone, state.settings.country)}?text=${encodeURIComponent("registro")}`;
         window.open(wpUrl, '_blank');
@@ -2048,7 +2048,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
       printWin?.print();
 
-      const phone = clientInLegajo.phone.replace(/\D/g, '');
+      const phone = (clientInLegajo.phone || '').replace(/\D/g, '');
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent("registro")}`, '_blank');
 
       setShowEditLogModal(false);
@@ -2213,7 +2213,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // ✅ Calcular URL de WhatsApp y navegar directamente (anti-popup: usamos la ventana pre-abierta)
       if (clientInLegajo?.phone) {
-        const rawPhone = clientInLegajo.phone.replace(/\D/g, '');
+        const rawPhone = (clientInLegajo.phone || '').replace(/\D/g, '');
         const targetPhone = normalizePhone(rawPhone, state.settings.country);
         const companyName = (state.settings.companyAlias || state.settings.companyName || 'LA EMPRESA').toUpperCase();
         const contactPhone = state.settings.contactPhone ? ` ${state.settings.contactPhone}` : '';
@@ -3007,7 +3007,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </td>
                         <td className="px-6 py-4 text-blue-600">
                           {(() => {
-                            const digits = client.phone.replace(/\D/g, '');
+                            const digits = (client.phone || '').replace(/\D/g, '');
                             const displayPhone = '+' + normalizePhone(digits, state.settings.country);
                             return <a href={`tel:${displayPhone}`} className="hover:underline">{displayPhone}</a>;
                           })()}
@@ -3257,7 +3257,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </td>
                         <td className="px-6 py-4">
                           {(() => {
-                            const digits = client.phone.replace(/\D/g, '');
+                            const digits = (client.phone || '').replace(/\D/g, '');
                             const displayPhone = '+' + normalizePhone(digits, state.settings.country);
                             return <a href={`tel:${displayPhone}`} className="text-blue-700 hover:underline">{displayPhone}</a>;
                           })()}
@@ -3974,7 +3974,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CONTACTS:' : 'CONTACTOS:'}</span>
                           <div className="flex flex-col gap-2">
                             <button
-                              onClick={() => window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}`, '_blank')}
+                              onClick={() => window.open(`https://wa.me/${(clientInLegajo.phone || '').replace(/\D/g, '')}`, '_blank')}
                               className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-md font-black text-[9px] flex items-center gap-2 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                             >
                               <i className="fa-brands fa-whatsapp"></i> {clientInLegajo.phone === 'A COMPLETAR' ? (state.settings.language === 'fr' ? 'À COMPLÉTER' : 'A COMPLETAR') : clientInLegajo.phone}</button>
@@ -4967,7 +4967,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <div>
                     <p className="text-sm font-black text-white uppercase tracking-widest mb-1">{new Date().toLocaleDateString(state.settings.language === 'fr' ? 'fr-FR' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
                     <h1 className="text-2xl font-black text-white tracking-tight uppercase leading-none">{clientInLegajo?.name}</h1>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{clientInLegajo?.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{(clientInLegajo?.phone || '').replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
