@@ -114,11 +114,29 @@
     </style>
   </div>
   <script>
-    // Parche preventivo para bases de datos corruptas
+    // Parche automático V5: Destruir caché antigua en toda la red de clientes
     (function() {
-      if (!localStorage.getItem('db_clear_v4')) {
-        localStorage.setItem('db_clear_v4', 'true');
-        indexedDB.deleteDatabase('_ionickv');
+      if (!localStorage.getItem('db_clear_v5_pedidos')) {
+        localStorage.setItem('db_clear_v5_pedidos', 'true');
+        
+        // 1. Limpiar IndexedDB (Prestamaster)
+        if (window.indexedDB && window.indexedDB.databases) {
+            window.indexedDB.databases().then(dbs => {
+                dbs.forEach(db => { if (db.name) window.indexedDB.deleteDatabase(db.name); });
+            }).catch(e => console.error(e));
+        }
+        
+        // 2. Destruir Service Workers antiguos para forzar descarga limpia
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+        
+        // 3. Forzar recarga completa desde el servidor
+        window.location.replace(window.location.pathname + '?reload=1');
       }
     })();
   </script>
