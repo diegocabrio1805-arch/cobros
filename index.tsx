@@ -1,10 +1,13 @@
 
 // --- CACHE BUSTER DEFINITIVO ---
-if (window.location.search.includes('reload=')) {
-  console.log("🔥 [CACHE BUSTER] Reload parameter detected. Initiating Emergency Wipe...");
+const APP_VERSION = '2.2'; // INCREMENTAR PARA FORZAR LIMPIEZA A TODOS LOS USUARIOS
+
+if (window.location.search.includes('reload=') || localStorage.getItem('app_version') !== APP_VERSION) {
+  console.log("🔥 [CACHE BUSTER] Actualización detectada. Initiating Emergency Wipe...");
   
-  // 1. Limpiar localStorage completo
+  // 1. Limpiar localStorage completo, EXCEPTO la nueva versión
   localStorage.clear();
+  localStorage.setItem('app_version', APP_VERSION);
   localStorage.setItem('db_clear_v5_pedidos', 'true');
   localStorage.setItem('db_clear_v4', 'true');
   sessionStorage.clear();
@@ -26,7 +29,11 @@ if (window.location.search.includes('reload=')) {
   }
   
   // 4. Redirección limpia para forzar descarga desde el servidor (sin parámetros)
-  window.location.replace(window.location.pathname);
+  if (window.location.search.includes('reload=')) {
+      window.location.replace(window.location.pathname);
+  } else {
+      window.location.reload();
+  }
 }
 
 // --- CRITICAL ERROR TRAP ---
