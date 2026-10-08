@@ -664,6 +664,11 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         }
                     }
 
+                    // BUG FIX: Si auto-asignar falló o quedó vacío, asignar a la sucursal/gerente para que el sync no falle (UUID inválido)
+                    if (!finalAssignedCollectorId || finalAssignedCollectorId === '') {
+                        finalAssignedCollectorId = branchId;
+                    }
+
                     clients.push({
                         id: clientId,
                         name,

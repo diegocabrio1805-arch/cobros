@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
         // hasta que el usuario presione "Recargar App" en el banner del AutoUpdater.
         // Esto elimina el error "message channel closed" que ocurría cuando el SW viejo
         // tomaba control a mitad de una sync de pagos.
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         injectRegister: 'auto',
         manifest: {
           name: 'Anexo Cobro',

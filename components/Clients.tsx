@@ -2566,7 +2566,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           console.warn("Failed to fetch global clients for deduplication", err);
       }
 
-      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, globalClients, state.loans);
+      const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, globalClients, state.loans, state.collectionLogs);
       setPreviewData(data);
     } catch (err) {
       console.error(err);
