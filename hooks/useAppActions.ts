@@ -751,7 +751,7 @@ export const useAppActions = (
     const allNewPayments: PaymentRecord[] = [];
     const updatedLoansWithPayments = newLoans.map(loan => {
       // Evitar aplicar duplicadamente los logs de migración inicial sobre las cuotas (porque excelHelper ya lo hace internamente)
-      const loanLogs = newLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.id.startsWith("LOG-MIG-"));
+      const loanLogs = newLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && (!log.id.startsWith("LOG-MIG-") && !(log.notes || "").includes("MIGRACIÓN EXCEL")));
       let totalToApply = loanLogs.reduce((sum, log) => sum + (log.amount || 0), 0);
       
       const newInstallments = (loan.installments || []).map(i => ({ ...i }));

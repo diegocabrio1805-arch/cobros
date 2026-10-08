@@ -224,7 +224,7 @@ export interface ImportError {
     reason: string;
 }
 
-export const processExcelImport = (file: File, collectorId: string, branchId: string, sellerCode: string, country: string = 'CO', existingClients: Client[] = [], existingLoans: Loan[] = []): Promise<{ 
+export const processExcelImport = (file: File, collectorId: string, branchId: string, sellerCode: string, country: string = 'CO', existingClients: Client[] = [], existingLoans: Loan[] = [], existingLogs: CollectionLog[] = []): Promise<{ 
     clients: Client[], 
     loans: Loan[], 
     logs: CollectionLog[],
@@ -642,7 +642,27 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     const rowSellerCodeRaw = String(row[idxs.sellerCode ?? -1] || '').trim();
                     const finalSellerCode = rowSellerCodeRaw !== '' && rowSellerCodeRaw !== '---' && rowSellerCodeRaw !== 'undefined'
                         ? rowSellerCodeRaw 
-                        : sellerCode;
+                        : sellerCode; // fallback to sellerCode parameter
+
+                    // BUG FIX: Do not override the collectorId parameter.
+                    let finalAssignedCollectorId = collectorId;
+                    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(finalSellerCode)) {
+                        finalAssignedCollectorId = finalSellerCode;
+                    } else if (typeof cachedHierarchy !== 'undefined') {
+                        const matchingCollectorId = Object.keys(cachedHierarchy).find(managerId => {
+                            const subcobradores = cachedHierarchy[managerId] || [];
+                            return subcobradores.some(c => String(c.seller_code) === finalSellerCode);
+                        });
+
+                        if (matchingCollectorId) {
+                            const foundCobrador = cachedHierarchy[matchingCollectorId].find(c => String(c.seller_code) === finalSellerCode);
+                            if (foundCobrador) {
+                                finalAssignedCollectorId = foundCobrador.id;
+                            }
+                        } else {
+                            errors.push({ row: i + 1, clientName: name, reason: `Código de vendedor '${finalSellerCode}' no encontrado.` });
+                        }
+                    }
 
                     clients.push({
                         id: clientId,
@@ -652,7 +672,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         address: String(row[idxs.addr ?? -1] || '---'),
                         ...(finalUbicacionCasa ? { location: finalUbicacionCasa } : {}),
                         ...(ubicacionNegocioParsed ? { domicilioLocation: ubicacionNegocioParsed } : {}),
-                        addedBy: collectorId,
+                        addedBy: finalAssignedCollectorId,
                         branchId: branchId,
                         sellerCode: finalSellerCode,
                         clientTypeCode: "131",
@@ -690,7 +710,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     loans.push({
                         id: loanId,
                         clientId,
-                        collectorId,
+                        collectorId: finalAssignedCollectorId,
                         branchId,
                         principal: Math.round(principal),
                         interestRate: virtualInterestRate,
@@ -709,12 +729,13 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     } as any);
 
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
-                    if (loanInitialPaid > 0) {
+                    const hasMigLog = existingLogs.some(log => log.loanId === loanId && log.notes === "MIGRACIÓN EXCEL - SALDO INICIAL");
+                    if (loanInitialPaid > 0 && !hasMigLog) {
                         logs.push({
                             id: generateUUID(), // Usar UUID válido en vez de LOG-MIG- para evitar errores de base de datos
                             loanId: loanId,
                             clientId: clientId,
-                            collectorId: collectorId,
+                            collectorId: finalAssignedCollectorId,
                             branchId: branchId,
                             amount: Math.round(loanInitialPaid),
                             type: CollectionLogType.PAYMENT,
