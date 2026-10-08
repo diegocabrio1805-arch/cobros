@@ -426,8 +426,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 paymentsQuery = supabase.rpc('get_collector_payments', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 logsQuery = supabase.rpc('get_collector_logs', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
             } else if (currentUser && currentUser.role === 'Gerente') {
-                paymentsQuery = paymentsQuery.eq('branch_id', currentUser.id);
-                logsQuery = logsQuery.eq('branch_id', currentUser.id);
+                // BUG FIX: Permitir que los Gerentes descarguen todos los pagos y logs incondicionalmente
+                // para que los saldos se calculen correctamente sin importar si el pago lo registr el Admin u otra sucursal.
                 profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
                 // Nota: settingsQuery descarga todos los settings para que la jerarquía funcione si es necesario, 
                 // o se aislará en settingsHierarchy.ts localmente.
