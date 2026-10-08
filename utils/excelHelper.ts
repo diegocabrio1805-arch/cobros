@@ -21,7 +21,7 @@ const parseExcelDate = (val: any): string => {
     }
 
     const str = String(val).trim();
-    if (!str) return todayStr;
+    if (!str || str === '-' || str === '--' || str === '0100-01-01') return todayStr;
 
     // Intentar DD/MM/YYYY
     if (str.includes('/')) {
@@ -48,7 +48,7 @@ const parseExcelDate = (val: any): string => {
 export const parseDaysDelayed = (val: any): number => {
     if (val === null || val === undefined) return 0;
     const strVal = String(val).trim();
-    if (!strVal) return 0;
+    if (!strVal || strVal === '-' || strVal === '--' || strVal === '0100-01-01') return 0;
     const cleaned = strVal.replace(/\D/g, '');
     if (!cleaned) return 0;
     return parseInt(cleaned, 10);
@@ -447,7 +447,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     );
                     const clientId = existingClient ? existingClient.id : generateUUID();
                     const activeLoan = existingClient ? existingLoans.find(l => l.clientId === clientId && (l.status === LoanStatus.ACTIVE || l.balance > 0)) : null;
-                    const loanId = activeLoan ? activeLoan.id : `L-${clientId}`;
+                    // FIX: Asegurarnos de no reutilizar IDs inválidos (como L-...) que hayan quedado fantasma en el estado local de un intento fallido anterior
+                    const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+                    const loanId = activeLoan && isValidUUID(activeLoan.id) ? activeLoan.id : generateUUID();
                     let principal = Math.round(parseAmount(row[idxs.principal ?? -1]));
                     let totalAmount = Math.round(parseAmount(row[idxs.totalAmt ?? -1]));
                     let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
@@ -709,7 +711,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
                     if (loanInitialPaid > 0) {
                         logs.push({
-                            id: `LOG-MIG-${loanId}`, // ID DETERMINÍSTICO PARA EVITAR DUPLICADOS EN RE-IMPORTACIONES
+                            id: generateUUID(), // Usar UUID válido en vez de LOG-MIG- para evitar errores de base de datos
                             loanId: loanId,
                             clientId: clientId,
                             collectorId: collectorId,
