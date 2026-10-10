@@ -8,6 +8,7 @@ import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
 import { generateUUID } from '../utils/helpers';
 import { BackgroundTask } from '@capawesome/capacitor-background-task';
+import { Capacitor } from '@capacitor/core';
 
 
 
@@ -454,7 +455,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (lastSyncTime && !fullSync) {
                 // MARGEN AMPLIADO: 10 minutos (antes 2 min) para cubrir retrasos del servidor Supabase
                 // y diferencias de reloj entre el celular y el servidor.
-                const safetyMargin = 600000;
+                // FIX SYNC NAVEGADOR NORMAL: en web (PC) usamos 2 horas, porque el updated_at lo pone
+                // el reloj del celular del cobrador y si está atrasado el pago quedaba fuera del delta.
+                const safetyMargin = Capacitor.isNativePlatform() ? 600000 : 7200000;
                 const parsedDate = new Date(lastSyncTime);
                 if (!isNaN(parsedDate.getTime())) {
                     adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();

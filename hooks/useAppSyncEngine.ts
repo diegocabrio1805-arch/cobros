@@ -19,6 +19,12 @@ const getQueueFromForage = async (key: string) => {
 import { Preferences } from '@capacitor/preferences';
 import { isPrintingNow, connectToPrinter } from '../services/bluetoothPrinterService';
 import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+// FIX SYNC NAVEGADOR NORMAL: En la versión web (PC) el caché de IndexedDB sobrevive a Ctrl+Shift+R,
+// y el sync incremental podía dejar pagos fuera. En web, el arranque y el deep-sync usan Full Sync
+// autoritativo (igual que el modo incógnito, que arranca sin caché).
+const IS_WEB = !Capacitor.isNativePlatform();
 
 export const useAppSyncEngine = (
   state: AppState,
@@ -64,7 +70,8 @@ export const useAppSyncEngine = (
       local.forEach(l => {
         if (!l || !l.id) return;
         const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
-        if ((pendingAddIds.has(l.id) || isRecent) && !remoteIds.has(l.id)) {
+        // En web el servidor es la fuente de verdad: solo se conservan locales pendientes de subir.
+        if ((pendingAddIds.has(l.id) || (isRecent && !IS_WEB)) && !remoteIds.has(l.id)) {
           result.push(l);
           remoteIds.add(l.id);
         }
@@ -363,12 +370,83 @@ export const useAppSyncEngine = (
     // NOTA: El delay es de 5s para evitar colisión con el fullSync que App.tsx
     // dispara a los 3s cuando no hay clientes en caché local.
     const timer = setTimeout(() => {
-      sync.pullData();
+      if (IS_WEB) {
+        // Navegador normal: Full Sync al cargar/recargar la página (paridad con incógnito).
+        // processQueue sube primero la cola pendiente y respeta el lock si ya hay un sync corriendo.
+        if (!(window as any)._webStartupFullSyncStarted) {
+          (window as any)._webStartupFullSyncStarted = true;
+          localStorage.setItem(StorageService.getSyncKey('last_deep_sync_ms'), Date.now().toString());
+          console.log('[Sync] Web: Full Sync de arranque (paridad con modo incógnito)');
+          sync.processQueue(true, true);
+        }
+      } else {
+        sync.pullData();
+      }
     }, 5000);
 
     return () => {
       clearTimeout(timer);
     };
+  }, [isInitializing]);
+
+  // 🛡️ MOTOR VIGILANTE DE SINCRONIZACIÓN (solo web/PC)
+  // Cada 5 minutos compara cuántos pagos y registros de cobro de las últimas 6 horas hay en
+  // Supabase contra los que tiene este navegador. Si al navegador le faltan datos,
+  // dispara automáticamente un Full Sync de reparación (máx. 1 cada 15 min).
+  const watchdogStateRef = useRef(state);
+  watchdogStateRef.current = state;
+  const watchdogSyncRef = useRef(sync);
+  watchdogSyncRef.current = sync;
+
+  useEffect(() => {
+    if (isInitializing || !IS_WEB) return;
+    const WINDOW_MS = 6 * 3600000;
+    const CHECK_EVERY_MS = 5 * 60000;
+    const MIN_REPAIR_GAP_MS = 15 * 60000;
+
+    const runWatchdog = async () => {
+      const s = watchdogStateRef.current;
+      const sy = watchdogSyncRef.current;
+      const user = s.currentUser;
+      if (!user || user.role === Role.COLLECTOR) return;
+      if (sy.isSyncing || sy.isFullSyncing || !sy.isOnline || sy.queueLength > 0) return;
+
+      const lastRepair = (window as any)._watchdogLastRepairMs || 0;
+      if (Date.now() - lastRepair < MIN_REPAIR_GAP_MS) return;
+
+      try {
+        const since = new Date(Date.now() - WINDOW_MS).toISOString();
+        const sinceMs = new Date(since).getTime();
+        const buildCount = (table: 'payments' | 'collection_logs') => {
+          let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
+            .gt('updated_at', since).is('deleted_at', null);
+          if (user.role === Role.MANAGER) q = q.eq('branch_id', user.id);
+          return q;
+        };
+        const [payRes, logRes] = await Promise.all([buildCount('payments'), buildCount('collection_logs')]);
+        if (payRes.error || logRes.error) return;
+
+        const countLocal = (arr: any[] | undefined) => (Array.isArray(arr) ? arr : []).filter((i: any) =>
+          !i.deletedAt && i.updated_at && new Date(i.updated_at).getTime() > sinceMs
+        ).length;
+        const localPay = countLocal(s.payments as any[]);
+        const localLogs = countLocal(s.collectionLogs as any[]);
+        const serverPay = payRes.count ?? 0;
+        const serverLogs = logRes.count ?? 0;
+
+        if (serverPay > localPay || serverLogs > localLogs) {
+          console.warn(`[Vigilante] Desincronización detectada (pagos ${localPay}/${serverPay}, registros ${localLogs}/${serverLogs}). Reparando con Full Sync...`);
+          (window as any)._watchdogLastRepairMs = Date.now();
+          sy.processQueue(true, true);
+        }
+      } catch (e) {
+        console.warn('[Vigilante] Verificación omitida:', e);
+      }
+    };
+
+    const firstCheck = setTimeout(runWatchdog, 2 * 60000); // tras el Full Sync de arranque
+    const interval = setInterval(runWatchdog, CHECK_EVERY_MS);
+    return () => { clearTimeout(firstCheck); clearInterval(interval); };
   }, [isInitializing]);
 
 
@@ -413,6 +491,13 @@ export const useAppSyncEngine = (
         const isTenthCycle = syncCycleCount % 10 === 0;
 
         if ((shouldDeepSync || isTenthCycle) && !sync.isSyncing && sync.isOnline) {
+            if (IS_WEB && shouldDeepSync) {
+                // En PC no hay restricción de batería/datos: deep-sync = Full Sync real.
+                console.log('[AutoRepair] Web: deep-sync completo. Ciclo:', syncCycleCount);
+                localStorage.setItem(deepSyncKey, Date.now().toString());
+                sync.processQueue(true, true);
+                return;
+            }
             console.log('[AutoRepair] Ejecutando deep-sync silencioso (incremental ampliado). Ciclo:', syncCycleCount);
             // Retroceder el timestamp 1 hora para ampliar el margen de búsqueda
             // sin tirar todo el historial al piso

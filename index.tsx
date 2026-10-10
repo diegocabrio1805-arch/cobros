@@ -1,6 +1,6 @@
 
 // --- CACHE BUSTER DEFINITIVO ---
-const APP_VERSION = '2.2'; // INCREMENTAR PARA FORZAR LIMPIEZA A TODOS LOS USUARIOS
+const APP_VERSION = '2.3'; // INCREMENTAR PARA FORZAR LIMPIEZA A TODOS LOS USUARIOS
 
 if (window.location.search.includes('reload=') || localStorage.getItem('app_version') !== APP_VERSION) {
   console.log("🔥 [CACHE BUSTER] Actualización detectada. Initiating Emergency Wipe...");

@@ -153,6 +153,7 @@ const App: React.FC = () => {
       hasAttemptedInitialSyncRef.current = true;
       console.log("[App] No data found. Triggering initial full sync...");
       const timer = setTimeout(() => {
+          (window as any)._webStartupFullSyncStarted = true; // evita un 2º Full Sync del motor web
           handleForceSync(false, "¡Descargando Datos!", true);
       }, 3000);
       return () => clearTimeout(timer);
