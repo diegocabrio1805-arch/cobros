@@ -382,11 +382,15 @@ const App: React.FC = () => {
 
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
-            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
+            {isPowerUser && (
+              <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
+                <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />
+              </div>
+            )}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
             <Suspense fallback={<div className="flex-1 w-full h-full min-h-[500px] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-slate-300 border-t-emerald-500 animate-spin"></div></div>}>
-            {activeTab === 'clients' && (
+            <div style={{ display: activeTab === 'clients' ? 'block' : 'none' }}>
               <Clients 
                 state={filteredState} 
                 addClient={addClient} 
@@ -413,8 +417,8 @@ const App: React.FC = () => {
                 initialDossierClientId={initialDossierClientId}
                 onClearInitialDossier={() => setInitialDossierClientId(null)}
               />
-            )}
-            {activeTab === 'loans' && (
+            </div>
+            <div style={{ display: activeTab === 'loans' ? 'block' : 'none' }}>
               <Loans 
                 state={filteredState} 
                 addLoan={addLoan} 
@@ -426,9 +430,9 @@ const App: React.FC = () => {
                 activeLocation={activeLocation}
                 onUpdateLoan={updateLoan}
               />
-            )}
-            {activeTab === 'route' && (
-              !isPowerUser ? (
+            </div>
+            <div style={{ display: activeTab === 'route' ? 'block' : 'none' }}>
+              {!isPowerUser ? (
                 <MobileCollectorMode 
                   state={filteredState} 
                   addCollectionAttempt={addCollectionAttempt} 
@@ -446,8 +450,8 @@ const App: React.FC = () => {
                   activeLocation={activeLocation}
                   onUpdateLoan={updateLoan}
                 />
-              )
-            )}
+              )}
+            </div>
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && (
               <Expenses 
