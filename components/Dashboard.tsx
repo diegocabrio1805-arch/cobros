@@ -28,17 +28,26 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   
 
   const getClientBalance = (clientId: string) => {
-    const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
-      l => (l.clientId || (l as any).client_id) === clientId && 
-           (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
+    const allClientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
+      l => (l.clientId || (l as any).client_id) === clientId
     );
-    if (clientLoans.length === 0) return 0;
-    let totalBalance = 0;
-    for (const loan of clientLoans) {
-      const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
-      totalBalance += Math.max(0, loan.totalAmount - totalPaid);
+    if (allClientLoans.length === 0) return 0;
+    
+    // Paridad 100% con el Expediente (Clients.tsx - getClientMetrics):
+    // Se toma el préstamo activo más reciente
+    const sortedLoans = allClientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
+    if (!activeLoan && sortedLoans.length > 0) {
+      activeLoan = sortedLoans[0];
     }
-    return totalBalance;
+    if (!activeLoan) return 0;
+
+    const totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs || []);
+    const balance = Math.max(0, activeLoan.totalAmount - totalPaid);
+    if (balance <= 0.01 || activeLoan.status === LoanStatus.PAID) {
+      return 0;
+    }
+    return balance;
   };
 
   const loadOrders = () => {
@@ -70,19 +79,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
     // (el efectivo a entregar sería 0 o negativo, el pedido es inválido)
     const validOrders = uniqueOrders.filter(order => {
-      const balance = (() => {
-        const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
-          l => (l.clientId || (l as any).client_id) === order.clientId &&
-               (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
-        );
-        if (clientLoans.length === 0) return 0;
-        let totalBalance = 0;
-        for (const loan of clientLoans) {
-          const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs || []);
-          totalBalance += Math.max(0, loan.totalAmount - totalPaid);
-        }
-        return totalBalance;
-      })();
+      const balance = getClientBalance(order.clientId);
       
       if (balance > 0 && balance >= order.principal * 0.9) return false;
 

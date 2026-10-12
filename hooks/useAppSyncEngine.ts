@@ -369,25 +369,37 @@ export const useAppSyncEngine = (
     if (isInitializing) return;
     // NOTA: El delay es de 5s para evitar colisión con el fullSync que App.tsx
     // dispara a los 3s cuando no hay clientes en caché local.
+    // PERF FIX (12/10): Se quitó el Full Sync forzado en cada arranque web (v2.3). Descargaba 1 año
+    // completo cada vez que se abría la app y la volvía lentísima. Volvemos al incremental (instantáneo);
+    // el vigilante de abajo repara solo si detecta datos faltantes.
     const timer = setTimeout(() => {
-      if (IS_WEB) {
-        // Navegador normal: Full Sync al cargar/recargar la página (paridad con incógnito).
-        // processQueue sube primero la cola pendiente y respeta el lock si ya hay un sync corriendo.
-        if (!(window as any)._webStartupFullSyncStarted) {
-          (window as any)._webStartupFullSyncStarted = true;
-          localStorage.setItem(StorageService.getSyncKey('last_deep_sync_ms'), Date.now().toString());
-          console.log('[Sync] Web: Full Sync de arranque (paridad con modo incógnito)');
-          sync.processQueue(true, true);
-        }
-      } else {
-        sync.pullData();
-      }
+      sync.pullData();
     }, 5000);
 
     return () => {
       clearTimeout(timer);
     };
   }, [isInitializing]);
+
+  // 🧹 LIMPIEZA ÚNICA DE ALCANCE (Admin, 12/10): la caché local del Admin todavía tiene los datos de
+  // TODAS las sucursales descargados antes del filtro. Un Full Sync (ya filtrado por branch_id) reemplaza
+  // la caché y los descarta. Se hace una sola vez y solo si no hay cola pendiente (no se pierde nada offline).
+  // Se usa esto en lugar de subir APP_VERSION porque el cache buster borra IndexedDB completo,
+  // incluida la cola offline de los cobradores.
+  useEffect(() => {
+    if (isInitializing) return;
+    const user = state.currentUser;
+    if (!user || user.role !== Role.ADMIN) return;
+    const flagKey = `admin_scope_cleanup_v1_${user.id}`;
+    if (localStorage.getItem(flagKey)) return;
+    const t = setTimeout(() => {
+      if (sync.queueLength > 0 || !sync.isOnline || sync.isSyncing || sync.isFullSyncing) return;
+      localStorage.setItem(flagKey, Date.now().toString());
+      console.log('[Sync] Admin: limpieza única de datos de otras sucursales (Full Sync filtrado)');
+      sync.processQueue(true, true);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [isInitializing, state.currentUser?.id, sync.queueLength, sync.isOnline, sync.isSyncing, sync.isFullSyncing]);
 
   // 🛡️ MOTOR VIGILANTE DE SINCRONIZACIÓN (solo web/PC)
   // Cada 5 minutos compara cuántos pagos y registros de cobro de las últimas 6 horas hay en
@@ -420,7 +432,8 @@ export const useAppSyncEngine = (
         const buildCount = (table: 'payments' | 'collection_logs') => {
           let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
             .gt('updated_at', since).is('deleted_at', null);
-          if (user.role === Role.MANAGER) q = q.eq('branch_id', user.id);
+          // Admin y Gerente: contar solo su propia sucursal (igual que la descarga filtrada de useSync)
+          if (user.role === Role.MANAGER || user.role === Role.ADMIN) q = q.eq('branch_id', user.id);
           return q;
         };
         const [payRes, logRes] = await Promise.all([buildCount('payments'), buildCount('collection_logs')]);
@@ -491,13 +504,6 @@ export const useAppSyncEngine = (
         const isTenthCycle = syncCycleCount % 10 === 0;
 
         if ((shouldDeepSync || isTenthCycle) && !sync.isSyncing && sync.isOnline) {
-            if (IS_WEB && shouldDeepSync) {
-                // En PC no hay restricción de batería/datos: deep-sync = Full Sync real.
-                console.log('[AutoRepair] Web: deep-sync completo. Ciclo:', syncCycleCount);
-                localStorage.setItem(deepSyncKey, Date.now().toString());
-                sync.processQueue(true, true);
-                return;
-            }
             console.log('[AutoRepair] Ejecutando deep-sync silencioso (incremental ampliado). Ciclo:', syncCycleCount);
             // Retroceder el timestamp 1 hora para ampliar el margen de búsqueda
             // sin tirar todo el historial al piso

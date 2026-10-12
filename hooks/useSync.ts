@@ -434,22 +434,40 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // o se aislará en settingsHierarchy.ts localmente.
             }
 
+            // PERF/AISLAMIENTO (12/10): El Administrador descargaba TODAS las sucursales (~16.000 registros ajenos)
+            // y luego las ocultaba en filteredState. Ahora solo baja su propia sucursal.
+            // Auditado: 0 registros con branch_id NULL, 0 préstamos cruzados. Los pagos/logs de SUS clientes que
+            // tienen otro branch_id se traen aparte en el Lote 3 (crossBranch) para no alterar saldos.
+            const isAdminRole = !!currentUser && currentUser.role === 'Administrador';
+            if (isAdminRole) {
+                clientsQuery = clientsQuery.eq('branch_id', currentUser.id);
+                loansQuery = loansQuery.eq('branch_id', currentUser.id);
+                profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
+            }
+
             let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
             let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
             let simulatedOrdersQuery = supabase.from('simulated_orders').select('*').order('updated_at', { ascending: true });
+            if (isAdminRole) {
+                expensesQuery = expensesQuery.eq('branch_id', currentUser.id);
+                isolatedExpensesQuery = isolatedExpensesQuery.eq('branch_id', currentUser.id);
+                deletedItemsQuery = deletedItemsQuery.or(`branch_id.eq.${currentUser.id},branch_id.is.null`);
+                simulatedOrdersQuery = simulatedOrdersQuery.eq('branch_id', currentUser.id);
+            }
 
 
             // AUDIT FIX: Query separada para logs PAGO_ELIMINADO - siempre descarga los últimos 90 días
             // sin importar el timestamp de la última sincronización incremental.
             const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-            const deletedPaymentLogsQuery = supabase
+            let deletedPaymentLogsQuery: any = supabase
                 .from('collection_logs')
                 .select('*')
                 .eq('type', 'PAGO_ELIMINADO')
                 .gt('date', ninetyDaysAgo)
                 .order('date', { ascending: false })
                 .limit(300);
+            if (isAdminRole) deletedPaymentLogsQuery = deletedPaymentLogsQuery.eq('branch_id', currentUser.id);
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {
@@ -550,7 +568,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     let q: any = isCollectorRole
                         ? supabase.rpc(rpcName, { p_collector_id: currentUser.id }).select('*')
                         : supabase.from(table).select('*');
-                    if (isManagerRole) q = q.eq('branch_id', currentUser.id);
+                    if (isManagerRole || isAdminRole) q = q.eq('branch_id', currentUser.id);
                     if (adjustedSyncTime && !fullSync) q = q.gt('updated_at', adjustedSyncTime);
                     else q = q.gt('updated_at', oneYearAgoKs);
                     return q;
@@ -587,6 +605,41 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 };
                 const payRes = await fetchKeyset(buildKeysetQuery('payments', 'get_collector_payments'), 'payments');
                 const logRes = await fetchKeyset(buildKeysetQuery('collection_logs', 'get_collector_logs'), 'logs');
+
+                // CROSS-BRANCH (solo Admin): pagos/logs de SUS clientes o préstamos guardados con otro branch_id
+                // (auditado 12/10: ~64 pagos y ~37 logs). Se piden por client_id y loan_id en tandas de 100.
+                if (isAdminRole) {
+                    const [{ data: myClientRows, error: myClientsErr }, { data: myLoanRows, error: myLoansErr }] = await Promise.all([
+                        supabase.from('clients').select('id').eq('branch_id', currentUser.id).limit(10000).abortSignal(controller.signal),
+                        supabase.from('loans').select('id').eq('branch_id', currentUser.id).limit(10000).abortSignal(controller.signal)
+                    ]);
+                    if (myClientsErr) throw myClientsErr;
+                    if (myLoansErr) throw myLoansErr;
+                    const idSets: Array<['client_id' | 'loan_id', string[]]> = [
+                        ['client_id', (myClientRows || []).map((c: any) => c.id)],
+                        ['loan_id', (myLoanRows || []).map((l: any) => l.id)]
+                    ];
+                    const seenPay = new Set(payRes.data.map((p: any) => p.id));
+                    const seenLog = new Set(logRes.data.map((l: any) => l.id));
+                    for (const [col, ids] of idSets) {
+                        for (let i = 0; i < ids.length; i += 100) {
+                            const chunk = ids.slice(i, i + 100);
+                            for (const [table, target, seen] of [['payments', payRes, seenPay], ['collection_logs', logRes, seenLog]] as const) {
+                                let cq: any = supabase.from(table).select('*')
+                                    .neq('branch_id', currentUser.id).in(col, chunk);
+                                if (adjustedSyncTime && !fullSync) cq = cq.gt('updated_at', adjustedSyncTime);
+                                else cq = cq.gt('updated_at', oneYearAgoKs);
+                                const { data: crossData, error: crossErr } = await cq.limit(5000).abortSignal(controller.signal);
+                                if (crossErr) throw crossErr;
+                                if (crossData) for (const item of crossData) {
+                                    if (seen.has(item.id)) continue;
+                                    seen.add(item.id);
+                                    target.data.push(item);
+                                }
+                            }
+                        }
+                    }
+                }
                 paymentsResult = payRes;
                 logsResult = logRes;
             } catch (err) {

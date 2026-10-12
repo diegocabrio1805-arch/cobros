@@ -382,15 +382,13 @@ const App: React.FC = () => {
 
         <main className={`flex-1 ${activeTab === 'reports' ? 'p-0' : 'p-2 md:p-8'} mobile-scroll-container`}>
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
-            {isPowerUser && (
-              <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
-                <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />
-              </div>
-            )}
+            {/* PERF FIX (12/10): Se quitó el keep-alive (display:none). Montar 4 pantallas pesadas a la vez
+                causaba lentitud y el error React #185 en el perfil Administrador. */}
+            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
             <Suspense fallback={<div className="flex-1 w-full h-full min-h-[500px] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-slate-300 border-t-emerald-500 animate-spin"></div></div>}>
-            <div style={{ display: activeTab === 'clients' ? 'block' : 'none' }}>
+            {activeTab === 'clients' && (
               <Clients 
                 state={filteredState} 
                 addClient={addClient} 
@@ -417,8 +415,8 @@ const App: React.FC = () => {
                 initialDossierClientId={initialDossierClientId}
                 onClearInitialDossier={() => setInitialDossierClientId(null)}
               />
-            </div>
-            <div style={{ display: activeTab === 'loans' ? 'block' : 'none' }}>
+            )}
+            {activeTab === 'loans' && (
               <Loans 
                 state={filteredState} 
                 addLoan={addLoan} 
@@ -430,9 +428,9 @@ const App: React.FC = () => {
                 activeLocation={activeLocation}
                 onUpdateLoan={updateLoan}
               />
-            </div>
-            <div style={{ display: activeTab === 'route' ? 'block' : 'none' }}>
-              {!isPowerUser ? (
+            )}
+            {activeTab === 'route' && (
+              !isPowerUser ? (
                 <MobileCollectorMode 
                   state={filteredState} 
                   addCollectionAttempt={addCollectionAttempt} 
@@ -450,8 +448,8 @@ const App: React.FC = () => {
                   activeLocation={activeLocation}
                   onUpdateLoan={updateLoan}
                 />
-              )}
-            </div>
+              )
+            )}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && (
               <Expenses 
