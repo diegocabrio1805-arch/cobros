@@ -156,6 +156,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           .single();
 
         if (profileData) {
+          if (profileData.deleted_at) {
+            setError("ESTA CUENTA HA SIDO DADA DE BAJA POR ADMINISTRACIÓN");
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch(e){}
+            return;
+          }
           if (profileData.blocked) {
             setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
             try { await supabase.auth.signOut({ scope: 'local' }); } catch(e){}
@@ -190,6 +195,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
     } else {
       // Offline fallback
       if (localUser) {
+        if (localUser.deletedAt || (localUser as any).deleted_at) {
+          setError("ESTA CUENTA HA SIDO DADA DE BAJA POR ADMINISTRACIÓN");
+          return;
+        }
         if (localUser.blocked) {
           setError("SU CUENTA HA SIDO BLOQUEADA POR VENCIMIENTO O ADMINISTRACIÓN");
           return;

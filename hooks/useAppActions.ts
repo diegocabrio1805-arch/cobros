@@ -213,7 +213,7 @@ export const useAppActions = (
     const deletedTimestamp = new Date().toISOString();
     const usersToDelete = state.users.filter(u => u.id === userId || u.managedBy === userId);
     usersToDelete.forEach(u => {
-      pushUser({ ...u, deletedAt: deletedTimestamp, updated_at: deletedTimestamp } as any);
+      pushUser({ ...u, blocked: true, deletedAt: deletedTimestamp, updated_at: deletedTimestamp } as any);
     });
 
     setState(prev => ({ ...prev, users: prev.users.filter(u => u.id !== userId && u.managedBy !== userId) }));
