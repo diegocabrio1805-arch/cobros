@@ -267,16 +267,25 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     return false;
   });
 
+  const isMigLog = (l: any) => {
+    const id = String(l.id || '');
+    const notes = String(l.notes || '');
+    return id.startsWith('LOG-MIG-') || notes.includes('MIGRACIÓN EXCEL') || l.is_migration || l.isMigration;
+  };
+
   const seenMigs = new Set<string>();
   
   // Find the latest migration log for this loan (if any)
-  const migLogs = validLogs.filter(l => String(l.id || '').startsWith('LOG-MIG-'));
+  const migLogs = validLogs.filter(isMigLog);
   // FIX CRÍTICO-2: Ordenar por el campo 'date' (fecha real del saldo importado),
-  // NO por 'updated_at' que puede ser "hoy" si el log fue modificado por un script correctivo.
+  // y si tienen la misma fecha, por updated_at descendente para tomar el más reciente.
   migLogs.sort((a, b) => {
       const aTime = new Date(a.date).getTime();
       const bTime = new Date(b.date).getTime();
-      return bTime - aTime;
+      if (bTime !== aTime) return bTime - aTime;
+      const aUp = new Date(a.updated_at || a.updatedAt || 0).getTime();
+      const bUp = new Date(b.updated_at || b.updatedAt || 0).getTime();
+      return bUp - aUp;
   });
   const latestMigLog = migLogs.length > 0 ? migLogs[0] : null;
   // FIX CRÍTICO-2: Usar 'date' (no 'updated_at') para construir la fecha de corte de migración.
@@ -288,7 +297,7 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     const id = String(log.id || '');
     
     // Si es un log de migración, solo tomamos el más reciente y descartamos duplicados
-    if (id.startsWith('LOG-MIG-')) {
+    if (isMigLog(log)) {
         const lId = String(log.loanId || log.loan_id || '').trim();
         if (seenMigs.has(lId)) return acc; 
         seenMigs.add(lId);
