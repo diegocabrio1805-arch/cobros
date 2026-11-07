@@ -145,7 +145,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         
         const handleQueueAdded = () => {
             console.log('[Sync] New item in queue, triggering instant process');
-            setTimeout(() => processQueue(), 50);
+            // FIX: utils/syncQueue.ts escribe en localStorage, pero processQueue lee de localforage.
+            // Migramos antes de procesar para que pedidos/borrados se suban al instante (no al reiniciar).
+            setTimeout(() => { migrateQueues().then(() => processQueue()); }, 50);
         };
         
         if (typeof window !== 'undefined') {

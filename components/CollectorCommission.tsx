@@ -913,6 +913,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     setIsGeneratingImage(true);
     try {
       const element = historyPrintRef.current;
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -936,6 +937,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const imgWidthmm = 297; // Ancho A4 Horizontal
       const imgHeightmm = (canvas.height * imgWidthmm) / canvas.width;
       
+      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({
         orientation: 'l',
         unit: 'mm',
@@ -1201,6 +1203,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     await new Promise(r => setTimeout(r, 300));
 
     try {
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(receiptImageRef.current, {
         scale: 4, // HD Resolution
         backgroundColor: '#ffffff',

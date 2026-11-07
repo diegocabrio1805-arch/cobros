@@ -184,7 +184,7 @@ export const useAppActions = (
 
     if (navigator.onLine) {
       // FIX RACE CONDITION: Bypass Queue para la perilla y forzar a Supabase a actualizar instantáneamente
-      supabase.from('profiles').update({ watch_expires_at: updatedUser.watchExpiresAt || null }).eq('id', updatedUser.id).then().catch(() => {});
+      supabase.from('profiles').update({ watch_expires_at: updatedUser.watchExpiresAt || null }).eq('id', updatedUser.id).then(() => {}, () => {});
       
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -309,13 +309,30 @@ export const useAppActions = (
     handleForceSync(false);
   };
 
+  // Al habilitar un crédito, los pedidos pendientes de ese cliente quedan finiquitados:
+  // se borran de Supabase (DELETE_SIMULATED_ORDER) para que no queden "pedidos zombie".
+  const getOrderIdsForClient = (clientId: string): string[] =>
+    (Array.isArray(state.simulatedOrders) ? state.simulatedOrders : [])
+      .filter(o => (o.clientId || (o as any).client_id) === clientId)
+      .map(o => o.id);
+
+  const purgeOrdersRemote = (orderIds: string[]) => {
+    orderIds.forEach(id => addToQueue('DELETE_SIMULATED_ORDER', { id }));
+  };
+
   const addLoan = async (loan: Loan) => {
     const branchId = internalGetBranchId(state.currentUser);
     const newLoan = { ...loan, branchId, updated_at: new Date().toISOString() };
-    const newState = { ...state, loans: [newLoan, ...state.loans] };
+    const orderIds = getOrderIdsForClient(newLoan.clientId);
+    const newState = {
+      ...state,
+      loans: [newLoan, ...state.loans],
+      simulatedOrders: (state.simulatedOrders || []).filter(o => !orderIds.includes(o.id))
+    };
     setState(newState);
     immediateSave(newState);
     pushLoan(newLoan);
+    purgeOrdersRemote(orderIds);
     handleForceSync(false);
   };
 
@@ -353,9 +370,12 @@ export const useAppActions = (
       updated_at: new Date().toISOString() 
     };
 
+    const orderIds = getOrderIdsForClient(stampedNewLoan.clientId);
+
     // 1. Actualización Local (Optimistic UI)
     setState(prev => ({
       ...prev,
+      simulatedOrders: (prev.simulatedOrders || []).filter(o => !orderIds.includes(o.id)),
       loans: [
         stampedNewLoan,
         ...prev.loans.map(l => 
@@ -366,6 +386,7 @@ export const useAppActions = (
 
     // 2. Sincronización Blindada (Atómica)
     await pushRenewal(stampedNewLoan, previousLoanIds);
+    purgeOrdersRemote(orderIds);
     
     // 3. Forzar sincronización
     handleForceSync(false, "RENOVACIÓN BLINDADA PROCESADA");

@@ -6,6 +6,7 @@ import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
 import { Share } from '@capacitor/share';
 import PullToRefresh from './PullToRefresh';
+import FastInput from './FastInput';
 import { Capacitor } from '@capacitor/core';
 // Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
 const openWhatsApp = (phone: string, text: string, countryCode: string) => {
@@ -261,6 +262,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         return;
       }
 
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -569,10 +571,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const [renewSimulationResult, setRenewSimulationResult] = useState<{ total: number, installment: number } | null>(null);
 
   // Sincronización del buscador con rebote (Debounce)
+  // FastInput ya espera 250ms antes de avisar; aquí solo un margen corto.
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(globalSearch);
-    }, 500);
+    }, 100);
     return () => clearTimeout(timer);
   }, [globalSearch]);
 
@@ -753,12 +756,55 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       });
   }, [showLegajo, state.collectionLogs, state.loans]);
 
-  const getClientMetrics = (client: Client) => {
+  // ÍNDICES EN MEMORIA (O(N)): Agrupar préstamos y logs por ID para cálculo instantáneo
+  const logsByLoanIdMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (let i = 0; i < allLogs.length; i++) {
+      const log = allLogs[i];
+      if (log.deletedAt || (log as any).deleted_at) continue;
+      const typeStr = String(log.type || '').toUpperCase();
+      if (typeStr !== 'PAGO' && typeStr !== CollectionLogType.PAYMENT) continue;
+      if (log.isOpening || (log as any).is_opening) continue;
+      const lId = String(log.loanId || (log as any).loan_id || '').trim().toLowerCase();
+      if (!lId) continue;
+      let arr = map.get(lId);
+      if (!arr) {
+        arr = [];
+        map.set(lId, arr);
+      }
+      arr.push(log);
+    }
+    return map;
+  }, [state.collectionLogs]);
+
+  const loansByClientIdMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const allLoans = Array.isArray(state.loans) ? state.loans : [];
+    for (let i = 0; i < allLoans.length; i++) {
+      const l = allLoans[i];
+      const cId = l.clientId || (l as any).client_id;
+      if (!cId) continue;
+      let arr = map.get(cId);
+      if (!arr) {
+        arr = [];
+        map.set(cId, arr);
+      }
+      arr.push(l);
+    }
+    // Pre-ordenar cada lista de préstamos por fecha descendente una sola vez
+    map.forEach(list => {
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    });
+    return map;
+  }, [state.loans]);
+
+  const getClientMetrics = (client: Client, clientLoansPrefiltered?: any[]) => {
     if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false, totalInstallments: 0, paidInstallments: 0 };
-    const allClientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id);
-    const sortedLoans = allClientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const allClientLoans = clientLoansPrefiltered || loansByClientIdMap.get(client.id) || (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id);
+    const sortedLoans = clientLoansPrefiltered ? [...allClientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : allClientLoans;
     
-    // Buscar prstamo activo, si no hay, usar el ltimo (Pagado, etc.)
+    // Buscar préstamo activo, si no hay, usar el último (Pagado, etc.)
     let activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
     if (!activeLoan && sortedLoans.length > 0) {
        activeLoan = sortedLoans[0];
@@ -770,9 +816,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
 
     if (activeLoan) {
-
-
-      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+      const prefilteredLogs = logsByLoanIdMap.get(String(activeLoan.id || (activeLoan as any).loan_id || '').trim().toLowerCase());
+      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs, prefilteredLogs);
       balance = Math.max(0, activeLoan.totalAmount - totalPaid);
 
       const totalCreditAmount = activeLoan.totalAmount;
@@ -794,7 +839,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
       daysOverdue = Math.max(...clientLoans.map(l => {
-        const lp = calculateTotalPaidFromLogs(l, state.collectionLogs);
+        const pLogs = logsByLoanIdMap.get(String(l.id || (l as any).loan_id || '').trim().toLowerCase());
+        const lp = calculateTotalPaidFromLogs(l, state.collectionLogs, pLogs);
         return getDaysOverdue(l, state.settings, lp);
       }));
 
@@ -825,16 +871,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const clientsToMap = Array.isArray(state.clients) ? state.clients : [];
     
     // Solo calculamos para los clientes que no están eliminados para ahorrar memoria
-    clientsToMap.forEach(client => {
+    for (let i = 0; i < clientsToMap.length; i++) {
+      const client = clientsToMap[i];
       if (!client.deletedAt) {
         metricsMap[client.id] = getClientMetrics(client);
       }
-    });
+    }
     return metricsMap;
-  // HOTFIX PERF: state.settings removido de deps — getDaysOverdue es estable en sesión de cobro
-  // Solo recalcular cuando cambian datos reales (clientes, préstamos, logs)
-  // FORCE_RELOAD_DUMMY_COMMENT
-  }, [state.clients, state.loans, state.collectionLogs]);
+  }, [state.clients, loansByClientIdMap, logsByLoanIdMap]);
 
   const filteredClients = useMemo(() => {
     // La lista BASE debe ser TODOS los clientes activos de esta sucursal (ya filtrados en App.tsx vía state.clients)
@@ -930,65 +974,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan?.createdAt || b.createdAt).getTime() - new Date(a._metrics.activeLoan?.createdAt || a.createdAt).getTime());
   }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans, clientMetricsMap]);
 
-  const renovacionesExcelData = useMemo(() => {
-    if (viewMode !== 'renovaciones') return [];
-    const start = new Date(filterStartDate + 'T00:00:00');
-    const end = new Date(filterEndDate + 'T23:59:59');
-
-    const loans = Array.isArray(state.loans) ? state.loans : [];
-    const clients = Array.isArray(state.clients) ? state.clients : [];
-    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-
-    return loans.filter(l => {
-      // Robustez: Un préstamo es renovación si tiene el flag O si el código de operación es de renovación
-      const isRenewal = l.isRenewal === true || l.operationTypeCode === '204' || l.operationTypeCode === '205';
-      if (!isRenewal) return false;
-
-      // Normalización de fecha para comparación robusta (usando solo fecha para los límites)
-      const loanDate = new Date(l.createdAt);
-      const loanDateMs = loanDate.getTime();
-      
-      // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente O si el colector tiene historial con el cliente)
-      const loanCollectorId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
-      const lClientId = (l.clientId || (l as any).client_id || '').toLowerCase();
-      const clientObj = (clients || []).find(c => (c.id || '').toLowerCase() === lClientId);
-      const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
-      const collectorLower = (selectedCollector || '').toLowerCase();
-      
-      const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(hl => 
-        (hl.clientId || (hl as any).client_id) === l.clientId && 
-        (hl.collectorId || (hl as any).collector_id || '').toLowerCase() === collectorLower
-      );
-      
-      const matchesCollector = collectorLower === 'all' || 
-                               loanCollectorId === collectorLower || 
-                               clientAddedBy === collectorLower ||
-                               !!anyHistoricLoan;
-      
-      // Permitimos un margen de 1 minuto para evitar problemas de precisión en los límites
-      return loanDateMs >= (start.getTime() - 60000) && loanDateMs <= (end.getTime() + 60000) && matchesCollector;
-    }).map(loan => {
-      const client = clients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden || client.deletedAt) return null;
-
-      // Búsqueda Global
-      if (s) {
-        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
-        const phoneNorm = (client.phone || '').replace(/\D/g, "");
-        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
-        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
-      }
-      const m = getClientMetrics(client);
-      return {
-        ...client,
-        _loan: loan,
-        _metrics: m
-      };
-    }).filter(Boolean).sort((a, b) => new Date((b as any)._loan.createdAt).getTime() - new Date((a as any)._loan.createdAt).getTime());
-  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch, clientMetricsMap]);
-
-  // HOTFIX PERF: pre-indexar conteos de renovaciones ANTES del sort (O(n) vs O(n²) anterior)
+  // HOTFIX PERF: pre-indexar mapas ANTES de renovaciones y cartera (O(n) vs O(n²) anterior)
   const renewalCountMap = useMemo(() => {
     const counts: Record<string, number> = {};
     if (Array.isArray(state.loans)) {
@@ -1024,6 +1010,61 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
     return map;
   }, [state.loans]);
+
+  const renovacionesExcelData = useMemo(() => {
+    if (viewMode !== 'renovaciones') return [];
+    const start = new Date(filterStartDate + 'T00:00:00');
+    const end = new Date(filterEndDate + 'T23:59:59');
+
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    const clients = Array.isArray(state.clients) ? state.clients : [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+    return loans.filter(l => {
+      // Robustez: Un préstamo es renovación si tiene el flag O si el código de operación es de renovación
+      const isRenewal = l.isRenewal === true || l.operationTypeCode === '204' || l.operationTypeCode === '205';
+      if (!isRenewal) return false;
+
+      // Normalización de fecha para comparación robusta (usando solo fecha para los límites)
+      const loanDate = new Date(l.createdAt);
+      const loanDateMs = loanDate.getTime();
+      
+      // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente O si el colector tiene historial con el cliente)
+      const loanCollectorId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
+      const lClientId = (l.clientId || (l as any).client_id || '').toLowerCase();
+      const clientObj = (clients || []).find(c => (c.id || '').toLowerCase() === lClientId);
+      const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
+      const collectorLower = (selectedCollector || '').toLowerCase();
+      
+      const hasHistoricWithCol = historicLoanCollectorsMap[l.clientId]?.has(collectorLower);
+      
+      const matchesCollector = collectorLower === 'all' || 
+                               loanCollectorId === collectorLower || 
+                               clientAddedBy === collectorLower ||
+                               !!hasHistoricWithCol;
+      
+      // Permitimos un margen de 1 minuto para evitar problemas de precisión en los límites
+      return loanDateMs >= (start.getTime() - 60000) && loanDateMs <= (end.getTime() + 60000) && matchesCollector;
+    }).map(loan => {
+      const client = clients.find(c => c.id === loan.clientId);
+      if (!client || client.isHidden || client.deletedAt) return null;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (client.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
+      }
+      const m = clientMetricsMap[client.id] || getClientMetrics(client);
+      return {
+        ...client,
+        _loan: loan,
+        _metrics: m
+      };
+    }).filter(Boolean).sort((a, b) => new Date((b as any)._loan.createdAt).getTime() - new Date((a as any)._loan.createdAt).getTime());
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch, clientMetricsMap, historicLoanCollectorsMap]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
@@ -1742,6 +1783,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         shareContainer.style.visibility = 'visible';
       }
 
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
         scale: 1.5, // Reduced slightly for even better stability
@@ -1759,6 +1801,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.pdf`;
 
+      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -2763,10 +2806,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         <div className="space-y-4">
           <div className="relative">
-            <input
-              type="text"
+            <FastInput
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
+              onValueChange={setGlobalSearch}
+              delay={250}
               placeholder={(t as any).clients.search}
               className="w-full bg-white border border-slate-300 rounded-md py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950"
             />
@@ -4513,37 +4561,37 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="space-y-4">
                         <h5 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{state.settings.language === 'fr' ? 'I. DONNÉES DU CLIENT' : 'I. Datos del Cliente'}</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'NOM' : 'Nombre'}</div><input type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'}</div><input type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'NOM' : 'Nombre'}</div><FastInput type="text" value={editClientFormData?.name} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, name: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'}</div><FastInput type="text" value={editClientFormData?.documentId} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, documentId: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-amber-500 uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° OPÉRATION' : 'Nro Operación'}</div><input type="text" placeholder={state.settings.language === 'fr' ? 'CHIFFRES SEULEMENT' : state.settings.language === 'pt' ? 'SOMENTE NÚMEROS' : 'SOLO NÚMEROS'} value={editClientFormData?.externalId || ''} onChange={e => setEditClientFormData(prev => prev ? { ...prev, externalId: e.target.value.replace(/\D/g, '') } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-amber-400 outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input type="tel" value={editClientFormData?.phone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, phone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={editClientFormData?.secondaryPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, secondaryPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'E-MAIL' : 'Email'}</div><input type="email" value={editClientFormData?.email} onChange={e => setEditClientFormData(prev => prev ? { ...prev, email: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><FastInput type="tel" value={editClientFormData?.phone} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, phone: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><FastInput type="tel" value={editClientFormData?.secondaryPhone} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, secondaryPhone: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'E-MAIL' : 'Email'}</div><FastInput type="email" value={editClientFormData?.email} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, email: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           {/* 
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Vendedor</div><input type="text" value={editClientFormData?.sellerCode} onChange={e => setEditClientFormData(prev => prev ? { ...prev, sellerCode: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Vendedor</div><FastInput type="text" value={editClientFormData?.sellerCode} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, sellerCode: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           */}
                           <div className="flex col-span-1 md:col-span-2 border-t border-slate-800">
                             <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ADRESSE' : 'Dirección'}</div>
-                            <input type="text" value={editClientFormData?.address} onChange={e => setEditClientFormData(prev => prev ? { ...prev, address: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
+                            <FastInput type="text" value={editClientFormData?.address} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, address: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
                         <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm mt-2">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'DOMICILE VILLE' : 'Particular Ciudad'}</div><input type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'RUE PRINCIPALE' : 'Calle Princ.'}</div><input type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'QUARTIER DOM.' : 'Barrio Part.'}</div><input type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° MAISON' : 'Nro Casa'}</div><input type="text" value={editClientFormData?.houseNumber} onChange={e => setEditClientFormData(prev => prev ? { ...prev, houseNumber: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'DOMICILE VILLE' : 'Particular Ciudad'}</div><FastInput type="text" value={editClientFormData?.particularCity} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, particularCity: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'RUE PRINCIPALE' : 'Calle Princ.'}</div><FastInput type="text" value={editClientFormData?.particularStreetMain} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'QUARTIER DOM.' : 'Barrio Part.'}</div><FastInput type="text" value={editClientFormData?.particularNeighborhood} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° MAISON' : 'Nro Casa'}</div><FastInput type="text" value={editClientFormData?.houseNumber} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, houseNumber: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                         </div>
 
                         <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest border-l-4 border-indigo-500 pl-2 mt-4">{state.settings.language === 'fr' ? 'II. DONNÉES PROFESSIONNELLES' : 'II. Datos Laborales'}</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-md overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</div><input type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'POSTE' : 'Cargo'}</div><input type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</div><FastInput type="text" value={editClientFormData?.workCompany} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, workCompany: v } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'POSTE' : 'Cargo'}</div><FastInput type="text" value={editClientFormData?.workPosition} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, workPosition: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'SALAIRE' : 'Salario'}</div><input type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'TÉL. TRAVAIL' : 'Teléf. Laboral'}</div><input type="tel" value={editClientFormData?.workPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'TÉL. TRAVAIL' : 'Teléf. Laboral'}</div><FastInput type="tel" value={editClientFormData?.workPhone} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, workPhone: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex col-span-1 md:col-span-2">
                             <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ADRESSE TRAVAIL' : 'Dirección Lab.'}</div>
-                            <input type="text" value={editClientFormData?.workStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
+                            <FastInput type="text" value={editClientFormData?.workStreetMain} onValueChange={v => setEditClientFormData(prev => prev ? { ...prev, workStreetMain: v } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
@@ -4662,50 +4710,65 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           {isAdminOrManager && editLoanFormData && (
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-orange-500 uppercase tracking-widest border-l-4 border-orange-500 pl-2">{state.settings.language === 'fr' ? 'IV. ÉDITER CRÉDIT ACTIF' : 'IV. Editar Crédito Activo'}</h5>
-                              <div className="bg-slate-900 border border-slate-800 rounded-md overflow-hidden grid grid-cols-2">
-                                <div className="flex border-b border-r border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</label>
-                                  <input type="text" value={editLoanFormData.principal} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, principal: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
-                                </div>
-                                <div className="flex border-b border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'INT %' : 'Int %'}</label>
-                                  <input type="text" value={editLoanFormData.interestRate} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
-                                </div>
-                                <div className="flex border-r border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</label>
-                                  <input type="text" value={editLoanFormData.totalInstallments} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, totalInstallments: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
-                                </div>
-                                <div className="flex p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'DÉBUT' : 'Inicio'}</label>
-                                  <input type="date" value={editLoanFormData.createdAt ? editLoanFormData.createdAt.split('T')[0] : ''} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, createdAt: e.target.value }))} className="flex-1 bg-transparent text-white font-black text-[9px] outline-none text-right uppercase" />
-                                </div>
-                                <div className="flex p-2 items-center gap-2 border-t border-slate-800 col-span-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'FRÉQUENCE' : 'Frecuencia'}</label>
+                              {/* REDISEÑO MÓVIL: 1 columna en celular (2 en tablet/PC), etiqueta arriba y campo grande.
+                                  text-base (16px) evita el auto-zoom y facilita tocar/corregir. */}
+                              <div className="bg-slate-900 border border-slate-800 rounded-md p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {([
+                                  { key: 'principal', label: state.settings.language === 'fr' ? 'MONTANT' : 'Monto', mode: 'numeric' as const },
+                                  { key: 'interestRate', label: state.settings.language === 'fr' ? 'INTÉRÊT %' : 'Interés %', mode: 'decimal' as const },
+                                  { key: 'totalInstallments', label: state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas', mode: 'numeric' as const },
+                                ]).map(f => (
+                                  <label key={f.key} className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{f.label}</span>
+                                    <FastInput
+                                      type="text"
+                                      inputMode={f.mode}
+                                      autoComplete="off"
+                                      autoCorrect="off"
+                                      spellCheck={false}
+                                      enterKeyHint="next"
+                                      value={editLoanFormData[f.key]}
+                                      onValueChange={v => setEditLoanFormData((prev: any) => ({ ...prev, [f.key]: v }))}
+                                      className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-md px-3 py-3 text-white font-black font-mono text-base outline-none text-right"
+                                    />
+                                  </label>
+                                ))}
+                                <label className="flex flex-col gap-1">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{state.settings.language === 'fr' ? 'DÉBUT' : 'Inicio'}</span>
+                                  <input
+                                    type="date"
+                                    value={editLoanFormData.createdAt ? editLoanFormData.createdAt.split('T')[0] : ''}
+                                    onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, createdAt: e.target.value }))}
+                                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-md px-3 py-3 text-white font-black text-base outline-none [color-scheme:dark]"
+                                  />
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{state.settings.language === 'fr' ? 'FRÉQUENCE' : 'Frecuencia'}</span>
                                   <select
                                     value={editLoanFormData.frequency}
                                     onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, frequency: e.target.value }))}
-                                    className="flex-1 bg-slate-900 text-white font-black text-[9px] outline-none text-right uppercase border-none focus:ring-0 cursor-pointer"
+                                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-md px-3 py-3 text-white font-black text-base outline-none uppercase cursor-pointer"
                                   >
                                     {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{state.settings.language === 'fr' ? (f === Frequency.DAILY || f === Frequency.DAILY_MF ? 'QUOTIDIEN' : f === Frequency.WEEKLY ? 'HEBDOMADAIRE' : f === Frequency.BIWEEKLY ? 'BIMENSUEL' : 'MENSUEL') : f}</option>)}
                                   </select>
-                                </div>
+                                </label>
                                 {/* SELECTOR DE COBRADOR */}
-                                <div className="flex p-2 items-center gap-2 border-t border-slate-800 col-span-2">
-                                  <label className="text-[7px] font-black text-slate-400 uppercase shrink-0">
+                                <label className="flex flex-col gap-1 sm:col-span-2">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                                     <i className="fa-solid fa-user-tie mr-1 text-emerald-400"></i>
                                     {state.settings.language === 'fr' ? 'Collecteur' : state.settings.language === 'pt' ? 'Cobrador' : 'Cobrador'}
-                                  </label>
+                                  </span>
                                   <select
                                     value={editLoanFormData.collectorId || (editLoanFormData as any).collector_id || ''}
                                     onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, collectorId: e.target.value, collector_id: e.target.value }))}
-                                    className="flex-1 bg-slate-900 text-emerald-400 font-black text-[9px] outline-none text-right uppercase border-none focus:ring-0 cursor-pointer"
+                                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-md px-3 py-3 text-emerald-400 font-black text-base outline-none uppercase cursor-pointer"
                                   >
                                     <option value="" className="bg-white text-slate-400">— {state.settings.language === 'fr' ? 'Sin Cobrador' : state.settings.language === 'pt' ? 'Sem Cobrador' : 'Sin Cobrador'} —</option>
                                     {collectors.map(col => (
                                       <option key={col.id} value={col.id} className="bg-white text-slate-800 uppercase">{col.name}</option>
                                     ))}
                                   </select>
-                                </div>
+                                </label>
                               </div>
                               <p className="text-[8px] text-orange-400 italic text-center opacity-80">{state.settings.language === 'fr' ? '* L\'édition de ces valeurs recalculera tout le calendrier.' : '* Editar estos valores recalculará todo el cronograma.'}</p>
 

@@ -32,7 +32,8 @@ export const useAppInitialization = () => {
     commissionBrackets: [],
     initialCapital: 0,
     settings: { language: 'es', country: 'CO', numberFormat: 'dot' },
-    branchSettings: {}
+    branchSettings: {},
+    penalties: []
   };
 
   const [state, setState] = useState<AppState>(defaultInitialState);

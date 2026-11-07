@@ -1,0 +1,59 @@
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+
+const SUPABASE_URL = 'https://samgpnczlznynnfhjjff.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbWdwbmN6bHpueW5uZmhqamZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNjU1NjQsImV4cCI6MjA4Nzc0MTU2NH0.AV1Z-QlltfPp8am-_ALlgopoGB8WhOrle83TNZrjqTE';
+
+const ADMINS = [
+  { email: 'ALTERFINADMI@anexocobro.com', password: '123456' },
+  { email: 'ddiego2025@anexocobro.com',   password: 'Cobros2025' },
+];
+
+async function fetchAll(q) {
+  let all = [], from = 0, size = 1000;
+  while (true) {
+    const { data, error } = await q().range(from, from + size - 1);
+    if (error) throw error;
+    all = all.concat(data || []);
+    if (!data || data.length < size) break;
+    from += size;
+  }
+  return all;
+}
+
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+for (const { email, password } of ADMINS) {
+  console.log(`\n=== ${email} ===`);
+  const sb = createClient(SUPABASE_URL, ANON_KEY);
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { console.log('  Login fallido:', error.message); continue; }
+
+  const orders = await fetchAll(() => sb.from('simulated_orders').select('*'));
+  const loans = await fetchAll(() => sb.from('loans').select('id, client_id, created_at'));
+
+  const zombies = orders.filter(o => {
+    const margin = new Date(new Date(o.created_at).getTime() - 12 * 3600 * 1000);
+    return loans.some(l => l.client_id === o.client_id && new Date(l.created_at) >= margin);
+  });
+
+  if (zombies.length === 0) { console.log('  Sin pedidos zombie.'); continue; }
+
+  // 1. Backup completo de TODOS los pedidos antes de borrar
+  const file = `scratch/backup_simulated_orders_${email.split('@')[0]}_${stamp}.json`;
+  fs.writeFileSync(file, JSON.stringify({ allOrders: orders, deletedIds: zombies.map(z => z.id) }, null, 2));
+  console.log(`  Backup guardado: ${file} (${orders.length} pedidos)`);
+
+  // 2. Borrado en lotes
+  let deleted = 0;
+  const ids = zombies.map(z => z.id);
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const { error: delErr, count } = await sb.from('simulated_orders').delete({ count: 'exact' }).in('id', chunk);
+    if (delErr) { console.log('  Error borrando:', delErr.message); continue; }
+    deleted += count ?? chunk.length;
+  }
+  const { count: remaining } = await sb.from('simulated_orders').select('id', { count: 'exact', head: true });
+  console.log(`  Borrados: ${deleted} | Quedan en Supabase: ${remaining}`);
+}
+

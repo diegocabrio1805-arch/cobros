@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addToSyncQueue } from '../utils/syncQueue';
 import { AppState, SimulatedOrder, LoanStatus, Role } from '../types';
 import { formatCurrency, formatDate, formatLocalTime, calculateTotalPaidFromLogs, getLocalDateStringForCountry } from '../utils/helpers';
@@ -12,6 +12,7 @@ interface MobileOrdersWidgetProps {
 const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseMenu }) => {
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const hiddenOrderIdsRef = useRef<Set<string>>(new Set());
 
   const isPowerUser = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
 
@@ -56,7 +57,7 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
     const seenIds = new Set<string>();
     
     for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !hiddenOrderIdsRef.current.has(order.id)) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
@@ -97,10 +98,12 @@ const MobileOrdersWidget: React.FC<MobileOrdersWidgetProps> = ({ state, onCloseM
 
   const handleDeleteOrder = (id: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar este pedido?")) {
+      // Ocultar al instante y durante toda la sesión mientras la cola sube el DELETE
+      hiddenOrderIdsRef.current.add(id);
+      setOrders(prev => prev.filter(o => o.id !== id));
       addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
       const event = new CustomEvent('force-sync');
       window.dispatchEvent(event);
-      loadOrders();
     }
   };
 

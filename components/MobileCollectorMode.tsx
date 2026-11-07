@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import FastInput from './FastInput';
 import { AppState, Client, CollectionLogType, LoanStatus, Role } from '../types';
 import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 
@@ -523,8 +524,8 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
         {/* Buscador */}
         <div className="relative mb-6">
           <i className="fa-solid fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-500"></i>
-          <input 
-             type="text" placeholder={lang === 'fr' ? 'Rechercher Client...' : lang === 'pt' ? 'Buscar Cliente...' : 'Buscar Cliente...'} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+          <FastInput 
+             type="text" placeholder={lang === 'fr' ? 'Rechercher Client...' : lang === 'pt' ? 'Buscar Cliente...' : 'Buscar Cliente...'} value={searchTerm} onValueChange={setSearchTerm} delay={250} inputMode="search" autoComplete="off" autoCorrect="off" spellCheck={false}
              className="w-full bg-slate-900 border border-slate-800 text-white font-bold py-5 pl-14 pr-6 rounded-3xl outline-none focus:border-emerald-500 transition-all shadow-inner focus:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
           />
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import FastInput from './FastInput';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client, Loan, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -816,7 +817,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
           <div className="flex flex-col md:flex-row items-center gap-3 w-full border-t border-slate-100 pt-3 md:pt-4">
             <div className="relative w-full">
-              <input type="text" placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-[10px] md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
+              <FastInput type="search" inputMode="search" autoComplete="off" autoCorrect="off" spellCheck={false} delay={250} placeholder="Filtrar por nombre..." value={searchTerm} onValueChange={setSearchTerm} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-base md:text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner text-black" />
               <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-[10px] md:text-xs"></i>
             </div>
             <div className="bg-slate-900 px-5 md:px-6 py-3 rounded-md md:rounded-md border border-slate-800 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-end shrink-0 shadow-xl w-full md:w-auto">

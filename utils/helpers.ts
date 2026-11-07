@@ -225,47 +225,49 @@ export const getLocalDateStringForCountry = (country: string = 'CO', date: Date 
   return `${year}-${month}-${day}`;
 };
 
-export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[]): number => {
-  if (!loanOrId || !collectionLogs) return 0;
+export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[], prefilteredLogs?: any[]): number => {
+  if (!loanOrId || (!collectionLogs && !prefilteredLogs)) return 0;
 
   const loanId = typeof loanOrId === 'string' ? loanOrId : (loanOrId.id || loanOrId.loan_id);
   const clientId = typeof loanOrId !== 'string' ? (loanOrId.clientId || loanOrId.client_id || null) : null;
 
-  const allLogs = Array.isArray(collectionLogs) ? collectionLogs : [];
-  
-  // Obtener todos los loan_ids que aparecen en los logs para identificar IDs fantasma
-  const allLogLoanIds = new Set(allLogs.map(l => String(l.loanId || l.loan_id || '').trim().toLowerCase()).filter(id => id.length > 0));
+  // Si se provee una lista pre-filtrada específicamente para este préstamo, la usamos directo
+  if (Array.isArray(prefilteredLogs)) {
+    var validLogs = prefilteredLogs;
+  } else {
+    const allLogs = Array.isArray(collectionLogs) ? collectionLogs : [];
+    
+    // Obtener todos los loan_ids que aparecen en los logs para identificar IDs fantasma
+    const allLogLoanIds = new Set(allLogs.map(l => String(l.loanId || l.loan_id || '').trim().toLowerCase()).filter(id => id.length > 0));
 
-  const validLogs = allLogs.filter(log => {
-    const logLoanId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
-    const lId = String(loanId || '').trim().toLowerCase();
-    const logType = String(log.type || '').toUpperCase();
-    const isOpening = log.isOpening || log.is_opening || false;
-    const isDeleted = log.deletedAt || log.deleted_at;
+    var validLogs = allLogs.filter(log => {
+      const logLoanId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
+      const lId = String(loanId || '').trim().toLowerCase();
+      const logType = String(log.type || '').toUpperCase();
+      const isOpening = log.isOpening || log.is_opening || false;
+      const isDeleted = log.deletedAt || log.deleted_at;
 
-    if (isDeleted) return false;
-    if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
+      if (isDeleted) return false;
+      if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
 
-    // EXCLUIR SIEMPRE los logs de apertura de crédito del cálculo de abonos
-    // Son registros contables internos (isOpening: true), NO pagos reales del cliente
-    if (isOpening) return false;
+      // EXCLUIR SIEMPRE los logs de apertura de crédito del cálculo de abonos
+      // Son registros contables internos (isOpening: true), NO pagos reales del cliente
+      if (isOpening) return false;
 
-    // Coincidencia directa por loan_id (caso normal)
-    if (logLoanId === lId) return true;
+      // Coincidencia directa por loan_id (caso normal)
+      if (logLoanId === lId) return true;
 
-    // FALLBACK: log apunta a un préstamo que NO existe (Ghost) pero mismo cliente
-    if (clientId) {
-      const logClientId = String(log.clientId || log.client_id || '').trim().toLowerCase();
-      const cId = String(clientId || '').trim().toLowerCase();
-      if (logClientId === cId && logLoanId !== lId && logLoanId.length > 0) {
-        // En este contexto, si el log NO coincide con el préstamo actual pero es del mismo cliente,
-        // solo lo tomamos si es un ID que no reconocemos como otro préstamo activo (simplificación segura)
-        // Pero para evitar duplicidades en reducciones consolidadas, es mejor ser estricto.
-        return false; 
+      // FALLBACK: log apunta a un préstamo que NO existe (Ghost) pero mismo cliente
+      if (clientId) {
+        const logClientId = String(log.clientId || log.client_id || '').trim().toLowerCase();
+        const cId = String(clientId || '').trim().toLowerCase();
+        if (logClientId === cId && logLoanId !== lId && logLoanId.length > 0) {
+          return false; 
+        }
       }
-    }
-    return false;
-  });
+      return false;
+    });
+  }
 
   const isMigLog = (l: any) => {
     const id = String(l.id || '');

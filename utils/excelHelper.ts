@@ -646,16 +646,17 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
 
                     // BUG FIX: Do not override the collectorId parameter.
                     let finalAssignedCollectorId = collectorId;
+                    const hierarchyObj = (typeof window !== 'undefined' && (window as any).cachedHierarchy) ? (window as any).cachedHierarchy : null;
                     if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(finalSellerCode)) {
                         finalAssignedCollectorId = finalSellerCode;
-                    } else if (typeof cachedHierarchy !== 'undefined') {
-                        const matchingCollectorId = Object.keys(cachedHierarchy).find(managerId => {
-                            const subcobradores = cachedHierarchy[managerId] || [];
-                            return subcobradores.some(c => String(c.seller_code) === finalSellerCode);
+                    } else if (hierarchyObj) {
+                        const matchingCollectorId = Object.keys(hierarchyObj).find(managerId => {
+                            const subcobradores = hierarchyObj[managerId] || [];
+                            return subcobradores.some((c: any) => String(c.seller_code) === finalSellerCode);
                         });
 
                         if (matchingCollectorId) {
-                            const foundCobrador = cachedHierarchy[matchingCollectorId].find(c => String(c.seller_code) === finalSellerCode);
+                            const foundCobrador = hierarchyObj[matchingCollectorId].find((c: any) => String(c.seller_code) === finalSellerCode);
                             if (foundCobrador) {
                                 finalAssignedCollectorId = foundCobrador.id;
                             }

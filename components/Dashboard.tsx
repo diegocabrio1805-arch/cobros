@@ -24,6 +24,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   const [visitPeriod, setVisitPeriod] = useState<'semanal' | 'quincenal' | 'mensual'>('quincenal');
   const ITEMS_PER_PAGE = 8;
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
+  // IDs borrados en esta sesión (ocultamiento inmediato mientras la cola sube el DELETE)
+  const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(new Set());
 
   
 
@@ -51,6 +53,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   };
 
   const loadOrders = () => {
+    // FIX PARPADEO: Si los préstamos aún no cargaron, el filtro anti-zombie no tiene
+    // contra qué comparar y se mostrarían pedidos ya finiquitados. Esperamos a tener préstamos.
+    const loansReady = Array.isArray(state.loans) && state.loans.length > 0;
+    if (!loansReady) { setOrders([]); return; }
+
     const cloudOrders = state.simulatedOrders || [];
     const queueStr = localStorage.getItem('syncQueue');
     let localAdds: SimulatedOrder[] = [];
@@ -70,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     const seenIds = new Set<string>();
     
     for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id)) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !hiddenOrderIds.has(order.id)) {
         seenIds.add(order.id);
         uniqueOrders.push(order);
       }
@@ -120,13 +127,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     const handleForceSync = () => loadOrders();
     window.addEventListener('force-sync', handleForceSync);
     return () => window.removeEventListener('force-sync', handleForceSync);
-  }, [state.settings.country, state.simulatedOrders]);
+  }, [state.settings.country, state.simulatedOrders, state.loans, state.collectionLogs, hiddenOrderIds]);
 
   const handleDeleteOrder = (id: string) => {
+    setHiddenOrderIds(prev => new Set(prev).add(id));
     addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
     const event = new CustomEvent('force-sync');
     window.dispatchEvent(event);
-    loadOrders();
   };
 
   const t = getTranslation(state.settings.language).dashboard;
@@ -235,6 +242,37 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     const loansSafe = Array.isArray(state.loans) ? state.loans : [];
     const clientsSafe = Array.isArray(state.clients) ? state.clients : [];
 
+    // HOTFIX PERF: Pre-indexar préstamos activos y cobradores históricos por cliente una sola vez
+    const activeLoanByClientId = new Map<string, any>();
+    const activeLoansListByClientId = new Map<string, any[]>();
+    const historicCollectorsByClientId = new Map<string, Set<string>>();
+
+    for (let i = 0; i < loansSafe.length; i++) {
+      const l = loansSafe[i];
+      const cId = l.clientId || (l as any).client_id;
+      if (!cId) continue;
+      const colIdLower = (l.collectorId || (l as any).collector_id)?.toLowerCase();
+      if (colIdLower) {
+        let set = historicCollectorsByClientId.get(cId);
+        if (!set) {
+          set = new Set();
+          historicCollectorsByClientId.set(cId, set);
+        }
+        set.add(colIdLower);
+      }
+      if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) {
+        if (!activeLoanByClientId.has(cId)) {
+          activeLoanByClientId.set(cId, l);
+        }
+        let arr = activeLoansListByClientId.get(cId);
+        if (!arr) {
+          arr = [];
+          activeLoansListByClientId.set(cId, arr);
+        }
+        arr.push(l);
+      }
+    }
+
     // Filter using country's YYYY-MM-DD
     const logsTodayBase = collectionLogsSafe.filter(log => {
       if (log.isOpening) return false;
@@ -292,9 +330,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
 
       const validClientsForCollector = validClients.filter(c => {
         const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
-        const activeLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const anyHistoricLoan = loansSafe.find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === uidLower);
-        return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!anyHistoricLoan;
+        const activeLoan = activeLoanByClientId.get(c.id);
+        const hasHistoric = historicCollectorsByClientId.get(c.id)?.has(uidLower);
+        return addedByLower === uidLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === uidLower || !!hasHistoric;
       });
 
       let uniqueActiveClients = 0;
@@ -307,9 +345,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
       const activeClientIds = new Set<string>();
 
       validClientsForCollector.forEach(c => {
-        const clientLoans = loansSafe.filter(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        const activeLoan = sortedLoans[0];
+        const clientLoans = activeLoansListByClientId.get(c.id) || [];
+        const activeLoan = activeLoanByClientId.get(c.id);
         
         let balance = 0;
         let daysOverdue = 0;
@@ -318,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
            const paid = logsByLoanId.get(activeLoan.id) || 0;
            balance = Math.max(0, activeLoan.totalAmount - paid);
            
-           daysOverdue = Math.max(...clientLoans.map(l => loansOverdueMap.get(l.id) || 0));
+           daysOverdue = clientLoans.length > 0 ? Math.max(...clientLoans.map(l => loansOverdueMap.get(l.id) || 0)) : 0;
         }
         
         if (balance > 0.01) {

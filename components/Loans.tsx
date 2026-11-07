@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import FastInput from './FastInput';
 import { createPortal } from 'react-dom';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency, Penalty } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
@@ -126,6 +127,33 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     // 1. Identificar clientes únicos que califiquen para la vista actual
     const clientMap: Record<string, { client: Client, loans: Loan[], isNewClient?: boolean }> = {};
 
+    // HOTFIX PERF: Pre-indexar préstamos por clientId y logs por loanId para O(1)
+    const loansByClient = new Map<string, Loan[]>();
+    for (let i = 0; i < allLoans.length; i++) {
+      const l = allLoans[i];
+      const cId = l.clientId;
+      if (!cId) continue;
+      let arr = loansByClient.get(cId);
+      if (!arr) {
+        arr = [];
+        loansByClient.set(cId, arr);
+      }
+      arr.push(l);
+    }
+
+    const logsByLoan = new Map<string, any[]>();
+    for (let i = 0; i < allLogs.length; i++) {
+      const log = allLogs[i];
+      const lId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
+      if (!lId) continue;
+      let arr = logsByLoan.get(lId);
+      if (!arr) {
+        arr = [];
+        logsByLoan.set(lId, arr);
+      }
+      arr.push(log);
+    }
+
     allClients.forEach(client => {
       if (client.isHidden || client.deletedAt) return;
 
@@ -137,7 +165,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       if (!matchesSearch) return;
 
-      const clientLoans = allLoans.filter(l => l.clientId === client.id);
+      const clientLoans = loansByClient.get(client.id) || [];
       
       // Lógica de calificación según viewMode
       let qualifies = false;
@@ -145,7 +173,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       if (viewMode === 'vencidos') {
         targetLoans = clientLoans.filter(loan => {
-          const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+          const pLogs = logsByLoan.get(String(loan.id).trim().toLowerCase());
+          const totalPaid = calculateTotalPaidFromLogs(loan, allLogs, pLogs);
           return getDaysOverdue(loan, state.settings, totalPaid) > 0;
         });
         qualifies = targetLoans.length > 0;
@@ -160,7 +189,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           return;
         }
 
-        const hasActive = clientLoans.some(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) && (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs)) > 0.01);
+        const hasActive = clientLoans.some(l => {
+          if (l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
+          const pLogs = logsByLoan.get(String(l.id).trim().toLowerCase());
+          return (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs, pLogs)) > 0.01;
+        });
         
         if (hasActive) {
           targetLoans = clientLoans.filter(l => (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
@@ -1078,12 +1111,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             </button>
           )}
           <div className="relative w-full md:w-80">
-            <input
-              type="text"
+            <FastInput
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              delay={250}
               placeholder={state.settings.language === 'fr' ? 'Rechercher...' : state.settings.language === 'pt' ? 'Pesquisar...' : 'Buscar...'}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-md md:rounded-md py-3 md:py-4 pl-10 md:pl-12 pr-4 text-xs md:sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
+              onValueChange={setSearchTerm}
+              className="w-full bg-slate-50 border border-slate-200 rounded-md md:rounded-md py-3 md:py-4 pl-10 md:pl-12 pr-4 text-base md:text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
             />
             <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
           </div>

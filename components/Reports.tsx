@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
+import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus, Client } from '../types';
 import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime, calculateTotalPaidFromLogs } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';

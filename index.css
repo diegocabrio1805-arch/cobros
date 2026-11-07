@@ -142,3 +142,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .no-spinner {
   -moz-appearance: textfield;
 }
+
+/* PERF ANDROID (Honor/Huawei con GPU Mali): backdrop-filter: blur repinta toda la pantalla
+   en cada frame (al escribir, abrir el teclado o hacer scroll) y produce trabas.
+   En Android se reemplaza por un fondo sólido casi opaco: se ve igual y es mucho más liviano. */
+.is-android .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.is-android [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
