@@ -765,7 +765,7 @@ export const useAppActions = (
         return Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
     };
 
-    const newClients = clients.map(c => ({ ...c, branchId: c.branchId || branchId, createdAt: c.createdAt || timestamp, updated_at: timestamp }));
+    const newClients = clients.map(c => ({ ...c, isHidden: false, deletedAt: undefined, branchId: c.branchId || branchId, createdAt: c.createdAt || timestamp, updated_at: timestamp }));
     const newLoans = loans.map(l => ({ ...l, branchId: l.branchId || branchId, updated_at: timestamp }));
     const newLogs = logs.map(l => ({ ...l, branchId: l.branchId || branchId, recordedBy: state.currentUser?.id, updated_at: timestamp }));
 
@@ -805,30 +805,60 @@ export const useAppActions = (
         }
       }
 
+      const instPaidSum = newInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+      const totalPaidSoFar = totalToApply > 0
+        ? instPaidSum
+        : (typeof loan.totalPaid === 'number' && !isNaN(loan.totalPaid) ? loan.totalPaid : instPaidSum);
+      const currentBalance = totalToApply > 0
+        ? Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100
+        : (typeof loan.balance === 'number' && !isNaN(loan.balance) ? loan.balance : Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100);
       const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
-      const totalPaidSoFar = newInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
-      const currentBalance = Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100;
 
       return { 
         ...loan, 
         installments: newInstallments, 
-        status: (allPaid && currentBalance <= 0.01) ? LoanStatus.PAID : LoanStatus.ACTIVE,
+        status: (allPaid && currentBalance <= 0.01) || currentBalance <= 0 ? LoanStatus.PAID : LoanStatus.ACTIVE,
         totalPaid: totalPaidSoFar,
         balance: currentBalance,
         updatedAt: timestamp
       };
     });
 
+    // Cerrar cualquier préstamo viejo activo de los clientes importados que no forme parte de esta planilla
+    // para evitar créditos duplicados que alteren el saldo en pantalla.
+    const importedClientIds = new Set(newClients.map(c => c.id));
+    const importedLoanIds = new Set(updatedLoansWithPayments.map(l => l.id));
+    const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const supersededLoansToClose = (Array.isArray(state.loans) ? state.loans : [])
+      .filter(l =>
+        importedClientIds.has(l.clientId || (l as any).client_id) &&
+        !importedLoanIds.has(l.id) &&
+        (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT || (l.balance || 0) > 0)
+      )
+      .map(l => ({
+        ...l,
+        status: LoanStatus.PAID,
+        balance: 0,
+        totalPaid: l.totalAmount,
+        updatedAt: timestamp,
+        updated_at: timestamp
+      }));
+
     // 1. Actualizar estado UI de un golpe de manera segura (Merge para no duplicar si los IDs ya existen)
     setState(prev => {
         const mergedClients = [...prev.clients];
         newClients.forEach(nc => {
             const idx = mergedClients.findIndex(c => c.id === nc.id);
-            if (idx >= 0) mergedClients[idx] = nc;
+            if (idx >= 0) mergedClients[idx] = { ...mergedClients[idx], ...nc, isHidden: false, deletedAt: undefined };
             else mergedClients.push(nc);
         });
 
-        const mergedLoans = [...prev.loans];
+        const mergedLoans = prev.loans.map(l => {
+            if (importedClientIds.has(l.clientId || (l as any).client_id) && !importedLoanIds.has(l.id)) {
+                return { ...l, status: LoanStatus.PAID, balance: 0, totalPaid: l.totalAmount, updatedAt: timestamp, updated_at: timestamp };
+            }
+            return l;
+        });
         updatedLoansWithPayments.forEach(nl => {
             const idx = mergedLoans.findIndex(l => l.id === nl.id);
             if (idx >= 0) mergedLoans[idx] = nl;
@@ -852,7 +882,8 @@ export const useAppActions = (
     });
 
     // 2. Persistir en cola de sincronización (BULK para evitar O(N^2))
-    pushBulk(newClients, updatedLoansWithPayments, allNewPayments, newLogs);
+    const validSupersededLoans = supersededLoansToClose.filter(l => validUuidRegex.test(l.id));
+    pushBulk(newClients, [...updatedLoansWithPayments, ...validSupersededLoans], allNewPayments, newLogs);
 
     // 3. Disparar sincronización forzada después de un breve delay
     setTimeout(() => {

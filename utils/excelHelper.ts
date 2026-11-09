@@ -256,9 +256,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
-                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-                    // Sanitización estándar
-                    rows = rawRows.map(r => (r || []).map(cell => cell === null || cell === undefined ? '' : String(cell)));
+                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true }) as any[][];
+                    // Sanitización estándar preservando números nativos de Excel para no alterar decimales
+                    rows = rawRows.map(r => (r || []).map(cell => cell === null || cell === undefined ? '' : (typeof cell === 'number' ? cell : String(cell))));
                 }
 
                 if (rows.length === 0) {
@@ -379,8 +379,9 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 };
 
                 const idxs = {
-                    name: findCol(["NOMBRE COMPLETO", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME", "NOMBRE", "NOMBRERAZONSOCIAL", "NOMBRE / RAZON SOCIAL"]),
-                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOCID", "OPN", "OP. Nº", "OP. NRO", "OPNRO", "ID", "DOC. I.", "DOCI"]),
+                    name: findCol(["NOMBRE COMPLETO", "NOMBRE / RAZON SOCIAL", "NOMBRERAZONSOCIAL", "NOMBRE", "CLIENTE", "RAZON SOCIAL", "TITULAR", "NAME"]),
+                    docId: findCol(["DOCUMENTO", "CEDULA", "DNI", "DOC. I.", "DOCI", "DOCID", "OPN", "OP. Nº", "OP. NRO", "OPNRO", "ID"]),
+                    opNro: findCol(["OP. Nº", "OP. NRO", "OPN", "OPNRO"]),
                     phone: findCol(["TELEFONO", "CELULAR", "PHONE", "TEL"]),
                     addr: findCol(["DIRECCION", "DOMICILIO", "ADDR", "LOCALIDAD", "CIUDAD"]),
                     principal: findCol(["HABILITADO", "MONTO PRESTADO", "CAPITAL", "ENTREGADO", "PRINCIPAL", "MONTO", "LIQ. DESEMB.", "LIQDESEMB"]),
@@ -412,6 +413,20 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                 const loans: Loan[] = [];
                 const logs: CollectionLog[] = [];
                 const errors: ImportError[] = [];
+                const importTimestamp = new Date().toISOString();
+                const usedClientIdsInBatch = new Set<string>();
+                const usedLoanIdsInBatch = new Set<string>();
+                const normalizeClientName = (s: string) =>
+                    String(s || '')
+                        .toUpperCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "")
+                        .replace(/\s+,\s+/g, ', ')
+                        .replace(/\s+,/g, ',')
+                        .replace(/,\s+/g, ', ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''));
 
                 let consecutiveEmpty = 0;
                 for (let i = clientHeaderRow + 1; i < rows.length; i++) {
@@ -438,18 +453,32 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     }
                     consecutiveEmpty = 0;
 
-                    const docIdRaw = String(row[idxs.docId ?? -1] || '---');
+                    const docIdRaw = String(row[idxs.docId ?? -1] || '---').trim() || '---';
+                    const opNroRaw = idxs.opNro !== undefined ? String(row[idxs.opNro] || '').trim() : '';
+                    const normName = normalizeClientName(name);
 
-                    // REUSE EXISTING CLIENT AND LOAN UUIDS TO ENABLE UPSERT
-                    const existingClient = existingClients.find(c => 
-                        (c.documentId && c.documentId !== '---' && c.documentId === docIdRaw) || 
-                        (c.name && c.name.toUpperCase() === name.toUpperCase())
-                    );
+                    // REUSE EXISTING CLIENT AND LOAN UUIDS TO ENABLE UPSERT (filtrando por la misma sucursal)
+                    const existingClient = existingClients.find(c => {
+                        if (!isValidUUID(c.id) || usedClientIdsInBatch.has(c.id)) return false;
+                        if (c.branchId && branchId && c.branchId !== branchId) return false;
+                        const cDoc = String(c.documentId || '').trim();
+                        const docMatches = cDoc && cDoc !== '---' && cDoc !== '0' && (cDoc === docIdRaw || (opNroRaw && cDoc === opNroRaw));
+                        const nameMatches = c.name && normalizeClientName(c.name) === normName;
+                        return Boolean(docMatches || nameMatches);
+                    });
                     const clientId = existingClient ? existingClient.id : generateUUID();
-                    const activeLoan = existingClient ? existingLoans.find(l => l.clientId === clientId && (l.status === LoanStatus.ACTIVE || l.balance > 0)) : null;
-                    // FIX: Asegurarnos de no reutilizar IDs inválidos (como L-...) que hayan quedado fantasma en el estado local de un intento fallido anterior
-                    const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-                    const loanId = activeLoan && isValidUUID(activeLoan.id) ? activeLoan.id : generateUUID();
+                    usedClientIdsInBatch.add(clientId);
+
+                    const candidateLoans = existingClient
+                        ? existingLoans.filter(l => (l.clientId || (l as any).client_id) === clientId && isValidUUID(l.id) && !usedLoanIdsInBatch.has(l.id))
+                        : [];
+                    const activeLoan =
+                        candidateLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT || l.balance > 0) ||
+                        candidateLoans[0] ||
+                        null;
+                    const loanId = activeLoan ? activeLoan.id : generateUUID();
+                    usedLoanIdsInBatch.add(loanId);
+
                     let principal = Math.round(parseAmount(row[idxs.principal ?? -1]));
                     let totalAmount = Math.round(parseAmount(row[idxs.totalAmt ?? -1]));
                     let balance = Math.round(parseAmount(row[idxs.balance ?? -1]));
@@ -480,138 +509,137 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         pendInst = Math.max(0, totalInst - paidInst);
                     }
 
-                    if (name.includes("GOMEZ") || name.includes("JACINTO") || name.includes("MILNER") || name.includes("CHAPARRO") || i < clientHeaderRow + 5) {
-                        console.log(`[FORENSIC] Analizando fila ${i}: ${name}`, {
-                            rawTotal: row[idxs.totalAmt ?? -1],
-                            rawBalance: row[idxs.balance ?? -1],
-                            rawInstValue: row[idxs.instValue ?? -1],
-                            rawPaid: row[idxs.paidInst ?? -1],
-                            parsedTotal: totalAmount,
-                            parsedBalance: balance,
-                            rawPrincipal: row[idxs.principal ?? -1]
-                        });
-                    }
-
                     let totalPaidMoney = 0;
 
                     const cobradoRaw = idxs.cobrado !== undefined ? parseAmount(row[idxs.cobrado ?? -1]) : 0;
                     const isCobradoMapped = idxs.cobrado !== undefined;
                     
-                    const rawBalanceStr = String(row[idxs.balance ?? -1] || '').trim();
+                    const rawBalanceCell = row[idxs.balance ?? -1];
+                    const rawBalanceStr = rawBalanceCell === null || rawBalanceCell === undefined ? '' : String(rawBalanceCell).trim();
                     let rawExplicitBalance: number | null = null;
-                    if (idxs.balance !== undefined && rawBalanceStr !== '' && rawBalanceStr !== '-') {
-                        const match = rawBalanceStr.match(/[-+]?\s*\d[0-9.,]*/);
-                        if (match) {
-                            const cleanMatch = match[0].replace(/\s+/g, '');
-                            rawExplicitBalance = Math.round(parseAmount(cleanMatch));
+                    if (idxs.balance !== undefined) {
+                        if (typeof rawBalanceCell === 'number' && !isNaN(rawBalanceCell)) {
+                            rawExplicitBalance = Math.round(rawBalanceCell);
+                        } else if (rawBalanceStr !== '' && rawBalanceStr !== '-') {
+                            const match = rawBalanceStr.match(/[-+]?\s*\d[0-9.,]*/);
+                            if (match) {
+                                const cleanMatch = match[0].replace(/\s+/g, '');
+                                rawExplicitBalance = Math.round(parseAmount(cleanMatch));
+                            }
                         }
                     }
 
-                        if (isCobradoMapped) {
-                            // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
-                            totalPaidMoney = Math.round(cobradoRaw);
-                            if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-                            
-                            // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto (incluso si es 0)
-                            if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
-                                balance = rawExplicitBalance;
-                                if (balance > 0 && totalAmount < balance + totalPaidMoney) {
-                                    totalAmount = balance + totalPaidMoney;
-                                }
-                            } else {
-                                balance = Math.max(0, totalAmount - totalPaidMoney);
-                            }
-                            
-                            // Usar Math.floor para no marcar cuotas parciales como PAGADAS enteras
-                            paidInst = instValue > 0 ? Math.floor(totalPaidMoney / instValue) : paidInst;
-                            console.log(`[FORENSIC] SALDO Y MONTO COBRADO explícito: cobrado=${totalPaidMoney}, total=${totalAmount}, saldo=${balance}`);
-                        } else {
-                            // ==========================================================================
-                            // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
-                            // ==========================================================================
-
-                            // Si PAG contiene monto de dinero (>500) en vez de cantidad de cuotas
-                            if (paidInst > 500 && instValue > 0) {
-                                totalPaidMoney = paidInst;
-                                paidInst = Math.floor(paidInst / instValue);
-                            } else {
-                                totalPaidMoney = paidInst * instValue;
-                            }
-                            if (pendInst > 500 && instValue > 0) {
-                                pendInst = Math.floor(pendInst / instValue);
-                            }
-
-                            if (totalInst === 0) totalInst = paidInst + pendInst;
-
-                            // PRIMARIO: si MONTO ≈ PAG × V.CUOTA (±2%), MONTO = cobrado
-                            let montoCobradoDetected = false;
-                            if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
-                                const expectedCobrado = paidInst * instValue;
-                                const diff = Math.abs(totalAmount - expectedCobrado);
-                                if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
-                                    const montoCobrado = totalAmount;
-                                    totalAmount = totalInst * instValue;
-                                    totalPaidMoney = montoCobrado;
-                                    montoCobradoDetected = true;
-                                    console.log(`[FORENSIC] MONTO=cobrado (PAG×V.CUOTA): cobrado=${montoCobrado}, totalReal=${totalAmount}`);
-                                }
-                            }
-
-                            // SECUNDARIO: (ELIMINADO POR AUDITORÍA QA - ESTO SOBRESCRIBÍA DATOS VÁLIDOS)
-                            // if (!montoCobradoDetected && totalInst > 1 && instValue > 0 && totalAmount > 0) { ... }
-
-                            if (totalInst === 0) totalInst = paidInst + pendInst;
-
-                            const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
-                            const excelBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance) ? rawExplicitBalance : 0;
-
-                            if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
-
-                            const hasExplicitBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance) && rawExplicitBalance !== 0;
-
-                            // PRIORIDAD: saldo explícito en Excel que NO sea 0
-                            if (hasExplicitBalance) {
-                                balance = excelBalance;
-                            } else if (totalPaidFromPag > 0 || paidInst > 0) {
-                                balance = Math.max(0, totalAmount - totalPaidFromPag);
-                            } else {
-                                balance = totalAmount;
-                            }
-                        }
-
-                        // --- RECONSTRUCCIÓN ROBUSTA DE DATOS FALTANTES (POST-HOC) ---
-                        // Si totalAmount es 0, intentamos reconstruirlo
-                        if (totalAmount === 0) {
-                            if (instValue > 0 && totalInst > 0) {
-                                totalAmount = instValue * totalInst;
-                            } else if (balance > 0) {
+                    if (isCobradoMapped) {
+                        // CAMINO SEGURO: Si existe la columna en el Excel, confiamos en ella (aunque sea 0 o '-')
+                        totalPaidMoney = Math.round(cobradoRaw);
+                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+                        
+                        // PRIORIDAD ABSOLUTA: Si existe la columna Saldo en Excel, tomar el valor exacto (incluso si es 0)
+                        // y garantizar que totalAmount - totalPaidMoney === balance sin ni 1 Gs de diferencia
+                        if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
+                            balance = rawExplicitBalance;
+                            if (totalAmount !== balance + totalPaidMoney) {
                                 totalAmount = balance + totalPaidMoney;
-                            } else if (principal > 0) {
-                                totalAmount = Math.round(principal * 1.25); // Fallback razonable: 25% interés
+                            }
+                        } else {
+                            balance = Math.max(0, totalAmount - totalPaidMoney);
+                        }
+                        
+                        // Usar Math.floor para no marcar cuotas parciales como PAGADAS enteras
+                        paidInst = instValue > 0 ? Math.floor(totalPaidMoney / instValue) : paidInst;
+                    } else {
+                        // ==========================================================================
+                        // PASO 2: AUTO-DETECT (solo si no hay columna MONTO COBRADO)
+                        // ==========================================================================
+
+                        // Si PAG contiene monto de dinero (>500) en vez de cantidad de cuotas
+                        if (paidInst > 500 && instValue > 0) {
+                            totalPaidMoney = paidInst;
+                            paidInst = Math.floor(paidInst / instValue);
+                        } else {
+                            totalPaidMoney = paidInst * instValue;
+                        }
+                        if (pendInst > 500 && instValue > 0) {
+                            pendInst = Math.floor(pendInst / instValue);
+                        }
+
+                        if (totalInst === 0) totalInst = paidInst + pendInst;
+
+                        // PRIMARIO: si MONTO ≈ PAG × V.CUOTA (±2%), MONTO = cobrado
+                        if (paidInst > 0 && instValue > 0 && totalAmount > 0 && totalInst > paidInst) {
+                            const expectedCobrado = paidInst * instValue;
+                            const diff = Math.abs(totalAmount - expectedCobrado);
+                            if (expectedCobrado > 0 && diff / expectedCobrado < 0.02) {
+                                const montoCobrado = totalAmount;
+                                totalAmount = totalInst * instValue;
+                                totalPaidMoney = montoCobrado;
                             }
                         }
 
-                        // Si totalInst es 0, intentamos reconstruirlo o asumir default
-                        if (totalInst === 0) {
-                            if (totalAmount > 0 && instValue > 0) {
-                                totalInst = Math.round(totalAmount / instValue);
-                            } else {
-                                totalInst = 24; // Default para evitar división por cero o errores de métricas
-                            }
-                        }
+                        if (totalInst === 0) totalInst = paidInst + pendInst;
 
-                        // Si instValue es 0, intentamos reconstruirlo
-                        if (instValue === 0 && totalAmount > 0 && totalInst > 0) {
-                            instValue = Math.round(totalAmount / totalInst);
+                        const totalPaidFromPag = totalPaidMoney > 0 ? totalPaidMoney : paidInst * instValue;
+                        const excelBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance) ? rawExplicitBalance : 0;
+
+                        if (totalAmount === 0 && instValue > 0 && totalInst > 0) totalAmount = instValue * totalInst;
+
+                        const hasExplicitBalance = rawExplicitBalance !== null && !isNaN(rawExplicitBalance);
+
+                        // PRIORIDAD ABSOLUTA: saldo explícito en Excel
+                        if (hasExplicitBalance) {
+                            balance = excelBalance;
+                            if (totalAmount < balance) {
+                                totalAmount = balance + totalPaidFromPag;
+                            }
+                            totalPaidMoney = Math.max(0, totalAmount - balance);
+                        } else if (totalPaidFromPag > 0 || paidInst > 0) {
+                            balance = Math.max(0, totalAmount - totalPaidFromPag);
+                            totalPaidMoney = Math.max(0, totalAmount - balance);
+                        } else {
+                            balance = totalAmount;
+                            totalPaidMoney = 0;
                         }
-                        
-                        // Heurística de emergencia (ELIMINADA POR AUDITORÍA QA - DESTRUÍA EL SALDO DE 0 LEGÍTIMO)
-                        // if (balance === 0 && totalAmount > 0 && totalPaidMoney < totalAmount * 0.98) { ... }
-                        
-                        // SEGURIDAD CRÍTICA: Si el cliente AÚN DEBE DINERO, es imposible que haya pagado el 100% de las cuotas.
-                        if (balance > 0 && totalInst <= paidInst) {
-                            totalInst = paidInst + 1;
+                    }
+
+                    // --- RECONSTRUCCIÓN ROBUSTA DE DATOS FALTANTES (POST-HOC) ---
+                    if (totalAmount === 0) {
+                        if (balance > 0 || totalPaidMoney > 0) {
+                            totalAmount = balance + totalPaidMoney;
+                        } else if (instValue > 0 && totalInst > 0) {
+                            totalAmount = instValue * totalInst;
+                        } else if (principal > 0) {
+                            totalAmount = Math.round(principal * 1.25);
                         }
+                    }
+
+                    // Garantía matemática final: totalAmount - totalPaidMoney === balance exacto al Guaraní
+                    if (rawExplicitBalance !== null && !isNaN(rawExplicitBalance)) {
+                        balance = Math.round(rawExplicitBalance);
+                        if (isCobradoMapped) {
+                            totalPaidMoney = Math.round(cobradoRaw);
+                            totalAmount = balance + totalPaidMoney;
+                        } else {
+                            if (totalAmount < balance) totalAmount = balance;
+                            totalPaidMoney = Math.max(0, totalAmount - balance);
+                        }
+                    }
+
+                    if (totalInst === 0) {
+                        if (totalAmount > 0 && instValue > 0) {
+                            totalInst = Math.round(totalAmount / instValue);
+                        } else {
+                            totalInst = 24;
+                        }
+                    }
+
+                    if (instValue === 0 && totalAmount > 0 && totalInst > 0) {
+                        instValue = Math.round(totalAmount / totalInst);
+                    }
+                    
+                    // SEGURIDAD CRÍTICA: Si el cliente AÚN DEBE DINERO, es imposible que haya pagado el 100% de las cuotas.
+                    if (balance > 0 && totalInst <= paidInst) {
+                        totalInst = paidInst + 1;
+                    }
 
                     if (principal === 0 && totalAmount > 0) principal = Math.round(totalAmount / 1.15);
 
@@ -642,30 +670,30 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     const rowSellerCodeRaw = String(row[idxs.sellerCode ?? -1] || '').trim();
                     const finalSellerCode = rowSellerCodeRaw !== '' && rowSellerCodeRaw !== '---' && rowSellerCodeRaw !== 'undefined'
                         ? rowSellerCodeRaw 
-                        : sellerCode; // fallback to sellerCode parameter
+                        : sellerCode;
 
-                    // BUG FIX: Do not override the collectorId parameter.
+                    // RESPETAR SIEMPRE EL COBRADOR SELECCIONADO EN EL MODAL DE IMPORTACIÓN:
+                    // Solo usar auto-detección por código de vendedor cuando no se seleccionó un cobrador específico.
                     let finalAssignedCollectorId = collectorId;
-                    const hierarchyObj = (typeof window !== 'undefined' && (window as any).cachedHierarchy) ? (window as any).cachedHierarchy : null;
-                    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(finalSellerCode)) {
-                        finalAssignedCollectorId = finalSellerCode;
-                    } else if (hierarchyObj) {
-                        const matchingCollectorId = Object.keys(hierarchyObj).find(managerId => {
-                            const subcobradores = hierarchyObj[managerId] || [];
-                            return subcobradores.some((c: any) => String(c.seller_code) === finalSellerCode);
-                        });
+                    if (!finalAssignedCollectorId || finalAssignedCollectorId === '' || finalAssignedCollectorId === branchId) {
+                        const hierarchyObj = (typeof window !== 'undefined' && (window as any).cachedHierarchy) ? (window as any).cachedHierarchy : null;
+                        if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(finalSellerCode)) {
+                            finalAssignedCollectorId = finalSellerCode;
+                        } else if (hierarchyObj) {
+                            const matchingCollectorId = Object.keys(hierarchyObj).find(managerId => {
+                                const subcobradores = hierarchyObj[managerId] || [];
+                                return subcobradores.some((c: any) => String(c.seller_code) === finalSellerCode);
+                            });
 
-                        if (matchingCollectorId) {
-                            const foundCobrador = hierarchyObj[matchingCollectorId].find((c: any) => String(c.seller_code) === finalSellerCode);
-                            if (foundCobrador) {
-                                finalAssignedCollectorId = foundCobrador.id;
+                            if (matchingCollectorId) {
+                                const foundCobrador = hierarchyObj[matchingCollectorId].find((c: any) => String(c.seller_code) === finalSellerCode);
+                                if (foundCobrador) {
+                                    finalAssignedCollectorId = foundCobrador.id;
+                                }
                             }
-                        } else {
-                            errors.push({ row: i + 1, clientName: name, reason: `Código de vendedor '${finalSellerCode}' no encontrado.` });
                         }
                     }
 
-                    // BUG FIX: Si auto-asignar falló o quedó vacío, asignar a la sucursal/gerente para que el sync no falle (UUID inválido)
                     if (!finalAssignedCollectorId || finalAssignedCollectorId === '') {
                         finalAssignedCollectorId = branchId;
                     }
@@ -673,7 +701,7 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                     clients.push({
                         id: clientId,
                         name,
-                        documentId: String(row[idxs.docId ?? -1] || '---'),
+                        documentId: docIdRaw,
                         phone: String(row[idxs.phone ?? -1] || '---'),
                         address: String(row[idxs.addr ?? -1] || '---'),
                         ...(finalUbicacionCasa ? { location: finalUbicacionCasa } : {}),
@@ -684,13 +712,13 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         clientTypeCode: "131",
                         creditLimit: 0,
                         isActive: true,
+                        isHidden: false,
+                        deletedAt: undefined,
                         capital: principal,
                         currentBalance: balance,
-                        createdAt: new Date().toISOString()
+                        createdAt: existingClient?.createdAt || importTimestamp
                     });
 
-                    // FIX: Comprobación estricta de tipo number (respeta el 0 puro).
-                    // Esto evita la "Trampa del Falsy" donde un 0 (generado por un guion) activaba el OR (||) y creaba un pago fantasma.
                     const loanInitialPaid = Math.round(typeof totalPaidMoney === 'number' && !isNaN(totalPaidMoney) ? totalPaidMoney : Math.max(0, totalAmount - balance));
 
                     // CALCULAR TASA DE INTERÉS VIRTUAL PARA QUE LA TABLA COINCIDA CON EL MONTO TOTAL
@@ -707,10 +735,23 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         []
                     );
 
-                    // MARCAR CUOTAS COMO PAGADAS SEGÚN EL DATO "PAG"
-                    for (let j = 0; j < Math.min(paidInst, installmentsTable.length); j++) {
-                        installmentsTable[j].status = PaymentStatus.PAID;
-                        installmentsTable[j].paidAmount = Math.round(installmentsTable[j].amount);
+                    // DISTRIBUIR EL MONTO COBRADO EXACTO EN LAS CUOTAS (INCLUYENDO CUOTAS PARCIALES)
+                    // Garantiza que sum(installments.paidAmount) === loanInitialPaid y totalAmount - sum(paidAmount) === balance exacto.
+                    let remainingPaidToDistribute = Math.round(loanInitialPaid);
+                    for (let j = 0; j < installmentsTable.length; j++) {
+                        const instAmt = Math.round(installmentsTable[j].amount || 0);
+                        if (remainingPaidToDistribute >= instAmt && instAmt > 0) {
+                            installmentsTable[j].status = PaymentStatus.PAID;
+                            installmentsTable[j].paidAmount = instAmt;
+                            remainingPaidToDistribute -= instAmt;
+                        } else if (remainingPaidToDistribute > 0) {
+                            installmentsTable[j].status = PaymentStatus.PARTIAL;
+                            installmentsTable[j].paidAmount = remainingPaidToDistribute;
+                            remainingPaidToDistribute = 0;
+                        } else {
+                            installmentsTable[j].status = PaymentStatus.PENDING;
+                            installmentsTable[j].paidAmount = 0;
+                        }
                     }
 
                     loans.push({
@@ -731,26 +772,34 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
                         totalPaid: Math.round(loanInitialPaid),
                         balance: Math.round(balance),
                         daysOverdue: diasAtraso,
-                        raw_data: { ATRASO: rawAtraso, daysOverdue: diasAtraso }
+                        raw_data: { ATRASO: rawAtraso, daysOverdue: diasAtraso, ...(opNroRaw ? { opNro: opNroRaw } : {}) }
                     } as any);
 
-                    // GENERAR LOG DE MIGRACIÓN PARA QUE SE REFLEJEN LAS CUOTAS PAGADAS
-                    const hasMigLog = existingLogs.some(log => log.loanId === loanId && log.notes === "MIGRACIÓN EXCEL - SALDO INICIAL");
-                    if (loanInitialPaid > 0 && !hasMigLog) {
+                    // GENERAR O ACTUALIZAR LOG DE MIGRACIÓN CON FECHA DE CORTE ACTUAL (importTimestamp)
+                    // Al usar importTimestamp como fecha del log de migración, cualquier pago viejo anterior a esta planilla
+                    // queda consolidado dentro del saldo importado y el sistema refleja el 100% exacto de la planilla.
+                    const existingMigLog = existingLogs.find(log =>
+                        (log.loanId || (log as any).loan_id) === loanId &&
+                        isValidUUID(log.id) &&
+                        (log.notes === "MIGRACIÓN EXCEL - SALDO INICIAL" || String(log.notes || '').includes("MIGRACIÓN EXCEL"))
+                    );
+                    const hasAnyPriorLogsForLoan = existingLogs.some(log => (log.loanId || (log as any).loan_id) === loanId);
+
+                    if (loanInitialPaid > 0 || existingMigLog || hasAnyPriorLogsForLoan) {
                         logs.push({
-                            id: generateUUID(), // Usar UUID válido en vez de LOG-MIG- para evitar errores de base de datos
+                            id: existingMigLog ? existingMigLog.id : generateUUID(),
                             loanId: loanId,
                             clientId: clientId,
                             collectorId: finalAssignedCollectorId,
                             branchId: branchId,
                             amount: Math.round(loanInitialPaid),
                             type: CollectionLogType.PAYMENT,
-                            date: loanDate,
+                            date: importTimestamp,
                             location: { lat: 0, lng: 0 },
                             notes: "MIGRACIÓN EXCEL - SALDO INICIAL",
                             isOpening: false,
                             recordedBy: collectorId,
-                            updated_at: new Date().toISOString()
+                            updated_at: importTimestamp
                         });
                     }
                 }

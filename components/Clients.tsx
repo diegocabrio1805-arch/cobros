@@ -2611,20 +2611,26 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
       const country = state.settings.country || 'CO';
 
-      // Anti-Clones: Fetch global clients to prevent creating duplicates across branches
+      // Anti-Clones: Fetch branch clients to prevent creating duplicates within the same branch
       let globalClients = state.clients;
       try {
           const { supabase } = await import('../utils/supabaseClient');
-          const { data, error } = await supabase.from('clients').select('id, name, document_id');
+          let query = supabase.from('clients').select('id, name, document_id, branch_id, created_at').is('deleted_at', null);
+          if (calculatedBranchId) {
+              query = query.eq('branch_id', calculatedBranchId);
+          }
+          const { data, error } = await query;
           if (data && !error) {
               globalClients = data.map((c: any) => ({
                   id: c.id,
                   name: c.name,
-                  documentId: c.document_id
+                  documentId: c.document_id,
+                  branchId: c.branch_id,
+                  createdAt: c.created_at
               })) as any[];
           }
       } catch (err) {
-          console.warn("Failed to fetch global clients for deduplication", err);
+          console.warn("Failed to fetch branch clients for deduplication", err);
       }
 
       const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, globalClients, state.loans, state.collectionLogs);

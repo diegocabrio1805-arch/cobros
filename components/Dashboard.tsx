@@ -169,24 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     });
   }, [state.users, state.currentUser]);
 
-  // 1.5. Precalcular sumas de abonos por préstamo de forma eficiente (O(L))
-  const logsByLoanId = useMemo(() => {
-    const map = new Map<string, number>();
-    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
-    for (const log of logs) {
-      if (log.deletedAt) continue;
-      const logType = String(log.type || '').toUpperCase();
-      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) continue;
-      if (log.isOpening || (log as any).is_opening) continue;
-      const loanId = log.loanId || log.loan_id;
-      if (!loanId) continue;
-      const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
-      map.set(loanId, (map.get(loanId) || 0) + amt);
-    }
-    return map;
-  }, [state.collectionLogs]);
-
-  // 1.6. Precalcular logs de pago por préstamo para optimizar la verificación de créditos cancelados hoy
+  // 1.5. Precalcular logs de pago por préstamo para optimizar cálculos y verificación de créditos cancelados hoy
   const paymentLogsByLoanId = useMemo(() => {
     const map = new Map<string, any[]>();
     const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
@@ -203,6 +186,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     }
     return map;
   }, [state.collectionLogs]);
+
+  // 1.6. Precalcular sumas de abonos por préstamo respetando el corte de MIGRACIÓN EXCEL
+  const logsByLoanId = useMemo(() => {
+    const map = new Map<string, number>();
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const loan of loans) {
+      if (!loan || !loan.id) continue;
+      const prefiltered = paymentLogsByLoanId.get(loan.id) || [];
+      map.set(loan.id, calculateTotalPaidFromLogs(loan, allLogs, prefiltered));
+    }
+    return map;
+  }, [state.loans, state.collectionLogs, paymentLogsByLoanId]);
 
   // 1.7. Precalcular los días de mora de todos los créditos activos/vencidos una sola vez
   const loansOverdueMap = useMemo(() => {
@@ -422,10 +418,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap, lastVisitMap, visitPeriod]);
 
 
-  // Pre-calcular set de clientes válidos para no sumar data de clientes eliminados
+  // Pre-calcular set de clientes válidos para no sumar data de clientes eliminados u ocultos
   const validClientIdsSetDashboard = useMemo(() => {
     return new Set((Array.isArray(state.clients) ? state.clients : [])
-      .filter(c => !c.deletedAt)
+      .filter(c => !c.deletedAt && !c.isHidden)
       .map(c => c.id));
   }, [state.clients]);
 

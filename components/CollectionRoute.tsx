@@ -198,9 +198,8 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       const client = clientsMap[loan.clientId];
       const loanLogs = logsByLoan[loan.id] || [];
 
-      // Regla de Oro: Histórico total para determinar si está adelantado o en mora
-      const allPayments = (Array.isArray(loanLogs) ? loanLogs : []).filter(log => log.type === CollectionLogType.PAYMENT && !log.isOpening);
-      const totalPaidAllTime = allPayments.reduce((acc, log) => acc + (log.amount || 0), 0);
+      // Regla de Oro: Histórico total respetando el corte de MIGRACIÓN EXCEL para determinar saldo y mora
+      const totalPaidAllTime = calculateTotalPaidFromLogs(loan, state.collectionLogs, loanLogs);
 
       const rangeLogs = (Array.isArray(loanLogs) ? loanLogs : []).filter(log => {
         const logDate = new Date(log.date);
@@ -865,7 +864,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                           {item.client?.phone}
                         </td>
                         <td className="px-3 md:px-4 py-4 text-center font-black font-mono text-[10px] text-red-600">
-                          {formatCurrency(Math.max(0, (item.totalAmount || 0) - ((Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === item.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt).reduce((acc, log) => acc + (log.amount || 0), 0))), state.settings)}
+                          {formatCurrency(item.totalBalance || 0, state.settings)}
                         </td>
                       </>
                     ) : (
