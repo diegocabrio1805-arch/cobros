@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState } from 'react';
 import { User, Role, AppState } from '../types';
@@ -75,7 +76,7 @@ const Profile: React.FC<ProfileProps> = ({ state, onUpdateUser }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">{t.name}</label>
-              <input
+              <FastInput
                 type="text"
                 readOnly={!canEdit}
                 value={formData.name}
@@ -86,7 +87,7 @@ const Profile: React.FC<ProfileProps> = ({ state, onUpdateUser }) => {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">{t.username}</label>
-              <input
+              <FastInput
                 type="text"
                 readOnly={!canEdit}
                 value={formData.username}
@@ -110,7 +111,7 @@ const Profile: React.FC<ProfileProps> = ({ state, onUpdateUser }) => {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">{t.password}</label>
-              <input
+              <FastInput
                 type="text"
                 readOnly={!canEdit}
                 value={formData.password}

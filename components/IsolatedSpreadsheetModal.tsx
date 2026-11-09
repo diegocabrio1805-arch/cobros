@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, ExpenseCategory, Expense } from '../types';
 import { formatCurrency, generateUUID, formatLocalTime } from '../utils/helpers';
@@ -286,7 +287,7 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
 
               <div className="flex items-center gap-1 bg-white pl-2 pr-1 py-1 rounded-xl border border-slate-200 shadow-sm">
                 <span className="text-slate-400 font-black pl-2">$</span>
-                <input 
+                <FastInput 
                   type="number" 
                   placeholder="Monto..."
                   value={localProjectAmount}
@@ -435,7 +436,7 @@ const ExpenseRow = ({ date, expense, settings, removeExpense, updateExpense }: a
       <td className="px-4 py-2 border-r border-slate-100 font-mono text-sm font-black text-slate-700">
         <div className="flex items-center gap-2">
           <span className="text-slate-400 font-bold">$</span>
-          <input 
+          <FastInput 
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -490,7 +491,7 @@ const ProjectedExpenseRow = ({ date, defaultAmount, settings, addExpense, remove
       <td className="px-4 py-2 border-r border-slate-100 font-mono text-sm font-black text-slate-700">
         <div className="flex items-center gap-2">
           <span className="text-slate-400 font-bold">$</span>
-          <input 
+          <FastInput 
             type="number"
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
@@ -548,7 +549,7 @@ const NewExpenseRow = ({ date, addExpense }: any) => {
         {new Date(date + 'T12:00:00Z').toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit' }).toUpperCase()}
       </td>
       <td className="px-4 py-2 border-r border-slate-200">
-        <input 
+        <FastInput 
           type="text" 
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -568,7 +569,7 @@ const NewExpenseRow = ({ date, addExpense }: any) => {
         </select>
       </td>
       <td className="px-4 py-2 border-r border-slate-200">
-        <input 
+        <FastInput 
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

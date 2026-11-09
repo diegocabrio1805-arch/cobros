@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState, useEffect } from 'react';
 
 const WEATHER_CODE_MAP: Record<number, { icon: string, label: string }> = {
@@ -195,7 +196,7 @@ const WeatherWidget: React.FC = () => {
           <span className="text-sm font-black uppercase tracking-widest drop-shadow-md">{errorMsg || "Ubicación no encontrada"}</span>
         </div>
         <div className="relative z-[9999]">
-           <input 
+           <FastInput 
              type="text" 
              placeholder="Buscar ciudad manualmente (ej. Asunción)..." 
              value={searchQuery}

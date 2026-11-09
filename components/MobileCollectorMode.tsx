@@ -611,7 +611,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                           {(!isQrProcessing || hasQrConfig) && (
                             <div className="relative mb-3">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-slate-500">$</span>
-                              <input 
+                              <FastInput 
                                 type="number" min="1" inputMode="numeric" value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
                                 className="w-full bg-slate-950 border border-emerald-900 text-emerald-400 text-2xl font-black text-center py-4 rounded-xl outline-none"
                               />

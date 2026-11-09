@@ -1741,7 +1741,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   {(!isQrPayment || hasQrConfig) && (
                     <div className="relative mb-6">
                       <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                      <input type="number" autoFocus value={paymentAmount === 0 ? '' : paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
+                      <FastInput type="number" autoFocus value={paymentAmount === 0 ? '' : paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} className="w-full pl-12 pr-5 py-8 md:py-10 bg-slate-50 border border-slate-200 rounded-md md:rounded-md text-3xl md:text-5xl font-black text-center text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-inner" />
                     </div>
                   )}
 
@@ -1796,7 +1796,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Empresa</label>
-                    <input
+                    <FastInput
                       type="text"
                       value={editingReceipt.companyNameManual ?? state.settings.companyName ?? ''}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, companyNameManual: e.target.value })}
@@ -1816,7 +1816,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Marca</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.companyAliasManual ?? state.settings.companyAlias ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyAliasManual: e.target.value })}
@@ -1828,7 +1828,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 2 (Ej: TEL. PUBLICO)</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.contactLabelManual ?? ((t as any).receipt?.publicPhone || "TEL. PUBLICO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, contactLabelManual: e.target.value })}
@@ -1837,7 +1837,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Teléfono/Letras</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.contactPhoneManual ?? state.settings.contactPhone ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, contactPhoneManual: e.target.value })}
@@ -1849,7 +1849,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 3 (Ej: ID EMPRESA)</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.companyIdentifierLabelManual ?? ((t as any).receipt?.companyId || "ID EMPRESA")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierLabelManual: e.target.value })}
@@ -1858,7 +1858,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor ID</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.companyIdentifierManual ?? state.settings.companyIdentifier ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierManual: e.target.value })}
@@ -1870,7 +1870,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta Banco</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.shareLabelManual ?? state.settings.shareLabel ?? 'BANCO'}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareLabelManual: e.target.value })}
@@ -1879,7 +1879,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuenta/Alias</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.shareValueManual ?? state.settings.shareValue ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, shareValueManual: e.target.value })}
@@ -1891,7 +1891,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 5 (Ej: NUMERO CO)</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.supportLabelManual ?? ((t as any).receipt?.publicPhone || "NUMERO CO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, supportLabelManual: e.target.value })}
@@ -1900,7 +1900,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor 5</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.supportPhoneManual ?? state.settings.technicalSupportPhone ?? ''}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, supportPhoneManual: e.target.value })}
@@ -1917,7 +1917,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <div className="grid grid-cols-1 gap-3">
                   <div className="space-y-1">
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Cliente</label>
-                    <input
+                    <FastInput
                       type="text"
                       value={editingReceipt.clientName}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, clientName: e.target.value })}
@@ -1927,7 +1927,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha / Hora Recibo</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.fullDateTimeManual ?? ''}
                         placeholder="Automático (Ahora)"
@@ -1937,7 +1937,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Días de Atraso</label>
-                      <input
+                      <FastInput
                         type="number"
                         value={editingReceipt.daysOverdue}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, daysOverdue: Number(e.target.value) })}
@@ -1948,7 +1948,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Inicio Préstamo</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.startDate}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, startDate: e.target.value })}
@@ -1957,7 +1957,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimiento</label>
-                      <input
+                      <FastInput
                         type="text"
                         value={editingReceipt.expiryDate}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, expiryDate: e.target.value })}
@@ -1970,7 +1970,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest ml-1">Saldo Ant.</label>
-                    <input
+                    <FastInput
                       type="number"
                       value={editingReceipt.previousBalance}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, previousBalance: Number(e.target.value) })}
@@ -1979,7 +1979,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   </div>
                   <div className="space-y-1">
                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest ml-1">Abono</label>
-                    <input
+                    <FastInput
                       type="number"
                       value={editingReceipt.amountPaid}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, amountPaid: Number(e.target.value) })}
@@ -1988,7 +1988,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   </div>
                   <div className="space-y-1">
                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest ml-1">Saldo Act.</label>
-                    <input
+                    <FastInput
                       type="number"
                       value={editingReceipt.remainingBalance}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, remainingBalance: Number(e.target.value) })}
@@ -2000,7 +2000,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cuotas Pagadas</label>
-                    <input
+                    <FastInput
                       type="number"
                       value={editingReceipt.paidInstallments}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, paidInstallments: Number(e.target.value) })}
@@ -2009,7 +2009,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Cuotas</label>
-                    <input
+                    <FastInput
                       type="number"
                       value={editingReceipt.totalInstallments}
                       onChange={(e) => setEditingReceipt({ ...editingReceipt, totalInstallments: Number(e.target.value) })}

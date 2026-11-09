@@ -1000,7 +1000,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                   {(!isQrProcessing || hasQrConfig) && (
                     <div className="relative mb-6">
                       <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                      <input
+                      <FastInput
                         type="text"
                         inputMode="numeric"
                         autoFocus

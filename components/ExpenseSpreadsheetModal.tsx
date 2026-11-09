@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, ExpenseCategory, Expense, Role } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
@@ -274,7 +275,7 @@ const VirtualFuelRow = ({ date, amount, settings, addExpense }: any) => {
       <td className="px-4 py-2 border-r border-slate-200">
         <div className="flex items-center gap-2">
            <span className="text-slate-400 text-xs">$</span>
-           <input 
+           <FastInput 
               type="number"
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
@@ -345,7 +346,7 @@ const ExpenseRow = ({ date, expense, settings, removeExpense, updateExpense }: a
       </td>
       <td className="px-4 py-2 border-r border-slate-200 text-xs font-black font-mono text-slate-800 relative cursor-pointer" onDoubleClick={() => setIsEditing(true)}>
         {isEditing ? (
-          <input 
+          <FastInput 
             type="number"
             value={editAmount}
             autoFocus
@@ -418,7 +419,7 @@ const NewExpenseRow = ({ date, addExpense }: any) => {
         {formatDate(date)}
       </td>
       <td className="px-4 py-2 border-r border-slate-200">
-        <input 
+        <FastInput 
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -438,7 +439,7 @@ const NewExpenseRow = ({ date, addExpense }: any) => {
         </select>
       </td>
       <td className="px-4 py-2 border-r border-slate-200">
-        <input 
+        <FastInput 
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

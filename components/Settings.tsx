@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -315,7 +316,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.companyNameLabel || "Nombre de la Empresa (Título App)"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={localForm.companyName}
                   onChange={(e) => setLocalForm({ ...localForm, companyName: e.target.value })}
@@ -325,7 +326,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.publicPhoneLabel || "Teléfono Público"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={localForm.contactPhone}
                   onChange={(e) => setLocalForm({ ...localForm, contactPhone: e.target.value })}
@@ -338,7 +339,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.brandLabel || "Marca"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={localForm.companyAlias}
                   onChange={(e) => setLocalForm({ ...localForm, companyAlias: e.target.value })}
@@ -348,7 +349,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.companyIdLabel || "ID Empresa (Legajo)"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={localForm.companyIdentifier}
                   onChange={(e) => setLocalForm({ ...localForm, companyIdentifier: e.target.value })}
@@ -362,7 +363,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.bankNamesLabel || "Nombres de banco o cuentas bancarias"}</label>
                 <div className="flex flex-col gap-2">
-                  <input
+                  <FastInput
                     type="text"
                     value={localForm.shareLabel}
                     onChange={(e) => setLocalForm({ ...localForm, shareLabel: e.target.value })}
@@ -393,7 +394,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.accountNumberLabel || "Numero de cuenta o alias de la empresa"}</label>
                 <div className="flex flex-col gap-2">
-                  <input
+                  <FastInput
                     type="text"
                     value={localForm.shareValue}
                     onChange={(e) => setLocalForm({ ...localForm, shareValue: e.target.value })}
@@ -543,7 +544,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.shopIdLabel || "Código de Comercio"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={bancardShopId}
                   onChange={(e) => setBancardShopId(e.target.value)}
@@ -553,7 +554,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.publicKeyLabel || "Clave Pública"}</label>
-                <input
+                <FastInput
                   type="text"
                   value={bancardPublicKey}
                   onChange={(e) => setBancardPublicKey(e.target.value)}
@@ -566,7 +567,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.settingsPage?.privateKeyLabel || "Clave Privada"}</label>
               <div className="relative">
-                <input
+                <FastInput
                   type={showPrivateKey ? "text" : "password"}
                   value={bancardPrivateKey}
                   onChange={(e) => setBancardPrivateKey(e.target.value)}
@@ -846,7 +847,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número de Teléfono</label>
                   <div className="relative">
                     <i className="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-                    <input
+                    <FastInput
                       required
                       type="tel"
                       autoFocus

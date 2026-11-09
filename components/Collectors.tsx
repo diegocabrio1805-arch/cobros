@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState } from 'react';
 import { AppState, User, Role, AppSettings } from '../types';
@@ -381,11 +382,11 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-300 shadow-sm">
                   <div className="md:col-span-2 space-y-1.5">
                     <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">{state.settings.language === 'fr' ? 'Nom Complet' : state.settings.language === 'pt' ? 'Nome Completo' : 'Nombre Completo'}</label>
-                    <input required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" />
+                    <FastInput required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-[8px] font-black text-slate-800 uppercase ml-1">{state.settings.language === 'fr' ? 'ID Utilisateur' : state.settings.language === 'pt' ? 'ID de Usuário' : 'Usuario ID'}</label>
-                    <input
+                    <FastInput
                       required
                       type="text"
                       value={formData.username}
@@ -400,7 +401,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{state.settings.language === 'fr' ? 'PIN / Mot de passe' : state.settings.language === 'pt' ? 'PIN / Senha' : 'PIN / Clave'}</label>
                     <label className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                       <i className="fa-solid fa-key text-slate-400"></i>
-                      <input
+                      <FastInput
                         type={showPassword ? "text" : "password"}
                         required={!editingUserId}
                         placeholder={editingUserId ? "Dejar en blanco para no cambiar" : "Contraseña"}

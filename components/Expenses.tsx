@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState, useMemo } from 'react';
 import { Expense, AppState, ExpenseCategory, IsolatedExpense, CollectionLogType, LoanStatus, Loan, CollectionLog, Role } from '../types';
@@ -591,7 +592,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                                  <div className="flex items-center gap-2">
                                     {isEditing ? (
                                       <div className="flex items-center gap-1">
-                                        <input type="number" autoFocus value={topEditAmt} onChange={e => setTopEditAmt(e.target.value)} className="w-20 text-right text-xs font-black border border-slate-300 rounded px-1" />
+                                        <FastInput type="number" autoFocus value={topEditAmt} onChange={e => setTopEditAmt(e.target.value)} className="w-20 text-right text-xs font-black border border-slate-300 rounded px-1" />
                                         <button onClick={() => {
                                           const amt = Number(topEditAmt);
                                           if (amt > 0 && removeIsolatedExpenseAction && addIsolatedExpenseAction) {
@@ -683,7 +684,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </div>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
-                  <input
+                  <FastInput
                     type="number"
                     autoFocus
                     value={initialCapitalForm}
@@ -805,7 +806,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">
                     {state.settings.language === 'fr' ? 'Description ou Catégorie' : state.settings.language === 'pt' ? 'Descrição ou Categoria' : 'Descripción o Categoría'}
                   </label>
-                  <input
+                  <FastInput
                     required
                     type="text"
                     list="expense-categories"
@@ -823,7 +824,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Montant ($)' : state.settings.language === 'pt' ? 'Valor ($)' : 'Monto ($)'}</label>
-                    <input
+                    <FastInput
                       required
                       type="number"
                       value={formData.amount}
@@ -1183,7 +1184,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
             <div>
               <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest mb-1">Combustible diario</p>
               <div className="flex items-center gap-1.5">
-                <input
+                <FastInput
                   type="number"
                   value={fuelInput}
                   onChange={e => setFuelInput(e.target.value)}
@@ -1259,7 +1260,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
                         className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </td>
                     <td className="px-2 py-1.5">
-                      <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                      <FastInput type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)}
                         className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </td>
                     <td className="px-2 py-1.5">
@@ -1269,7 +1270,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
                       </select>
                     </td>
                     <td className="px-2 py-1.5">
-                      <input type="number" value={editAmt} onChange={e => setEditAmt(e.target.value)}
+                      <FastInput type="number" value={editAmt} onChange={e => setEditAmt(e.target.value)}
                         className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </td>
                     <td className="px-2 py-1.5">
@@ -1313,7 +1314,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
                     className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </td>
                 <td className="px-2 py-1.5">
-                  <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descripción..." autoFocus
+                  <FastInput type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descripción..." autoFocus
                     className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </td>
                 <td className="px-2 py-1.5">
@@ -1325,7 +1326,7 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
                   </select>
                 </td>
                 <td className="px-2 py-1.5">
-                  <input type="number" value={newAmt} onChange={e => setNewAmt(e.target.value)} placeholder="Monto"
+                  <FastInput type="number" value={newAmt} onChange={e => setNewAmt(e.target.value)} placeholder="Monto"
                     className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </td>
                 <td className="px-2 py-1.5">

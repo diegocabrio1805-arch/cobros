@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx-js-style';
@@ -1323,7 +1324,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div className="flex-1 flex flex-col justify-center w-full">
               <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).commissionBook.discount}</p>
               <div className="flex items-center gap-1 justify-center">
-                <input
+                <FastInput
                   type="number"
                   value={Math.round(effectiveMora * 100)}
                   onChange={(e) => {
@@ -1344,7 +1345,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">{(t as any).commissionBook.extraIncentive}</p>
 
               <div className="flex items-center gap-1 justify-center">
-                <input
+                <FastInput
                   type="number"
                   value={Math.round(effectiveIncentive * 100)}
                   onChange={(e) => {
@@ -1377,7 +1378,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="flex-1 text-center space-y-1">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.baseCommission}</p>
             <div className="flex items-center justify-center gap-2">
-              <input type="number" value={localCommissionPercent === 0 ? '' : localCommissionPercent} placeholder="0" onChange={(e) => {
+              <FastInput type="number" value={localCommissionPercent === 0 ? '' : localCommissionPercent} placeholder="0" onChange={(e) => {
                 const val = e.target.value === '' ? 0 : Number(e.target.value);
                 setLocalCommissionPercent(val);
                 setCommissionPercentage(val);
@@ -1441,7 +1442,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.baseSalary}</p>
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl font-black text-slate-400">$</span>
-              <input 
+              <FastInput 
                 type="number" 
                 value={sencilloAmount === 0 ? '' : sencilloAmount} 
                 onChange={(e) => setSencilloAmount(e.target.value === '' ? 0 : Number(e.target.value))} 
@@ -1485,7 +1486,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   className={`grid grid-cols-[1fr_100px_20px] border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
                 >
                   <div className="border-r border-slate-100">
-                    <input
+                    <FastInput
                       type="text"
                       value={exp.note}
                       onChange={(e) => updateExpense(idx, 'note', e.target.value)}
@@ -1494,7 +1495,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     />
                   </div>
                   <div className="border-r border-slate-100">
-                    <input
+                    <FastInput
                       type="number"
                       value={exp.amount === 0 ? '' : exp.amount}
                       onChange={(e) => updateExpense(idx, 'amount', e.target.value === '' ? 0 : Number(e.target.value))}
@@ -1656,7 +1657,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <div className="flex-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase mb-1.5">Si la Mora es hasta:</label>
                       <div className="flex items-center gap-1.5">
-                        <input type="number" value={bracket.maxMora} onChange={(e) => {
+                        <FastInput type="number" value={bracket.maxMora} onChange={(e) => {
                           const newB = [...editingBrackets];
                           newB[idx].maxMora = Number(e.target.value);
                           setEditingBrackets(newB);
@@ -1672,7 +1673,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <div className="flex-1">
                       <label className="block text-[8px] font-black text-slate-400 uppercase mb-1.5">Pagar el:</label>
                       <div className="flex items-center gap-1.5">
-                        <input type="number" value={bracket.payoutPercent} onChange={(e) => {
+                        <FastInput type="number" value={bracket.payoutPercent} onChange={(e) => {
                           const newB = [...editingBrackets];
                           newB[idx].payoutPercent = Number(e.target.value);
                           setEditingBrackets(newB);
@@ -2145,7 +2146,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   >
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago %</span>
                     <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
-                      <input 
+                      <FastInput 
                         type="number" 
                         value={historyCommissionPercent} 
                         onChange={(e) => {
@@ -2172,7 +2173,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Semanal</span>
                     <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
                       <span className="text-[9px] text-slate-400 font-black">$</span>
-                      <input 
+                      <FastInput 
                         type="number" 
                         value={weeklySalaryInput === 0 ? '' : weeklySalaryInput} 
                         onChange={(e) => {
@@ -2199,7 +2200,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Mensual</span>
                     <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
                       <span className="text-[9px] text-slate-400 font-black">$</span>
-                      <input 
+                      <FastInput 
                         type="number" 
                         value={monthlySalaryInput === 0 ? '' : monthlySalaryInput} 
                         onChange={(e) => {

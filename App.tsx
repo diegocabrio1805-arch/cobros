@@ -52,7 +52,7 @@ const App: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [initialDossierClientId, setInitialDossierClientId] = useState<string | null>(null);
   const [pullY, setPullY] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
+  const isPulling = useRef(false);
   const pullStartY = useRef(0);
   const MAX_PULL = 120;
   const REFRESH_THRESHOLD = 80;
@@ -180,34 +180,43 @@ const App: React.FC = () => {
 
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
-  // Pull to Refresh Handlers
+  // Pull to Refresh Handlers (Zero re-renders on normal taps / input focus)
   const handleTouchStart = (e: React.TouchEvent) => {
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
+      isPulling.current = false;
+      return;
+    }
+    if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, button')) {
+      isPulling.current = false;
+      return;
+    }
     if (window.scrollY <= 5) {
       pullStartY.current = e.touches[0].clientY;
-      setIsPulling(true);
+      isPulling.current = true;
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isPulling) return;
+    if (!isPulling.current) return;
     const dy = e.touches[0].clientY - pullStartY.current;
-    if (dy > 0 && window.scrollY <= 5) {
-      setPullY(Math.min(dy * 0.4, MAX_PULL));
-    } else {
-      setIsPulling(false);
-      setPullY(0);
+    if (dy > 35 && window.scrollY <= 5) {
+      setPullY(Math.min((dy - 35) * 0.4, MAX_PULL));
+    } else if (dy < 0) {
+      isPulling.current = false;
+      if (pullY > 0) setPullY(0);
     }
   };
 
   const handleTouchEnd = () => {
-    if (!isPulling) return;
+    if (!isPulling.current) return;
+    isPulling.current = false;
     if (pullY > REFRESH_THRESHOLD) {
       setPullY(50);
       handleForceSync(false, "¡Sincronizando Todo!", true).finally(() => setPullY(0));
-    } else {
+    } else if (pullY > 0) {
       setPullY(0);
     }
-    setIsPulling(false);
   };
 
   useEffect(() => {

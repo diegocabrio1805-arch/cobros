@@ -1,71 +1,192 @@
-import React, { useEffect, useRef, useState, startTransition } from 'react';
+import React, { useEffect, useRef, startTransition, forwardRef } from 'react';
+import { flushSync } from 'react-dom';
 
 /**
- * FastInput — Input "anti-traba" para celulares de gama media (Honor, Huawei, Xiaomi...).
+ * FastInput — Input 100% Nativo No-Controlado ("Zero-Lag") para Android / Honor / Gama Media.
  *
- * PROBLEMA: Un <input value={x} onChange={setX}> controlado por un componente gigante
- * (Clients.tsx tiene +5000 líneas) obliga a re-renderizar TODO en cada tecla. En teclados
- * con texto predictivo (Celia/Gboard en Honor) la composición IME llega antes de que React
- * termine, y el valor viejo "pisa" lo escrito: letras a destiempo, borrar no responde, cursor salta.
+ * POR QUÉ FALLABA EL BORRADO (BACKSPACE) EN HONOR:
+ * 1. En React, cualquier <input value={...}> activa el wrapper controlado ReactDOMInput.
+ *    En Android WebView + teclados Honor (Celia / SwiftKey / Gboard), presionar Borrar (⌫)
+ *    sobre una palabra inicia una sesión IME (InputConnection). Cuando React re-renderiza
+ *    y toca `node.value`, reinicia el InputConnection del teclado y cancela los primeros
+ *    1 o 2 toques de Borrar.
+ * 2. Además, si cada tecla dispara un re-render de componentes pesados (como Clients.tsx
+ *    con +5600 líneas), el hilo principal se congela 300-600ms y se traga las pulsaciones.
  *
- * SOLUCIÓN: El texto vive en un estado LOCAL (solo re-renderiza este input, instantáneo).
- * El valor se envía al padre en baja prioridad (startTransition) o con retardo (delay),
- * y nunca durante la composición del teclado.
+ * SOLUCIÓN DEFINITIVA:
+ * - El <input> subyacente NO recibe la prop `value` (usa `defaultValue` + `ref`), por lo que
+ *   es 100% no-controlado para React. El navegador maneja la escritura y el botón Borrar (⌫)
+ *   de forma nativa a 0ms sin intervención de React ni cortes de IME.
+ * - Mientras el usuario escribe o borra de corrido, un debounce (mínimo 350ms) evita que
+ *   el componente padre se re-renderice en cada tecla.
+ * - Al tocar cualquier botón fuera del input (touchstart/pointerdown en fase de captura),
+ *   al presionar Enter o al perder el foco (blur), el valor se sincroniza instantáneamente
+ *   con `flushSync` antes de que se ejecute el `onClick` de "Guardar" o "Buscar".
  */
-type FastInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
-  value: string | number | undefined | null;
-  onValueChange: (value: string) => void;
-  /** ms de espera antes de avisar al padre (útil para buscadores). 0 = inmediato en baja prioridad. */
+export type FastInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'> & {
+  value?: string | number | readonly string[] | undefined | null;
+  onValueChange?: (value: string) => void;
+  /** ms de espera tras dejar de escribir/borrar antes de actualizar al padre (default: 350ms) */
   delay?: number;
 };
 
-const FastInput: React.FC<FastInputProps> = ({ value, onValueChange, delay = 0, onBlur, onFocus, ...rest }) => {
+// Un único listener global en fase de captura para volcar el input activo antes de cualquier click en botones
+let activeInputFlush: ((target: EventTarget | null) => void) | null = null;
+
+if (typeof window !== 'undefined') {
+  const flushActiveOnOutside = (e: Event) => {
+    if (activeInputFlush) {
+      activeInputFlush(e.target);
+    }
+  };
+  window.addEventListener('touchstart', flushActiveOnOutside, true);
+  window.addEventListener('pointerdown', flushActiveOnOutside, true);
+}
+
+const FastInput = forwardRef<HTMLInputElement, FastInputProps>(({
+  value,
+  onValueChange,
+  onChange,
+  delay = 350,
+  onBlur,
+  onFocus,
+  onKeyDown,
+  ...rest
+}, externalRef) => {
   const external = value === undefined || value === null ? '' : String(value);
-  const [local, setLocal] = useState(external);
+  const initialValue = useRef(external);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const focused = useRef(false);
-  const composing = useRef(false);
+  const dirty = useRef(false);
+  const lastCommitted = useRef(external);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cbRef = useRef(onValueChange);
-  cbRef.current = onValueChange;
 
-  // Si el valor cambia desde afuera (ej. abrir otro cliente) y el usuario no está escribiendo, sincronizar.
-  useEffect(() => {
-    if (!focused.current) setLocal(external);
-  }, [external]);
+  const onValueChangeRef = useRef(onValueChange);
+  onValueChangeRef.current = onValueChange;
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Mínimo 350ms de debounce para que ráfagas de Backspace (⌫) jamás disparen re-renders a mitad del borrado
+  const effectiveDelay = Math.max(delay, 350);
+
+  const setRefs = (node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (typeof externalRef === 'function') {
+      externalRef(node);
+    } else if (externalRef) {
+      (externalRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+    }
+  };
+
+  const fireCallbacks = (v: string) => {
+    lastCommitted.current = v;
+    dirty.current = false;
+    if (onValueChangeRef.current) {
+      onValueChangeRef.current(v);
+    }
+    if (onChangeRef.current) {
+      const el = inputRef.current;
+      const syntheticTarget = {
+        value: v,
+        name: el?.name ?? '',
+        id: el?.id ?? '',
+        type: el?.type ?? 'text',
+        checked: el?.checked ?? false,
+        valueAsNumber: v === '' ? NaN : Number(v),
+      };
+      onChangeRef.current({
+        target: syntheticTarget,
+        currentTarget: syntheticTarget,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    }
+  };
 
   const commit = (v: string, immediate = false) => {
-    if (timer.current) clearTimeout(timer.current);
-    // En blur se envía con prioridad normal: React lo aplica antes del click en "Guardar".
-    if (immediate) { cbRef.current(v); return; }
-    const send = () => startTransition(() => cbRef.current(v));
-    if (delay <= 0) send();
-    else timer.current = setTimeout(send, delay);
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (immediate) {
+      if (dirty.current || v !== lastCommitted.current) {
+        try {
+          flushSync(() => fireCallbacks(v));
+        } catch {
+          fireCallbacks(v);
+        }
+      }
+      return;
+    }
+    dirty.current = true;
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      startTransition(() => {
+        fireCallbacks(v);
+      });
+    }, effectiveDelay);
   };
+
+  // Sincronizar cambios externos (ej. abrir otro cliente o botón "X" de limpiar)
+  // NUNCA tocar `el.value` mientras el usuario tiene el foco escribiendo/borrando,
+  // salvo que el padre limpie explícitamente el campo a '' desde afuera.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (!focused.current) {
+      if (el.value !== external) {
+        el.value = external;
+      }
+      lastCommitted.current = external;
+      dirty.current = false;
+    } else if (!dirty.current && external === '' && lastCommitted.current !== '') {
+      el.value = '';
+      lastCommitted.current = '';
+    }
+  }, [external]);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
 
   return (
     <input
       {...rest}
-      value={local}
+      ref={setRefs}
+      defaultValue={initialValue.current}
       onChange={e => {
-        const v = e.target.value;
-        setLocal(v);
-        if (!composing.current) commit(v);
+        commit(e.currentTarget.value, false);
       }}
-      onCompositionStart={() => { composing.current = true; }}
-      onCompositionEnd={e => {
-        composing.current = false;
-        commit((e.target as HTMLInputElement).value);
+      onFocus={e => {
+        focused.current = true;
+        activeInputFlush = (target: EventTarget | null) => {
+          const el = inputRef.current;
+          if (!el || !dirty.current) return;
+          if (target !== el && (!target || !el.contains(target as Node))) {
+            commit(el.value, true);
+          }
+        };
+        onFocus?.(e);
       }}
-      onFocus={e => { focused.current = true; onFocus?.(e); }}
       onBlur={e => {
         focused.current = false;
-        commit(e.target.value, true); // garantiza que el padre tenga el valor final antes de "Guardar"
+        if (activeInputFlush) activeInputFlush = null;
+        commit(e.currentTarget.value, true);
         onBlur?.(e);
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && inputRef.current) {
+          commit(inputRef.current.value, true);
+        }
+        onKeyDown?.(e);
       }}
     />
   );
-};
+});
+
+FastInput.displayName = 'FastInput';
 
 export default FastInput;

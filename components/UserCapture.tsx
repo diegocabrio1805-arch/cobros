@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { User, Role } from '../types';
@@ -180,7 +181,7 @@ const UserCapture: React.FC<UserCaptureProps> = ({ user, onUpdateUser }) => {
                 <form onSubmit={handleProfileUpdate} className="space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nombre Completo</label>
-                        <input
+                        <FastInput
                             type="text"
                             value={formData.name}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -190,7 +191,7 @@ const UserCapture: React.FC<UserCaptureProps> = ({ user, onUpdateUser }) => {
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Usuario / Login</label>
-                        <input
+                        <FastInput
                             type="text"
                             value={formData.username}
                             onChange={e => setFormData({ ...formData, username: e.target.value })}
@@ -201,7 +202,7 @@ const UserCapture: React.FC<UserCaptureProps> = ({ user, onUpdateUser }) => {
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Contraseña</label>
                         <div className="relative">
-                            <input
+                            <FastInput
                                 type="text"
                                 value={formData.password}
                                 onChange={e => setFormData({ ...formData, password: e.target.value })}

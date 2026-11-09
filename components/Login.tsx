@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState } from 'react';
 import { User, Role } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -261,7 +262,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                   <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
                     <i className="fa-solid fa-user"></i>
                   </div>
-                  <input
+                  <FastInput
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -279,7 +280,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
                   <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all">
                     <i className="fa-solid fa-lock"></i>
                   </div>
-                  <input
+                  <FastInput
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

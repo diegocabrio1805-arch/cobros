@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Frequency, AppSettings, AppState, Role, SimulatedOrder, LoanStatus } from '../types';
 import { calculateTotalReturn, generateAmortizationTable, formatCurrency, formatDate, getLocalDateStringForCountry, calculateTotalPaidFromLogs } from '../utils/helpers';
@@ -242,7 +243,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                      <div ref={dropdownRef} className="space-y-1.5 relative z-[60]">
                         <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente a Simular</label>
                         <div className="relative">
-                           <input 
+                           <FastInput 
                               type="text" 
                               placeholder="Buscar cliente..." 
                               value={selectedClientId ? visibleClients.find(c => c.id === selectedClientId)?.name || clientSearch : clientSearch}
@@ -309,7 +310,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                         <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t.principal || 'Capital'}</label>
                         <div className="relative">
                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                           <input
+                           <FastInput
                               type="number"
                               min="1"
                               value={principal}
@@ -322,7 +323,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                      <div className="grid grid-cols-2 gap-3 md:gap-4">
                         <div className="space-y-1.5">
                            <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.interest || 'Int %'}</label>
-                           <input
+                           <FastInput
                               type="number"
                               min="0"
                               value={interestRate}
@@ -332,7 +333,7 @@ const Simulator: React.FC<SimulatorProps> = ({ settings, state }) => {
                         </div>
                         <div className="space-y-1.5">
                            <label className="block text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.installments || 'Cuotas'}</label>
-                           <input
+                           <FastInput
                               type="number"
                               min="1"
                               value={installments}

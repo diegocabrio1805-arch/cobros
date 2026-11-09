@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Loan, Penalty } from '../types';
@@ -162,7 +163,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({ loan, state, onClose, onSuc
             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
               Monto de Penalización *
             </label>
-            <input
+            <FastInput
               id="penalty-amount-input"
               type="number"
               min="0"
@@ -178,7 +179,7 @@ const PenaltyModal: React.FC<PenaltyModalProps> = ({ loan, state, onClose, onSuc
             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
               Motivo (opcional)
             </label>
-            <input
+            <FastInput
               id="penalty-reason-input"
               type="text"
               placeholder="Ej: Atraso de 2 semanas"

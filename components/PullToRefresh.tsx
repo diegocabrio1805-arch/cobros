@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface PullToRefreshProps {
     onRefresh: () => Promise<void>;
@@ -6,8 +6,15 @@ interface PullToRefreshProps {
     disabled?: boolean;
 }
 
+const isEditingOrInteractive = (target: EventTarget | null): boolean => {
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return true;
+    if (target instanceof HTMLElement && target.closest('input, textarea, select, button')) return true;
+    return false;
+};
+
 const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, children, disabled = false }) => {
-    const [startY, setStartY] = useState(0);
+    const startY = useRef(0);
     const [pullDistance, setPullDistance] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -15,30 +22,36 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, children, disa
     const pullThreshold = 80;
 
     const handleTouchStart = (e: React.TouchEvent) => {
-        if (disabled || refreshing || (containerRef.current && containerRef.current.scrollTop > 0)) return;
-        setStartY(e.touches[0].pageY);
+        if (disabled || refreshing || isEditingOrInteractive(e.target)) {
+            startY.current = 0;
+            return;
+        }
+        if (containerRef.current && containerRef.current.scrollTop > 0) {
+            startY.current = 0;
+            return;
+        }
+        startY.current = e.touches[0].pageY;
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (disabled || refreshing || startY === 0) return;
+        if (disabled || refreshing || startY.current === 0 || isEditingOrInteractive(e.target)) return;
 
         const currentY = e.touches[0].pageY;
-        const diff = currentY - startY;
+        const diff = currentY - startY.current;
 
-        if (diff > 0) {
-            // Resistivity
-            const distance = Math.min(diff * 0.4, 120);
+        // Zona muerta de 35px para no re-renderizar al tocar inputs o hacer scroll normal
+        if (diff > 35 && (!containerRef.current || containerRef.current.scrollTop === 0)) {
+            const distance = Math.min((diff - 35) * 0.4, 120);
             setPullDistance(distance);
-
-            // Prevent default only if pulling down from the top
-            if (containerRef.current && containerRef.current.scrollTop === 0) {
-                if (e.cancelable) e.preventDefault();
-            }
+            if (e.cancelable) e.preventDefault();
+        } else if (diff < 0 && pullDistance > 0) {
+            setPullDistance(0);
         }
     };
 
     const handleTouchEnd = async () => {
-        if (disabled || refreshing) return;
+        if (disabled || refreshing || startY.current === 0) return;
+        startY.current = 0;
 
         if (pullDistance > pullThreshold) {
             setRefreshing(true);
@@ -48,10 +61,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, children, disa
                 setRefreshing(false);
                 setPullDistance(0);
             }
-        } else {
+        } else if (pullDistance > 0) {
             setPullDistance(0);
         }
-        setStartY(0);
     };
 
     return (

@@ -1,3 +1,4 @@
+import FastInput from './FastInput';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, User, Role } from '../types';
@@ -398,16 +399,16 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                   <div className="bg-white p-5 rounded-none border border-slate-300 shadow-sm space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Nombre Completo</label>
-                      <input required type="text" value={collectorForm.name} onChange={e => setCollectorForm({ ...collectorForm, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
+                      <FastInput required type="text" value={collectorForm.name} onChange={e => setCollectorForm({ ...collectorForm, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black uppercase text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Usuario ID</label>
-                        <input required type="text" value={collectorForm.username} onChange={e => setCollectorForm({ ...collectorForm, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
+                        <FastInput required type="text" value={collectorForm.username} onChange={e => setCollectorForm({ ...collectorForm, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-slate-950 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[8px] font-black text-slate-700 uppercase ml-1">Pin Acceso</label>
-                        <input required type="text" value={collectorForm.password} onChange={e => setCollectorForm({ ...collectorForm, password: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
+                        <FastInput required type="text" value={collectorForm.password} onChange={e => setCollectorForm({ ...collectorForm, password: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-black text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
@@ -583,17 +584,17 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
               <div className="space-y-4">
                 <div>
                   <label className="block text-[8px] md:text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1.5 ml-1">Nombre Completo</label>
-                  <input required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-slate-950 uppercase shadow-inner text-xs" />
+                  <FastInput required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-slate-950 uppercase shadow-inner text-xs" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[8px] md:text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1.5 ml-1">Usuario</label>
-                    <input required type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-slate-950 shadow-inner text-xs" />
+                    <FastInput required type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-slate-950 shadow-inner text-xs" />
                   </div>
                   <div>
                     <label className="block text-[8px] md:text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1.5 ml-1">Contraseña</label>
-                    <input required type="text" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-indigo-900 shadow-inner text-xs" />
+                    <FastInput required type="text" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-black text-indigo-900 shadow-inner text-xs" />
                   </div>
                 </div>
 
