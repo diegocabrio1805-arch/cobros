@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import FastInput from './FastInput';
 import { createPortal } from 'react-dom';
 import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency, Penalty } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getAssignedCollectorName, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -654,6 +654,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
         const receiptData: ReceiptData = {
           clientName: client.name,
+          collectorName: getAssignedCollectorName(loan, client, state.users, state.currentUser, state.loans),
           amountPaid: amountToPay,
           previousBalance: Math.max(0, loan.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: loan.id,
@@ -778,6 +779,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     const receiptData: ReceiptData = {
       clientName: client.name,
+      collectorName: getAssignedCollectorName(loan, client, state.users, state.currentUser, state.loans),
       amountPaid: amountPaidInLastLog,
       previousBalance: Math.max(0, loan.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
       loanId: loan.id,
@@ -865,6 +867,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
     const receiptData: ReceiptData = {
       clientName: client.name,
+      collectorName: getAssignedCollectorName(loan, client, state.users, state.currentUser, state.loans),
       amountPaid: amountPaidInLastLog,
       previousBalance: Math.max(0, loan.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
       loanId: loan.id,
@@ -1915,6 +1918,16 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 pb-2">Datos del Cliente e Importes</h4>
                 <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cobrador Asignado</label>
+                    <FastInput
+                      type="text"
+                      value={editingReceipt.collectorName ?? ''}
+                      placeholder="Nombre del Cobrador"
+                      onChange={(e) => setEditingReceipt({ ...editingReceipt, collectorName: e.target.value })}
+                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-md text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
+                    />
+                  </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Cliente</label>
                     <FastInput

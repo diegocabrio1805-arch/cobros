@@ -1,4 +1,4 @@
-﻿
+
 export enum Role {
   ADMIN = 'Administrador',
   COLLECTOR = 'Cobrador',
@@ -85,6 +85,7 @@ export interface AppSettings {
   shareLabelSize?: 'normal' | 'medium' | 'large';
   shareValueBold?: boolean;
   shareValueSize?: 'normal' | 'medium' | 'large';
+  hiddenReceiptFields?: Record<string, boolean>;
   // Fuel Configuration
   defaultFuel?: number;
   fuelHistory?: { date: string; amount: number }[];

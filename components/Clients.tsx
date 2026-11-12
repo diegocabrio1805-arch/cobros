@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Client, AppState, Loan, Frequency, LoanStatus, CollectionLog, CollectionLogType, Role, PaymentStatus, User } from '../types';
-import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone, isHoliday, parseUniversalCoordinates } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, calculateTotalReturn, generateAmortizationTable, formatDate, generateReceiptText, getAssignedCollectorName, getDaysOverdue, getLocalDateStringForCountry, generateUUID, convertReceiptForWhatsApp, calculateTotalPaidFromLogs, getRenewalButtonColor, parseAmount, getCountryPhonePrefix, normalizePhone, isHoliday, parseUniversalCoordinates } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { ColoredReceipt } from './ColoredReceipt';
@@ -1691,9 +1691,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
         const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : activeLoanInLegajo.createdAt;
+        const assignedCollector = getAssignedCollectorName(activeLoanInLegajo, clientInLegajo, state.users, state.currentUser, state.loans);
 
         const receiptText = generateReceiptText({
           clientName: clientInLegajo.name,
+          collectorName: assignedCollector,
           amountPaid: amountToPay,
           previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidHistory - amountToPay)),
           loanId: activeLoanInLegajo.id,
@@ -2086,9 +2088,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
       const settingsToUse = logToEdit.companySnapshot || state.settings;
+      const assignedCollector = getAssignedCollectorName(activeLoanInLegajo, clientInLegajo, state.users, state.currentUser, state.loans);
 
       const receiptText = generateReceiptText({
         clientName: clientInLegajo.name,
+        collectorName: assignedCollector,
         amountPaid: amt,
         previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (newTotalPaid - amt)),
         loanId: activeLoanInLegajo.id,
@@ -2168,10 +2172,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
 
     const settingsToUse = lastPaymentLog.companySnapshot || state.settings;
+    const assignedCollector = getAssignedCollectorName(activeLoanInLegajo, clientInLegajo, state.users, state.currentUser, state.loans);
 
     // 3. Generar Texto
     const receiptText = generateReceiptText({
       clientName: clientInLegajo.name,
+      collectorName: assignedCollector,
       amountPaid: amountPaidInLastLog,
       previousBalance: Math.max(0, activeLoanInLegajo.totalAmount - (totalPaidAtThatMoment - amountPaidInLastLog)),
       loanId: activeLoanInLegajo.id,

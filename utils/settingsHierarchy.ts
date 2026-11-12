@@ -36,6 +36,8 @@ export const resolveSettings = (
         settings.contactPhone = '';
         settings.shareLabel = '';
         settings.shareValue = '';
+        // Cada gerente/sucursal tiene sus propios campos ocultos del ticket
+        settings.hiddenReceiptFields = {};
     }
 
     const branchSettings = allSettings[managerOrSelfId];
@@ -52,6 +54,7 @@ export const resolveSettings = (
         settings = {
             ...settings,
             ...branchSettings,
+            hiddenReceiptFields: branchSettings.hiddenReceiptFields || (managerOrSelfId === SYSTEM_ADMIN_ID ? (adminSettings.hiddenReceiptFields || {}) : {}),
             // CRITICAL: Ensure company fields don't inherit "---" or placeholders
             shareValue: getCompanyField('shareValue'),
             shareLabel: getCompanyField('shareLabel'),

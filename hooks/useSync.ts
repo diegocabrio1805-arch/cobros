@@ -493,7 +493,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
                 // NOTA: profiles (cobradores/gerentes) siempre se traen completos
                 // porque son pocos registros y es crítico no perder ningún usuario
-                settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
+                // branch_settings son pocas filas: siempre completas para que los cobradores reciban los campos ocultos del ticket de su gerente
                 expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
                 isolatedExpensesQuery = isolatedExpensesQuery.gt('updated_at', adjustedSyncTime);
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);

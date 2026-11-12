@@ -149,16 +149,16 @@ const App: React.FC = () => {
     }
 
     const visibleCount = state.clients.filter(c => c.isActive !== false && !c.deletedAt).length;
-      if (state.currentUser && visibleCount === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
+    const activeLoansCount = state.loans.filter(l => !l.deletedAt).length;
+    if (state.currentUser && (visibleCount === 0 || activeLoansCount === 0) && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current && !isSecondaryLoading) {
       hasAttemptedInitialSyncRef.current = true;
-      console.log("[App] No data found. Triggering initial full sync...");
-      const timer = setTimeout(() => {
-          (window as any)._webStartupFullSyncStarted = true; // evita un 2º Full Sync del motor web
-          handleForceSync(false, "¡Descargando Datos!", true);
-      }, 3000);
-      return () => clearTimeout(timer);
+      console.log("[App] No data or missing loans found. Triggering initial full sync...");
+      (window as any)._webStartupFullSyncStarted = true; // evita un 2º Full Sync del motor web
+      setTimeout(() => {
+        handleForceSync(false, "¡Descargando Cartera Completa!", true);
+      }, 1500);
     }
-  }, [handleForceSync, state.currentUser?.id, state.clients.length, isSyncing, isFullSyncing, isInitializing, isSecondaryLoading]);
+  }, [handleForceSync, state.currentUser?.id, state.clients.length, state.loans.length, isFullSyncing, isInitializing, isSecondaryLoading]);
 
   // BACKGROUND CHUNK PRE-LOADING (Task 2)
   // Precarga los chunks más pesados en segundo plano para que el cambio de pestaña sea instantáneo

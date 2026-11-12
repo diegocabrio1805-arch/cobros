@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import FastInput from './FastInput';
 import { AppState, Client, CollectionLogType, LoanStatus, Role } from '../types';
-import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
+import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, getAssignedCollectorName, convertReceiptForWhatsApp, normalizePhone } from '../utils/helpers';
 
 // Helper optimizado: abre WhatsApp sin bloquear/cerrar la app en Android (igual que Clients.tsx)
 const openWhatsApp = (phone: string, text: string, countryCode: string) => {
@@ -370,6 +370,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
              const totalPaidHistory = totalPaidBefore + amountToApply;
              const receiptText = generateReceiptText({
                 clientName: client.name,
+                collectorName: getAssignedCollectorName(loan, client, state.users, state.currentUser, state.loans),
                 amountPaid: amountToApply,
                 previousBalance: Math.max(0, loan.totalAmount - totalPaidBefore),
                 loanId: loan.id,

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import FastInput from './FastInput';
 import { AppState, CollectionLog, CollectionLogType, PaymentStatus, Role, LoanStatus, Client, Loan, Penalty } from '../types';
-import { formatCurrency, generateReceiptText, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
+import { formatCurrency, generateReceiptText, getAssignedCollectorName, getDaysOverdue, getLocalDateStringForCountry, generateUUID, calculateTotalPaidFromLogs, convertReceiptForWhatsApp, parseAmount, normalizePhone } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { supabase } from '../utils/supabaseClient';
@@ -514,6 +514,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
         const receiptText = generateReceiptText({
           clientName: client.name,
+          collectorName: getAssignedCollectorName(loan, client, state.users, state.currentUser, state.loans),
           amountPaid: amountToApply,
           previousBalance: Math.max(0, (loan.totalAmount || 0) - (totalPaidHistory - amountToApply)),
           loanId,

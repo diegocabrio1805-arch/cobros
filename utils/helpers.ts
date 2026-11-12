@@ -1100,6 +1100,7 @@ export const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): 
 
 export interface ReceiptData {
   clientName: string;
+  collectorName?: string;
   amountPaid: number;
   previousBalance: number;
   loanId: string;
@@ -1237,54 +1238,125 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const cuotaStr = data.installmentValue ? data.installmentValue.toLocaleString(locale) : '---';
   const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
 
-  const bankBlock = (bankVal && bankVal !== '---')
-    ? `\n${bankLabel}\n${bankLabel.includes('CUENTA') ? 'NUMERO' : (t.receipt?.account || 'CUENTA')}: ${bankValue}\n===============================`
-    : '';
+  const hidden = settings?.hiddenReceiptFields || {};
 
-  return `
-${company}
-${alias ? alias : ''}
-===============================${bankBlock}
-${t.receipt?.client || 'CLIENTE'}: ${data.clientName.toUpperCase()}
-${t.receipt?.date || 'FECHA'}: ${finalDateStr}
-${t.receipt?.time || 'HORA'}: ${timePart ? timePart.trim() : '---'}
-${t.receipt?.method || 'METODO'}: ${data.isVirtual ? (t.receipt?.transfer || 'TRANSFERENCIA') : (t.receipt?.cash || 'EFECTIVO')}
-===============================
-${t.receipt?.amount || 'MONTO'}: ${montoStr}
-${t.receipt?.installment || 'CUOTA'}: ${cuotaStr}
-${t.receipt?.term || 'PLAZO'}: ${plazoStr}
-===============================
-${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString(locale)}
-${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString(locale)}
-${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString(locale)}
-===============================
-${t.receipt?.paidInstallments || 'CUOTAS PAGADAS'}: ${displayedPaidInstallments}
-${t.receipt?.totalInstallments || 'CUOTAS TOTALES'}: ${data.totalInstallments}${pendingInstallmentText()}
-===============================
-${t.receipt?.startDate || 'FECHA DE INICIO'}: ${formatDate(data.startDate)}
-${t.receipt?.expiryDate || 'FECHA DE VENCIMIENTO'}: ${formatDate(data.expiryDate)}
-${t.receipt?.daysOverdue || 'DIAS DE MORA'}: ${data.daysOverdue} ${t.receipt?.days || 'dias'}
-===============================
-${contactLabel}: ${formattedPhone}
-${idLabel}: ${t.receipt?.accountState || 'ESTADO DE CUENTA'}
-===============================
-${t.receipt?.thanks || 'GRACIAS POR SU PAGO'}
-`;
+  // Sección 1: Encabezado de la Empresa
+  const s1Lines: string[] = [];
+  if (!hidden['companyName']) s1Lines.push(company);
+  if (!hidden['companyAlias'] && alias) s1Lines.push(alias);
+  if (!hidden['bankInfo'] && bankVal && bankVal !== '---') {
+    s1Lines.push(bankLabel);
+    s1Lines.push(`${bankLabel.includes('CUENTA') ? 'NUMERO' : (t.receipt?.account || 'CUENTA')}: ${bankValue}`);
+  }
+
+  // Sección 2: Datos del Cliente y la Transacción
+  const s2Lines: string[] = [];
+  if (!hidden['collector'] && data.collectorName && data.collectorName.trim()) {
+    s2Lines.push(`${t.receipt?.collector || 'COBRADOR'}: ${data.collectorName.trim().toUpperCase()}`);
+  }
+  if (!hidden['clientName']) s2Lines.push(`${t.receipt?.client || 'CLIENTE'}: ${data.clientName.toUpperCase()}`);
+  if (!hidden['date']) s2Lines.push(`${t.receipt?.date || 'FECHA'}: ${finalDateStr}`);
+  if (!hidden['time']) s2Lines.push(`${t.receipt?.time || 'HORA'}: ${timePart ? timePart.trim() : '---'}`);
+  if (!hidden['method']) s2Lines.push(`${t.receipt?.method || 'METODO'}: ${data.isVirtual ? (t.receipt?.transfer || 'TRANSFERENCIA') : (t.receipt?.cash || 'EFECTIVO')}`);
+
+  // Sección 3: Condiciones del Préstamo
+  const s3Lines: string[] = [];
+  if (!hidden['principal']) s3Lines.push(`${t.receipt?.amount || 'MONTO'}: ${montoStr}`);
+  if (!hidden['installmentValue']) s3Lines.push(`${t.receipt?.installment || 'CUOTA'}: ${cuotaStr}`);
+  if (!hidden['term']) s3Lines.push(`${t.receipt?.term || 'PLAZO'}: ${plazoStr}`);
+
+  // Sección 4: Estado de la Cuenta
+  const s4Lines: string[] = [];
+  if (!hidden['previousBalance']) s4Lines.push(`${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString(locale)}`);
+  if (!hidden['amountPaid']) s4Lines.push(`${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString(locale)}`);
+  if (!hidden['remainingBalance']) s4Lines.push(`${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString(locale)}`);
+
+  // Sección 5: Progreso de Cuotas
+  const s5Lines: string[] = [];
+  if (!hidden['paidInstallments']) s5Lines.push(`${t.receipt?.paidInstallments || 'CUOTAS PAGADAS'}: ${displayedPaidInstallments}`);
+  if (!hidden['totalInstallments']) s5Lines.push(`${t.receipt?.totalInstallments || 'CUOTAS TOTALES'}: ${data.totalInstallments}${pendingInstallmentText()}`);
+
+  // Sección 6: Fechas de Control y Mora
+  const s6Lines: string[] = [];
+  if (!hidden['startDate']) s6Lines.push(`${t.receipt?.startDate || 'FECHA DE INICIO'}: ${formatDate(data.startDate)}`);
+  if (!hidden['expiryDate']) s6Lines.push(`${t.receipt?.expiryDate || 'FECHA DE VENCIMIENTO'}: ${formatDate(data.expiryDate)}`);
+  if (!hidden['daysOverdue']) s6Lines.push(`${t.receipt?.daysOverdue || 'DIAS DE MORA'}: ${data.daysOverdue} ${t.receipt?.days || 'dias'}`);
+
+  // Sección 7: Pie del Ticket
+  const s7Lines: string[] = [];
+  if (!hidden['contactPhone']) s7Lines.push(`${contactLabel}: ${formattedPhone}`);
+  if (!hidden['companyId']) s7Lines.push(`${idLabel}: ${t.receipt?.accountState || 'ESTADO DE CUENTA'}`);
+  if (!hidden['thanksMessage']) s7Lines.push(`${t.receipt?.thanks || 'GRACIAS POR SU PAGO'}`);
+
+  const sections = [s1Lines, s2Lines, s3Lines, s4Lines, s5Lines, s6Lines, s7Lines]
+    .filter(sec => sec.length > 0)
+    .map(sec => sec.join('\n'));
+
+  return '\n' + sections.join('\n===============================\n') + '\n';
 };
 
 export const generateNoPaymentReceiptText = (data: ReceiptData, settings: AppSettings) => {
   const t = getTranslation((settings as any).language || 'es') as any;
   const company = settings.companyName || 'ANEXO COBRO';
   const currencySymbol = settings.currencySymbol || '$';
+  const collectorBlock = data.collectorName && data.collectorName.trim()
+    ? `${t.receipt?.collector || 'COBRADOR'}: ${data.collectorName.trim().toUpperCase()}\n`
+    : '';
   return `
 ===============================
        ${t.receipt?.notification || 'NOTIFICACION'}
 ===============================
-${t.receipt?.client || 'CLIENTE'}: ${data.clientName}
+${collectorBlock}${t.receipt?.client || 'CLIENTE'}: ${data.clientName}
 ${t.receipt?.date || 'FECHA'}: ${formatFullDateTime(settings.country)}
 ${t.receipt?.balance || 'SALDO'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
 `;
+};
+
+export const getAssignedCollectorName = (
+  loan?: { collectorId?: string; [key: string]: any } | null,
+  client?: any,
+  users?: any[],
+  currentUser?: any,
+  allLoans?: any[]
+): string => {
+  let colId = loan?.collectorId || (loan as any)?.collector_id || client?.collectorId || (client as any)?.collector_id;
+
+  if (!colId && client && Array.isArray(allLoans)) {
+    const clientLoan = allLoans.find(l => (l.clientId === client.id || (l as any).client_id === client.id) && (l.status === 'Activo' || l.status === 'Mora' || l.collectorId));
+    if (clientLoan?.collectorId || (clientLoan as any)?.collector_id) {
+      colId = clientLoan.collectorId || (clientLoan as any).collector_id;
+    }
+  }
+
+  if (colId && Array.isArray(users)) {
+    const user = users.find(u => u && (u.id === colId || u.username === colId || u.name === colId));
+    if (user && user.name) return user.name;
+    if (user && user.username) return user.username;
+  }
+
+  const addedBy = client?.addedBy || (client as any)?.added_by;
+  if (addedBy && Array.isArray(users)) {
+    const user = users.find(u => u && (u.id === addedBy || u.username === addedBy || u.name === addedBy));
+    if (user && (user.role === 'Cobrador' || user.role === 'COLLECTOR')) {
+      if (user.name) return user.name;
+      if (user.username) return user.username;
+    }
+  }
+
+  if (currentUser?.role === 'Cobrador' || currentUser?.role === 'COLLECTOR') {
+    if (currentUser.name) return currentUser.name;
+  }
+
+  if (colId && typeof colId === 'string' && colId.length < 30 && !colId.includes('-')) {
+    return colId;
+  }
+
+  if (currentUser?.name) {
+    return currentUser.name;
+  }
+
+  return '';
 };
 
 export const convertReceiptForWhatsApp = (receiptText: string): string => {

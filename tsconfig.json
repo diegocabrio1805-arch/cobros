@@ -27,6 +27,10 @@
     "android",
     "scripts",
     "**/*.js",
+    "**/*.mjs",
+    "scratch",
+    "old_useSync.ts",
+    "temp_useAppSyncEngine.ts",
     "OLD_BACKUP",
     "temp_dash.tsx"
   ]

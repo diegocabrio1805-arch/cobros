@@ -86,6 +86,19 @@ export const useAppInitialization = () => {
       try {
         // === FASE 1: METADATOS ESENCIALES (renderiza Layout en <50ms) ===
 
+        // 0. FASE B: INYECCIÓN DE TENANT (Multi-Tenant Offline Cache) ANTES de cualquier lectura/purga
+        let tenantId = '';
+        try {
+          const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
+          if (value) {
+            const parsedNative = JSON.parse(value);
+            if (parsedNative && parsedNative.id) {
+              tenantId = parsedNative.id;
+              StorageService.setTenantId(tenantId);
+            }
+          }
+        } catch(e) {}
+
         // 1. VERSION & PURGE MANAGEMENT
         const lastAppVersion = localStorage.getItem('LAST_APP_VERSION_ID');
         if (!lastAppVersion || lastAppVersion !== CURRENT_VERSION_ID) {
@@ -96,9 +109,14 @@ export const useAppInitialization = () => {
             'lastSyncTime', 'lastAppSync_timestamp', 'last_sync_timestamp_v10',
             'last_sync_timestamp_v8_2', 'last_sync_timestamp_v7', 'last_sync_timestamp_v6',
             'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'syncQueue',
-            'last_emergency_sync_key'
+            'last_emergency_sync_key',
+            StorageService.getSyncKey('last_sync_timestamp_v10'),
+            StorageService.getSyncKey('last_sync_timestamp_v8_2')
           ];
           syncKeys.forEach(k => localStorage.removeItem(k));
+          Object.keys(localStorage).forEach(k => {
+            if (k.includes('last_sync_timestamp')) localStorage.removeItem(k);
+          });
           if ('serviceWorker' in navigator) {
             try {
               const regs = await navigator.serviceWorker.getRegistrations();
@@ -122,19 +140,6 @@ export const useAppInitialization = () => {
             })
           ]);
         };
-
-        // 1.5. FASE B: INYECCIÓN DE TENANT (Multi-Tenant Offline Cache)
-        let tenantId = '';
-        try {
-          const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
-          if (value) {
-            const parsedNative = JSON.parse(value);
-            if (parsedNative && parsedNative.id) {
-              tenantId = parsedNative.id;
-              StorageService.setTenantId(tenantId);
-            }
-          }
-        } catch(e) {}
 
         // 2. LEER STORAGE (con timeout de seguridad) - Ahora leerá automáticamente con prefijo si hay un tenant
         let rawData: any = await withTimeout(
@@ -242,20 +247,24 @@ export const useAppInitialization = () => {
         setTimeout(() => {
           try {
             const parsedClients = Array.isArray(rawData?.clients) ? rawData.clients : [];
-            if (parsedClients.length === 0) {
-              console.log('[Auto-Curación] IDB cargado pero sin clientes. Borrando timestamps de sync para Full Sync.');
+            const parsedLoans = Array.isArray(rawData?.loans) ? rawData.loans : [];
+            if (parsedClients.length === 0 || parsedLoans.length === 0) {
+              console.log('[Auto-Curación] IDB cargado pero sin clientes o sin préstamos. Borrando timestamps de sync para Full Sync.');
               const syncKeys = [
                 'last_sync_timestamp_v10', 'last_sync_timestamp_v8_2',
                 StorageService.getSyncKey('last_sync_timestamp_v10'),
                 StorageService.getSyncKey('last_sync_timestamp_v8_2')
               ];
               syncKeys.forEach(k => localStorage.removeItem(k));
+              Object.keys(localStorage).forEach(k => {
+                if (k.includes('last_sync_timestamp')) localStorage.removeItem(k);
+              });
             }
 
             setState(prev => ({
               ...prev,
               clients: parsedClients,
-              loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
+              loans: parsedLoans,
               payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
               expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
               isolatedExpenses: Array.isArray(rawData?.isolatedExpenses) ? rawData.isolatedExpenses : [],

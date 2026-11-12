@@ -52,8 +52,101 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
     shareLabelBold: state.settings.shareLabelBold ?? false,
     shareLabelSize: state.settings.shareLabelSize || 'normal',
     shareValueBold: state.settings.shareValueBold ?? false,
-    shareValueSize: state.settings.shareValueSize || 'normal'
+    shareValueSize: state.settings.shareValueSize || 'normal',
+    hiddenReceiptFields: (state.settings.hiddenReceiptFields || {}) as Record<string, boolean>
   });
+
+  // Helper para alternar ocultación de campos del ticket (independiente por sucursal)
+  const handleToggleReceiptField = (fieldKey: string) => {
+    const currentHidden = { ...(localForm.hiddenReceiptFields || {}) };
+    if (currentHidden[fieldKey]) {
+      delete currentHidden[fieldKey];
+    } else {
+      currentHidden[fieldKey] = true;
+    }
+    const updatedForm = { ...localForm, hiddenReceiptFields: currentHidden };
+    setLocalForm(updatedForm);
+    // Aplicar de inmediato para vista en vivo y persistencia
+    updateSettings({ ...state.settings, ...updatedForm });
+  };
+
+  // Sincronizar localForm cuando cambien las settings desde la BD/sync
+  useEffect(() => {
+    if (state.settings.hiddenReceiptFields) {
+      setLocalForm(prev => ({
+        ...prev,
+        hiddenReceiptFields: state.settings.hiddenReceiptFields || {}
+      }));
+    }
+  }, [state.settings.hiddenReceiptFields]);
+
+  // Definición de las 7 secciones del ticket
+  const receiptTicketSections = [
+    {
+      number: 1,
+      title: '1. Encabezado de la Empresa',
+      items: [
+        { key: 'companyName', label: 'Nombre de la Empresa', desc: 'Título principal del negocio (Ej: ANEXO COBRO)' },
+        { key: 'companyAlias', label: 'Alias / Subtítulo', desc: 'Nombre comercial o subtítulo secundario' },
+        { key: 'bankInfo', label: 'Información Bancaria / Cuenta', desc: 'Banco, número de cuenta o alias para transferencias' }
+      ]
+    },
+    {
+      number: 2,
+      title: '2. Datos del Cliente y la Transacción',
+      items: [
+        { key: 'collector', label: 'COBRADOR', desc: 'Nombre del cobrador asignado' },
+        { key: 'clientName', label: 'CLIENTE', desc: 'Nombre completo del cliente' },
+        { key: 'date', label: 'FECHA', desc: 'Día de la semana y fecha (Ej: JUEVES, 12/11/2026)' },
+        { key: 'time', label: 'HORA', desc: 'Hora exacta del cobro (Ej: 11:45 AM)' },
+        { key: 'method', label: 'MÉTODO', desc: 'EFECTIVO o TRANSFERENCIA' }
+      ]
+    },
+    {
+      number: 3,
+      title: '3. Condiciones del Préstamo',
+      items: [
+        { key: 'principal', label: 'MONTO', desc: 'Capital / Monto prestado original' },
+        { key: 'installmentValue', label: 'CUOTA', desc: 'Valor pactado de cada cuota' },
+        { key: 'term', label: 'PLAZO', desc: 'Cantidad de cuotas y frecuencia (Ej: 24 DIARIO)' }
+      ]
+    },
+    {
+      number: 4,
+      title: '4. Estado de la Cuenta (Cifras del Pago)',
+      items: [
+        { key: 'previousBalance', label: 'SALDO ANTERIOR', desc: 'Deuda antes del presente pago' },
+        { key: 'amountPaid', label: 'ABONO', desc: 'Cantidad pagada en esta operación' },
+        { key: 'remainingBalance', label: 'SALDO ACTUAL', desc: 'Deuda pendiente restante' }
+      ]
+    },
+    {
+      number: 5,
+      title: '5. Progreso de Cuotas',
+      items: [
+        { key: 'paidInstallments', label: 'CUOTAS PAGADAS', desc: 'Número de cuotas cubiertas (con decimales si fue parcial)' },
+        { key: 'totalInstallments', label: 'CUOTAS TOTALES / PENDIENTE', desc: 'Total de cuotas y saldo pendiente de cuota actual' }
+      ]
+    },
+    {
+      number: 6,
+      title: '6. Fechas de Control y Mora',
+      items: [
+        { key: 'startDate', label: 'FECHA DE INICIO', desc: 'Fecha de entrega del préstamo' },
+        { key: 'expiryDate', label: 'FECHA DE VENCIMIENTO', desc: 'Fecha límite pactada' },
+        { key: 'daysOverdue', label: 'DÍAS DE MORA', desc: 'Días de retraso (Al día / Con atraso)' }
+      ]
+    },
+    {
+      number: 7,
+      title: '7. Pie del Ticket',
+      items: [
+        { key: 'contactPhone', label: 'TEL. PÚBLICO', desc: 'Teléfono de atención al cliente' },
+        { key: 'companyId', label: 'ESTADO DE CUENTA / ID', desc: 'Identificador o estado de cuenta' },
+        { key: 'thanksMessage', label: 'MENSAJE FINAL', desc: 'Texto: GRACIAS POR SU PAGO' }
+      ]
+    }
+  ];
 
   // --- BANCARD QR CREDENTIALS STATE ---
   const [bancardShopId, setBancardShopId] = useState('');
@@ -512,6 +605,98 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
             </div>
           </div>
 
+          {/* CUADRO: CONTENIDO DEL TICKET (OCULTAR / MOSTRAR ÍTEMS) */}
+          <div className="mt-8 pt-6 border-t-2 border-slate-200">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-none flex items-center justify-center text-emerald-600">
+                  <i className="fa-solid fa-receipt text-lg"></i>
+                </div>
+                <div>
+                  <h4 className="text-sm md:text-base font-black text-slate-900 uppercase tracking-tight">
+                    CONTENIDO DEL TICKET (RECIBO)
+                  </h4>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    CONFIGURA QUÉ ÍTEMS APARECEN U OCULTAR EN RECIBOS FÍSICOS Y VIRTUALES
+                  </p>
+                </div>
+              </div>
+              <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 tracking-wider">
+                Exclusivo para tu sucursal y cobradores
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 p-4 mb-6">
+              <p className="text-[10px] font-medium text-slate-600 leading-relaxed">
+                <strong className="text-slate-900 font-black">Instrucciones:</strong> Cada botón al lado del ítem indica su estado actual. 
+                Si está en <strong className="text-emerald-700 font-black">VERDE</strong>, el ítem se imprime y se muestra en el ticket. 
+                Si haces clic sobre él y cambia a <strong className="text-red-700 font-black">ROJO</strong>, ese ítem se <strong className="text-red-700 font-black">OCULTARÁ</strong> de inmediato tanto para ti como para tus cobradores asignados.
+              </p>
+            </div>
+
+            <div className="space-y-6 mb-8">
+              {receiptTicketSections.map((sec) => (
+                <div key={sec.number} className="bg-white border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+                    <span className="text-[11px] font-black tracking-wider uppercase">
+                      {sec.title}
+                    </span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                      Sección {sec.number} de 7
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {sec.items.map((item) => {
+                      const isHidden = !!(localForm.hiddenReceiptFields && localForm.hiddenReceiptFields[item.key]);
+                      return (
+                        <div
+                          key={item.key}
+                          className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors"
+                        >
+                          <div className="flex-1 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-900 tracking-wide uppercase">
+                                {item.label}
+                              </span>
+                              {isHidden ? (
+                                <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-red-100 text-red-700 border border-red-200">
+                                  OCULTO
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  VISIBLE
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">
+                              {item.desc}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleReceiptField(item.key)}
+                              className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-none transition-all shadow-sm active:scale-95 flex items-center gap-2 ${
+                                isHidden
+                                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
+                                  : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                              }`}
+                              title={isHidden ? "Clic para volver a mostrar este ítem" : "Clic para ocultar este ítem del ticket"}
+                            >
+                              <i className={`fa-solid ${isHidden ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                              <span>{isHidden ? 'OCULTADO' : 'OCULTAR'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button
               onClick={() => {

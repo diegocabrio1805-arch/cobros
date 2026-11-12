@@ -336,26 +336,31 @@ export const useAppSyncEngine = (
 
     const triggerEmergencySync = async () => {
       const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
-      const syncKey = 'emergency_sync_v6912_ADMIN_FIX_LOCALHOST';
+      const syncKey = 'emergency_sync_v6912_CARTERA_COMPLETE_V2';
       
       if (lastSyncKey !== syncKey && state.currentUser) {
         console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
-        sync.setSuccessMessage("¡RECUPERANDO DATOS v6.4.0!");
+        sync.setSuccessMessage("¡Actualizando Cartera Completa!");
         
         const keysToRemove = [
           'last_sync_timestamp', 'last_full_sync', 'sync_metadata', 'local_changes_queue',
           'emergency_sync_v638_UPDATE_FINAL', 'emergency_sync_v639_UPDATE_FINAL',
           'emergency_sync_v639_FINAL_COMPLETE', 'last_sync_timestamp_v10',
           'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
-          'last_sync_timestamp_v8_2', 'last_sync_timestamp_v630'
+          'last_sync_timestamp_v8_2', 'last_sync_timestamp_v630',
+          StorageService.getSyncKey('last_sync_timestamp_v10'),
+          StorageService.getSyncKey('last_sync_timestamp_v8_2')
         ];
         
         keysToRemove.forEach(k => localStorage.removeItem(k));
+        Object.keys(localStorage).forEach(k => {
+          if (k.includes('last_sync_timestamp')) localStorage.removeItem(k);
+        });
         localStorage.setItem('last_emergency_sync_key', syncKey);
 
         setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+          sync.forceFullSync();
+        }, 500);
       }
     };
     triggerEmergencySync();
@@ -436,8 +441,19 @@ export const useAppSyncEngine = (
           if (user.role === Role.MANAGER || user.role === Role.ADMIN) q = q.eq('branch_id', user.id);
           return q;
         };
-        const [payRes, logRes] = await Promise.all([buildCount('payments'), buildCount('collection_logs')]);
-        if (payRes.error || logRes.error) return;
+        const buildTotalCount = (table: 'clients' | 'loans') => {
+          let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
+            .is('deleted_at', null);
+          if (user.role === Role.MANAGER || user.role === Role.ADMIN) q = q.eq('branch_id', user.id);
+          return q;
+        };
+        const [payRes, logRes, cliRes, loanRes] = await Promise.all([
+          buildCount('payments'),
+          buildCount('collection_logs'),
+          buildTotalCount('clients'),
+          buildTotalCount('loans')
+        ]);
+        if (payRes.error || logRes.error || cliRes.error || loanRes.error) return;
 
         const countLocal = (arr: any[] | undefined) => (Array.isArray(arr) ? arr : []).filter((i: any) =>
           !i.deletedAt && i.updated_at && new Date(i.updated_at).getTime() > sinceMs
@@ -447,9 +463,17 @@ export const useAppSyncEngine = (
         const serverPay = payRes.count ?? 0;
         const serverLogs = logRes.count ?? 0;
 
-        if (serverPay > localPay || serverLogs > localLogs) {
-          console.warn(`[Vigilante] Desincronización detectada (pagos ${localPay}/${serverPay}, registros ${localLogs}/${serverLogs}). Reparando con Full Sync...`);
+        const localClients = (Array.isArray(s.clients) ? s.clients : []).filter((c: any) => !c.deletedAt && !c.deleted_at).length;
+        const localLoans = (Array.isArray(s.loans) ? s.loans : []).filter((l: any) => !l.deletedAt && !l.deleted_at).length;
+        const serverClients = cliRes.count ?? 0;
+        const serverLoans = loanRes.count ?? 0;
+
+        if (serverClients > localClients || serverLoans > localLoans || serverPay > localPay || serverLogs > localLogs) {
+          console.warn(`[Vigilante] Desincronización detectada (clientes ${localClients}/${serverClients}, préstamos ${localLoans}/${serverLoans}, pagos ${localPay}/${serverPay}, registros ${localLogs}/${serverLogs}). Reparando con Full Sync...`);
           (window as any)._watchdogLastRepairMs = Date.now();
+          Object.keys(localStorage).forEach(k => {
+            if (k.includes('last_sync_timestamp')) localStorage.removeItem(k);
+          });
           sy.processQueue(true, true);
         }
       } catch (e) {
@@ -457,7 +481,7 @@ export const useAppSyncEngine = (
       }
     };
 
-    const firstCheck = setTimeout(runWatchdog, 2 * 60000); // tras el Full Sync de arranque
+    const firstCheck = setTimeout(runWatchdog, 10000); // verifica a los 10s del arranque
     const interval = setInterval(runWatchdog, CHECK_EVERY_MS);
     return () => { clearTimeout(firstCheck); clearInterval(interval); };
   }, [isInitializing]);
