@@ -751,7 +751,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
          // Verify if they have an active loan with balance
          if (!activeLoan) return false;
          const sl = sanitizeLoan(activeLoan);
-         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.loanId) === normalizeId(sl.id) && log.type === CollectionLogType.PAYMENT && !log.deletedAt).reduce((acc, log) => acc + (parseRawNumber(log.amount) || 0), 0);
+         const paidAmt = calculateTotalPaidFromLogs(sl, state.collectionLogs || []);
          const balance = sl.totalAmount - paidAmt;
          
          return balance > 100; // Only clients with balance
@@ -777,7 +777,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
             : 999;
 
          const sLoan = sanitizeLoan(activeLoan);
-         const paidAmt = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => normalizeId(l.loanId) === normalizeId(sLoan.id) && l.type === CollectionLogType.PAYMENT && !l.deletedAt).reduce((acc, l) => acc + (parseRawNumber(l.amount) || 0), 0);
+         const paidAmt = calculateTotalPaidFromLogs(sLoan, state.collectionLogs || []);
          const balance = (sLoan.totalAmount || 0) - paidAmt;
          const daysOverdue = getDaysOverdue(sLoan, activeSettings, paidAmt);
 

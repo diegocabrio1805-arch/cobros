@@ -334,6 +334,32 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[],
   return totalFromLogs;
 };
 
+/**
+ * Total pagado (MISMA lógica que la cartera/pantalla, con soporte de migración)
+ * considerando solo los logs con fecha <= upToDate (para reimpresiones históricas).
+ * Si upToDate no se envía, equivale a calculateTotalPaidFromLogs.
+ */
+export const calculateTotalPaidUpTo = (loan: any, collectionLogs: any[], upToDate?: string | Date | null): number => {
+  const allLogs = Array.isArray(collectionLogs) ? collectionLogs : [];
+  if (!upToDate) return calculateTotalPaidFromLogs(loan, allLogs);
+  const limit = new Date(upToDate).getTime();
+  const logsUpTo = allLogs.filter(l => new Date(l.date).getTime() <= limit);
+  return calculateTotalPaidFromLogs(loan, logsUpTo);
+};
+
+/** Último pago REAL (no apertura, no borrado, preferentemente no-migración) de un crédito. */
+export const getLastRealPaymentLog = (loanId: string, collectionLogs: any[]): any | null => {
+  const isMig = (l: any) => String(l.id || '').startsWith('LOG-MIG-') || String(l.notes || '').includes('MIGRACIÓN EXCEL') || l.is_migration || l.isMigration;
+  const payments = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(l =>
+    (l.loanId || l.loan_id) === loanId &&
+    String(l.type || '').toUpperCase() === 'PAGO' &&
+    !(l.isOpening || l.is_opening) &&
+    !(l.deletedAt || l.deleted_at)
+  );
+  const sorted = [...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sorted.find(l => !isMig(l)) || sorted[0] || null;
+};
+
 export const calculateMonthlyStats = (
   loans: Loan[],
   collectionLogs: CollectionLog[],

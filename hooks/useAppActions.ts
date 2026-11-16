@@ -828,6 +828,7 @@ export const useAppActions = (
     // para evitar créditos duplicados que alteren el saldo en pantalla.
     const importedClientIds = new Set(newClients.map(c => c.id));
     const importedLoanIds = new Set(updatedLoansWithPayments.map(l => l.id));
+    const newLogIds = new Set(newLogs.map(l => l.id));
     const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const supersededLoansToClose = (Array.isArray(state.loans) ? state.loans : [])
       .filter(l =>
@@ -841,6 +842,22 @@ export const useAppActions = (
         balance: 0,
         totalPaid: l.totalAmount,
         updatedAt: timestamp,
+        updated_at: timestamp
+      }));
+
+    // Anular (soft-delete) cualquier pago viejo anterior a la planilla en los créditos importados
+    // para que un pago previo a la exportación nunca vuelva a descontarse dos veces en tickets ni reportes.
+    const supersededLogsToDelete = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+      .filter(l =>
+        importedLoanIds.has(l.loanId || (l as any).loan_id) &&
+        !newLogIds.has(l.id) &&
+        l.type === CollectionLogType.PAYMENT &&
+        !(l.deletedAt || (l as any).deleted_at)
+      )
+      .map(l => ({
+        ...l,
+        deletedAt: timestamp,
+        deleted_at: timestamp,
         updated_at: timestamp
       }));
 
@@ -865,7 +882,12 @@ export const useAppActions = (
             else mergedLoans.push(nl);
         });
 
-        const mergedLogs = [...prev.collectionLogs];
+        const mergedLogs = prev.collectionLogs.map(l => {
+            if (importedLoanIds.has(l.loanId || (l as any).loan_id) && !newLogIds.has(l.id) && l.type === CollectionLogType.PAYMENT && !(l.deletedAt || (l as any).deleted_at)) {
+                return { ...l, deletedAt: timestamp, deleted_at: timestamp, updated_at: timestamp };
+            }
+            return l;
+        });
         newLogs.forEach(nl => {
             const idx = mergedLogs.findIndex(l => l.id === nl.id);
             if (idx >= 0) mergedLogs[idx] = nl;
@@ -883,7 +905,38 @@ export const useAppActions = (
 
     // 2. Persistir en cola de sincronización (BULK para evitar O(N^2))
     const validSupersededLoans = supersededLoansToClose.filter(l => validUuidRegex.test(l.id));
-    pushBulk(newClients, [...updatedLoansWithPayments, ...validSupersededLoans], allNewPayments, newLogs);
+    const validSupersededLogs = supersededLogsToDelete.filter(l => validUuidRegex.test(l.id));
+    pushBulk(newClients, [...updatedLoansWithPayments, ...validSupersededLoans], allNewPayments, [...newLogs, ...validSupersededLogs]);
+
+    // 2.5. PARCHE ANTI-CONFLICTO EN NUBE: Anular directamente en Supabase cualquier cobro viejo
+    // previo a la planilla de los créditos importados (incluso si no estaba cargado en memoria local).
+    if (navigator.onLine) {
+      const validLoanUuidList = Array.from(importedLoanIds).filter(id => validUuidRegex.test(id));
+      (async () => {
+        try {
+          for (let i = 0; i < validLoanUuidList.length; i += 100) {
+            const chunk = validLoanUuidList.slice(i, i + 100);
+            const { data: remoteOldLogs } = await supabase
+              .from('collection_logs')
+              .select('id')
+              .in('loan_id', chunk)
+              .eq('type', 'PAGO')
+              .is('deleted_at', null);
+            const idsToPurge = (remoteOldLogs || [])
+              .map((r: any) => r.id)
+              .filter((id: string) => !newLogIds.has(id));
+            if (idsToPurge.length > 0) {
+              await supabase
+                .from('collection_logs')
+                .update({ deleted_at: timestamp, updated_at: timestamp })
+                .in('id', idsToPurge);
+            }
+          }
+        } catch (err) {
+          console.warn('[Import Patch] No se pudieron limpiar logs remotos antiguos:', err);
+        }
+      })();
+    }
 
     // 3. Disparar sincronización forzada después de un breve delay
     setTimeout(() => {

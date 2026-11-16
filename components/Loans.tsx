@@ -607,9 +607,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
 
-      // VALIDACIÓN DE SALDO: Usar el mismo cálculo que usa la pantalla para mostrar el saldo
-      const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
-      const currentTotalPaid = loanLogs.reduce((acc, l) => acc + (l.amount || 0), 0);
+      // VALIDACIÓN DE SALDO: Usar EXACTAMENTE el mismo cálculo que usa la cartera (con soporte de migración)
+      const currentTotalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
       const remainingBalance = Math.max(0, loan.totalAmount - currentTotalPaid);
 
       if (type === CollectionLogType.PAYMENT && amountToPay > (remainingBalance + 0.01)) {
@@ -644,8 +643,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       setLastLogId(logId);
 
       if (client && type === CollectionLogType.PAYMENT) {
-        const loanLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT && !log.isOpening && !log.deletedAt);
-        const totalPaidHistory = loanLogs.reduce((acc, log) => acc + (log.amount || 0), 0) + amountToPay;
+        // Saldo del ticket = saldo de la cartera (misma función) + este abono
+        const totalPaidHistory = currentTotalPaid + amountToPay;
 
         const progress = totalPaidHistory / (loan.installmentValue || 1);
         const paidInstCount = progress % 1 === 0 ? progress : Math.floor(progress * 10) / 10;
@@ -745,29 +744,27 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
     if (!client) return;
 
-    // 1. Encontrar el ÚLTIMO pago registrado para este crédito (SIN importar la fecha)
+    // 1. Encontrar el ÚLTIMO pago registrado para este crédito (priorizando pagos reales sobre log de migración)
+    const isMigLog = (l: any) => String(l.id || '').startsWith('LOG-MIG-') || String(l.notes || '').includes('MIGRACIÓN EXCEL') || l.is_migration || l.isMigration;
     const allPaymentLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
 
-    // Ordenar por fecha descendente para obtener el más reciente
-    const lastPaymentLog = [...(Array.isArray(allPaymentLogs) ? allPaymentLogs : [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const sortedPaymentLogs = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestMig = sortedPaymentLogs.find(isMigLog);
+    const migTime = latestMig ? new Date(latestMig.date).getTime() : 0;
+    // Si hay un pago real posterior a la migración, usarlo; si no, el último pago disponible
+    const lastPaymentLog = sortedPaymentLogs.find(l => !isMigLog(l) && new Date(l.date).getTime() >= migTime)
+      || sortedPaymentLogs.find(l => !isMigLog(l))
+      || sortedPaymentLogs[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");
       return;
     }
 
-    // 2. Recalcular el estado HISTÓRICO
-    const historicLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l =>
-      l.loanId === loan.id &&
-      l.type === CollectionLogType.PAYMENT &&
-      !l.isOpening &&
-      !l.deletedAt &&
-      new Date(l.date).getTime() <= new Date(lastPaymentLog.date).getTime()
-    );
-
-    const totalPaidAtThatMoment = historicLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
-    const amountPaidInLastLog = lastPaymentLog.amount || 0;
+    // 2. Usar EXACTAMENTE el mismo cálculo de saldo que muestra la cartera de clientes (respetando corte de MIGRACIÓN EXCEL)
+    const totalPaidAtThatMoment = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+    const amountPaidInLastLog = isMigLog(lastPaymentLog) ? (loan.installmentValue || 0) : (lastPaymentLog.amount || 0);
 
     const installments = Array.isArray(loan.installments) ? loan.installments : [];
     const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : loan.createdAt;
@@ -834,28 +831,26 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === loan.clientId);
     if (!client) return;
 
-    // 1. Encontrar el ÚLTIMO pago registrado
+    // 1. Encontrar el ÚLTIMO pago registrado (priorizando pagos reales sobre log de migración)
+    const isMigLog = (l: any) => String(l.id || '').startsWith('LOG-MIG-') || String(l.notes || '').includes('MIGRACIÓN EXCEL') || l.is_migration || l.isMigration;
     const allPaymentLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
       .filter(l => l.loanId === loan.id && l.type === CollectionLogType.PAYMENT && !l.isOpening && !l.deletedAt);
 
-    const lastPaymentLog = [...(Array.isArray(allPaymentLogs) ? allPaymentLogs : [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const sortedPaymentLogs = [...allPaymentLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestMig = sortedPaymentLogs.find(isMigLog);
+    const migTime = latestMig ? new Date(latestMig.date).getTime() : 0;
+    const lastPaymentLog = sortedPaymentLogs.find(l => !isMigLog(l) && new Date(l.date).getTime() >= migTime)
+      || sortedPaymentLogs.find(l => !isMigLog(l))
+      || sortedPaymentLogs[0];
 
     if (!lastPaymentLog) {
       alert("No hay pagos registrados para este crédito.");
       return;
     }
 
-    // 2. Recalcular el estado HISTÓRICO
-    const historicLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(l =>
-      l.loanId === loan.id &&
-      l.type === CollectionLogType.PAYMENT &&
-      !l.isOpening &&
-      !l.deletedAt &&
-      new Date(l.date).getTime() <= new Date(lastPaymentLog.date).getTime()
-    );
-
-    const totalPaidAtThatMoment = historicLogs.reduce((acc, log) => acc + (log.amount || 0), 0);
-    const amountPaidInLastLog = lastPaymentLog.amount || 0;
+    // 2. Usar EXACTAMENTE el mismo cálculo de saldo que muestra la cartera de clientes (respetando corte de MIGRACIÓN EXCEL)
+    const totalPaidAtThatMoment = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+    const amountPaidInLastLog = isMigLog(lastPaymentLog) ? (loan.installmentValue || 0) : (lastPaymentLog.amount || 0);
 
     const installments = Array.isArray(loan.installments) ? loan.installments : [];
     const lastDueDate = installments.length > 0 ? installments[installments.length - 1].dueDate : loan.createdAt;
