@@ -56,7 +56,8 @@ export const useAppSyncEngine = (
     if (!Array.isArray(remote)) remote = [];
     if (isFullSync) {
       const localMap = new Map((Array.isArray(local) ? local : []).map(l => [l.id, l]));
-      const result = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt)
+      const allRemoteIds = new Set((Array.isArray(remote) ? remote : []).filter(r => r && r.id).map(r => r.id));
+      const result = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt && !(r as any).deleted_at)
         .map(r => {
           const l = localMap.get(r.id);
           if (l) {
@@ -69,6 +70,7 @@ export const useAppSyncEngine = (
       const remoteIds = new Set(result.map(r => r.id));
       local.forEach(l => {
         if (!l || !l.id) return;
+        if ((l as any).deletedAt || (l as any).deleted_at || allRemoteIds.has(l.id)) return;
         const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
         // En web el servidor es la fuente de verdad: solo se conservan locales pendientes de subir.
         if ((pendingAddIds.has(l.id) || (isRecent && !IS_WEB)) && !remoteIds.has(l.id)) {
@@ -80,11 +82,16 @@ export const useAppSyncEngine = (
     }
 
     const remoteMap = new Map((Array.isArray(remote) ? remote : []).map(i => [i.id, i]));
-    const resultArr = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt);
+    const remoteDeletedIds = new Set(
+      (Array.isArray(remote) ? remote : [])
+        .filter(r => r && r.id && ((r as any).deletedAt || (r as any).deleted_at))
+        .map(r => r.id)
+    );
+    const resultArr = (Array.isArray(remote) ? remote : []).filter(r => !pendingDeleteIds.has(r.id) && !(r as any).deletedAt && !(r as any).deleted_at);
     const resultMap = new Map(resultArr.map(i => [i.id, i]));
 
     local.forEach(l => {
-      if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
+      if (!l || !l.id || pendingDeleteIds.has(l.id) || remoteDeletedIds.has(l.id) || (l as any).deletedAt || (l as any).deleted_at) return;
       const r = remoteMap.get(l.id);
       const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
 
@@ -92,7 +99,7 @@ export const useAppSyncEngine = (
         if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
           resultMap.set(l.id, l);
         }
-      } else {
+      } else if (!(r as any).deletedAt && !(r as any).deleted_at) {
         const remoteInstallments = Array.isArray((r as any).installments) ? (r as any).installments : [];
         const localInstallments = Array.isArray((l as any).installments) ? (l as any).installments : [];
         const remotePaidCount = remoteInstallments.filter((i: any) => i.status === 'Pagado').length;
@@ -110,7 +117,7 @@ export const useAppSyncEngine = (
 
     if (!isFullSync) {
       local.forEach(l => {
-        if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
+        if (l && l.id && !pendingDeleteIds.has(l.id) && !remoteDeletedIds.has(l.id) && !(l as any).deletedAt && !(l as any).deleted_at && !remoteMap.has(l.id) && !resultMap.has(l.id)) {
           resultMap.set(l.id, l);
         }
       });
@@ -336,7 +343,7 @@ export const useAppSyncEngine = (
 
     const triggerEmergencySync = async () => {
       const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
-      const syncKey = 'emergency_sync_v6912_CARTERA_COMPLETE_V2';
+      const syncKey = 'emergency_sync_v6913_CARTERA_UNIFICADA_V3';
       
       if (lastSyncKey !== syncKey && state.currentUser) {
         console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);

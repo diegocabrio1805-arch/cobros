@@ -144,6 +144,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
     const logsByLoan = new Map<string, any[]>();
     for (let i = 0; i < allLogs.length; i++) {
       const log = allLogs[i];
+      if (!log || log.deletedAt || (log as any).deleted_at) continue;
+      const logType = String(log.type || '').toUpperCase();
+      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) continue;
+      if (log.isOpening || (log as any).is_opening) continue;
       const lId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
       if (!lId) continue;
       let arr = logsByLoan.get(lId);
@@ -241,8 +245,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       // Métricas consolidadas de TODOS los préstamos activos (estilo Cartera)
       const clientLoans = allLoans.filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
       
-      // Ordenar préstamos activos: Más reciente primero para el "base"
-      const sortedLoans = [...clientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // Ordenar préstamos activos: Priorizar préstamos UUID recientes sobre préstamos legacy L-, y luego por fecha más reciente
+      const sortedLoans = [...clientLoans].sort((a, b) => {
+        const aIsLegacy = String(a.id || '').startsWith('L-') ? 1 : 0;
+        const bIsLegacy = String(b.id || '').startsWith('L-') ? 1 : 0;
+        if (aIsLegacy !== bIsLegacy) return aIsLegacy - bIsLegacy;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
       
       // Si no hay préstamos activos (ej: modo gestion mostrando el último pagado), usamos los que calificaron originalmente
       const displayLoans = sortedLoans.length > 0 ? sortedLoans : (loans || []);

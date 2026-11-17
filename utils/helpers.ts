@@ -231,9 +231,18 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[],
   const loanId = typeof loanOrId === 'string' ? loanOrId : (loanOrId.id || loanOrId.loan_id);
   const clientId = typeof loanOrId !== 'string' ? (loanOrId.clientId || loanOrId.client_id || null) : null;
 
-  // Si se provee una lista pre-filtrada específicamente para este préstamo, la usamos directo
+  // Si se provee una lista pre-filtrada específicamente para este préstamo, aseguramos excluir eliminados, aperturas y no-pagos
   if (Array.isArray(prefilteredLogs)) {
-    var validLogs = prefilteredLogs;
+    var validLogs = prefilteredLogs.filter(log => {
+      if (!log) return false;
+      const isDeleted = log.deletedAt || log.deleted_at;
+      if (isDeleted) return false;
+      const logType = String(log.type || '').toUpperCase();
+      if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
+      const isOpening = log.isOpening || log.is_opening || false;
+      if (isOpening) return false;
+      return true;
+    });
   } else {
     const allLogs = Array.isArray(collectionLogs) ? collectionLogs : [];
     

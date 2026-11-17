@@ -803,9 +803,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       arr.push(l);
     }
-    // Pre-ordenar cada lista de préstamos por fecha descendente una sola vez
+    // Pre-ordenar cada lista de préstamos: priorizar UUID sobre legacy L-, y luego por fecha descendente
     map.forEach(list => {
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      list.sort((a, b) => {
+        const aIsLegacy = String(a.id || '').startsWith('L-') ? 1 : 0;
+        const bIsLegacy = String(b.id || '').startsWith('L-') ? 1 : 0;
+        if (aIsLegacy !== bIsLegacy) return aIsLegacy - bIsLegacy;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     });
     return map;
   }, [state.loans]);
@@ -813,7 +818,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const getClientMetrics = (client: Client, clientLoansPrefiltered?: any[]) => {
     if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false, totalInstallments: 0, paidInstallments: 0 };
     const allClientLoans = clientLoansPrefiltered || loansByClientIdMap.get(client.id) || (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id);
-    const sortedLoans = clientLoansPrefiltered ? [...allClientLoans].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : allClientLoans;
+    const sortedLoans = clientLoansPrefiltered ? [...allClientLoans].sort((a, b) => {
+      const aIsLegacy = String(a.id || '').startsWith('L-') ? 1 : 0;
+      const bIsLegacy = String(b.id || '').startsWith('L-') ? 1 : 0;
+      if (aIsLegacy !== bIsLegacy) return aIsLegacy - bIsLegacy;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }) : allClientLoans;
     
     // Buscar préstamo activo, si no hay, usar el último (Pagado, etc.)
     let activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
@@ -909,14 +919,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     if (selectedCollector !== 'all') {
       const collectorLower = selectedCollector.toLowerCase();
       clients = clients.filter(c => {
-        // En lugar de requerir que el préstamo activo sea del cobrador para mostrarlo,
-        // simplemente mostramos a TODOS los clientes cuyo 'addedBy' (creador/dueño)
-        // coincide con el cobrador seleccionado, O si da la casualidad
-        // de que tiene un préstamo activo con él. Esto evita ocultarlos si ya pagaron.
-        const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === collectorLower);
+        const clientLoans = loansByClientIdMap.get(c.id) || [];
+        const activeLoan = clientLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
+        if (activeLoan) {
+          const activeColLower = (activeLoan.collectorId || (activeLoan as any).collector_id || '').toLowerCase();
+          if (activeColLower) return activeColLower === collectorLower;
+        }
+        const anyHistoricLoan = clientLoans.find(l => (l.collectorId || (l as any).collector_id)?.toLowerCase() === collectorLower);
         const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
-        return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || !!anyHistoricLoan;
+        return addedByLower === collectorLower || !!anyHistoricLoan;
       });
     }
     // SAFE SORT (NaN PROOF)

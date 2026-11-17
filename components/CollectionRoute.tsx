@@ -115,13 +115,37 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   }, [startDate, endDate, countryTodayStr]);
 
   const routeLoans = useMemo(() => {
-    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT);
+    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => !l.deletedAt && !(l as any).deleted_at && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULT));
     if (isAdminOrManager && selectedCollectorFilter !== 'all') {
       const filterLower = selectedCollectorFilter.toLowerCase();
-      loans = (Array.isArray(loans) ? loans : []).filter(l => (l.collectorId || (l as any).collector_id)?.toLowerCase() === filterLower);
+      loans = loans.filter(l => (l.collectorId || (l as any).collector_id)?.toLowerCase() === filterLower);
+    } else if (!isAdminOrManager && currentUserId) {
+      const myLower = currentUserId.toLowerCase();
+      loans = loans.filter(l => (l.collectorId || (l as any).collector_id)?.toLowerCase() === myLower);
     }
-    return loans;
-  }, [state.loans, selectedCollectorFilter, isAdminOrManager]);
+    // Consolidar a 1 préstamo principal por cliente (igual que Cartera/Clientes y Cobros) para no duplicar saldos
+    const byClient = new Map<string, Loan[]>();
+    loans.forEach(l => {
+      const cId = l.clientId || (l as any).client_id;
+      if (!cId) return;
+      if (!byClient.has(cId)) byClient.set(cId, []);
+      byClient.get(cId)!.push(l);
+    });
+    const deduplicated: Loan[] = [];
+    byClient.forEach(clientLoans => {
+      const sorted = [...clientLoans].sort((a, b) => {
+        const aActive = (a.status === LoanStatus.ACTIVE || a.status === LoanStatus.DEFAULT) ? 0 : 1;
+        const bActive = (b.status === LoanStatus.ACTIVE || b.status === LoanStatus.DEFAULT) ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+        const aLegacy = String(a.id || '').startsWith('L-') ? 1 : 0;
+        const bLegacy = String(b.id || '').startsWith('L-') ? 1 : 0;
+        if (aLegacy !== bLegacy) return aLegacy - bLegacy;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      if (sorted[0]) deduplicated.push(sorted[0]);
+    });
+    return deduplicated;
+  }, [state.loans, selectedCollectorFilter, isAdminOrManager, currentUserId]);
 
   const gpsStatus = { text: '', color: '', textColor: '', animate: '' };
 
@@ -164,10 +188,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
   const logsByLoan = useMemo(() => {
     const map: Record<string, CollectionLog[]> = {};
     (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).forEach(log => {
-      if (!log.deletedAt) {
-        if (!map[log.loanId]) map[log.loanId] = [];
-        map[log.loanId].push(log);
-      }
+      if (!log || log.deletedAt || (log as any).deleted_at) return;
+      const logType = String(log.type || '').toUpperCase();
+      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) return;
+      if (log.isOpening || (log as any).is_opening) return;
+      if (!map[log.loanId]) map[log.loanId] = [];
+      map[log.loanId].push(log);
     });
     return map;
   }, [state.collectionLogs]);

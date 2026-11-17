@@ -980,12 +980,24 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 // Ahora se delega 100% al Trigger SQL en Postgres (Zero-Trust).
                             }
                             
-                            // Auto-heal para DELETE: Si el ID no es un UUID válido, nunca pudo haber existido en Supabase.
-                            // Por lo tanto, no intentamos borrarlo (para evitar error 400), simplemente lo marcamos como procesado.
-                            const isValUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.data.id);
+                            // Permitir DELETE tanto para UUIDs estándar como para IDs legacy con prefijo L- o LOG-MIG-
+                            const idStr = String(item.data.id || '');
+                            const isValUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idStr) || idStr.startsWith('L-') || idStr.startsWith('LOG-') || idStr.startsWith('pay-');
                             if (isValUUID) {
-                                const { error } = await withTimeout(supabase.from(table).delete().eq('id', item.data.id), 15000);
-                                if (error) throw error;
+                                const nowDel = new Date().toISOString();
+                                // Primero asegurar soft-delete en la nube por si existe restricción de clave foránea (23503)
+                                if (table === 'clients') {
+                                    await supabase.from('loans').update({ status: 'Pagado', balance: 0, deleted_at: nowDel, updated_at: nowDel }).eq('client_id', idStr);
+                                    await supabase.from('collection_logs').update({ deleted_at: nowDel, updated_at: nowDel }).eq('client_id', idStr);
+                                    await supabase.from('clients').update({ deleted_at: nowDel, is_active: false, is_hidden: true, updated_at: nowDel }).eq('id', idStr);
+                                } else if (table === 'loans') {
+                                    await supabase.from('collection_logs').update({ deleted_at: nowDel, updated_at: nowDel }).eq('loan_id', idStr);
+                                    await supabase.from('loans').update({ status: 'Pagado', balance: 0, deleted_at: nowDel, updated_at: nowDel }).eq('id', idStr);
+                                } else if (table === 'collection_logs' || table === 'payments') {
+                                    await supabase.from(table).update({ deleted_at: nowDel, updated_at: nowDel }).eq('id', idStr);
+                                }
+                                const { error } = await withTimeout(supabase.from(table).delete().eq('id', idStr), 15000);
+                                if (error && error.code !== '23503') throw error;
                             } else {
                                 console.log(`[Auto-Heal] Ignorando DELETE para ID inválido ${item.data.id} en ${table}. Nunca existió en BD.`);
                             }

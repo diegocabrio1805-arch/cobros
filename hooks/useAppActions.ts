@@ -347,11 +347,7 @@ export const useAppActions = (
     const client = state.clients.find(c => c.id === clientId);
     if (!client) return;
 
-    const updatedClient = { ...client, deletedAt: new Date().toISOString() };
-    await updateClient(updatedClient);
-    
-    // Trigger the actual remote deletion to ensure it's removed from the backend
-    // This action also creates the necessary audit logs
+    // Trigger remote & local deletion (soft-delete + hard-delete cascade)
     await deleteRemoteClientAction(clientId);
   };
 
@@ -826,13 +822,22 @@ export const useAppActions = (
 
     // Cerrar cualquier préstamo viejo activo de los clientes importados que no forme parte de esta planilla
     // para evitar créditos duplicados que alteren el saldo en pantalla.
+    const normalizeNameForImport = (s: string) => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     const importedClientIds = new Set(newClients.map(c => c.id));
+    const importedClientNormNames = new Set(newClients.map(c => normalizeNameForImport(c.name)).filter(Boolean));
+    const matchingExistingClientIds = new Set<string>(importedClientIds);
+    (Array.isArray(state.clients) ? state.clients : []).forEach(c => {
+      if (c && c.id && importedClientNormNames.has(normalizeNameForImport(c.name))) {
+        matchingExistingClientIds.add(c.id);
+      }
+    });
+
     const importedLoanIds = new Set(updatedLoansWithPayments.map(l => l.id));
     const newLogIds = new Set(newLogs.map(l => l.id));
     const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const supersededLoansToClose = (Array.isArray(state.loans) ? state.loans : [])
       .filter(l =>
-        importedClientIds.has(l.clientId || (l as any).client_id) &&
+        matchingExistingClientIds.has(l.clientId || (l as any).client_id) &&
         !importedLoanIds.has(l.id) &&
         (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT || (l.balance || 0) > 0)
       )
@@ -871,7 +876,7 @@ export const useAppActions = (
         });
 
         const mergedLoans = prev.loans.map(l => {
-            if (importedClientIds.has(l.clientId || (l as any).client_id) && !importedLoanIds.has(l.id)) {
+            if (matchingExistingClientIds.has(l.clientId || (l as any).client_id) && !importedLoanIds.has(l.id)) {
                 return { ...l, status: LoanStatus.PAID, balance: 0, totalPaid: l.totalAmount, updatedAt: timestamp, updated_at: timestamp };
             }
             return l;
@@ -909,13 +914,21 @@ export const useAppActions = (
     pushBulk(newClients, [...updatedLoansWithPayments, ...validSupersededLoans], allNewPayments, [...newLogs, ...validSupersededLogs]);
 
     // 2.5. PARCHE ANTI-CONFLICTO EN NUBE: Anular directamente en Supabase cualquier cobro viejo
-    // previo a la planilla de los créditos importados (incluso si no estaba cargado en memoria local).
+    // previo a la planilla de los créditos importados y cerrar préstamos viejos (incluso L- legacy).
     if (navigator.onLine) {
-      const validLoanUuidList = Array.from(importedLoanIds).filter(id => validUuidRegex.test(id));
+      const allImportedLoanIdsList = Array.from(importedLoanIds);
+      const supersededIdsList = supersededLoansToClose.map(l => l.id).filter(Boolean);
       (async () => {
         try {
-          for (let i = 0; i < validLoanUuidList.length; i += 100) {
-            const chunk = validLoanUuidList.slice(i, i + 100);
+          for (let i = 0; i < supersededIdsList.length; i += 100) {
+            const chunk = supersededIdsList.slice(i, i + 100);
+            await supabase
+              .from('loans')
+              .update({ status: 'Pagado', balance: 0, updated_at: timestamp })
+              .in('id', chunk);
+          }
+          for (let i = 0; i < allImportedLoanIdsList.length; i += 100) {
+            const chunk = allImportedLoanIdsList.slice(i, i + 100);
             const { data: remoteOldLogs } = await supabase
               .from('collection_logs')
               .select('id')
@@ -1070,6 +1083,13 @@ export const useAppActions = (
       const clientLogs = state.collectionLogs.filter(l => l.clientId === clientId);
       clientLogs.forEach(log => deleteRemoteLog(log.id));
       clientLoans.forEach(loan => deleteRemoteLoan(loan.id));
+
+      if (navigator.onLine) {
+        const nowDel = new Date().toISOString();
+        supabase.from('collection_logs').update({ deleted_at: nowDel, updated_at: nowDel }).eq('client_id', clientId).then(() => {});
+        supabase.from('loans').update({ status: 'Pagado', balance: 0, deleted_at: nowDel, updated_at: nowDel }).eq('client_id', clientId).then(() => {});
+        supabase.from('clients').update({ deleted_at: nowDel, is_active: false, is_hidden: true, updated_at: nowDel }).eq('id', clientId).then(() => {});
+      }
 
       setState(prev => ({
         ...prev,
