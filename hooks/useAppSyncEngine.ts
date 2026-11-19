@@ -176,7 +176,7 @@ export const useAppSyncEngine = (
       }
 
       await yieldThread();
-      if (mappedData.payments) updatedState.payments = mergeData(updatedState.payments, mappedData.payments, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
+      updatedState.payments = [];
       await yieldThread();
       if (mappedData.collectionLogs) updatedState.collectionLogs = mergeData(updatedState.collectionLogs, mappedData.collectionLogs, pendingAddIds, pendingDeleteIds, !!isFullSync, true);
       await yieldThread();
@@ -455,7 +455,7 @@ export const useAppSyncEngine = (
       try {
         const since = new Date(Date.now() - WINDOW_MS).toISOString();
         const sinceMs = new Date(since).getTime();
-        const buildCount = (table: 'payments' | 'collection_logs') => {
+        const buildCount = (table: 'collection_logs') => {
           let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
             .gt('updated_at', since).is('deleted_at', null);
           // Admin y Gerente: contar solo su propia sucursal (igual que la descarga filtrada de useSync)
@@ -468,20 +468,17 @@ export const useAppSyncEngine = (
           if (user.role === Role.MANAGER || user.role === Role.ADMIN) q = q.eq('branch_id', user.id);
           return q;
         };
-        const [payRes, logRes, cliRes, loanRes] = await Promise.all([
-          buildCount('payments'),
+        const [logRes, cliRes, loanRes] = await Promise.all([
           buildCount('collection_logs'),
           buildTotalCount('clients'),
           buildTotalCount('loans')
         ]);
-        if (payRes.error || logRes.error || cliRes.error || loanRes.error) return;
+        if (logRes.error || cliRes.error || loanRes.error) return;
 
         const countLocal = (arr: any[] | undefined) => (Array.isArray(arr) ? arr : []).filter((i: any) =>
           !i.deletedAt && i.updated_at && new Date(i.updated_at).getTime() > sinceMs
         ).length;
-        const localPay = countLocal(s.payments as any[]);
         const localLogs = countLocal(s.collectionLogs as any[]);
-        const serverPay = payRes.count ?? 0;
         const serverLogs = logRes.count ?? 0;
 
         const localClients = (Array.isArray(s.clients) ? s.clients : []).filter((c: any) => !c.deletedAt && !c.deleted_at).length;
@@ -489,8 +486,8 @@ export const useAppSyncEngine = (
         const serverClients = cliRes.count ?? 0;
         const serverLoans = loanRes.count ?? 0;
 
-        if (serverClients > localClients || serverLoans > localLoans || serverPay > localPay || serverLogs > localLogs) {
-          console.warn(`[Vigilante] Desincronización detectada (clientes ${localClients}/${serverClients}, préstamos ${localLoans}/${serverLoans}, pagos ${localPay}/${serverPay}, registros ${localLogs}/${serverLogs}). Reparando con Full Sync...`);
+        if (serverClients > localClients || serverLoans > localLoans || serverLogs > localLogs) {
+          console.warn(`[Vigilante] Desincronización detectada (clientes ${localClients}/${serverClients}, préstamos ${localLoans}/${serverLoans}, registros ${localLogs}/${serverLogs}). Reparando con Full Sync...`);
           (window as any)._watchdogLastRepairMs = Date.now();
           Object.keys(localStorage).forEach(k => {
             if (k.includes('last_sync_timestamp')) localStorage.removeItem(k);
@@ -527,7 +524,7 @@ export const useAppSyncEngine = (
     // Contador de ciclos para deep-sync periódico
     let syncCycleCount = 0;
 
-    const intervalTime = sync.queueLength > 0 ? 2000 : 300000;
+    const intervalTime = sync.queueLength > 0 ? 30000 : 300000;
     const healthCheckInterval = setInterval(() => {
         // Si no hubo sync reciente, descargar datos frescos para compensar posibles
         // caídas de la conexión Realtime

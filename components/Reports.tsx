@@ -6,6 +6,7 @@ import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForC
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF } from '../utils/pdfHelper';
+import { loadLeaflet } from '../utils/leafletLoader';
 
 interface ReportsProps {
    state: AppState;
@@ -19,6 +20,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
    const mapRef = useRef<HTMLDivElement>(null);
    const leafletMap = useRef<any>(null);
    const layerGroup = useRef<any>(null);
+   const [leafletReady, setLeafletReady] = useState<boolean>(() => typeof window !== 'undefined' && !!(window as any).L);
+
+   useEffect(() => {
+      if (leafletReady) return;
+      let cancelled = false;
+      loadLeaflet()
+         .then(() => { if (!cancelled) setLeafletReady(true); })
+         .catch(err => console.warn('[Reports] Leaflet load deferred/failed:', err));
+      return () => { cancelled = true; };
+   }, [leafletReady]);
    const activeSettings = settings || state.settings;
    const t = getTranslation(activeSettings.language);
 
@@ -278,6 +289,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
 
    // --- LIVE TRACKING ACTUALIZACIÓN EN MAPA ---
    useEffect(() => {
+      if (!leafletReady || typeof L === 'undefined') return;
       if (isLiveTracking && liveLocation && leafletMap.current && layerGroup.current) {
          if (!liveMarkerRef.current) {
             const liveIcon = L.divIcon({
@@ -300,9 +312,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
             leafletMap.current.panTo([liveLocation.lat, liveLocation.lng], { animate: true });
          }
       }
-   }, [liveLocation, isLiveTracking]);
+   }, [liveLocation, isLiveTracking, leafletReady]);
 
    useEffect(() => {
+      if (!leafletReady || typeof L === 'undefined') return;
       if (mapRef.current && !leafletMap.current) {
          leafletMap.current = L.map(mapRef.current, { zoomControl: false }).setView([4.5709, -74.2973], 13);
 
@@ -629,7 +642,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings, updateClient }) => {
       } catch (e) {
          console.error('Error drawing map markers', e);
       }
-   }, [mapData, selectedFilter, t, isLiveTracking, noPaymentSubFilter, activeSettings, updateClient]);
+   }, [mapData, selectedFilter, t, isLiveTracking, noPaymentSubFilter, activeSettings, updateClient, leafletReady]);
    // --- NEW PDF EXPORT FUNCTION ---
    const handleExportPDF = (report: any, collectorId: string) => {
       if (!report) return;

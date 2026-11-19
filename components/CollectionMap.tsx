@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { AppState, CollectionLogType, Role } from '../types';
 import { formatCurrency } from '../utils/helpers';
+import { loadLeaflet } from '../utils/leafletLoader';
 
 interface CollectionMapProps {
   state: AppState;
@@ -13,6 +14,16 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<any>(null);
   const markersLayer = useRef<any>(null);
+  const [leafletReady, setLeafletReady] = useState<boolean>(() => typeof window !== 'undefined' && !!(window as any).L);
+
+  useEffect(() => {
+    if (leafletReady) return;
+    let cancelled = false;
+    loadLeaflet()
+      .then(() => { if (!cancelled) setLeafletReady(true); })
+      .catch(err => console.warn('[CollectionMap] Leaflet load deferred/failed:', err));
+    return () => { cancelled = true; };
+  }, [leafletReady]);
 
   const [typeFilter, setTypeFilter] = useState<'ALL' | CollectionLogType>('ALL');
   const [collectorFilter, setCollectorFilter] = useState<string>('ALL');
@@ -51,6 +62,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
   }, [enrichedLogs, typeFilter, collectorFilter]);
 
   useEffect(() => {
+    if (!leafletReady || typeof L === 'undefined') return;
     if (mapRef.current && !leafletMap.current) {
       const defaultPos = enrichedLogs.length > 0 && enrichedLogs[0].location
         ? [enrichedLogs[0].location.lat, enrichedLogs[0].location.lng]
@@ -192,7 +204,7 @@ const CollectionMap: React.FC<CollectionMapProps> = ({ state }) => {
         }
       }
     }
-  }, [typeFilter, collectorFilter, filteredLogs, enrichedLogs]);
+  }, [typeFilter, collectorFilter, filteredLogs, enrichedLogs, leafletReady]);
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-fadeIn">

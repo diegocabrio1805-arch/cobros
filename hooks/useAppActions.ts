@@ -36,7 +36,7 @@ export const useAppActions = (
             currentUser: normalizedUser,
             clients: localData.clients || [],
             loans: localData.loans || [],
-            payments: localData.payments || [],
+            payments: [],
             expenses: localData.expenses || [],
             isolatedExpenses: localData.isolatedExpenses || [],
             collectionLogs: localData.collectionLogs || [],
@@ -544,7 +544,6 @@ export const useAppActions = (
     // NO llamar pushLog aqui todavía - se llama abajo después del setState para garantizar
     // que el estado local esté actualizado antes de intentar sincronizar
 
-    let updatedPayments = [...state.payments];
     const newPaymentsForSync: PaymentRecord[] = [];
 
     if (newLog.type === CollectionLogType.OPENING) {
@@ -587,13 +586,12 @@ export const useAppActions = (
           };
 
           newPaymentsForSync.push(pRec);
-          updatedPayments.push(pRec);
         }
       }
     }
 
-    // Actualizar logs e historiales EN EL ESTADO
-    const newState = { ...state, payments: updatedPayments, collectionLogs: [newLog, ...state.collectionLogs] };
+    // Actualizar logs en el estado local (sin inflar RAM/IndexedDB con payments sin uso en UI)
+    const newState = { ...state, payments: [], collectionLogs: [newLog, ...state.collectionLogs] };
     setState(newState);
     immediateSave(newState);
 
@@ -692,6 +690,10 @@ export const useAppActions = (
       deleteRemoteLog(logId);
       const related = state.payments.filter(p => p.id.startsWith(`pay-${logId}-`));
       for (const p of related) deleteRemotePayment(p.id);
+      if (navigator.onLine) {
+        const nowDel = new Date().toISOString();
+        supabase.from('payments').update({ deleted_at: nowDel, updated_at: nowDel }).like('id', `pay-${logId}-%`).then(() => {});
+      }
 
       await handleForceSync(true, "Pago eliminado y sincronizado");
 
@@ -903,7 +905,7 @@ export const useAppActions = (
             ...prev,
             clients: mergedClients,
             loans: mergedLoans,
-            payments: [...prev.payments, ...allNewPayments],
+            payments: [],
             collectionLogs: mergedLogs
         };
     });

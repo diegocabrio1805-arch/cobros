@@ -49,6 +49,13 @@ const withTimeout = (promise: any, timeoutMs: number = 30000): Promise<any> => {
     ]);
 };
 
+const isTransientNetworkOrServerError = (err: any): boolean => {
+    const msg = String(err?.message || err?.error || err || '').toLowerCase();
+    const status = Number(err?.status || err?.statusCode || 0);
+    if (status >= 500 || status === 429 || status === 408) return true;
+    return /timeout|failed to fetch|networkerror|network request failed|load failed|abort|502|503|504|500|520|522|524|429|bad gateway|service unavailable|gateway timeout|econn|offline|socket/i.test(msg);
+};
+
 let queueLock = Promise.resolve();
 
 export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?: boolean) => void) => {
@@ -230,7 +237,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     { event: '*', schema: 'public' },
                     async (payload) => {
                         if (!isMounted) return; // 🛡️ Guard
-                        const syncedTables = new Set(['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses', 'isolated_expenses', 'simulated_orders', 'profiles', 'branch_settings']);
+                        const syncedTables = new Set(['collection_logs', 'loans', 'clients', 'deleted_items', 'expenses', 'isolated_expenses', 'simulated_orders', 'profiles', 'branch_settings']);
                         if (!syncedTables.has(payload.table)) return;
 
                         if (payload.eventType !== 'DELETE' && payload.table !== 'profiles' && payload.table !== 'branch_settings') {
@@ -242,7 +249,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         }
 
                         const isDeleteEvent = payload.eventType === 'DELETE';
-                        const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses'].includes(payload.table);
+                        const isCriticalTable = ['collection_logs', 'loans', 'clients', 'deleted_items', 'expenses'].includes(payload.table);
 
                         const triggerSync = async () => {
                             if (!isMounted) return; // 🛡️ Guard
@@ -606,10 +613,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     }
                     return { data: allData, error: null };
                 };
-                const payRes = await fetchKeyset(buildKeysetQuery('payments', 'get_collector_payments'), 'payments');
+                const payRes: { data: any[]; error: null } = { data: [], error: null };
                 const logRes = await fetchKeyset(buildKeysetQuery('collection_logs', 'get_collector_logs'), 'logs');
 
-                // CROSS-BRANCH (Admin/Gerente, throttled cada 5 min en incrementales): pagos/logs de SUS clientes o préstamos guardados con otro branch_id
+                // CROSS-BRANCH (Admin/Gerente, throttled cada 5 min en incrementales): logs de SUS clientes o préstamos guardados con otro branch_id
                 if ((isAdminRole || isManagerRole) && (fullSync || Date.now() - lastCrossBranchSyncRef.current > 300000)) {
                     const [{ data: myClientRows, error: myClientsErr }, { data: myLoanRows, error: myLoansErr }] = await Promise.all([
                         supabase.from('clients').select('id').eq('branch_id', currentUser.id).limit(10000).abortSignal(controller.signal),
@@ -621,7 +628,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         ['client_id', (myClientRows || []).map((c: any) => c.id)],
                         ['loan_id', (myLoanRows || []).map((l: any) => l.id)]
                     ];
-                    const seenPay = new Set(payRes.data.map((p: any) => p.id));
                     const seenLog = new Set(logRes.data.map((l: any) => l.id));
                     const chunkTasks: Array<() => Promise<void>> = [];
                     for (const [col, ids] of idSets) {
@@ -629,18 +635,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             const chunk = ids.slice(i, i + 100);
                             chunkTasks.push(async () => {
                                 const timeCutoff = adjustedSyncTime && !fullSync ? adjustedSyncTime : oneYearAgoKs;
-                                const [payCrossRes, logCrossRes] = await Promise.all([
-                                    supabase.from('payments').select('*').neq('branch_id', currentUser.id).in(col, chunk).gt('updated_at', timeCutoff).limit(5000).abortSignal(controller.signal),
-                                    supabase.from('collection_logs').select('*').neq('branch_id', currentUser.id).in(col, chunk).gt('updated_at', timeCutoff).limit(5000).abortSignal(controller.signal)
-                                ]);
-                                if (payCrossRes.error) throw payCrossRes.error;
+                                const logCrossRes = await supabase
+                                    .from('collection_logs')
+                                    .select('*')
+                                    .neq('branch_id', currentUser.id)
+                                    .in(col, chunk)
+                                    .gt('updated_at', timeCutoff)
+                                    .limit(5000)
+                                    .abortSignal(controller.signal);
                                 if (logCrossRes.error) throw logCrossRes.error;
-                                (payCrossRes.data || []).forEach((item: any) => {
-                                    if (!seenPay.has(item.id)) {
-                                        seenPay.add(item.id);
-                                        payRes.data.push(item);
-                                    }
-                                });
                                 (logCrossRes.data || []).forEach((item: any) => {
                                     if (!seenLog.has(item.id)) {
                                         seenLog.add(item.id);
@@ -739,11 +742,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             await new Promise(r => setTimeout(r, 20));
 
-            const payments = await asyncMapInChunks(paymentsResult.data || [], 500, (p: any) => ({
-                ...p, loanId: p.loan_id, clientId: p.client_id, branchId: p.branch_id,
-                installmentNumber: p.installment_number, isVirtual: p.is_virtual,
-                isRenewal: p.is_renewal, deletedAt: p.deleted_at
-            })) as PaymentRecord[];
+            const payments: PaymentRecord[] = [];
 
             await new Promise(r => setTimeout(r, 20));
 
@@ -1022,18 +1021,24 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             setQueueLength(prev => Math.max(0, prev - 1));
                         } catch (err) {
                             console.error(`Error de sincronización (DELETE ${table}):`, err);
-                            item.retryCount = (item.retryCount || 0) + 1;
-                            
-                            // update local storage so retry count persists
+                            const isTransient = isTransientNetworkOrServerError(err);
+                            if (isTransient) {
+                                item.transientAttempts = (item.transientAttempts || 0) + 1;
+                            } else {
+                                item.retryCount = (item.retryCount || 0) + 1;
+                            }
+
+                            // Persistir contadores en cola local
                             const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
-                                currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                currentQueue[indexToUpdate].retryCount = item.retryCount || 0;
+                                currentQueue[indexToUpdate].transientAttempts = item.transientAttempts || 0;
                                 currentQueue[indexToUpdate].lastError = String(err);
                                 await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                             }
-                            
-                            if (item.retryCount > 20) {
+
+                            if (!isTransient && item.retryCount > 20) {
                                 processedIds.add(item._id);
                                 const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
@@ -1072,18 +1077,24 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             setQueueLength(prev => Math.max(0, prev - 1));
                         } catch (err) {
                             console.error(`Error de sincronización (RENEW_LOAN):`, err);
-                            item.retryCount = (item.retryCount || 0) + 1;
-                            
-                            // Aumentamos persistencia del retry
+                            const isTransient = isTransientNetworkOrServerError(err);
+                            if (isTransient) {
+                                item.transientAttempts = (item.transientAttempts || 0) + 1;
+                            } else {
+                                item.retryCount = (item.retryCount || 0) + 1;
+                            }
+
+                            // Aumentamos persistencia del retry sin descartar por caídas temporales de Supabase
                             const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                             const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                             if (indexToUpdate !== -1) {
-                                currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                currentQueue[indexToUpdate].retryCount = item.retryCount || 0;
+                                currentQueue[indexToUpdate].transientAttempts = item.transientAttempts || 0;
                                 currentQueue[indexToUpdate].lastError = String(err);
                                 await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                             }
-                            
-                            if (item.retryCount > 20) {
+
+                            if (!isTransient && item.retryCount > 20) {
                                 processedIds.add(item._id);
                                 const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
@@ -1123,22 +1134,26 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                     } else {
                                         console.error(`Error de sincronización individual en ${table}:`, singleErr);
                                     }
-                                    item.retryCount = (item.retryCount || 0) + 1;
-                                    
+                                    const isTransient = isTransientNetworkOrServerError(singleErr);
+                                    if (isTransient) {
+                                        item.transientAttempts = (item.transientAttempts || 0) + 1;
+                                    } else {
+                                        item.retryCount = (item.retryCount || 0) + 1;
+                                    }
+
                                     // update local storage so retry count persists
                                     const currentQueue = await getQueueFromForage("syncQueue"); // FIX PERF
                                     const indexToUpdate = currentQueue.findIndex((q: any) => q._id === item._id);
                                     if (indexToUpdate !== -1) {
-                                        currentQueue[indexToUpdate].retryCount = item.retryCount;
+                                        currentQueue[indexToUpdate].retryCount = item.retryCount || 0;
+                                        currentQueue[indexToUpdate].transientAttempts = item.transientAttempts || 0;
                                         currentQueue[indexToUpdate].lastError = String(singleErr);
                                         await localforage.setItem("syncQueue", currentQueue); // FIX PERF
                                     }
 
                                     const isFatalError = singleErr?.code === '23503' || String(singleErr).includes('23503') || String(singleErr).includes('409');
-                                    if (item.retryCount > 20 || isFatalError) {
-                                        // FIX: Añadir a processedIds para sacarlo de la cola activa si supera los reintentos
-                                        // o si es un error fatal de Foreign Key (registro huérfano).
-                                        // Esto evita que la cola se quede en un bucle infinito (retry #13000+).
+                                    if (!isTransient && (item.retryCount > 20 || isFatalError)) {
+                                        // Nunca expulsar de syncQueue por caída de red/Supabase (5xx/timeout).
                                         processedIds.add(item._id);
                                         const failedItems = await getQueueFromForage("failedSyncItems"); // FIX PERF
                                         failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
@@ -1157,10 +1172,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setQueueLength(remainingQueue.length);
 
             if (remainingQueue.length > 0) {
-                // EXPONENTIAL BACKOFF: calcular el delay basado en el máximo retryCount de la cola
-                // Fórmula: min(2^retryCount * 1000ms, 60000ms)
-                // Retry 0 → 2s | Retry 1 → 4s | Retry 2 → 8s | Retry 3+ → 16s... máx 60s
-                const maxRetry = remainingQueue.reduce((max: number, item: any) => Math.max(max, item.retryCount || 0), 0);
+                // EXPONENTIAL BACKOFF: calcular el delay basado en retryCount o transientAttempts
+                const maxRetry = remainingQueue.reduce((max: number, item: any) => Math.max(max, item.retryCount || 0, item.transientAttempts || 0), 0);
                 const backoffMs = Math.min(Math.pow(2, maxRetry) * 1000, 60000);
                 console.log(`[Sync] Backoff: ${remainingQueue.length} pendientes. Reintentando en ${backoffMs / 1000}s (retry #${maxRetry})`);
                 setSyncError(`Pendientes: ${remainingQueue.length}. Reintentando en ${Math.round(backoffMs / 1000)}s...`);

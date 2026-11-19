@@ -265,7 +265,7 @@ export const useAppInitialization = () => {
               ...prev,
               clients: parsedClients,
               loans: parsedLoans,
-              payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
+              payments: [],
               expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
               isolatedExpenses: Array.isArray(rawData?.isolatedExpenses) ? rawData.isolatedExpenses : [],
               collectionLogs: Array.isArray(rawData?.collectionLogs) ? rawData.collectionLogs : [],
