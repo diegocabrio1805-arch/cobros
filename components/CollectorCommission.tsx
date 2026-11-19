@@ -1,7 +1,7 @@
 import FastInput from './FastInput';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import * as XLSX from 'xlsx-js-style';
+// xlsx-js-style loaded dynamically on export
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket, User } from '../types';
 import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
@@ -811,7 +811,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   const handleExportHistoryExcel = () => {
     setIsGeneratingExcel(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
         
@@ -892,6 +892,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           { ...c(totalsFilteredHistory.colocacion), s: { font: { bold: true } } }
         ]);
 
+        const XLSX = await import('xlsx-js-style');
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         
         const colWidths = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
@@ -963,6 +964,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
     try {
       // Create a new workbook
+      const XLSX = await import('xlsx-js-style');
       const wb = XLSX.utils.book_new();
 
       // Define standard border

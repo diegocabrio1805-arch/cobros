@@ -1,5 +1,5 @@
 
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capacitor-community/file-opener';
 import { Capacitor } from '@capacitor/core';

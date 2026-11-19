@@ -63,6 +63,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
     const isProcessingRef = useRef(false);
     const pendingRunRef = useRef(false);
     const pendingParamsRef = useRef({ force: false, fullSync: false, skipPull: true });
+    const lastDeletedAuditFetchRef = useRef<number>(0);
+    const lastCrossBranchSyncRef = useRef<number>(0);
 
     // Checks for internet connection
     const checkConnection = async (): Promise<boolean> => {
@@ -228,6 +230,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     { event: '*', schema: 'public' },
                     async (payload) => {
                         if (!isMounted) return; // 🛡️ Guard
+                        const syncedTables = new Set(['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses', 'isolated_expenses', 'simulated_orders', 'profiles', 'branch_settings']);
+                        if (!syncedTables.has(payload.table)) return;
+
+                        if (payload.eventType !== 'DELETE' && payload.table !== 'profiles' && payload.table !== 'branch_settings') {
+                            const payloadBranch = (payload.new as any)?.branch_id;
+                            const activeBranch = (window as any)._activeBranchId;
+                            if (payloadBranch && activeBranch && activeBranch !== 'none' && String(payloadBranch).toLowerCase() !== String(activeBranch).toLowerCase()) {
+                                return;
+                            }
+                        }
+
                         const isDeleteEvent = payload.eventType === 'DELETE';
                         const isCriticalTable = ['collection_logs', 'payments', 'loans', 'clients', 'deleted_items', 'expenses'].includes(payload.table);
 
@@ -244,11 +257,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         };
 
                         if (isDeleteEvent && isCriticalTable) {
-                            triggerSync();
+                            const delTimer = (window as any)._syncDeleteDebounceTimer;
+                            if (delTimer) clearTimeout(delTimer);
+                            (window as any)._syncDeleteDebounceTimer = setTimeout(triggerSync, 400);
                         } else {
                             const debounceTimer = (window as any)._syncDebounceTimer;
                             if (debounceTimer) clearTimeout(debounceTimer);
-                            (window as any)._syncDebounceTimer = setTimeout(triggerSync, 1000);
+                            (window as any)._syncDebounceTimer = setTimeout(triggerSync, 1500);
                         }
                     }
                 )
@@ -428,20 +443,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 loansQuery = supabase.rpc('get_collector_loans', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 paymentsQuery = supabase.rpc('get_collector_payments', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
                 logsQuery = supabase.rpc('get_collector_logs', { p_collector_id: currentUser.id }).select('*').order('updated_at', { ascending: true });
-            } else if (currentUser && currentUser.role === 'Gerente') {
-                // BUG FIX: Permitir que los Gerentes descarguen todos los pagos y logs incondicionalmente
-                // para que los saldos se calculen correctamente sin importar si el pago lo registr el Admin u otra sucursal.
-                profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
-                // Nota: settingsQuery descarga todos los settings para que la jerarquía funcione si es necesario, 
-                // o se aislará en settingsHierarchy.ts localmente.
             }
-
-            // PERF/AISLAMIENTO (12/10): El Administrador descargaba TODAS las sucursales (~16.000 registros ajenos)
-            // y luego las ocultaba en filteredState. Ahora solo baja su propia sucursal.
-            // Auditado: 0 registros con branch_id NULL, 0 préstamos cruzados. Los pagos/logs de SUS clientes que
-            // tienen otro branch_id se traen aparte en el Lote 3 (crossBranch) para no alterar saldos.
+            const isManagerRole = !!currentUser && currentUser.role === 'Gerente';
             const isAdminRole = !!currentUser && currentUser.role === 'Administrador';
-            if (isAdminRole) {
+            if (isAdminRole || isManagerRole) {
                 clientsQuery = clientsQuery.eq('branch_id', currentUser.id);
                 loansQuery = loansQuery.eq('branch_id', currentUser.id);
                 profilesQuery = profilesQuery.or(`id.eq.${currentUser.id},managed_by.eq.${currentUser.id}`);
@@ -451,7 +456,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
             let simulatedOrdersQuery = supabase.from('simulated_orders').select('*').order('updated_at', { ascending: true });
-            if (isAdminRole) {
+            if (isAdminRole || isManagerRole) {
                 expensesQuery = expensesQuery.eq('branch_id', currentUser.id);
                 isolatedExpensesQuery = isolatedExpensesQuery.eq('branch_id', currentUser.id);
                 deletedItemsQuery = deletedItemsQuery.or(`branch_id.eq.${currentUser.id},branch_id.is.null`);
@@ -469,14 +474,11 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 .gt('date', ninetyDaysAgo)
                 .order('date', { ascending: false })
                 .limit(300);
-            if (isAdminRole) deletedPaymentLogsQuery = deletedPaymentLogsQuery.eq('branch_id', currentUser.id);
+            if (isAdminRole || isManagerRole) deletedPaymentLogsQuery = deletedPaymentLogsQuery.eq('branch_id', currentUser.id);
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {
-                // MARGEN AMPLIADO: 10 minutos (antes 2 min) para cubrir retrasos del servidor Supabase
-                // y diferencias de reloj entre el celular y el servidor.
-                // FIX SYNC NAVEGADOR NORMAL: en web (PC) usamos 2 horas, porque el updated_at lo pone
-                // el reloj del celular del cobrador y si está atrasado el pago quedaba fuera del delta.
+                // MARGEN AMPLIADO: 10 minutos en móvil, 2 horas en web para cubrir desfases de reloj en Android (commit 97f7569).
                 const safetyMargin = Capacitor.isNativePlatform() ? 600000 : 7200000;
                 const parsedDate = new Date(lastSyncTime);
                 if (!isNaN(parsedDate.getTime())) {
@@ -564,7 +566,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // FIX TIMEOUT 57014 (keyset): OFFSET + ORDER BY updated_at se degrada con cada página
                 // y revienta con ~9000+ filas. Paginamos por clave primaria (id), costo constante por página.
                 const isCollectorRole = currentUser && currentUser.role === 'Cobrador';
-                const isManagerRole = currentUser && currentUser.role === 'Gerente';
                 const oneYearAgoKs = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
                 const buildKeysetQuery = (table: 'payments' | 'collection_logs', rpcName: string) => () => {
                     let q: any = isCollectorRole
@@ -608,9 +609,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 const payRes = await fetchKeyset(buildKeysetQuery('payments', 'get_collector_payments'), 'payments');
                 const logRes = await fetchKeyset(buildKeysetQuery('collection_logs', 'get_collector_logs'), 'logs');
 
-                // CROSS-BRANCH (solo Admin): pagos/logs de SUS clientes o préstamos guardados con otro branch_id
-                // (auditado 12/10: ~64 pagos y ~37 logs). Se piden por client_id y loan_id en tandas de 100.
-                if (isAdminRole) {
+                // CROSS-BRANCH (Admin/Gerente, throttled cada 5 min en incrementales): pagos/logs de SUS clientes o préstamos guardados con otro branch_id
+                if ((isAdminRole || isManagerRole) && (fullSync || Date.now() - lastCrossBranchSyncRef.current > 300000)) {
                     const [{ data: myClientRows, error: myClientsErr }, { data: myLoanRows, error: myLoansErr }] = await Promise.all([
                         supabase.from('clients').select('id').eq('branch_id', currentUser.id).limit(10000).abortSignal(controller.signal),
                         supabase.from('loans').select('id').eq('branch_id', currentUser.id).limit(10000).abortSignal(controller.signal)
@@ -623,24 +623,37 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     ];
                     const seenPay = new Set(payRes.data.map((p: any) => p.id));
                     const seenLog = new Set(logRes.data.map((l: any) => l.id));
+                    const chunkTasks: Array<() => Promise<void>> = [];
                     for (const [col, ids] of idSets) {
                         for (let i = 0; i < ids.length; i += 100) {
                             const chunk = ids.slice(i, i + 100);
-                            for (const [table, target, seen] of [['payments', payRes, seenPay], ['collection_logs', logRes, seenLog]] as const) {
-                                let cq: any = supabase.from(table).select('*')
-                                    .neq('branch_id', currentUser.id).in(col, chunk);
-                                if (adjustedSyncTime && !fullSync) cq = cq.gt('updated_at', adjustedSyncTime);
-                                else cq = cq.gt('updated_at', oneYearAgoKs);
-                                const { data: crossData, error: crossErr } = await cq.limit(5000).abortSignal(controller.signal);
-                                if (crossErr) throw crossErr;
-                                if (crossData) for (const item of crossData) {
-                                    if (seen.has(item.id)) continue;
-                                    seen.add(item.id);
-                                    target.data.push(item);
-                                }
-                            }
+                            chunkTasks.push(async () => {
+                                const timeCutoff = adjustedSyncTime && !fullSync ? adjustedSyncTime : oneYearAgoKs;
+                                const [payCrossRes, logCrossRes] = await Promise.all([
+                                    supabase.from('payments').select('*').neq('branch_id', currentUser.id).in(col, chunk).gt('updated_at', timeCutoff).limit(5000).abortSignal(controller.signal),
+                                    supabase.from('collection_logs').select('*').neq('branch_id', currentUser.id).in(col, chunk).gt('updated_at', timeCutoff).limit(5000).abortSignal(controller.signal)
+                                ]);
+                                if (payCrossRes.error) throw payCrossRes.error;
+                                if (logCrossRes.error) throw logCrossRes.error;
+                                (payCrossRes.data || []).forEach((item: any) => {
+                                    if (!seenPay.has(item.id)) {
+                                        seenPay.add(item.id);
+                                        payRes.data.push(item);
+                                    }
+                                });
+                                (logCrossRes.data || []).forEach((item: any) => {
+                                    if (!seenLog.has(item.id)) {
+                                        seenLog.add(item.id);
+                                        logRes.data.push(item);
+                                    }
+                                });
+                            });
                         }
                     }
+                    for (let i = 0; i < chunkTasks.length; i += 4) {
+                        await Promise.all(chunkTasks.slice(i, i + 4).map(fn => fn()));
+                    }
+                    lastCrossBranchSyncRef.current = Date.now();
                 }
                 paymentsResult = payRes;
                 logsResult = logRes;
@@ -674,13 +687,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 if (fullSync) throw err;
             }
 
-            // AUDIT FIX: Query de PAGO_ELIMINADO aislada con try-catch propio.
+            // AUDIT FIX: Query de PAGO_ELIMINADO aislada con try-catch propio y throttle de 10 min en incrementales.
             let deletedPaymentLogsData: any[] = [];
-            try {
-                const dpRes = await withTimeout(fetchAll(deletedPaymentLogsQuery, 'deleted_payments'), 8000);
-                deletedPaymentLogsData = dpRes?.data || [];
-            } catch (e) {
-                console.warn('[Sync] deletedPaymentLogs query failed (non-critical, skipping):', e);
+            if (fullSync || Date.now() - lastDeletedAuditFetchRef.current > 600000) {
+                try {
+                    const dpRes = await withTimeout(fetchAll(deletedPaymentLogsQuery, 'deleted_payments'), 8000);
+                    deletedPaymentLogsData = dpRes?.data || [];
+                    lastDeletedAuditFetchRef.current = Date.now();
+                } catch (e) {
+                    console.warn('[Sync] deletedPaymentLogs query failed (non-critical, skipping):', e);
+                }
             }
 
             console.log('[Sync] Data fetch complete. Errors:', syncHasCriticalErrors);

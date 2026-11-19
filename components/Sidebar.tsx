@@ -4,6 +4,36 @@ import { User, Role, AppState, CountryCode } from '../types';
 import { getTranslation } from '../utils/translations';
 import { formatCountryTime, getCountryName, getTimeZoneForCountry } from '../utils/helpers';
 
+const SidebarClock: React.FC<{ countryCode: CountryCode }> = React.memo(({ countryCode }) => {
+  const [currentDateStr, setCurrentDateStr] = useState<string>('');
+  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      const tz = getTimeZoneForCountry(countryCode);
+      const dateOpts: Intl.DateTimeFormatOptions = { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' };
+      const timeOpts: Intl.DateTimeFormatOptions = { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      setCurrentDateStr(new Intl.DateTimeFormat('es-ES', dateOpts).format(now).toUpperCase());
+      setCurrentTimeStr(new Intl.DateTimeFormat('es-ES', timeOpts).format(now));
+    };
+
+    const timer = setInterval(updateDateTime, 1000);
+    updateDateTime();
+    return () => clearInterval(timer);
+  }, [countryCode]);
+
+  return (
+    <div className="flex flex-col gap-1.5 text-emerald-400/90">
+      <span className="text-[10px] font-black tracking-widest leading-none text-emerald-400/90">{currentDateStr}</span>
+      <div className="flex items-center gap-2">
+        <i className="fa-regular fa-clock text-xs opacity-80"></i>
+        <span className="text-base font-black font-serif tracking-wider tabular-nums lining-nums leading-none">{currentTimeStr}</span>
+      </div>
+    </div>
+  );
+});
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -19,9 +49,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
   const isManager = user.role === Role.MANAGER;
   const isPowerUser = isAdmin || isManager;
 
-  const [currentDateStr, setCurrentDateStr] = useState<string>('');
-  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
-  const [isDaytime, setIsDaytime] = useState<boolean>(true);
   const t = getTranslation(state.settings.language).menu;
 
   const countryCode = state.settings.country as CountryCode;
@@ -34,31 +61,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
     JM: '🇯🇲', MX: '🇲🇽', NI: '🇳🇮', PA: '🇵🇦', PY: '🇵🇾', PE: '🇵🇪', DO: '🇩🇴',
     KN: '🇰🇳', VC: '🇻🇨', LC: '🇱🇨', SR: '🇸🇷', TT: '🇹🇹', UY: '🇺🇾', VE: '🇻🇪'
   };
-
-  useEffect(() => {
-    const updateDateTime = () => {
-      const now = new Date();
-      const tz = getTimeZoneForCountry(countryCode);
-      
-      const dateOpts: Intl.DateTimeFormatOptions = { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' };
-      const timeOpts: Intl.DateTimeFormatOptions = { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      
-      setCurrentDateStr(new Intl.DateTimeFormat('es-ES', dateOpts).format(now).toUpperCase());
-      setCurrentTimeStr(new Intl.DateTimeFormat('es-ES', timeOpts).format(now));
-
-      try {
-        const hourStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now);
-        const currentHour = parseInt(hourStr, 10);
-        setIsDaytime(currentHour >= 6 && currentHour < 19);
-      } catch (e) {
-        setIsDaytime(true);
-      }
-    };
-
-    const timer = setInterval(updateDateTime, 1000);
-    updateDateTime();
-    return () => clearInterval(timer);
-  }, [countryCode]);
 
   const menuItems = [
     { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
@@ -117,13 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
               <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
             </div>
           </div>
-          <div className="flex flex-col gap-1.5 text-emerald-400/90">
-            <span className="text-[10px] font-black tracking-widest leading-none text-emerald-400/90">{currentDateStr}</span>
-            <div className="flex items-center gap-2">
-              <i className="fa-regular fa-clock text-xs opacity-80"></i>
-              <span className="text-base font-black font-serif tracking-wider tabular-nums lining-nums leading-none">{currentTimeStr}</span>
-            </div>
-          </div>
+          <SidebarClock countryCode={countryCode} />
         </div>
       </div>
 

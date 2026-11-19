@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MiB
           globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+          globIgnores: ['**/*-legacy-*.js', '**/polyfills-legacy-*.js'],
           // index.html NO está en precaché → desactivar el fallback para evitar
           // el error "non-precached-url: index.html" de Workbox.
           // Las navegaciones las maneja NetworkFirst en runtimeCaching.
@@ -100,6 +101,7 @@ export default defineConfig(({ mode }) => {
             'vendor-react': ['react', 'react-dom'],
             'vendor-supabase': ['@supabase/supabase-js'],
             'vendor-capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/network'],
+            'vendor-pdf': ['jspdf', 'html2canvas'],
             // Chunks separados para componentes pesados → el APK los descarga bajo demanda
             'chunk-clients': ['./components/Clients'],
             'chunk-dashboard': ['./components/Dashboard'],

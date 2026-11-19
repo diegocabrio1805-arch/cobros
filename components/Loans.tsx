@@ -177,7 +177,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       if (viewMode === 'vencidos') {
         targetLoans = clientLoans.filter(loan => {
-          const pLogs = logsByLoan.get(String(loan.id).trim().toLowerCase());
+          const pLogs = logsByLoan.get(String(loan.id).trim().toLowerCase()) || [];
           const totalPaid = calculateTotalPaidFromLogs(loan, allLogs, pLogs);
           return getDaysOverdue(loan, state.settings, totalPaid) > 0;
         });
@@ -195,7 +195,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
         const hasActive = clientLoans.some(l => {
           if (l.status !== LoanStatus.ACTIVE && l.status !== LoanStatus.DEFAULT) return false;
-          const pLogs = logsByLoan.get(String(l.id).trim().toLowerCase());
+          const pLogs = logsByLoan.get(String(l.id).trim().toLowerCase()) || [];
           return (l.totalAmount - calculateTotalPaidFromLogs(l, allLogs, pLogs)) > 0.01;
         });
         
@@ -243,7 +243,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       }
       
       // Métricas consolidadas de TODOS los préstamos activos (estilo Cartera)
-      const clientLoans = allLoans.filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      const clientLoans = (loansByClient.get(client.id) || []).filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
       
       // Ordenar préstamos activos: Priorizar préstamos UUID recientes sobre préstamos legacy L-, y luego por fecha más reciente
       const sortedLoans = [...clientLoans].sort((a, b) => {
@@ -257,7 +257,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       const displayLoans = sortedLoans.length > 0 ? sortedLoans : (loans || []);
       const baseLoan = displayLoans[0];
 
-      const totalPaid = calculateTotalPaidFromLogs(baseLoan, allLogs);
+      const baseLoanLogs = logsByLoan.get(String(baseLoan.id || (baseLoan as any).loan_id || '').trim().toLowerCase()) || [];
+      const totalPaid = calculateTotalPaidFromLogs(baseLoan, allLogs, baseLoanLogs);
       const consolidatedBalance = Math.max(0, baseLoan.totalAmount - totalPaid);
       
       const consolidatedPrincipal = baseLoan.principal || 0;

@@ -23,10 +23,10 @@ import AppLoading from './components/AppLoading';
 
 // ── CARGA DIFERIDA (Lazy) ── Todo lo pesado se carga después del arranque ──
 // CRÍTICOS del flujo (se descargan en segundo plano, listos cuando el usuario los abre)
-import Dashboard from './components/Dashboard';
-import Clients from './components/Clients';
-import Loans from './components/Loans';
-import CollectionRoute from './components/CollectionRoute';
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Clients = lazy(() => import('./components/Clients'));
+const Loans = lazy(() => import('./components/Loans'));
+const CollectionRoute = lazy(() => import('./components/CollectionRoute'));
 const Reports = lazy(() => import('./components/Reports'));
 const MobileCollectorMode = lazy(() => import('./components/MobileCollectorMode'));
 const WeatherWidget = lazy(() => import('./components/WeatherWidget'));
@@ -285,7 +285,6 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
               <p className="text-[10px] text-slate-400 font-mono">v{CURRENT_VERSION_ID.split('-')[0]}</p>
-              {localStorage.getItem('syncQueue') && JSON.parse(localStorage.getItem('syncQueue') || '[]').filter((i:any) => i.lastError).length > 0 && <span className="text-[8px] text-red-500 max-w-[200px] truncate">{JSON.parse(localStorage.getItem('syncQueue') || '[]').filter((i:any) => i.lastError).map((i:any) => i.lastError).join(' | ')}</span>}
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -393,10 +392,10 @@ const App: React.FC = () => {
           <div className={`${activeTab === 'reports' ? 'w-full' : 'max-w-[1400px] mx-auto'} pb-12`}>
             {/* PERF FIX (12/10): Se quitó el keep-alive (display:none). Montar 4 pantallas pesadas a la vez
                 causaba lentitud y el error React #185 en el perfil Administrador. */}
-            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {/* ErrorBoundary envuelve Suspense para capturar ChunkLoadErrors offline */}
             <ErrorBoundary>
             <Suspense fallback={<div className="flex-1 w-full h-full min-h-[500px] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-slate-300 border-t-emerald-500 animate-spin"></div></div>}>
+            {activeTab === 'dashboard' && isPowerUser && <Dashboard state={filteredState} onViewClientDossier={(clientId) => { setInitialDossierClientId(clientId); setActiveTab('clients'); }} />}
             {activeTab === 'clients' && (
               <Clients 
                 state={filteredState} 

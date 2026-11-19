@@ -22,7 +22,6 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
 import { getFastLocation } from '../utils/gpsHelper';
-import { exportClientsToExcel, exportRenovacionesToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
 
 
@@ -837,7 +836,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0, totalInstallmentsCount = 0, paidInstallmentsCount = 0;
 
     if (activeLoan) {
-      const prefilteredLogs = logsByLoanIdMap.get(String(activeLoan.id || (activeLoan as any).loan_id || '').trim().toLowerCase());
+      const prefilteredLogs = logsByLoanIdMap.get(String(activeLoan.id || (activeLoan as any).loan_id || '').trim().toLowerCase()) || [];
       totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs, prefilteredLogs);
       balance = Math.max(0, activeLoan.totalAmount - totalPaid);
 
@@ -860,7 +859,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
       daysOverdue = Math.max(...clientLoans.map(l => {
-        const pLogs = logsByLoanIdMap.get(String(l.id || (l as any).loan_id || '').trim().toLowerCase());
+        const pLogs = logsByLoanIdMap.get(String(l.id || (l as any).loan_id || '').trim().toLowerCase()) || [];
         const lp = calculateTotalPaidFromLogs(l, state.collectionLogs, pLogs);
         return getDaysOverdue(l, state.settings, lp);
       }));
@@ -938,7 +937,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const vB = isNaN(tB) ? 0 : tB;
       return vB - vA;
     });
-  }, [state.clients, debouncedSearch, selectedCollector, state.loans, state.collectionLogs]);
+  }, [state.clients, debouncedSearch, selectedCollector, loansByClientIdMap]);
 
   // RESETEAR PAGINA AL FILTRAR
   useEffect(() => {
@@ -959,7 +958,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
-    const loans = Array.isArray(state.loans) ? state.loans : [];
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
     return (Array.isArray(state.clients) ? state.clients : []).map(client => {
@@ -979,7 +977,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const inRange = cDate >= start && cDate <= end;
       if (!inRange) return null;
 
-      const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+      const activeLoan = (loansByClientIdMap.get(client.id) || []).find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
 
       // En la pestaña "NUEVOS", por definición no mostramos renovaciones (van a su propia pestaña)
       if (activeLoan?.isRenewal) return null;
@@ -994,7 +992,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const metrics = clientMetricsMap[client.id] || getClientMetrics(client);
       return { ...client, _metrics: metrics };
     }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan?.createdAt || b.createdAt).getTime() - new Date(a._metrics.activeLoan?.createdAt || a.createdAt).getTime());
-  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans, clientMetricsMap]);
+  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, loansByClientIdMap, clientMetricsMap]);
 
   // HOTFIX PERF: pre-indexar mapas ANTES de renovaciones y cartera (O(n) vs O(n²) anterior)
   const renewalCountMap = useMemo(() => {
@@ -1040,6 +1038,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     const loans = Array.isArray(state.loans) ? state.loans : [];
     const clients = Array.isArray(state.clients) ? state.clients : [];
+    const clientsByIdLower = new Map<string, Client>();
+    clients.forEach(c => {
+      if (c && c.id) clientsByIdLower.set(c.id.toLowerCase(), c);
+    });
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
     return loans.filter(l => {
@@ -1054,7 +1056,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente O si el colector tiene historial con el cliente)
       const loanCollectorId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
       const lClientId = (l.clientId || (l as any).client_id || '').toLowerCase();
-      const clientObj = (clients || []).find(c => (c.id || '').toLowerCase() === lClientId);
+      const clientObj = clientsByIdLower.get(lClientId);
       const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
       const collectorLower = (selectedCollector || '').toLowerCase();
       
@@ -2642,6 +2644,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           console.warn("Failed to fetch branch clients for deduplication", err);
       }
 
+      const { processExcelImport } = await import('../utils/excelHelper');
       const data = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode, country, globalClients, state.loans, state.collectionLogs);
       setPreviewData(data);
     } catch (err) {
@@ -2723,7 +2726,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <Upload className="h-3 w-3" /> {((t as any).clients?.headers || {}).importExcel}
                 </button>
                 <button
-                  onClick={() => exportClientsToExcel(carteraExcelData, state.loans)}
+                  onClick={async () => {
+                    const { exportClientsToExcel } = await import('../utils/excelHelper');
+                    exportClientsToExcel(carteraExcelData, state.loans);
+                  }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
@@ -2734,7 +2740,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             {viewMode === 'renovaciones' && isAdminOrManager && (
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <button
-                  onClick={() => exportRenovacionesToExcel(renovacionesExcelData as any[])}
+                  onClick={async () => {
+                    const { exportRenovacionesToExcel } = await import('../utils/excelHelper');
+                    exportRenovacionesToExcel(renovacionesExcelData as any[]);
+                  }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
@@ -5261,7 +5270,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             
             <div className="space-y-4">
               <button 
-                onClick={() => downloadExcelTemplate(lang)}
+                onClick={async () => {
+                  const { downloadExcelTemplate } = await import('../utils/excelHelper');
+                  downloadExcelTemplate(lang);
+                }}
                 className="w-full py-3 bg-slate-100 text-slate-700 rounded-md font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all uppercase tracking-widest border border-slate-200 shadow-sm"
               >
                 <Download size={14} /> {im.download}

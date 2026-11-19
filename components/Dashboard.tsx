@@ -4,7 +4,6 @@ import { AppState, CollectionLogType, Role, LoanStatus, PaymentStatus, Simulated
 import { formatDate, formatDateWithDay, formatCurrency, getLocalDateStringForCountry, getDaysOverdue, calculateTotalPaidFromLogs, calculateMonthlyStats, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getFinancialInsights } from '../services/geminiService';
 import { getTranslation } from '../utils/translations';
-import { generateAuditPDF, generateDeletedPaymentsPDF } from '../utils/auditReportGenerator';
 import PullToRefresh from './PullToRefresh';
 import WeatherWidget from './WeatherWidget';
 import HolidaysWidget from './HolidaysWidget';
@@ -26,115 +25,6 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
   const [orders, setOrders] = useState<SimulatedOrder[]>([]);
   // IDs borrados en esta sesión (ocultamiento inmediato mientras la cola sube el DELETE)
   const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(new Set());
-
-  
-
-  const getClientBalance = (clientId: string) => {
-    const allClientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(
-      l => (l.clientId || (l as any).client_id) === clientId
-    );
-    if (allClientLoans.length === 0) return 0;
-    
-    // Paridad 100% con el Expediente (Clients.tsx - getClientMetrics):
-    // Se toma el préstamo activo más reciente
-    const sortedLoans = allClientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    let activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT);
-    if (!activeLoan && sortedLoans.length > 0) {
-      activeLoan = sortedLoans[0];
-    }
-    if (!activeLoan) return 0;
-
-    const totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs || []);
-    const balance = Math.max(0, activeLoan.totalAmount - totalPaid);
-    if (balance <= 0.01 || activeLoan.status === LoanStatus.PAID) {
-      return 0;
-    }
-    return balance;
-  };
-
-  const loadOrders = () => {
-    // FIX PARPADEO: Si los préstamos aún no cargaron, el filtro anti-zombie no tiene
-    // contra qué comparar y se mostrarían pedidos ya finiquitados. Esperamos a tener préstamos.
-    const loansReady = Array.isArray(state.loans) && state.loans.length > 0;
-    if (!loansReady) { setOrders([]); return; }
-
-    const cloudOrders = state.simulatedOrders || [];
-    const queueStr = localStorage.getItem('syncQueue');
-    let localAdds: SimulatedOrder[] = [];
-    let localDeletes = new Set<string>();
-    
-    if (queueStr) {
-      try {
-        const queue = JSON.parse(queueStr);
-        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
-        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
-      } catch (e) {}
-    }
-    
-    const combined = [...localAdds, ...cloudOrders];
-    
-    const uniqueOrders: SimulatedOrder[] = [];
-    const seenIds = new Set<string>();
-    
-    for (const order of combined) {
-      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !hiddenOrderIds.has(order.id)) {
-        seenIds.add(order.id);
-        uniqueOrders.push(order);
-      }
-    }
-    
-    // REGLA 1: Eliminar pedidos donde el saldo actual >= monto solicitado
-    // (el efectivo a entregar sería 0 o negativo, el pedido es inválido)
-    const validOrders = uniqueOrders.filter(order => {
-      const balance = getClientBalance(order.clientId);
-      
-      if (balance > 0 && balance >= order.principal * 0.9) return false;
-
-      // REGLA 2: Evitar "Pedidos Fantasma" (Zombie Orders)
-      // Si el cliente ya tiene un préstamo creado en la misma fecha o después de este pedido,
-      // significa que el pedido ya fue aprobado/procesado.
-      if (order.createdAt) {
-        const orderDate = new Date(order.createdAt);
-        // Margen de 12 horas antes para cubrir cualquier diferencia de zona horaria o creación en el día
-        const marginDate = new Date(orderDate.getTime() - (12 * 60 * 60 * 1000)); 
-        
-        const hasNewerLoan = (Array.isArray(state.loans) ? state.loans : []).some(
-          l => (l.clientId || (l as any).client_id) === order.clientId && 
-               new Date(l.createdAt || (l as any).created_at) >= marginDate
-        );
-        if (hasNewerLoan) return false;
-      }
-
-      return true;
-    });
-
-    setOrders(validOrders);
-  };
-
-  const formatSafeCreatedAt = (createdAt?: string) => {
-    if (!createdAt) return '---';
-    try {
-      const d = new Date(createdAt);
-      if (isNaN(d.getTime())) return '---';
-      return `${formatDate(createdAt)} ${formatLocalTime(createdAt, state.settings?.country || 'PY')}`;
-    } catch (e) {
-      return '---';
-    }
-  };
-
-  useEffect(() => {
-    loadOrders();
-    const handleForceSync = () => loadOrders();
-    window.addEventListener('force-sync', handleForceSync);
-    return () => window.removeEventListener('force-sync', handleForceSync);
-  }, [state.settings.country, state.simulatedOrders, state.loans, state.collectionLogs, hiddenOrderIds]);
-
-  const handleDeleteOrder = (id: string) => {
-    setHiddenOrderIds(prev => new Set(prev).add(id));
-    addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
-    const event = new CustomEvent('force-sync');
-    window.dispatchEvent(event);
-  };
 
   const t = getTranslation(state.settings.language).dashboard;
   const isAdmin = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER;
@@ -199,6 +89,116 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     }
     return map;
   }, [state.loans, state.collectionLogs, paymentLogsByLoanId]);
+
+  const loansByClientMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const allLoans = Array.isArray(state.loans) ? state.loans : [];
+    for (let i = 0; i < allLoans.length; i++) {
+      const l = allLoans[i];
+      const cId = l.clientId || (l as any).client_id;
+      if (!cId) continue;
+      let arr = map.get(cId);
+      if (!arr) { arr = []; map.set(cId, arr); }
+      arr.push(l);
+    }
+    map.forEach(list => {
+      list.sort((a, b) => {
+        const aIsLegacy = String(a.id || '').startsWith('L-') ? 1 : 0;
+        const bIsLegacy = String(b.id || '').startsWith('L-') ? 1 : 0;
+        if (aIsLegacy !== bIsLegacy) return aIsLegacy - bIsLegacy;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    });
+    return map;
+  }, [state.loans]);
+
+  const getClientBalance = (clientId: string) => {
+    const sortedLoans = loansByClientMap.get(clientId) || [];
+    if (sortedLoans.length === 0) return 0;
+
+    // Paridad 100% con el Expediente (Clients.tsx - getClientMetrics):
+    const activeLoan = sortedLoans.find(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) || sortedLoans[0];
+    if (!activeLoan) return 0;
+
+    const totalPaid = logsByLoanId.get(activeLoan.id) ?? 0;
+    const balance = Math.max(0, activeLoan.totalAmount - totalPaid);
+    if (balance <= 0.01 || activeLoan.status === LoanStatus.PAID) {
+      return 0;
+    }
+    return balance;
+  };
+
+  const loadOrders = () => {
+    const loansReady = loansByClientMap.size > 0;
+    if (!loansReady) { setOrders([]); return; }
+
+    const cloudOrders = state.simulatedOrders || [];
+    const queueStr = localStorage.getItem('syncQueue');
+    let localAdds: SimulatedOrder[] = [];
+    let localDeletes = new Set<string>();
+
+    if (queueStr) {
+      try {
+        const queue = JSON.parse(queueStr);
+        localAdds = queue.filter((q: any) => q.operation === 'ADD_SIMULATED_ORDER').map((q: any) => q.data);
+        localDeletes = new Set(queue.filter((q: any) => q.operation === 'DELETE_SIMULATED_ORDER').map((q: any) => q.data.id));
+      } catch (e) {}
+    }
+
+    const combined = [...localAdds, ...cloudOrders];
+    const uniqueOrders: SimulatedOrder[] = [];
+    const seenIds = new Set<string>();
+
+    for (const order of combined) {
+      if (!seenIds.has(order.id) && !localDeletes.has(order.id) && !hiddenOrderIds.has(order.id)) {
+        seenIds.add(order.id);
+        uniqueOrders.push(order);
+      }
+    }
+
+    const validOrders = uniqueOrders.filter(order => {
+      const balance = getClientBalance(order.clientId);
+      if (balance > 0 && balance >= order.principal * 0.9) return false;
+
+      if (order.createdAt) {
+        const orderDate = new Date(order.createdAt);
+        const marginDate = new Date(orderDate.getTime() - (12 * 60 * 60 * 1000));
+        const hasNewerLoan = (loansByClientMap.get(order.clientId) || []).some(
+          l => new Date(l.createdAt || (l as any).created_at) >= marginDate
+        );
+        if (hasNewerLoan) return false;
+      }
+
+      return true;
+    });
+
+    setOrders(validOrders);
+  };
+
+  const formatSafeCreatedAt = (createdAt?: string) => {
+    if (!createdAt) return '---';
+    try {
+      const d = new Date(createdAt);
+      if (isNaN(d.getTime())) return '---';
+      return `${formatDate(createdAt)} ${formatLocalTime(createdAt, state.settings?.country || 'PY')}`;
+    } catch (e) {
+      return '---';
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+    const handleForceSync = () => loadOrders();
+    window.addEventListener('force-sync', handleForceSync);
+    return () => window.removeEventListener('force-sync', handleForceSync);
+  }, [state.settings.country, state.simulatedOrders, loansByClientMap, logsByLoanId, hiddenOrderIds]);
+
+  const handleDeleteOrder = (id: string) => {
+    setHiddenOrderIds(prev => new Set(prev).add(id));
+    addToSyncQueue({ operation: 'DELETE_SIMULATED_ORDER', data: { id } });
+    const event = new CustomEvent('force-sync');
+    window.dispatchEvent(event);
+  };
 
   // 1.7. Precalcular los días de mora de todos los créditos activos/vencidos una sola vez
   const loansOverdueMap = useMemo(() => {
@@ -920,7 +920,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     };
   }, [auditCollector, auditStartDate, auditEndDate, state.collectionLogs, state.loans, state.clients]);
 
-  const handleGenerateAuditPDF = () => {
+  const handleGenerateAuditPDF = async () => {
+    const { generateAuditPDF } = await import('../utils/auditReportGenerator');
     const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
     generateAuditPDF({
       collectorName,
@@ -932,7 +933,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onViewClientDossier }) => 
     });
   };
 
-  const handleGenerateDeletedPaymentsPDF = () => {
+  const handleGenerateDeletedPaymentsPDF = async () => {
+    const { generateDeletedPaymentsPDF } = await import('../utils/auditReportGenerator');
     const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
     const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
     const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);

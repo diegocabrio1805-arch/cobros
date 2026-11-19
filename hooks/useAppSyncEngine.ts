@@ -32,9 +32,19 @@ export const useAppSyncEngine = (
   resolvedSettings: any,
   isInitializing: boolean
 ) => {
+  const saveTimeoutRef = useRef<any>(null);
+  const skipNextDebouncedSaveRef = useRef(false);
+  const lastImmediateSaveAtRef = useRef(0);
+
   // Función para guardar el estado inmediatamente en IndexedDB (Crítico para robustez offline)
   const immediateSave = useCallback(async (stateToSave: AppState) => {
     try {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      skipNextDebouncedSaveRef.current = true;
+      lastImmediateSaveAtRef.current = Date.now();
       await StorageService.setItem('prestamaster_v3', stateToSave);
       if (stateToSave.currentUser) {
         await Preferences.set({ key: 'NATIVE_CURRENT_USER', value: JSON.stringify(stateToSave.currentUser) });
@@ -250,8 +260,6 @@ export const useAppSyncEngine = (
     }
   }, [setSuccessMessage, forceFullSync, processQueue, pullData]);
 
-  const saveTimeoutRef = useRef<any>(null);
-
   const cancelPendingSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -268,6 +276,12 @@ export const useAppSyncEngine = (
     // CRITICAL MULTI-TENANT GUARD: Nunca guardar estado local si el usuario es null (ej. logout en proceso)
     if (!state.currentUser) return;
 
+    // Evitar doble escritura inmediata tras un immediateSave reciente
+    if (skipNextDebouncedSaveRef.current && Date.now() - lastImmediateSaveAtRef.current < 500) {
+      skipNextDebouncedSaveRef.current = false;
+      return;
+    }
+
     saveTimeoutRef.current = setTimeout(() => {
       try {
         if (state.currentUser) {
@@ -277,7 +291,7 @@ export const useAppSyncEngine = (
       } catch (e) {
         console.error("IDB Save Error:", e);
       }
-    }, 2000); // 2 segundos de gracia
+    }, 2500); // 2.5 segundos de gracia
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -577,6 +591,10 @@ export const useAppSyncEngine = (
     if (user.role === Role.ADMIN || user.role === Role.MANAGER) return user.id;
     return user.managedBy || 'none';
   };
+
+  useEffect(() => {
+    (window as any)._activeBranchId = state.currentUser ? getBranchId(state.currentUser) : '';
+  }, [state.currentUser?.id, state.currentUser?.role, state.currentUser?.managedBy]);
 
   const filteredState = useMemo(() => {
     if (!state.currentUser) return state;
